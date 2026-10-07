@@ -209,6 +209,7 @@ const long = { ...facts, name: "Charizard ex Special Illustration Rare Premium C
 check("title stays within 60 and keeps the word price", cp.cardTitle(long), (t) => t.length <= 60 && t.endsWith("price"));
 check("1st Edition stays in the heading", cp.cardHeading({ ...facts, tags: ["1st Edition"] }), (h) => h.includes("1st Edition"));
 check("facts paragraph states only catalog facts", cp.factsParagraph(facts), "Charizard is card 4/102 in Base Set, released Jan 9, 1999.");
+check("... a preorder set is 'out', not 'released' (Magic Star Trek, 10-07)", cp.factsParagraph({ ...facts, release: "2026-11-13" }, "2026-10-07"), "Charizard is card 4/102 in Base Set, out Nov 13, 2026.");
 check("Yu-Gi-Oh! tags", cp.printingTags("yugioh", { id: "ygo-1-1st", rarity: "Ultra Rare", variant: null }), ["Ultra Rare", "1st Edition"]);
 check("Pok\u00e9mon 1st-Edition twin is excluded nowhere: its key is valid", cp.parseCardKey("pokemon", "base1-4-1st"), "base1-4-1st");
 check("exclusions", [cp.cardExclusion("pokemon", "sealed-x", true, "i"), cp.cardExclusion("pokemon", "base1-4", false, "i"), cp.cardExclusion("pokemon", "base1-4", true, ""), cp.cardExclusion("pokemon", "base1-4", true, "i")], ["bad-key", "orphan", "no-image", null]);

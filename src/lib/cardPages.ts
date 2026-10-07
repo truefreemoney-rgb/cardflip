@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { GAMES, printedCardNumber, SET_IN_NUMBER_GAMES } from "@/lib/games";
 import { formatMoney, formatVariantLabel } from "@/lib/listing";
-import { addDays, dayIndex, type HistoryPoint } from "@/lib/priceSeries";
+import { addDays, dayIndex, todayUtc, type HistoryPoint } from "@/lib/priceSeries";
 import { cleanSeriesPoints } from "@/lib/priceOutliers";
 import type { PriceFlag, PriceStale } from "@/lib/priceFlag";
 import { etDate } from "@/lib/time";
@@ -401,8 +401,9 @@ export function cardTitle(f: CardFacts, max = 60): string {
 }
 
 /** The catalog facts as one plain paragraph: only what the catalog holds, nothing invented. */
-export function factsParagraph(f: CardFacts): string {
-  const released = f.release ? `, released ${etDate(`${f.release}T12:00:00Z`)}` : "";
+export function factsParagraph(f: CardFacts, today = todayUtc()): string {
+  // A preorder set (Magic Star Trek, out Nov 13, 2026) is not "released" yet.
+  const released = f.release ? `, ${f.release > today ? "out" : "released"} ${etDate(`${f.release}T12:00:00Z`)}` : "";
   const bits = [`${f.name} is card ${f.number} in ${f.setName}${released}.`];
   if (f.tags.length) bits.push(`This printing is listed as ${f.tags.join(", ")}.`);
   else if (f.rarity) bits.push(`Its rarity is ${f.rarity}.`);
