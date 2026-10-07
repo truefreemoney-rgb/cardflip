@@ -42,8 +42,12 @@ Mine, next (no Chris needed), easiest first:
    only gclid is missing, add with item 3.
    Also shipped 5e404653 (Chris asked): same /scan page signed in or out,
    "Open App" header when signed in, live stats strip back under the steps.
-3. Google Ads tag + conversions (signup, price shown) behind
-   NEXT_PUBLIC_GOOGLE_ADS_ID; Consent Mode defaults; privacy page line.
+3. [x] Google Ads plumbing c852dfc5, dormant until Vercel has
+   NEXT_PUBLIC_GOOGLE_ADS_ID (AW-...) + NEXT_PUBLIC_GOOGLE_ADS_SIGNUP_LABEL
+   (+ _PURCHASE_LABEL); needs a redeploy after setting (REST redeploy, not an
+   empty commit). gclid/gbraid/wbraid -> source "googleads", ttclid -> tiktok.
+   Still to do at launch (visible, ask Chris): one privacy-page line naming
+   Google Ads; tracking template {lpurl}?utm_source=googleads&utm_campaign={campaignid}.
 4. ~~After-fees line on the price result~~: shipped then REVERTED 33eb22f3,
    Chris didn't agree to it. Don't re-add without asking.
 5. Search landers for Google (free value first, search box on top):
