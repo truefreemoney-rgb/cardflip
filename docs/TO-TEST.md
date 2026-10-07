@@ -3,6 +3,11 @@
 Things that shipped but were never exercised on a real phone or with real
 traffic. Tick when tested; note what you saw. Newest batch first.
 
+## 10-07 Charizard ad landing page + Skyridge headline fix
+- [ ] /pokemon/charizard-card-value on a real phone: title, Scan button opens /scan with Pokémon picked, card tiles open their price pages.
+- [ ] Skyridge Charizard 146/144 card page no longer headlines $2,999.99 (shows the "looks off" note instead, once its cache turns over).
+- [ ] First Google Ads click on the Charizard ad group lands here (admin attribution shows the path).
+
 ## 10-07 phone fixes (d852a6c8) — passed in pane at 375 px, real phone not yet
 - [ ] Home game pill: "Yu-Gi-Oh!" never splits across lines.
 - [ ] Inventory > View card: Active chip sits in the Market Price box corner (no own row).

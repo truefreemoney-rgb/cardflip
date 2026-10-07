@@ -608,6 +608,36 @@ export async function otherPrintings(game: GameId, f: Pick<CardFacts, "name" | "
   });
 }
 
+/**
+ * Every printing whose name has this word in it (Charizard → "Charizard ex", "Dark Charizard", "Charizard & Braixen-GX"),
+ * most valuable first, each with the price the guard believes: the grid of the ad landing pages (lib/nameLandings.ts,
+ * Chris 10-07). One LIKE walk of the catalog per name a day, then cached; the term comes from a fixed list, never the URL.
+ */
+export async function nameTiles(game: GameId, term: string, limit = 60): Promise<{ tiles: Tile[]; priced: number }> {
+  const tiles = await cachedTiles(`seo:namelist:v2:${game}:${term.toLowerCase()}`, async () => {
+    const word = new RegExp(`\\b${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+    const rows = (await catalogRows(game, "name LIKE ?", [`%${term}%`])).filter((r) => word.test(r.name));
+    if (rows.length === 0) return [];
+    const index = await setIndex(game);
+    const today = todayUtc();
+    const trust = await loadTrustData(rows.map((r) => ({ cardId: r.id, game })), today);
+    const out: Tile[] = [];
+    for (const r of rows) {
+      const data = trust.get(r.id);
+      if (!data) continue;
+      const prices = variantPrices(game, data.series.map((s) => ({ ...s, flag: judgeSeries(data, { variant: s.variant, exact: true, day: today }) })), today);
+      const head = headlinePrice(prices);
+      if (!head || isUnverified(head) || head.stale) continue;
+      const setSlug = index.slugOf.get(r.set_key);
+      if (!setSlug) continue;
+      const fx = factsOf(game, r, setSlug);
+      out.push({ key: r.key, name: fx.name, number: fx.number, tags: fx.tags, image: fx.image, price: head.price, flagged: false, unverified: false, setSlug, setName: fx.setName });
+    }
+    return out.sort((a, b) => (b.price ?? 0) - (a.price ?? 0));
+  });
+  return { tiles: tiles.slice(0, limit), priced: tiles.length };
+}
+
 /** Top candidates by catalog price, dearer first; the guard prunes them afterwards. */
 async function topCandidates(game: GameId, limit: number): Promise<{ id: string; set_key: string }[]> {
   if (game === "pokemon") {
