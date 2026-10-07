@@ -51,12 +51,19 @@ export default async function NameLandingPage({ params }: { params: Promise<{ sl
         <p className="mt-2 max-w-prose leading-relaxed text-zinc-400">
           Every {name} Pokémon card and its market price today, most valuable first. Not sure which {name} you have? Scan it and CardFlip finds the exact printing.
         </p>
-        <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+        <div className="mt-4 flex flex-col gap-2 sm:w-fit">
           <Link
             href="/scan?game=pokemon"
             className="flex h-12 items-center justify-center rounded-2xl bg-gradient-to-r from-brand-500 to-violet-500 px-6 font-semibold text-white shadow-lg shadow-brand-500/25 transition hover:brightness-110"
           >
             Scan Your {name} Card Free
+          </Link>
+          {/* Chris, 10-07: a straight path to signup under the scan button for ad visitors. */}
+          <Link
+            href="/signup"
+            className="flex h-12 items-center justify-center rounded-2xl border border-edge bg-surface-1 px-6 font-semibold text-white transition hover:border-brand-400"
+          >
+            Start Your Free Trial
           </Link>
         </div>
 

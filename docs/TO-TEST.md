@@ -3,6 +3,10 @@
 Things that shipped but were never exercised on a real phone or with real
 traffic. Tick when tested; note what you saw. Newest batch first.
 
+## 10-07 "Start Your Free Trial" button on /pokemon/<name>-card-value pages
+- [ ] Real phone: button sits under "Scan Your X Card Free", tap lands on /signup.
+- [ ] Google Ads: signups from name pages show up in the 10-08 review.
+
 ## 10-07 "Works best on your phone" line on /scan and /app scanner
 - [ ] Desktop: line shows under the /scan headline and at the top of the empty /app scanner, one line.
 - [ ] Real phone (iPhone + Android): line does NOT show on either page (checked only in pane emulation).
