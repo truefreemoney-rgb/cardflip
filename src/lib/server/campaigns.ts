@@ -4,7 +4,7 @@ import { PLAN_NAME, PRICE, SCANS } from "@/lib/pricing";
 import { digestTokenFor } from "@/lib/server/digest";
 import { isMailConfigured, sendCampaignEmail } from "@/lib/server/mail";
 import { getSetting, setSetting } from "@/lib/server/settings";
-import { listAllUsers, scanQuota, scanTier, type User } from "@/lib/server/users";
+import { OWNER_EMAIL, listAllUsers, scanQuota, scanTier, type User } from "@/lib/server/users";
 
 /**
  * Admin email campaigns (Chris, 10-07): about two mails a week to users who
@@ -14,7 +14,9 @@ import { listAllUsers, scanQuota, scanTier, type User } from "@/lib/server/users
  *   scans_left    free trial, scans still left  -> "you still have N free scans"
  *   out_of_scans  free trial, all scans used    -> Booster / plan prices
  *
- * Subscribers, Booster holders, legacy, comped and admin accounts get none.
+ * Subscribers, Booster holders, legacy, comped and admin accounts get none,
+ * and neither does any account made before 10-07 (SIGNUP_CUTOFF, Chris).
+ * The owner gets a [COPY] of each mail that went out in a run.
  * OFF by default (settings key email_campaigns_on, only "1" is on): Chris is
  * perfecting the copy first. Test sends from /admin/emails work while off.
  *
@@ -41,6 +43,8 @@ export const SAME_GAP_DAYS = 7;
 export const MAX_PER_CAMPAIGN = 3;
 /** A brand-new account gets the signup welcome, not a campaign. */
 const MIN_AGE_MS = 24 * 3_600_000;
+/** Chris 10-07: accounts made before 10-07 (Eastern midnight) never get campaign mail. The owner gets a copy of each mail that goes out instead. */
+export const SIGNUP_CUTOFF = Date.parse("2026-10-07T04:00:00Z");
 const USER_CAP = 500;
 const DAY = 86_400_000;
 
@@ -110,7 +114,7 @@ function unsubUrlFor(userId: string, token: string): string {
   return `${site()}/api/digest/unsubscribe?u=${encodeURIComponent(userId)}&t=${encodeURIComponent(token)}&k=updates`;
 }
 
-async function logSend(row: { userId: string | null; email: string; campaign: string; status: "sent" | "failed" | "test"; error?: string }, now = Date.now()): Promise<void> {
+async function logSend(row: { userId: string | null; email: string; campaign: string; status: "sent" | "failed" | "test" | "copy"; error?: string }, now = Date.now()): Promise<void> {
   await db
     .prepare("INSERT INTO email_sends (user_id, email, campaign, status, error, sent_at) VALUES (?, ?, ?, ?, ?, ?)")
     .run(row.userId, row.email, row.campaign, row.status, row.error ?? null, now);
@@ -160,7 +164,7 @@ async function candidates(now = Date.now()): Promise<Candidate[]> {
   const history = await sendHistory();
   const out: Candidate[] = [];
   for (const user of await listAllUsers()) {
-    if (off.has(user.id) || now - user.createdAt < MIN_AGE_MS) continue;
+    if (off.has(user.id) || user.createdAt < SIGNUP_CUTOFF || now - user.createdAt < MIN_AGE_MS) continue;
     const c = campaignFor(user);
     if (!c) continue;
     out.push({ user, id: c.id, scansLeft: c.scansLeft, blocked: capBlocks(history.get(user.id), c.id, now) });
@@ -243,6 +247,7 @@ export async function sweepCampaigns(
   const due = (await candidates(now)).filter((c) => !c.blocked).slice(0, USER_CAP);
   let sent = 0;
   let failed = 0;
+  const wentOut = new Set<CampaignId>();
   for (const c of due) {
     try {
       const token = await digestTokenFor(c.user.id);
@@ -250,10 +255,22 @@ export async function sweepCampaigns(
       await send(c.user.email, m);
       await logSend({ userId: c.user.id, email: c.user.email, campaign: c.id, status: "sent" }, now);
       sent++;
+      wentOut.add(c.id);
     } catch (err) {
       failed++;
       await logSend({ userId: c.user.id, email: c.user.email, campaign: c.id, status: "failed", error: err instanceof Error ? err.message : String(err) }, now);
       console.error(`campaign ${c.id} to ${c.user.email} failed:`, err);
+    }
+  }
+  // The owner's copy (Chris 10-07): one of each mail that reached somebody this run, never counted in caps.
+  for (const id of wentOut) {
+    try {
+      const first = due.find((c) => c.id === id)!;
+      const m = renderCampaign(id, { firstName: "Chris", scansLeft: first.scansLeft, unsubUrl: `${site()}/api/digest/unsubscribe?u=copy&t=copy&k=updates` });
+      await send(OWNER_EMAIL, { ...m, subject: `[COPY] ${m.subject}` });
+      await logSend({ userId: null, email: OWNER_EMAIL, campaign: id, status: "copy" }, now);
+    } catch (err) {
+      console.error(`campaign ${id} owner copy failed:`, err);
     }
   }
   return { due: due.length, sent, failed };

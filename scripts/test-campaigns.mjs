@@ -20,8 +20,8 @@ process.once("exit", () => {
 console.error = () => {};
 
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
-const { sweepCampaigns, capBlocks, renderCampaign, MIN_GAP_DAYS, MAX_PER_CAMPAIGN } = await import(at("lib/server/campaigns.ts"));
-const { createUser } = await import(at("lib/server/users.ts"));
+const { sweepCampaigns, capBlocks, renderCampaign, MIN_GAP_DAYS, MAX_PER_CAMPAIGN, SIGNUP_CUTOFF } = await import(at("lib/server/campaigns.ts"));
+const { createUser, OWNER_EMAIL: OWNER } = await import(at("lib/server/users.ts"));
 const { PRICE, SCANS } = await import(at("lib/pricing.ts"));
 const { db } = await import(at("lib/db.ts"));
 
@@ -33,7 +33,7 @@ function check(label, actual, expected = true) {
 }
 
 const DAY = 86_400_000;
-const TUE = Date.UTC(2026, 9, 6, 14, 0, 0); // Tuesday 10:00 ET
+const TUE = Date.UTC(2026, 9, 13, 14, 0, 0); // Tuesday 10:00 ET
 const WED = TUE + DAY;
 const old = TUE - 3 * DAY;
 
@@ -42,11 +42,13 @@ const out = await createUser("Misty", "out@example.com", "hunter22", "user");
 const fresh = await createUser("New", "fresh@example.com", "hunter22", "user");
 const admin = await createUser("Boss", "boss@example.com", "hunter22", "admin");
 const unsub = await createUser("Gone", "gone@example.com", "hunter22", "user");
-await db.prepare("UPDATE users SET created_at = ? WHERE id != ?").run(old, fresh.id);
+const before = await createUser("Early", "early@example.com", "hunter22", "user");
+await db.prepare("UPDATE users SET created_at = ? WHERE id NOT IN (?, ?)").run(old, fresh.id, before.id);
 await db.prepare("UPDATE users SET created_at = ? WHERE id = ?").run(TUE - 3_600_000, fresh.id);
 await db.prepare("UPDATE users SET trial_scans_used = 2 WHERE id = ?").run(left.id);
 await db.prepare("UPDATE users SET trial_scans_used = ? WHERE id = ?").run(SCANS.trial, out.id);
 await db.prepare("UPDATE users SET digest_off = 1 WHERE id = ?").run(unsub.id);
+await db.prepare("UPDATE users SET created_at = ? WHERE id = ?").run(SIGNUP_CUTOFF - 1, before.id);
 
 const mails = [];
 const deps = (on = true, fail = false) => ({
@@ -65,7 +67,8 @@ const failed = await sweepCampaigns(TUE, {}, deps(true, true));
 check("failed sends counted", [failed.sent, failed.failed], [0, 2]);
 
 const r = await sweepCampaigns(TUE, {}, deps());
-check("only the two trial users get mail", mails.map((m) => m.to).sort(), ["left@example.com", "out@example.com"]);
+check("only the two trial users get mail (pre-10-07 account skipped)", mails.map((m) => m.to).filter((t) => t !== OWNER).sort(), ["left@example.com", "out@example.com"]);
+check("owner gets one [COPY] of each mail that went out", mails.filter((m) => m.to === OWNER).map((m) => m.subject.slice(0, 7)), ["[COPY] ", "[COPY] "]);
 check("sweep counts", [r.due, r.sent, r.failed], [2, 2, 0]);
 const mLeft = mails.find((m) => m.to === "left@example.com");
 const mOut = mails.find((m) => m.to === "out@example.com");
@@ -75,10 +78,10 @@ check("unsubscribe link carries token + k=updates", /\/api\/digest\/unsubscribe\
 
 mails.length = 0;
 const again = await sweepCampaigns(TUE + DAY * (MIN_GAP_DAYS - 1), { force: true }, deps());
-check("inside the gap the two mailed users are skipped; the account that just turned a day old is mailed", [again.sent, mails.map((m) => m.to)], [1, ["fresh@example.com"]]);
+check("inside the gap the two mailed users are skipped; the account that just turned a day old is mailed", [again.sent, mails.map((m) => m.to).filter((t) => t !== OWNER)], [1, ["fresh@example.com"]]);
 
 const logged = await db.prepare("SELECT status, COUNT(*) AS n FROM email_sends GROUP BY status ORDER BY status").all();
-check("log has 2 failed + 3 sent", logged.map((x) => [x.status, Number(x.n)]), [["failed", 2], ["sent", 3]]);
+check("log has 3 owner copies + 2 failed + 3 sent", logged.map((x) => [x.status, Number(x.n)]), [["copy", 3], ["failed", 2], ["sent", 3]]);
 
 const h = (n, campaign, ago) => Array.from({ length: n }, () => ({ user_id: "x", campaign, sent_at: TUE - ago * DAY }));
 check("cap: recent mail blocks", capBlocks(h(1, "out_of_scans", 1), "scans_left", TUE), "mailed recently");

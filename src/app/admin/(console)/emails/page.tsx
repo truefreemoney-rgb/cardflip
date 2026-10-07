@@ -21,7 +21,7 @@ export default async function AdminEmailsPage() {
         <h1 className="font-display text-2xl font-bold text-white">Emails</h1>
         <p className="mt-1 text-sm text-zinc-400">
           Sends on {o.sendDays.join(" and ")} (Eastern) with the morning daily job. Each free-trial user gets the one mail that fits them.
-          Caps: {MIN_GAP_DAYS} days between mails, the same mail once every {SAME_GAP_DAYS} days, {MAX_PER_CAMPAIGN} of one mail ever. Paying users get none.
+          Caps: {MIN_GAP_DAYS} days between mails, the same mail once every {SAME_GAP_DAYS} days, {MAX_PER_CAMPAIGN} of one mail ever. Paying users and accounts made before Oct 7 get none; you get a copy of each mail that goes out.
           The Sunday digest is separate. The unsubscribe link stops both.
         </p>
         {!o.mailConfigured && <p className="mt-2 text-sm text-amber-300">Mail isn&apos;t set up on this server, so nothing can send here.</p>}
@@ -72,7 +72,7 @@ export default async function AdminEmailsPage() {
               <li key={i} className="flex flex-wrap items-baseline justify-between gap-x-3 px-3 py-2">
                 <span className="min-w-0 truncate text-zinc-200">{r.email}</span>
                 <span className="text-xs text-zinc-500">
-                  {r.campaign} · <span className={r.status === "failed" ? "text-red-300" : r.status === "test" ? "text-sky-300" : "text-emerald-300"}>{r.status}</span> · {etDateTime(r.sentAt)}
+                  {r.campaign} · <span className={r.status === "failed" ? "text-red-300" : r.status === "test" || r.status === "copy" ? "text-sky-300" : "text-emerald-300"}>{r.status}</span> · {etDateTime(r.sentAt)}
                 </span>
                 {r.error && <span className="w-full text-xs text-red-300">{r.error}</span>}
               </li>
