@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireAdminOwner, AuthError } from "@/lib/server/auth";
 import { adjustPlanScans, ledgerForUser } from "@/lib/server/scanCredits";
-import { findUserById, toPublicUser } from "@/lib/server/users";
+import { db } from "@/lib/db";
+import { TRIAL_SCANS, findUserById, scanTier, toPublicUser } from "@/lib/server/users";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -30,6 +31,16 @@ export async function POST(req: Request, { params }: RouteParams) {
     }
     const user = await findUserById(id);
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+    // A free-trial account (10-08, Chris: "add another scan to the benfeinstein account so I can test it again"):
+    // plan scans would sit frozen there, so the delta moves the trial counter instead (+1 = one more free scan).
+    if (scanTier(user) === "trial") {
+      const before = user.trialScansUsed ?? 0;
+      const after = Math.max(0, Math.min(TRIAL_SCANS, before - delta));
+      await db.prepare("UPDATE users SET trial_scans_used = ? WHERE id = ?").run(after, id);
+      console.log(`admin trial scans: ${user.email} used ${before} → ${after} (${note})`);
+      const updated = await findUserById(id);
+      return NextResponse.json({ applied: before - after, trial: true, trialLeftBefore: TRIAL_SCANS - before, trialLeftAfter: TRIAL_SCANS - after, user: updated ? toPublicUser(updated) : null, ledger: await ledgerForUser(id, 20) });
+    }
     const out = await adjustPlanScans(id, delta, note);
     const updated = await findUserById(id);
     return NextResponse.json({
