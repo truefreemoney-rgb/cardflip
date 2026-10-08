@@ -88,13 +88,6 @@ export async function PATCH(req: Request, { params }: RouteParams) {
             : null
           : undefined,
       priceLocked: typeof body?.priceLocked === "boolean" ? body.priceLocked : undefined,
-      // Shipping pick (10-08): "envelope" | "tracked" lands, anything else clears it.
-      shippingMethod:
-        "shippingMethod" in (body ?? {})
-          ? body.shippingMethod === "envelope" || body.shippingMethod === "tracked"
-            ? body.shippingMethod
-            : null
-          : undefined,
       // What they paid (09-27): a finite number >= 0 lands (to the cent), anything else clears it.
       costBasis:
         "costBasis" in (body ?? {})

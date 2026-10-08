@@ -26,7 +26,6 @@ import {
   buildOffer,
   ebayListingUrl,
   ebayRequestHeaders,
-  envelopeAttempts,
   fulfillmentAttempts,
   fulfillmentPolicyBody,
   locationBody,
@@ -44,7 +43,6 @@ import {
   type SellerListingPrefs,
 } from "@/lib/ebayInventory";
 import { findUserById } from "@/lib/server/users";
-import { ENVELOPE_MAX_USD, type ShipMethod } from "@/lib/fees";
 import { FxUnavailableError, getFxRates } from "@/lib/server/fx";
 import { LocalPriceError, marketFor, resolveLocalAsk, sellerAccountType, sellerMarket, type LocalAsk, type SellerMarket } from "@/lib/server/ebayMarket";
 
@@ -160,9 +158,6 @@ async function tokenFor(userId: string): Promise<string> {
 interface SellerDefaults {
   policies: ListingPolicies;
   merchantLocationKey: string | null;
-  /** Our two US policies by name (10-08): "CardFlip shipping" = tracked mailer, "CardFlip envelope" = eBay Standard Envelope. */
-  trackedPolicyId?: string;
-  envelopePolicyId?: string;
 }
 
 /** eBay's "not opted into Business Policies" answer on the policy endpoints. */
@@ -224,26 +219,9 @@ async function optIntoBusinessPolicies(token: string, mp: Marketplace = US_MARKE
  * ones. The seller can edit or replace them in Seller Hub afterwards;
  * CardFlip just refuses to make an empty account a dead end.
  */
-async function createDefaultPolicies(token: string, missing: { f: boolean; p: boolean; r: boolean; e?: boolean }, mp: Marketplace = US_MARKETPLACE): Promise<void> {
+async function createDefaultPolicies(token: string, missing: { f: boolean; p: boolean; r: boolean }, mp: Marketplace = US_MARKETPLACE): Promise<void> {
   const post = (path: string, body: unknown) => ebayFetch(token, "POST", path, body, undefined, mp);
   const jobs: Promise<unknown>[] = [];
-  if (missing.e) {
-    // The envelope policy (10-08): eBay Standard Envelope, free to the buyer. US only; when eBay refuses
-    // every try the card still lists on the tracked policy (the seller mails it as they picked).
-    jobs.push(
-      (async () => {
-        let last: unknown;
-        for (const a of envelopeAttempts(mp)) {
-          try {
-            return await post("/sell/account/v1/fulfillment_policy", fulfillmentPolicyBody(mp, a.serviceCode, a.carrierCode, "envelope"));
-          } catch (err) {
-            last = err;
-          }
-        }
-        throw last;
-      })(),
-    );
-  }
   if (missing.f) {
     // eBay's LSAS validator rejected the first shape of this (08-27:
     // LOGISTICS_INFO_IS_MISSING -- buyerResponsibleForShipping is a
@@ -292,44 +270,25 @@ async function ensureFreeShipping(token: string, fulfillmentPolicyId: string, mp
       name?: string;
       shippingOptions?: { shippingServices?: { shippingServiceCode?: string; shippingCarrierCode?: string; freeShipping?: boolean }[] }[];
     } | null;
-    if (!pol || typeof pol.name !== "string" || !(pol.name.startsWith("CardFlip shipping") || pol.name.startsWith("CardFlip envelope"))) return;
+    if (!pol || typeof pol.name !== "string" || !pol.name.startsWith("CardFlip shipping")) return;
     const svc = pol.shippingOptions?.[0]?.shippingServices?.[0];
     if (!svc || svc.freeShipping === true) return;
-    const kind = pol.name.startsWith("CardFlip envelope") ? "envelope" : "tracked";
-    const body = fulfillmentPolicyBody(mp, svc.shippingServiceCode || mp.shipping.serviceCode, svc.shippingCarrierCode ?? mp.shipping.carrierCode, kind);
+    const body = fulfillmentPolicyBody(mp, svc.shippingServiceCode || mp.shipping.serviceCode, svc.shippingCarrierCode ?? mp.shipping.carrierCode);
     await ebayFetch(token, "PUT", path, body, undefined, mp);
   } catch (err) {
     console.warn("eBay free-shipping policy update failed:", err instanceof Error ? err.message : err);
   }
 }
 
-/** Our named fulfillment policies on the account (US): read from the policy list, any failure = none found. */
-async function namedFulfillmentPolicies(token: string, mp: Marketplace): Promise<{ tracked?: string; envelope?: string }> {
-  try {
-    const json = (await ebayFetch(token, "GET", `/sell/account/v1/fulfillment_policy?marketplace_id=${mp.marketplaceId}`, undefined, undefined, mp)) as
-      { fulfillmentPolicies?: { fulfillmentPolicyId?: string; name?: string }[] } | null;
-    const out: { tracked?: string; envelope?: string } = {};
-    for (const p of json?.fulfillmentPolicies ?? []) {
-      if (typeof p.fulfillmentPolicyId !== "string" || typeof p.name !== "string") continue;
-      if (!out.envelope && p.name.startsWith("CardFlip envelope")) out.envelope = p.fulfillmentPolicyId;
-      if (!out.tracked && p.name.startsWith("CardFlip shipping")) out.tracked = p.fulfillmentPolicyId;
-    }
-    return out;
-  } catch {
-    return {};
-  }
-}
-
-async function policyIds(token: string, mp: Marketplace = US_MARKETPLACE): Promise<(ListingPolicies & { named: { tracked?: string; envelope?: string } }) | typeof NOT_OPTED_IN> {
+async function policyIds(token: string, mp: Marketplace = US_MARKETPLACE): Promise<ListingPolicies | typeof NOT_OPTED_IN> {
   const q = `marketplace_id=${mp.marketplaceId}`;
-  const [f, p, r, named] = await Promise.all([
+  const [f, p, r] = await Promise.all([
     firstId(token, `/sell/account/v1/fulfillment_policy?${q}`, "fulfillmentPolicies", "fulfillmentPolicyId", mp),
     firstId(token, `/sell/account/v1/payment_policy?${q}`, "paymentPolicies", "paymentPolicyId", mp),
     firstId(token, `/sell/account/v1/return_policy?${q}`, "returnPolicies", "returnPolicyId", mp),
-    mp.key === "US" ? namedFulfillmentPolicies(token, mp) : Promise.resolve({}),
   ]);
   if (f === NOT_OPTED_IN || p === NOT_OPTED_IN || r === NOT_OPTED_IN) return NOT_OPTED_IN;
-  return { fulfillmentPolicyId: f, paymentPolicyId: p, returnPolicyId: r, named };
+  return { fulfillmentPolicyId: f, paymentPolicyId: p, returnPolicyId: r };
 }
 
 async function sellerDefaults(token: string, mp: Marketplace = US_MARKETPLACE): Promise<SellerDefaults> {
@@ -351,13 +310,9 @@ async function sellerDefaults(token: string, mp: Marketplace = US_MARKETPLACE): 
       loc = null;
     }
   }
-  if (policies === NOT_OPTED_IN) return { policies: {}, merchantLocationKey: typeof loc === "string" ? loc : null };
-  const { named, ...plain } = policies;
   return {
-    policies: plain,
+    policies: policies === NOT_OPTED_IN ? {} : policies,
     merchantLocationKey: typeof loc === "string" ? loc : null,
-    trackedPolicyId: named.tracked,
-    envelopePolicyId: named.envelope,
   };
 }
 
@@ -502,26 +457,6 @@ function requireVerified(card: { verifiedAt: number | null; status: string; ebay
   throw new EbaySellError("Verify the card match first — open the card and tap Verify match", 409);
 }
 
-/**
- * Shipping pick gate (Chris 10-08: "we shouldn't let the user post to eBay
- * unless they pick a shipping option"). Cards need a pick; sealed product
- * always ships tracked. The envelope is only legal under eBay's $20 cap.
- */
-function requireShipping(card: { kind: string; shippingMethod: ShipMethod | null; price: number }) {
-  if (card.kind === "sealed") return;
-  if (!card.shippingMethod) throw new EbaySellError("Pick a shipping option first — Envelope or Tracked mailer, under Shipping on the card", 409);
-  if (card.shippingMethod === "envelope" && card.price >= ENVELOPE_MAX_USD) {
-    throw new EbaySellError(`Over ${ENVELOPE_MAX_USD} eBay needs a tracked mailer — pick Tracked mailer under Shipping`, 409);
-  }
-}
-
-/** The policy a card lists on: its pick's policy when we have one, else the account's first (tracked for sealed). */
-function pickFulfillmentPolicy(defaults: SellerDefaults, method: ShipMethod | null, mp: Marketplace): string | undefined {
-  if (mp.key !== "US") return defaults.policies.fulfillmentPolicyId;
-  if (method === "envelope") return defaults.envelopePolicyId ?? defaults.trackedPolicyId ?? defaults.policies.fulfillmentPolicyId;
-  return defaults.trackedPolicyId ?? defaults.policies.fulfillmentPolicyId;
-}
-
 export async function createDraft(
   userId: string,
   draft: Omit<DraftInput, "hasPhoto">,
@@ -615,15 +550,9 @@ export async function pushDraft(
   userId: string,
   draft: Omit<DraftInput, "hasPhoto">,
 ): Promise<PushResult> {
-  let card = await getCardForUser(draft.cardId, userId);
+  const card = await getCardForUser(draft.cardId, userId);
   if (!card) throw new EbaySellError("That card isn't in your ledger", 404);
   requireVerified(card);
-  // The shipping pick rides along with the push (10-08) so the row is current before the gate reads it.
-  if (draft.shippingMethod && draft.shippingMethod !== card.shippingMethod) {
-    await updateCard(card.id, userId, { shippingMethod: draft.shippingMethod });
-    card = { ...card, shippingMethod: draft.shippingMethod };
-  }
-  requireShipping(card);
 
   // The listing photo is the seller's own, stored server-side; the client
   // never gets to claim one exists. Missing → the client shows the picker.
@@ -942,14 +871,9 @@ async function publishDraftLocked(
   // The offer was created with whatever defaults existed at push time —
   // usually nothing for a first-time seller. Resolve them now (opting in and
   // creating the location as needed), write them onto the offer, then publish.
-  requireShipping(card);
-  const method: ShipMethod | null = card.kind === "sealed" ? "tracked" : card.shippingMethod;
   let defaults = await sellerDefaults(token, mp);
-  let { paymentPolicyId, returnPolicyId } = defaults.policies;
-  let fulfillmentPolicyId = pickFulfillmentPolicy(defaults, method, mp);
-  // The envelope pick needs its own policy (10-08); create it alongside any missing default.
-  const wantsEnvelope = mp.key === "US" && method === "envelope" && !defaults.envelopePolicyId;
-  if (!fulfillmentPolicyId || !paymentPolicyId || !returnPolicyId || wantsEnvelope) {
+  let { fulfillmentPolicyId, paymentPolicyId, returnPolicyId } = defaults.policies;
+  if (!fulfillmentPolicyId || !paymentPolicyId || !returnPolicyId) {
     // An account with no policies is the normal first-publish state, not an
     // error: create plain defaults and look again (08-27 -- the Seller Hub
     // detour stopped Chris cold at the moment of first publish).
@@ -957,11 +881,9 @@ async function publishDraftLocked(
       f: !fulfillmentPolicyId,
       p: !paymentPolicyId,
       r: !returnPolicyId,
-      e: wantsEnvelope,
     }, mp);
     defaults = await sellerDefaults(token, mp);
-    ({ paymentPolicyId, returnPolicyId } = defaults.policies);
-    fulfillmentPolicyId = pickFulfillmentPolicy(defaults, method, mp);
+    ({ fulfillmentPolicyId, paymentPolicyId, returnPolicyId } = defaults.policies);
   }
   if (fulfillmentPolicyId) await ensureFreeShipping(token, fulfillmentPolicyId, mp);
   if (!fulfillmentPolicyId || !paymentPolicyId || !returnPolicyId) {

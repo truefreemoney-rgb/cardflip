@@ -50,10 +50,8 @@ export interface Marketplace {
   domain: string;
   /** Country of the seller's ship-from location. */
   locationCountry: string;
-  /** What the seller pays to post one card in a letter / envelope, local currency. */
+  /** What the seller pays to post one card, local currency. */
   postage: number;
-  /** Tracked mailer tier (US, 10-08): postage when the seller picks "tracked". Absent = letters only on this site. */
-  tracked?: { postage: number };
   /** Fee models by account type; UK and AU private sellers pay no final value fee. */
   fees: { private: FeeModel; business: FeeModel };
   /**
@@ -70,8 +68,6 @@ export interface Marketplace {
     fallbackServiceCode: string | null;
     /** Flat cost the default fulfillment policy charges the buyer, as eBay's decimal string; null = not decided yet. */
     policyCost: string | null;
-    /** Service for the envelope policy (US: eBay Standard Envelope, sale price under $20). */
-    envelopeServiceCode?: string;
   };
   /** Postal code label in prompts. */
   postalLabel: "ZIP" | "Postcode";
@@ -101,7 +97,6 @@ export const US_MARKETPLACE: Marketplace = {
   domain: "ebay.com",
   locationCountry: "US",
   postage: 0.75,
-  tracked: { postage: 5 },
   fees: same({ rate: 0.1325, flat: 0.3, flatOver: 0.4, flatStep: 10 }),
   taper: { coveredMax: 5, end: 10 },
   shipping: {
@@ -109,7 +104,6 @@ export const US_MARKETPLACE: Marketplace = {
     serviceCode: "USPSGroundAdvantage",
     fallbackServiceCode: "USPSPriority",
     policyCost: "4.99",
-    envelopeServiceCode: "US_eBayStandardEnvelope",
   },
   postalLabel: "ZIP",
   live: true,

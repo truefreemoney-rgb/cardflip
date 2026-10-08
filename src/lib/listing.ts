@@ -20,16 +20,14 @@ import { GAMES, MTG_FINISH_LABEL, printedCardNumber } from "./games.ts";
 import { CONDITION_ABBREV, titlePrintingWord, titleRarityWord } from "./ebayVocab.ts";
 import { gameOf } from "./types.ts";
 import type { PriceFlag, PriceStale } from "./priceFlag.ts";
-import { costTaperedPrice, coversAllCosts, coversCosts, defaultShipMethod, postageFor, type ShipMethod } from "./fees.ts";
+import { costTaperedPrice, coversAllCosts, coversCosts, POSTAGE_USD } from "./fees.ts";
 
 /** The one-line reason a cost-covered price shows beside the tile. */
-export function floorNote(quote?: { covers?: number; coverPartial?: boolean; shipping?: ShipMethod } | null): string {
+export function floorNote(quote?: { covers?: number; coverPartial?: boolean } | null): string {
   const keep = quote?.covers ?? 0;
-  const method = quote?.shipping ?? defaultShipMethod(keep);
-  const postage = postageFor(method);
   return quote?.coverPartial
-    ? `Card value ${keep.toFixed(2)} plus part of the eBay fees and postage`
-    : `Card value ${keep.toFixed(2)} plus eBay fees and ${postage.toFixed(2)} ${method === "tracked" ? "tracked-mailer" : "envelope"} postage, so you keep the full value`;
+    ? `Card value $${keep.toFixed(2)} plus part of the eBay fees and postage`
+    : `Card value $${keep.toFixed(2)} plus eBay fees and $${POSTAGE_USD.toFixed(2)} postage, so you keep the full value`;
 }
 
 /**
@@ -39,13 +37,10 @@ export function floorNote(quote?: { covers?: number; coverPartial?: boolean; shi
  * costTaperedPrice). Returns null when the value is high enough to price at
  * market.
  */
-function coveredAsk(value: number, shipping?: ShipMethod | null): { price: number; covers: number; partial: boolean; method: ShipMethod } | null {
+function coveredAsk(value: number): { price: number; covers: number; partial: boolean } | null {
   const covers = Math.round(value * 100) / 100;
   if (!coversCosts(covers)) return null;
-  // No pick yet: price as the suggested pick (envelope while eBay allows it), so the number the seller
-  // sees before choosing is the one the envelope tile will show.
-  const method = shipping ?? defaultShipMethod(covers);
-  return { price: costTaperedPrice(covers, method), covers, partial: !coversAllCosts(covers), method };
+  return { price: costTaperedPrice(covers), covers, partial: !coversAllCosts(covers) };
 }
 
 // eBay's CCG leaf categories are shared by every game since the 2020
@@ -382,11 +377,11 @@ function roundPrice(value: number, strategy: PriceStrategy): number {
  * the Inventory live refresh (lib/server/livePrices.ts) lands on the number
  * the scanner would have shown today. Unknown conditions count as Near Mint.
  */
-export function askingPriceFor(market: number, condition: string, shipping?: ShipMethod | null): number {
+export function askingPriceFor(market: number, condition: string): number {
   if (!(market > 0)) return 0;
   const mult = CONDITION_MULTIPLIER[condition as Condition] ?? 1;
   const rounded = roundPrice(market * mult, "market");
-  return coveredAsk(rounded, shipping)?.price ?? rounded;
+  return coveredAsk(rounded)?.price ?? rounded;
 }
 
 /**
@@ -409,11 +404,11 @@ export function strategyValueUsd(market: number, condition: string, strategy: Pr
  * "where does it say Card value $0.25 plus…" beside a $1.50 price and a
  * $0.25 chart). Null when nothing was added on top.
  */
-export function askingNoteFor(market: number, condition: string, shipping?: ShipMethod | null): string | null {
+export function askingNoteFor(market: number, condition: string): string | null {
   if (!(market > 0)) return null;
   const mult = CONDITION_MULTIPLIER[condition as Condition] ?? 1;
-  const covered = coveredAsk(roundPrice(market * mult, "market"), shipping);
-  return covered ? floorNote({ covers: covered.covers, coverPartial: covered.partial, shipping: covered.method }) : null;
+  const covered = coveredAsk(roundPrice(market * mult, "market"));
+  return covered ? floorNote({ covers: covered.covers, coverPartial: covered.partial }) : null;
 }
 
 /**
@@ -493,7 +488,6 @@ export function quotePrice(
   strategy: PriceStrategy,
   variantOverride?: string,
   currentPoint?: CurrentSeriesPoint | null,
-  shipping?: ShipMethod | null,
 ): PriceQuote | null {
   const override = variantOverride
     ? card.prices.find((p) => p.variant === variantOverride)
@@ -540,13 +534,13 @@ export function quotePrice(
   // its discounted value through the same curve; the curve only rises, so
   // Quick always lands under Full value (the old flat $5 line put a $5.00
   // card's Quick at $6.29, above Full's $5.00).
-  const covered = price.currency === "USD" ? coveredAsk(rounded, shipping) : null;
+  const covered = price.currency === "USD" ? coveredAsk(rounded) : null;
 
   return {
     price,
     base: price.market,
     suggested: covered ? covered.price : rounded,
-    ...(covered ? { floored: true, covers: covered.covers, shipping: covered.method, ...(covered.partial ? { coverPartial: true } : {}) } : {}),
+    ...(covered ? { floored: true, covers: covered.covers, ...(covered.partial ? { coverPartial: true } : {}) } : {}),
   };
 }
 
@@ -584,9 +578,9 @@ export function quoteForItem(
 ): PriceQuote | null {
   if (!item.card) return null;
   if (item.grading) {
-    return quotePrice(item.card, "Near Mint", "market", effectiveVariant(item), currentPoint, item.shipping);
+    return quotePrice(item.card, "Near Mint", "market", effectiveVariant(item), currentPoint);
   }
-  return quotePrice(item.card, item.condition, item.strategy, effectiveVariant(item), currentPoint, item.shipping);
+  return quotePrice(item.card, item.condition, item.strategy, effectiveVariant(item), currentPoint);
 }
 
 /**

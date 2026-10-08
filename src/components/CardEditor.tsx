@@ -31,9 +31,6 @@ import { foilChoices, foilLabel } from "@/lib/yugioh";
 import { printingChoices, printingLabel } from "@/lib/onepiece";
 import { useLastRecordedPrice } from "@/lib/client/priceHistoryData";
 import { saveCondition, saveStrategy } from "@/lib/client/scanPrefs";
-import { ENVELOPE_MAX_USD, envelopeAllowed, formatMoneyPostage } from "@/lib/fees";
-import { ENVELOPE_OVER_CAP, SHIP_OPTIONS } from "@/lib/shipping";
-import ShippingHelpSheet from "@/components/ShippingHelpSheet";
 import type {
   Condition,
   WearLevel,
@@ -376,16 +373,6 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
   // the ledger alike.
   const hookPoint = useLastRecordedPrice(card?.id ?? "", effectiveVariant(item) ?? null);
   const currentPoint = hookPoint ?? item.currentPoint ?? null;
-  // Shipping pick (10-08), hooks above the early returns: the envelope tile is off once the price it
-  // would give is $20 or more (eBay's Standard Envelope cap); a card that grew past the cap after an
-  // envelope pick flips to tracked.
-  const envelopeQuote = card ? quotePrice(card, item.condition, item.strategy, effectiveVariant(item), currentPoint, "envelope") : null;
-  const envelopeOk = envelopeQuote ? envelopeAllowed(item.priceOverride ?? envelopeQuote.suggested) : true;
-  const { shipping: shippingPick } = item;
-  const [shipHelp, setShipHelp] = useState(false);
-  useEffect(() => {
-    if (shippingPick === "envelope" && !envelopeOk) onChange({ shipping: "tracked", priceOverride: null });
-  }, [shippingPick, envelopeOk, onChange]);
   useEffect(() => {
     if (!hookPoint) return;
     if (JSON.stringify(hookPoint) === JSON.stringify(item.currentPoint ?? null)) return;
@@ -519,8 +506,8 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
 
   const variant = effectiveVariant(item);
   const quote = quoteForItem(item, currentPoint);
-  const quickQuote = quotePrice(card, item.condition, "quick", variant, currentPoint, item.shipping);
-  const marketQuote = quotePrice(card, item.condition, "market", variant, currentPoint, item.shipping);
+  const quickQuote = quotePrice(card, item.condition, "quick", variant, currentPoint);
+  const marketQuote = quotePrice(card, item.condition, "market", variant, currentPoint);
   // The price guard: the market behind this card is one the rule does not believe, so no price is suggested (quote is null) and the note says why.
   const priceFlag = priceFlagOf(card, variant, currentPoint);
   // The market behind the quote has not updated in 45+ days (10-02): the quote stands, a line under it says so.
@@ -1325,61 +1312,6 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
               </div>
             ))}
           </div>
-        </fieldset>
-      )}
-
-      {/* Shipping pick (Chris 10-08): required before the card can be posted; the postage goes into the
-          price and the buyer sees free shipping. Nothing is picked by default. */}
-      {!pricingOnly && !item.grading && (
-        <fieldset className="flex flex-col gap-2">
-          <legend className="mb-1 flex w-full items-center gap-2 text-sm font-medium text-zinc-300">
-            <span>
-              Shipping{" "}
-              {!item.shipping && <span className="font-normal text-amber-300">· pick one to post on eBay</span>}
-            </span>
-            {/* The ? opens both sets of mailing steps (Chris 10-08: "more apparent what is expected of the seller"). */}
-            <button
-              type="button"
-              onClick={() => setShipHelp(true)}
-              aria-label="How to ship a card"
-              className="ml-auto inline-flex items-center gap-1 rounded-full border border-edge px-2.5 py-0.5 text-[11px] font-semibold text-zinc-300 transition hover:border-brand-400 hover:text-white"
-            >
-              <span aria-hidden className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-brand-500/20 text-[11px] text-brand-300">?</span>
-              How to ship
-            </button>
-          </legend>
-          {shipHelp && <ShippingHelpSheet picked={item.shipping} onClose={() => setShipHelp(false)} />}
-          <div className="grid grid-cols-2 gap-2">
-            {SHIP_OPTIONS.map((o) => {
-              const allowed = o.id !== "envelope" || envelopeOk;
-              const on = item.shipping === o.id;
-              return (
-                <button
-                  key={o.id}
-                  type="button"
-                  disabled={!allowed}
-                  aria-pressed={on}
-                  onClick={() => onChange({ shipping: o.id, priceOverride: null })}
-                  className={`flex flex-col items-start gap-0.5 rounded-xl border px-3 py-2.5 text-left transition ${
-                    on
-                      ? "border-brand-400 bg-brand-500/15 text-white"
-                      : allowed
-                        ? "border-edge bg-surface-1 text-zinc-200 hover:border-edge-strong"
-                        : "cursor-not-allowed border-edge bg-surface-1 text-zinc-500 opacity-60"
-                  }`}
-                >
-                  <span className="flex w-full items-baseline justify-between gap-2">
-                    <span className="text-sm font-semibold">{o.label}</span>
-                    <span className="font-display text-sm font-semibold">{formatMoneyPostage(o.postage)}</span>
-                  </span>
-                  <span className="text-[11px] leading-snug text-zinc-500">{allowed ? o.sub : ENVELOPE_OVER_CAP}</span>
-                </button>
-              );
-            })}
-          </div>
-          <p className="text-[11px] text-zinc-500">
-            Postage goes into your price, the buyer sees free shipping. Envelope is for sale prices under ${ENVELOPE_MAX_USD}.
-          </p>
         </fieldset>
       )}
 

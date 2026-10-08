@@ -31,47 +31,14 @@ export function estimatedEbayFees(gross: number): number {
  * gross − (gross·rate + flat) − postage ≥ net  ⇒  gross ≥ (net + flat + postage) / (1 − rate)
  */
 export const POSTAGE_USD = 0.75;
-/**
- * The seller PICKS how a card ships (Chris 10-08: "we shouldn't let the user
- * post to eBay unless they pick a shipping option"): an eBay Standard Envelope
- * ($0.75, tracked, eBay allows it only under a $20 sale price) or a bubble
- * mailer by USPS Ground Advantage (~$5). The buyer pays nothing either way,
- * the postage sits inside the asking price. Nothing is picked by default; the
- * suggested pick (defaultShipMethod) is the envelope while it is allowed.
- */
-export type ShipMethod = "envelope" | "tracked";
-export const SHIP_METHODS: readonly ShipMethod[] = ["envelope", "tracked"];
-export const TRACKED_POSTAGE_USD = 5;
-/** eBay Standard Envelope: the sale price must be under this. */
-export const ENVELOPE_MAX_USD = 20;
-export function postageFor(method: ShipMethod | null | undefined): number {
-  return method === "tracked" ? TRACKED_POSTAGE_USD : POSTAGE_USD;
-}
-/** "$0.75" / "$5.00" for the pick tiles. */
-export function formatMoneyPostage(n: number): string {
-  return `${n.toFixed(2)}`;
-}
-export function isShipMethod(v: unknown): v is ShipMethod {
-  return v === "envelope" || v === "tracked";
-}
-/** Whether the envelope is allowed at this sale price (under eBay's $20 cap). */
-export function envelopeAllowed(gross: number): boolean {
-  return gross < ENVELOPE_MAX_USD;
-}
-/** The pick to suggest for a card worth `net`: the envelope while its price stays under the cap. */
-export function defaultShipMethod(net: number): ShipMethod {
-  return envelopeAllowed(costCoveredPrice(net, "envelope")) ? "envelope" : "tracked";
-}
 
 /**
  * The asking price at which the seller KEEPS `net` after eBay's cut and
- * the postage of the chosen shipping — the fee is a share of the sale price,
- * so it compounds: gross = (net + flat + postage) / (1 − rate), rounded up to
- * the cent.
+ * postage — the fee is a share of the sale price, so it compounds:
+ * gross = (net + flat + postage) / (1 − rate), rounded up to the cent.
  */
-export function costCoveredPrice(net: number, method: ShipMethod = "envelope"): number {
-  const postage = postageFor(method);
-  const at = (flat: number) => Math.ceil(((net + flat + postage) / (1 - EBAY_FEE_RATE)) * 100) / 100;
+export function costCoveredPrice(net: number): number {
+  const at = (flat: number) => Math.ceil(((net + flat + POSTAGE_USD) / (1 - EBAY_FEE_RATE)) * 100) / 100;
   const low = at(EBAY_FLAT_FEE);
   // Over $10 the order fee is $0.40, so a price past the step must cover that instead.
   return low > EBAY_FLAT_FEE_STEP_USD ? at(EBAY_FLAT_FEE_OVER_10) : low;
@@ -113,10 +80,10 @@ export function coversAllCosts(value: number): boolean {
  * itself from $10 up). Integer cents, rounded up, so the taper never lands a
  * cent low and never dips below the full-cover price at $5.
  */
-export function costTaperedPrice(value: number, method: ShipMethod = "envelope"): number {
+export function costTaperedPrice(value: number): number {
   const cents = Math.round(value * 100);
   if (!coversCosts(cents / 100)) return cents / 100;
-  const full = costCoveredPrice(cents / 100, method);
+  const full = costCoveredPrice(cents / 100);
   if (coversAllCosts(cents / 100)) return full;
   const extra = Math.round(full * 100) - cents;
   const end = COST_TAPER_END_USD * 100;
@@ -185,16 +152,11 @@ function ceilCentsFor(mp: Marketplace, x: number): number {
   return mp.key === "US" ? Math.ceil(x) : Math.ceil(x - 1e-6);
 }
 
-export function costCoveredPriceFor(mp: Marketplace, net: number, account?: EbayAccountType | null, method: ShipMethod = "envelope"): number {
+export function costCoveredPriceFor(mp: Marketplace, net: number, account?: EbayAccountType | null): number {
   const m = feeModelFor(mp, account);
-  const postage = postageForOn(mp, method);
-  const at = (flat: number) => ceilCentsFor(mp, ((net + flat + postage) / (1 - m.rate)) * 100) / 100;
+  const at = (flat: number) => ceilCentsFor(mp, ((net + flat + mp.postage) / (1 - m.rate)) * 100) / 100;
   const low = at(m.flat);
   return low > m.flatStep ? at(m.flatOver) : low;
-}
-/** What the seller pays to post a card on this site by the chosen method (sites without a tracked tier: the letter rate). */
-export function postageForOn(mp: Marketplace, method: ShipMethod | null | undefined): number {
-  return method === "tracked" && mp.tracked ? mp.tracked.postage : mp.postage;
 }
 
 export function coversCostsFor(mp: Marketplace, value: number): boolean {

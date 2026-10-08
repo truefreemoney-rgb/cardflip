@@ -17,7 +17,6 @@ import { formatMoney, itemFirstEdition, mtgFinishOf, quoteForItem } from "@/lib/
 import { PRICE } from "@/lib/pricing";
 import { formatLocalAmount, marketplaceLabel, US_MARKETPLACE } from "@/lib/marketplaces";
 import type { ListingDraft, ScanItem } from "@/lib/types";
-import { shipConfirmLine } from "@/lib/shipping";
 
 interface Props {
   item: ScanItem;
@@ -95,9 +94,6 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
   const pushed = Boolean(item.ebayOfferId);
   // Locked until the seller has verified the match (the server refuses too).
   const verified = Boolean(item.verifiedAt) || pushed;
-  // Shipping pick (Chris 10-08): no post without one. Sealed product always ships tracked (the server
-  // treats a missing pick on sealed as tracked), so only cards are gated.
-  const needsShipping = item.kind !== "sealed" && !item.shipping;
   // eBay's picture policy: the listing photo must be the seller's own shot of
   // this copy. A scanned item has one (item.file) and it uploads on the first
   // publish; a search-added or sealed item has nothing until they pick one.
@@ -136,7 +132,6 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
       language: item.language,
       // Only read when the price is worked out on the server (a local eBay site): the Quick Sale pick.
       strategy: item.strategy,
-      ...(item.shipping ? { shippingMethod: item.shipping } : {}),
     };
   }
 
@@ -286,14 +281,6 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
               className={ebayButton + " cursor-not-allowed opacity-50"}
             >
               🔒 Verify the match to publish
-            </button>
-          ) : canPost && needsShipping ? (
-            <button
-              disabled
-              title="Pick Envelope or Tracked mailer under Shipping above"
-              className={ebayButton + " cursor-not-allowed opacity-50"}
-            >
-              🔒 Pick a shipping option to publish
             </button>
           ) : canPost ? (
             <button data-tour="publish" onClick={() => setModal("confirm")} disabled={busy !== null} className={ebayButton}>
@@ -462,7 +449,7 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
                   eBay&apos;s selling fees apply. You can end it later on eBay.
                 </p>
                 <p className="mt-2 text-xs leading-relaxed text-zinc-500">
-                  {shipConfirmLine(item.shipping ?? "tracked")} 
+                  Free shipping for the buyer (postage is already in your price). 
                   Returns: 30 days, buyer pays return postage. If your eBay account has no policies yet, we set these up for you.
                 </p>
                 <div className="mt-5 flex gap-2">

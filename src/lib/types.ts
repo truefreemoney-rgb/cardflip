@@ -1,5 +1,4 @@
 import type { PriceFlag, PriceStale } from "@/lib/priceFlag";
-import type { ShipMethod } from "@/lib/fees";
 
 export type ScanLanguage = "en" | "ja" | "zh";
 
@@ -303,8 +302,6 @@ export interface PriceQuote {
    * `coverPartial` marks the $5–$10 taper, where only part of it is.
    */
   floored?: boolean;
-  /** The shipping the cover price assumes: the seller's pick, or the suggested one (envelope under $20) while nothing is picked. */
-  shipping?: ShipMethod;
   covers?: number;
   coverPartial?: boolean;
 }
@@ -394,13 +391,6 @@ export interface ScanItem {
   productType: string | null;
   /** Manual price entry, or null to use the computed quote. */
   priceOverride: number | null;
-  /**
-   * How the seller will mail it (10-08): "envelope" (eBay Standard Envelope,
-   * $0.75, under $20) or "tracked" (bubble mailer, ~$5). Required before a
-   * card can be posted to eBay; the postage sits inside the asking price.
-   * null = not picked yet (prices assume the suggested pick meanwhile).
-   */
-  shipping?: ShipMethod | null;
   /** What the seller paid for the card (profit per card); null = not entered. */
   costBasis: number | null;
   /** Seller-edited listing title, or null to use the generated one. */
