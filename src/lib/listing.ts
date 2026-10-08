@@ -311,7 +311,7 @@ export function withEbayPrices(
       source: "ebay",
       currency: "USD",
       variant: EBAY_VARIANT,
-      label: `eBay asking (${comps.active.count} listing${comps.active.count === 1 ? "" : "s"})`,
+      label: `eBay sellers asking (${comps.active.count} listing${comps.active.count === 1 ? "" : "s"})`,
       market: comps.active.average,
       low: comps.active.low,
       high: comps.active.high,

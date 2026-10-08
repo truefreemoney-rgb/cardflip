@@ -59,13 +59,20 @@ export function costCoveredPrice(net: number): number {
  */
 export const COST_COVERED_MAX_USD = 5;
 export const COST_TAPER_END_USD = 10;
-/** Whether any fees/postage go on top of this value (under $10). */
+/**
+ * Chris 10-08: "the fees and shipping should be added to every card for now"
+ * — every card lists at value + eBay fees + postage, no taper, so the seller
+ * keeps the full market value at any price. Flip this off to bring the $5-$10
+ * taper above back (the curve code stays intact underneath).
+ */
+export const COSTS_ON_EVERY_CARD = true;
+/** Whether any fees/postage go on top of this value (under $10, or always). */
 export function coversCosts(value: number): boolean {
-  return value > 0 && value < COST_TAPER_END_USD;
+  return value > 0 && (COSTS_ON_EVERY_CARD || value < COST_TAPER_END_USD);
 }
-/** Whether ALL of them do (under $5) — the seller keeps the full value. */
+/** Whether ALL of them do (under $5, or always) — the seller keeps the full value. */
 export function coversAllCosts(value: number): boolean {
-  return value > 0 && value < COST_COVERED_MAX_USD;
+  return value > 0 && (COSTS_ON_EVERY_CARD || value < COST_COVERED_MAX_USD);
 }
 
 /**
@@ -153,11 +160,11 @@ export function costCoveredPriceFor(mp: Marketplace, net: number, account?: Ebay
 }
 
 export function coversCostsFor(mp: Marketplace, value: number): boolean {
-  return value > 0 && value < mp.taper.end;
+  return value > 0 && (COSTS_ON_EVERY_CARD || value < mp.taper.end);
 }
 
 export function coversAllCostsFor(mp: Marketplace, value: number): boolean {
-  return value > 0 && value < mp.taper.coveredMax;
+  return value > 0 && (COSTS_ON_EVERY_CARD || value < mp.taper.coveredMax);
 }
 
 /** The taper formula for one value in cents (inside the taper zone or below it). */

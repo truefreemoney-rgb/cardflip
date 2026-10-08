@@ -68,6 +68,7 @@ const { createUser } = await import(at("lib/server/users.ts"));
 const { addToWishlist, setWishlistAlert, listWishlist } = await import(at("lib/server/wishlist.ts"));
 const { recordPoint } = await import(at("lib/server/priceHistory.ts"));
 const { db } = await import(at("lib/db.ts"));
+const { costCoveredPrice } = await import(at("lib/fees.ts"));
 
 let failures = 0;
 function check(label, actual, expected = true) {
@@ -230,19 +231,19 @@ check("alerts: Lorcana row fires off the catalog price", mails[0]?.hits, [["Elsa
 
 // --- reprice nudges --------------------------------------------------------------
 await recordPoint("cat-up", "pokemon", "normal", "tcgplayer", "USD", 20);
-// $10+ markets so the under-$10 cost taper stays out of these three.
+// Chris 10-08: fees + postage on every card (COSTS_ON_EVERY_CARD): every target is the market plus fees + postage, so the listings below are priced against costCoveredPrice(market).
 await recordPoint("cat-down", "pokemon", "normal", "tcgplayer", "USD", 16);
 await recordPoint("cat-flat", "pokemon", "normal", "tcgplayer", "USD", 10.5);
 const up = await listedCard({ price: 10, catalogId: "cat-up", listedAt: NOW - 8 * DAY });
-const down = await listedCard({ price: 20, catalogId: "cat-down", listedAt: NOW - 8 * DAY });
-await listedCard({ price: 10, catalogId: "cat-flat", listedAt: NOW - 8 * DAY });
+const down = await listedCard({ price: 30, catalogId: "cat-down", listedAt: NOW - 8 * DAY });
+await listedCard({ price: costCoveredPrice(10.5), catalogId: "cat-flat", listedAt: NOW - 8 * DAY }); // already right: no drift
 await listedCard({ price: 10, catalogId: "cat-up", listedAt: NOW - 2 * DAY });
 await listedCard({ price: 10, catalogId: null, listedAt: NOW - 8 * DAY });
 await listedCard({ price: 10, catalogId: "cat-none", listedAt: NOW - 8 * DAY });
 const nudges = (await getRepriceNudges(uid, NOW)).sort((x, y) => x.drift - y.drift);
 check("nudges: only 15%+ drift after 7 days with a series", nudges.map((x) => [x.cardId, x.market, x.target, x.listedPrice, x.drift]), [
-  [down.id, 16, 16, 20, -0.2],
-  [up.id, 20, 20, 10, 1],
+  [down.id, 16, costCoveredPrice(16), 30, (costCoveredPrice(16) - 30) / 30],
+  [up.id, 20, costCoveredPrice(20), 10, (costCoveredPrice(20) - 10) / 10],
 ]);
 // 09-30: the nudge offers the scanner's price, not raw market. Under $5 that
 // is value + fees + postage — a $1.30 card listed at $2.71 is already right
@@ -268,7 +269,7 @@ check("nudges: cheap cards target value + costs, not raw market", cheapNudges.ma
   const fineListed = await listedCard({ price: 150, catalogId: "g-fine", listedAt: NOW - 8 * DAY });
   const gn = await getRepriceNudges(uid, NOW);
   check("guard: a listing whose market is flagged gets no reprice nudge", gn.some((x) => x.cardId === junkListed.id), false);
-  check("guard: the normal $300 market still nudges the $150 listing", gn.find((x) => x.cardId === fineListed.id)?.target, 300);
+  check("guard: the normal $300 market still nudges the $150 listing", gn.find((x) => x.cardId === fineListed.id)?.target, costCoveredPrice(300));
 
   const wJunk = await addToWishlist(uid, pcard("g-junk", "GuardJunk"), "en", 500);
   const wFine = await addToWishlist(uid, pcard("g-fine", "GuardFine"), "en", 300);

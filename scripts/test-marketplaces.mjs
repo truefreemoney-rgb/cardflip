@@ -129,7 +129,8 @@ console.log("fee variants: For(US) === the existing US exports");
   check("listingFloor", fees.listingFloorFor(mp), fees.listingFloor());
   check("floorRefusal text", fees.floorRefusalFor(mp), fees.floorRefusal());
   check("account type changes nothing on US (private = business)", [fees.listingFloorFor(mp, "INDIVIDUAL"), fees.costTaperedPriceFor(mp, 3.33, "INDIVIDUAL")], [fees.listingFloor(), fees.costTaperedPrice(3.33)]);
-  check("US known values: floor $1.22, $5 → $6.98, $7.50 → $8.68, $10 → $10", [fees.listingFloorFor(mp), fees.costTaperedPriceFor(mp, 5), fees.costTaperedPriceFor(mp, 7.5), fees.costTaperedPriceFor(mp, 10)], [1.22, 6.98, 8.68, 10]);
+  // Chris 10-08: fees + postage on every card (COSTS_ON_EVERY_CARD) - the old taper ($7.50 → $8.68, $10 → $10) is gone; $7.50 → $9.86, $10 → $12.86.
+  check("US known values: floor $1.22, $5 → $6.98, $7.50 → $9.86, $10 → $12.86", [fees.listingFloorFor(mp), fees.costTaperedPriceFor(mp, 5), fees.costTaperedPriceFor(mp, 7.5), fees.costTaperedPriceFor(mp, 10)], [1.22, 6.98, 9.86, 12.86]);
 }
 
 console.log("fee variants: other markets behave");
@@ -138,7 +139,8 @@ console.log("fee variants: other markets behave");
   check("GB private: floor is postage only, no fee", [fees.listingFloorFor(gb, "INDIVIDUAL"), fees.estimatedEbayFeesFor(gb, 20, "INDIVIDUAL")], [1.55, 0]);
   check("GB business floor above GB private floor", fees.listingFloorFor(gb, "BUSINESS") > fees.listingFloorFor(gb, "INDIVIDUAL"), true);
   check("GB unknown account = business", fees.listingFloorFor(gb, null), fees.listingFloorFor(gb, "BUSINESS"));
-  check("GB taper is local: costs on top under £8, none from £8", [fees.coversCostsFor(gb, 7.99), fees.coversCostsFor(gb, 8), fees.costTaperedPriceFor(gb, 8, "BUSINESS")], [true, false, 8]);
+  // Chris 10-08: fees + postage on every card (COSTS_ON_EVERY_CARD) - no local taper end any more, every value carries the full costs.
+  check("GB: costs on top at every value (no cut-off at £8)", [fees.coversCostsFor(gb, 7.99), fees.coversCostsFor(gb, 8), fees.costTaperedPriceFor(gb, 8, "BUSINESS")], [true, true, fees.costCoveredPriceFor(gb, 8, "BUSINESS")]);
   check("GB taper never prices below the value and never above the full-cover price", (() => {
     for (let c = 1; c < 800; c++) {
       const v = c / 100;

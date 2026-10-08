@@ -123,7 +123,7 @@ check(
 console.log("\nCondition and strategy still apply to dollar prices:");
 {
   const q = quotePrice(card([usd(100)]), "Lightly Played", "market");
-  check("100 at Lightly Played (0.85)", q?.suggested, 85);
+  check("100 at Lightly Played (0.85)", q?.suggested, costCoveredPrice(85)); // Chris 10-08: fees + postage on every card (COSTS_ON_EVERY_CARD)
 }
 
 console.log("\n1st Edition is opt-in, never the silent default:");
@@ -208,7 +208,7 @@ console.log("\nA slab's grade replaces the condition flow:");
   check(
     "no condition or strategy multiplier touches a graded quote",
     quoteForItem(item)?.suggested,
-    100,
+    costCoveredPrice(100), // Chris 10-08: fees + postage on every card (COSTS_ON_EVERY_CARD)
   );
   check(
     "the ledger stores the grade as the condition",
@@ -452,13 +452,13 @@ console.log("\nThe chart's current-day point rebases the quote:");
     "today's point outranks the default eBay-asking pick",
     quotePrice(card, "Near Mint", "market", undefined, point(472.63)),
     // Field order matters to the JSON compare — this is quotePrice's own build order.
-    { price: { source: "tcgplayer", variant: "holofoil", label: "Holofoil", currency: "USD", market: 472.63, low: null, high: null }, base: 472.63, suggested: 472.63 },
+    { price: { source: "tcgplayer", variant: "holofoil", label: "Holofoil", currency: "USD", market: 472.63, low: null, high: null }, base: 472.63, suggested: costCoveredPrice(472.63), floored: true, covers: 472.63 }, // Chris 10-08: fees + postage on every card (COSTS_ON_EVERY_CARD)
   );
   check(
     "quick sale undercuts the same current number",
     quotePrice(card, "Near Mint", "quick", undefined, point(472.63)).suggested,
-    // 472.63 * 0.88 = 415.91, charm-rounded down to .99
-    414.99,
+    // 472.63 * 0.88 = 415.91, charm-rounded down to .99, then fees + postage on top (Chris 10-08: COSTS_ON_EVERY_CARD)
+    costCoveredPrice(414.99),
   );
   check(
     "real eBay sales still win over the chart",
@@ -526,19 +526,22 @@ console.log("\nThe chart's current-day point rebases the quote:");
   // from all of them at $5 to none at $10 — no cliff at either end.
   check("taper: $4.99 full cover", askingPriceFor(4.99, "Near Mint"), 6.97);
   check("taper: $5.00 full cover, a cent above $4.99", askingPriceFor(5, "Near Mint"), 6.98);
-  check("taper: $7.50 carries half the costs", askingPriceFor(7.5, "Near Mint"), 8.68);
-  check("taper: $9.99 → $10.00", askingPriceFor(9.99, "Near Mint"), 10);
-  check("taper: $10 card at market", askingPriceFor(10, "Near Mint"), 10);
+  // Chris 10-08: fees + postage on every card (COSTS_ON_EVERY_CARD) - no taper any more, every value carries the full costs.
+  check("every value carries the full costs: $7.50", askingPriceFor(7.5, "Near Mint"), costCoveredPrice(7.5));
+  check("every value carries the full costs: $9.99", askingPriceFor(9.99, "Near Mint"), costCoveredPrice(9.99));
+  check("every value carries the full costs: $10 card", askingPriceFor(10, "Near Mint"), costCoveredPrice(10));
   {
     const { askingNoteFor } = await import(new URL("../src/lib/listing.ts", import.meta.url).href);
     check("Inventory note: $0.25 Spidops names the value", askingNoteFor(0.25, "Near Mint"),
       "Card value $0.25 plus eBay fees and $0.75 postage, so you keep the full value");
-    check("Inventory note: $7.50 is the taper line", askingNoteFor(7.5, "Near Mint"), "Card value $7.50 plus part of the eBay fees and postage");
-    check("Inventory note: none from $10", askingNoteFor(12, "Near Mint"), null);
+    // Chris 10-08: fees + postage on every card (COSTS_ON_EVERY_CARD)
+    check("Inventory note: $7.50 names the full costs", askingNoteFor(7.5, "Near Mint"), "Card value $7.50 plus eBay fees and $0.75 postage, so you keep the full value");
+    check("Inventory note: a $12 card names them too", askingNoteFor(12, "Near Mint"), "Card value $12.00 plus eBay fees and $0.75 postage, so you keep the full value");
   }
-  check("taper: $7.50 note says part of the costs",
+  // Chris 10-08: fees + postage on every card (COSTS_ON_EVERY_CARD)
+  check("$7.50 note says all of the costs",
     floorNote(quotePrice({ name: "Test", setName: "Test", prices: [usd(7.5)] }, "Near Mint", "market")),
-    "Card value $7.50 plus part of the eBay fees and postage");
+    "Card value $7.50 plus eBay fees and $0.75 postage, so you keep the full value");
   {
     // Every cent $0.01–$15: the price never drops as the value rises, never
     // loses money, and quick sale is never above full value.
@@ -568,7 +571,7 @@ console.log("\nThe chart's current-day point rebases the quote:");
   check(
     "at $5+: quick sale still undercuts",
     quotePrice({ name: "Test", setName: "Test", prices: [usd(20)] }, "Near Mint", "quick").suggested,
-    16.99,
+    costCoveredPrice(16.99), // Chris 10-08: fees + postage on every card (COSTS_ON_EVERY_CARD)
   );
   // The old flat $5 line put a $5.00 card's quick sale ($4.40 value, fully
   // covered) at $6.29, above Full value's $5.00. On the taper Full is $6.98.
@@ -583,19 +586,19 @@ console.log("\nThe chart's current-day point rebases the quote:");
     1.03,
   );
   check(
-    "a $10 card is past the taper and unflagged",
-    quotePrice({ name: "Test", setName: "Test", prices: [usd(10)] }, "Near Mint", "market").floored,
-    undefined,
+    "a $10 card carries the full costs (Chris 10-08: COSTS_ON_EVERY_CARD)",
+    quotePrice({ name: "Test", setName: "Test", prices: [usd(10)] }, "Near Mint", "market").suggested,
+    costCoveredPrice(10),
   );
   check(
     "condition multiplier applies to the current point",
     quotePrice(card, "Lightly Played", "market", undefined, point(100)).suggested,
-    85,
+    costCoveredPrice(85), // Chris 10-08: fees + postage on every card (COSTS_ON_EVERY_CARD)
   );
   check(
     "no point → unchanged behaviour",
     quotePrice(card, "Near Mint", "market"),
-    { price: ebayAsk, base: 520.47, suggested: 520.47 },
+    { price: ebayAsk, base: 520.47, suggested: costCoveredPrice(520.47), floored: true, covers: 520.47 },
   );
 }
 
@@ -633,7 +636,7 @@ console.log("\nThe chart's current-day point rebases the quote:");
 
   check("guard: a flagged row gets no quote at all", quotePrice(flagged, "Near Mint", "market"), null);
   check("guard: ... on every strategy and condition", ["market", "quick"].map((st) => quotePrice(flagged, "Lightly Played", st)), [null, null]);
-  check("guard: the normal card next to it is quoted exactly as before", JSON.stringify(quotePrice(normal, "Near Mint", "market")), JSON.stringify({ price: usd(500), base: 500, suggested: 500 }));
+  check("guard: the normal card next to it is quoted exactly as before", JSON.stringify(quotePrice(normal, "Near Mint", "market")), JSON.stringify({ price: usd(500), base: 500, suggested: costCoveredPrice(500), floored: true, covers: 500 }));
   check("guard: an untrusted mark alone changes nothing else (quote of a card with the flag removed is identical)", JSON.stringify(quotePrice({ ...flagged, prices: [{ ...junk(500), untrusted: undefined }] }, "Near Mint", "market")), JSON.stringify(quotePrice(normal, "Near Mint", "market")));
   check("guard: a flagged explicit printing pick is not quoted either", quotePrice({ ...normal, prices: [usd(20, "normal"), junk(500)] }, "Near Mint", "market", "holofoil"), null);
   check("guard: the same card on its normal printing is still quoted", quotePrice({ ...normal, prices: [usd(20, "normal"), junk(500)] }, "Near Mint", "market", "normal")?.base, 20);
@@ -647,7 +650,7 @@ console.log("\nThe chart's current-day point rebases the quote:");
   const { priceStaleOf } = await import(new URL("../src/lib/listing.ts", import.meta.url).href);
   const staleRow = { ...usd(500), stale: { days: 128 } };
   const staleCard = { name: "Test", setName: "Test", prices: [staleRow] };
-  check("stale: quoted exactly like a normal card", JSON.stringify(quotePrice(staleCard, "Near Mint", "market")), JSON.stringify({ price: staleRow, base: 500, suggested: 500 }));
+  check("stale: quoted exactly like a normal card", JSON.stringify(quotePrice(staleCard, "Near Mint", "market")), JSON.stringify({ price: staleRow, base: 500, suggested: costCoveredPrice(500), floored: true, covers: 500 }));
   check("stale: priceStaleOf names the note", priceStaleOf(staleCard), { days: 128 });
   check("stale: ... null for a normal card, a flagged card, and when eBay sold carries the price", [priceStaleOf(normal), priceStaleOf(flagged), priceStaleOf({ ...staleCard, prices: [ebaySold, staleRow] })], [null, null, null]);
   check("stale: ... the chart point speaks when there is no row", priceStaleOf({ name: "T", setName: "T", prices: [] }, undefined, pt(900, { stale: { days: 50 } })), { days: 50 });
@@ -661,7 +664,7 @@ console.log("\nThe chart's current-day point rebases the quote:");
   const item = (c, extra = {}) => ({ card: c, status: "ready", condition: "Near Mint", strategy: "market", ...extra });
   check("guard: currentPrice is 0 for a flagged card (queue, tally, Send All and the ledger fall out)", currentPrice(item(flagged)), 0);
   check("guard: ... the seller's own price is kept", currentPrice(item(flagged, { priceOverride: 320 })), 320);
-  check("guard: ... a normal card is priced as before", currentPrice(item(normal)), 500);
+  check("guard: ... a normal card is priced as before", currentPrice(item(normal)), costCoveredPrice(500));
 }
 
 console.log(

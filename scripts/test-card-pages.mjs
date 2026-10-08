@@ -348,9 +348,11 @@ const cs = await import(at("lib/cardStory.ts"));
 const fees = await import(at("lib/fees.ts"));
 const quarter = cs.sellMath(0.25);
 check("sell math: a $0.25 card lists at $1.50 (Chris 09-30) and the seller keeps its value", [quarter.ask, quarter.covers, quarter.net >= 0.25], [1.5, "all", true]);
-check("sell math: $7.50 lists at $8.68 (the taper)", [cs.sellMath(7.5).ask, cs.sellMath(7.5).covers], [8.68, "part"]);
+// Chris 10-08: fees + postage on every card (COSTS_ON_EVERY_CARD) - no taper, $7.50 lists at $9.86 and covers all of the costs.
+check("sell math: $7.50 lists at $9.86 (every card carries the costs)", [cs.sellMath(7.5).ask, cs.sellMath(7.5).covers], [9.86, "all"]);
 const twentyFive = cs.sellMath(25);
-check("sell math: from $10 up the market price stands and the net is ask − fees − postage", [twentyFive.covers, twentyFive.net], ["none", Math.round((twentyFive.ask - fees.estimatedEbayFees(twentyFive.ask) - fees.POSTAGE_USD) * 100) / 100]);
+// Chris 10-08: fees + postage on every card (COSTS_ON_EVERY_CARD)
+check("sell math: from $10 up the costs are on top too and the net is ask − fees − postage", [twentyFive.covers, twentyFive.net], ["all", Math.round((twentyFive.ask - fees.estimatedEbayFees(twentyFive.ask) - fees.POSTAGE_USD) * 100) / 100]);
 check("sell words: a cheap card still says Yes (Chris 10-02)", cs.sellWords("Spidops", 0.25).verdict, "Yes.");
 check("sell words: a $25 card is", cs.sellWords("Charizard", 25).verdict, "Yes.");
 check("sell words: the detail names the card, the eBay Suggested Price and what you keep", cs.sellWords("Charizard", 25).detail, (d) => d.includes("Charizard") && d.includes("eBay Suggested Price") && d.includes("keep about $"));

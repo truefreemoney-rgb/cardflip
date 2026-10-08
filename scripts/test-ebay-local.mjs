@@ -260,11 +260,12 @@ console.log("Price math");
   check("AU business: Pro Tier 2 rate + A$0.30", lp.localAsk(au, "BUSINESS", usd, rate.AU), fullCover(au, au.fees.business, v("AU")));
   check("CA: 13.25% + C$0.30 + C$2.61", lp.localAsk(ca, "INDIVIDUAL", usd, rate.CA), fullCover(ca, ca.fees.business, v("CA")));
   // The hard-coded whole-unit taper: costs on top below `end`, none from `end` up.
+  // Chris 10-08: fees + postage on every card (COSTS_ON_EVERY_CARD) - the taper end no longer drops the costs.
   for (const [k, mp, r] of [["GB", gb, rate.GB], ["IE", ie, rate.IE], ["AU", au, rate.AU], ["CA", ca, rate.CA]]) {
     const justUnder = (mp.taper.end - 0.01) / r;
     const atEnd = mp.taper.end / r;
     const ask = (u) => lp.localAsk(mp, "BUSINESS", u, r);
-    check(`${k}: from ${mp.taper.end} local units up the ask is the value itself (no costs on top)`, ask(atEnd), lp.toLocal(atEnd, r));
+    check(`${k}: from ${mp.taper.end} local units up the ask still carries the full costs`, ask(atEnd), fees.costCoveredPriceFor(mp, lp.toLocal(atEnd, r), "BUSINESS"));
     check(`${k}: just under ${mp.taper.end} costs are still on top, and the curve never falls as the value rises`, [ask(justUnder) >= lp.toLocal(justUnder, r), (() => { let prev = 0; for (let c = 1; c <= 4000; c++) { const a = ask(c / 100); if (a < prev - 1e-9) return false; prev = a; } return true; })()], [true, true]);
   }
   check("the taper thresholds are hard-coded whole units, not derived from FX", [gb, ie, au, ca].every((mp) => Number.isInteger(mp.taper.coveredMax) && Number.isInteger(mp.taper.end)), true);

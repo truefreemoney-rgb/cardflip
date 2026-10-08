@@ -222,7 +222,7 @@ export default function MarketMetricsPanel({
     showSoldTile && sold != null
       ? `Sold ${money(sold.average)}`
       : null,
-    active != null ? `Asking ${money(active.average)}` : null,
+    active != null ? `Sellers asking ${money(active.average)}` : null,
     tcg ? (tcgFlag ? "Market looks off" : `Market ${formatMoney(tcg.market, tcg.currency)}`) : null,
   ].filter(Boolean) as string[];
 
@@ -286,7 +286,7 @@ export default function MarketMetricsPanel({
           />
         )}
         <Metric
-          label="eBay asking"
+          label="Sellers asking"
           value={money(active?.average ?? null)}
           detail={activeDetail}
           driving={driving === EBAY_VARIANT}
