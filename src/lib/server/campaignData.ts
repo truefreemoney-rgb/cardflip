@@ -9,6 +9,7 @@ import { pageTilesByIds } from "@/lib/server/cardPages";
 import { buildDigest } from "@/lib/server/digest";
 import { usdSeries } from "@/lib/server/priceHistory";
 import { heldTrustOrOpen, loadTrustData, judgeFull } from "@/lib/server/priceTrustSite";
+import { cachedList, cachedListSwr } from "@/lib/server/listCache";
 import { getSetting, setSetting } from "@/lib/server/settings";
 import { gameJumps, MOVER_GAMES, sleepers, topMovers, type Mover } from "@/lib/server/social";
 import { monthlyScans, scanQuota, scanTier, type User } from "@/lib/server/users";
@@ -344,7 +345,24 @@ function moverCard(m: MoverLike, game: GameId): MailCard & { cardId: string } {
 }
 
 /** Three ordinary-looking cards from one game worth $15-$200 that moved up this week: the "worth checking your binder for" list. */
-export async function binderCards(game: GameId, now: number, limit = 3): Promise<MailCard[]> {
+/**
+ * The heavy reads (a day's movers per game, the five-game list, the Sunday facts) walk thousands of price series,
+ * so they are memoed on card_cache per UTC day (prices refresh once a day). A send waits for a fresh build;
+ * the admin page (`quick`) shows what is cached and builds the rest after the response (null = still building),
+ * so /admin/emails never sits on a 30-second walk (Chris 10-08: "the email page takes forever to load").
+ */
+const FACTS_TTL = 6 * 3_600_000;
+async function memo<T>(key: string, now: number, quick: boolean, build: () => Promise<T>): Promise<T | null> {
+  const k = `email:v1:${key}:${todayUtc(now)}`;
+  if (!quick) return cachedList(k, FACTS_TTL, build, now);
+  return (await cachedListSwr<T | null>(k, FACTS_TTL, build, null, now)).value;
+}
+
+export async function binderCards(game: GameId, now: number, limit = 3, quick = false): Promise<MailCard[] | null> {
+  return memo(`binder:${game}`, now, quick, () => buildBinderCards(game, now, limit));
+}
+
+async function buildBinderCards(game: GameId, now: number, limit: number): Promise<MailCard[]> {
   const day = todayUtc(now);
   const seen = await binderSeen();
   const keep = addDays(day, -BINDER_SEEN_DAYS);
@@ -376,7 +394,11 @@ async function allGameJumps(day: string) {
   );
 }
 
-export async function fiveGameCards(now = Date.now()): Promise<MailCard[]> {
+export async function fiveGameCards(now = Date.now(), quick = false): Promise<MailCard[] | null> {
+  return memo("five", now, quick, () => buildFiveGameCards(now));
+}
+
+async function buildFiveGameCards(now: number): Promise<MailCard[]> {
   const leads = await allGameJumps(todayUtc(now));
   const links = await linksFor(leads.map((l) => ({ cardId: l.cardId ?? null, game: l.game })));
   return leads.map((l) => ({
@@ -391,17 +413,18 @@ export async function fiveGameCards(now = Date.now()): Promise<MailCard[]> {
   }));
 }
 
-export async function cardsFacts(user: User, now = Date.now(), shared: { five?: MailCard[] } = {}): Promise<CardsFacts> {
+/** quick (admin preview): cached facts only; a list still building reads as empty. */
+export async function cardsFacts(user: User, now = Date.now(), shared: { five?: MailCard[] } = {}, quick = false): Promise<CardsFacts> {
   const tier = scanTier(user);
   const trialLeft = tier === "trial" ? (scanQuota(user, now).remaining ?? 0) : null;
   const movers = await personalMovers(user.id, now);
   if (movers.length >= 1) return { variant: "movers", game: null, cards: movers, trialLeft };
   const game = (await hasScanned(user.id)) ? await firstScanGame(user.id) : null;
   if (game) {
-    const binder = await binderCards(game, now);
+    const binder = (await binderCards(game, now, 3, quick)) ?? [];
     if (binder.length >= 3) return { variant: "binder", game, cards: binder, trialLeft };
   }
-  shared.five ??= await fiveGameCards(now);
+  shared.five ??= (await fiveGameCards(now, quick)) ?? [];
   return { variant: "five", game, cards: shared.five, trialLeft };
 }
 
@@ -477,7 +500,11 @@ async function scansThisWeek(now: number): Promise<{ scans: number; mostScanned:
   return { scans: Number(count?.n ?? 0), mostScanned: best };
 }
 
-export async function weekFacts(now = Date.now()): Promise<WeekFacts> {
+export async function weekFacts(now = Date.now(), quick = false): Promise<WeekFacts | null> {
+  return memo("week", now, quick, () => buildWeekFacts(now));
+}
+
+async function buildWeekFacts(now: number): Promise<WeekFacts> {
   const day = todayUtc(now);
   const jumps = await allGameJumps(day);
   const games: WeekFacts["games"] = [];

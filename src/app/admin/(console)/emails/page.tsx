@@ -5,6 +5,7 @@ import { etDateTime } from "@/lib/time";
 import { num } from "@/components/admin/format";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 300;
 
 /**
  * /admin/emails — the three weekly mails (lib/server/campaigns.ts, docs/EMAILS.md). The switch, who each mail

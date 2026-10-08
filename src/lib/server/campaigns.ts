@@ -382,6 +382,7 @@ export async function buildMail(id: CampaignId, user: User, unsubUrl: string, no
     return f.cards.length ? { mail: renderCards(f, first, unsubUrl), facts: f } : null;
   }
   const f = shared.week ?? (await weekFacts(now));
+  if (!f) return null;
   shared.week = f;
   return { mail: renderWeek(f, first, unsubUrl), facts: f };
 }
@@ -413,27 +414,43 @@ export type VariantKey = `scans:${ScansVariant}` | `cards:${CardsVariant}` | "we
 export const VARIANT_KEYS: VariantKey[] = [...SCANS_VARIANTS.map((v) => `scans:${v}` as const), ...CARDS_VARIANTS.map((v) => `cards:${v}` as const), "week"];
 
 /** One preview per variant: Tuesday from sample numbers, Thursday + Sunday from today's real catalog data (the owner's cards for "movers"). */
-export async function previewVariant(key: VariantKey, now = Date.now()): Promise<RenderedMail> {
-  const owner = await findUserByEmail(OWNER_EMAIL);
+/** Shown while a day's facts are still being read in the background (admin page only). */
+const BUILDING: RenderedMail = {
+  subject: "(building the preview, reload in a minute)",
+  text: "Reading today's prices. Reload in a minute.",
+  html: `<p style="color:#666">Reading today's prices for this preview. Reload the page in a minute.</p>`,
+  unsubUrl: SAMPLE_UNSUB,
+};
+
+/** One preview per variant: Tuesday from sample numbers, Thursday + Sunday from today's real catalog data (the owner's cards for "movers"). `quick` = cached facts only, never a long walk. */
+export async function previewVariant(key: VariantKey, now = Date.now(), quick = false): Promise<RenderedMail> {
   const first = "Chris";
   if (key.startsWith("scans:")) return renderScans(sampleScans(key.slice(6) as ScansVariant, now), first, SAMPLE_UNSUB);
-  if (key === "week") return renderWeek(await weekFacts(now), first, SAMPLE_UNSUB);
+  if (key === "week") {
+    const f = await weekFacts(now, quick);
+    return f ? renderWeek(f, first, SAMPLE_UNSUB) : BUILDING;
+  }
   const v = key.slice(6) as CardsVariant;
   if (v === "movers") {
-    const f = owner ? await cardsFacts(owner, now) : null;
+    const owner = await findUserByEmail(OWNER_EMAIL);
+    const f = owner ? await cardsFacts(owner, now, {}, quick) : null;
     if (f && f.variant === "movers") return renderCards(f, first, SAMPLE_UNSUB);
     // No real movers to show: a note instead of a fake list.
-    return renderCards({ variant: "movers", game: null, cards: f?.cards.slice(0, 3) ?? (await fiveGameCards(now)).slice(0, 3), trialLeft: null }, first, SAMPLE_UNSUB);
+    const five = await fiveGameCards(now, quick);
+    if (!five) return BUILDING;
+    return renderCards({ variant: "movers", game: null, cards: (f?.cards.length ? f.cards : five).slice(0, 3), trialLeft: null }, first, SAMPLE_UNSUB);
   }
   if (v === "binder") {
     for (const game of ["pokemon", "mtg"] as const) {
-      const cards = await binderCards(game, now);
-      if (cards.length >= 3) return renderCards({ variant: "binder", game, cards, trialLeft: 5 }, first, SAMPLE_UNSUB);
+      const cards = await binderCards(game, now, 3, quick);
+      if (cards && cards.length >= 3) return renderCards({ variant: "binder", game, cards, trialLeft: 5 }, first, SAMPLE_UNSUB);
     }
-    const five = await fiveGameCards(now);
+    const five = await fiveGameCards(now, quick);
+    if (!five) return BUILDING;
     return renderCards({ variant: "binder", game: "pokemon", cards: five.slice(0, 3), trialLeft: 5 }, first, SAMPLE_UNSUB);
   }
-  return renderCards({ variant: "five", game: null, cards: await fiveGameCards(now), trialLeft: 5 }, first, SAMPLE_UNSUB);
+  const five = await fiveGameCards(now, quick);
+  return five ? renderCards({ variant: "five", game: null, cards: five, trialLeft: 5 }, first, SAMPLE_UNSUB) : BUILDING;
 }
 
 export interface CampaignOverview {
@@ -477,7 +494,7 @@ export async function campaignOverview(now = Date.now()): Promise<CampaignOvervi
       const label = id === "scans" ? SCANS_VARIANT_LABEL[v as ScansVariant] : id === "cards" ? CARDS_VARIANT_LABEL[v as CardsVariant] : "Everyone";
       let preview: RenderedMail;
       try {
-        preview = await previewVariant(key, now);
+        preview = await previewVariant(key, now, true);
       } catch (err) {
         preview = { subject: "(preview failed)", text: String(err), html: `<p style="color:#b91c1c">Preview failed: ${esc(err instanceof Error ? err.message : String(err))}</p>`, unsubUrl: SAMPLE_UNSUB };
       }
