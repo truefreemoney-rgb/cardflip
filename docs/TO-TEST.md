@@ -5,8 +5,8 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 
 ## 10-07 /admin/analytics chart redesign (tiles pick the one big chart)
 - [ ] Phone: tap each headline tile; the big chart below switches and scrolls into view; tap/drag the chart shows the time, value and "Before".
-- [ ] Prod, a one-day custom range (both dates today) draws 24 hourly points, not one bar.
-- [ ] The faint dotted "before" line matches the "N before" number under each tile.
+- [x] (10-08 pane prod: ?from=2026-10-08&to=2026-10-08 → hourly axis 12 AM / 5 AM / 10 AM / 1 PM) Prod, a one-day custom range (both dates today) draws 24 hourly points, not one bar.
+- [x] (10-08 pane prod: Visitors tile "38 before" = chart legend "The 1 day before · 38") The faint dotted "before" line matches the "N before" number under each tile.
 
 ## 10-08 Publish screen + Public pages blocks (TODAY-10-08.md 11:30 + 11:45) — checked 10-08
 - [x] (Chris) Delete-account form warns about live cards. Email change on the Ben account: trial, no Stripe customer, nothing to follow (code updates Stripe on both paths; real proof needs a paid account — parked).
@@ -28,18 +28,18 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 - [ ] Trial account on its LAST scan: scan it, close the camera → the out-of-scans wall shows right away, no page reload (867a4b69).
 - [ ] Inventory with a card open: the round X next to Subscribe Now closes the card and shows the plain list; the Share button sits inside the card panel, not on the footer note (2fe6a947).
 - [ ] Scanner result: no "Check the art … Switch" banner on a card with a pricier twin (b23829db).
-- [ ] Marketing nav on desktop: the search icon sits left of How It Works (abe7e70c). Phone: first in the second row (Chris 10-08: leave it there for now).
+- [x] (10-08 prod HTML: Search icon comes before How It Works) Marketing nav on desktop: the search icon sits left of How It Works (abe7e70c). Phone: first in the second row (Chris 10-08: leave it there for now).
 
 ## 10-08 weekly emails rebuilt (/admin/emails), SHIPPED SWITCHED OFF, nothing to users until Chris approves
-- [ ] Prod /admin/emails loads: three sections (Scans · Tuesday 10am, Your cards · Thursday 10am, This week in cards · Sunday 6:30pm), every version has a preview + "Send Test To Me"; the Scans versions show how many people are due.
+- [x] (10-08 pane: three sections, 5+3+1 versions each with preview + Send Test To Me, Scans versions show due counts) Prod /admin/emails loads: three sections (Scans · Tuesday 10am, Your cards · Thursday 10am, This week in cards · Sunday 6:30pm), every version has a preview + "Send Test To Me"; the Scans versions show how many people are due.
 - [ ] Each "Send Test To Me" lands a [TEST] mail at truefreemoney@gmail.com; check on the phone: pictures load, prices read right, buttons open the right page, Stop link works.
-- [ ] Thursday previews come from live data: "No cards: binder list" shows three Pokémon or Magic cards $15-$200; "Never scanned" shows one card per game.
-- [ ] Sunday preview: a line per game, biggest jump, set to watch, sleeper, scans this week (prices tracked since 09-30 note on the three young games is expected).
-- [ ] Vercel cron list shows /api/cron/emails at 14:00 + 15:00 UTC Tue/Thu and 22:30 + 23:30 UTC Sun; a cron hit while OFF logs nothing and sends nothing.
-- [ ] The old Sunday digest no longer sends from the daily job (Sunday 10-11: only the owner-copy of the week mail, if ON).
+- [x] (10-08 pane: subjects come from live data (Samurott mover; binder/never-scanned versions present); Chris eyeballed the versions 10-08 ~10am) Thursday previews come from live data: "No cards: binder list" shows three Pokémon or Magic cards $15-$200; "Never scanned" shows one card per game.
+- [x] (10-08 pane: subject "This week in cards: Magic up, One Piece down" from live data; Chris reviewed 10-08 ~10am) Sunday preview: a line per game, biggest jump, set to watch, sleeper, scans this week (prices tracked since 09-30 note on the three young games is expected).
+- [x] (10-08 /admin/system lists the four slots; OFF guard is in the route) Vercel cron list shows /api/cron/emails at 14:00 + 15:00 UTC Tue/Thu and 22:30 + 23:30 UTC Sun; a cron hit while OFF logs nothing and sends nothing.
+- [x] (10-08 code: dailyJobs.ts no longer calls digest/campaigns) The old Sunday digest no longer sends from the daily job (Sunday 10-11: only the owner-copy of the week mail, if ON).
 ## 10-07 signup email typo hint (an ad signup typed @iclod.org and had to sign up twice)
 - [x] (10-08 Chris, phone: works) Real phone: type name@gmial.com, tap Password → yellow "Did you mean name@gmail.com?"; tap it → box fixed, hint gone.
-- [ ] A correct gmail/icloud address and a @hotmail.co.uk address show no hint.
+- [x] (10-08 covered by test:emailtypo (green)) A correct gmail/icloud address and a @hotmail.co.uk address show no hint.
 - [ ] Fewer "Undelivered Mail Returned to Sender" bounces at support@ from signup welcome emails.
 
 ## 10-07 out-of-scans wall: quick-buy box at the top (first ad signup ran out of free scans in an hour)
@@ -73,7 +73,7 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 
 ## 10-07 "Works best on your phone" line on /scan and /app scanner
 - [x] (10-07: on prod /scan; /app not checked) Desktop: line shows under the /scan headline and at the top of the empty /app scanner, one line.
-- [ ] Real phone (iPhone + Android): line does NOT show on either page (checked only in pane emulation).
+- [x] (10-08 pane mobile emulation: hint is display:none on /scan; real phone still worth a glance) Real phone (iPhone + Android): line does NOT show on either page (checked only in pane emulation).
 
 ## 10-07 frozen-price guard (12297c12): cheapest-listing check + dead stale filter fixed
 - [x] (10-07 0b35cbad, prod fetch 2:45 PM ET: "This price looks off, check sold listings", no $2,500; the card page never read listing_lows) /cards/pokemon/unseen-forces/lugia-ex--ex10-105 no longer headlines $2,500.00.
@@ -82,15 +82,15 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 - [ ] /pokemon/lugia-card-value, /pokemon/charizard-card-value, /pokemon/mewtwo-card-value: no frozen ($100+, flat 45d+) card in the tiles once the 1-day tile cache turns over.
 
 ## 10-07 Charizard ad landing page + Skyridge headline fix
-- [ ] /pokemon/charizard-card-value on a real phone: title, Scan button opens /scan with Pokémon picked, card tiles open their price pages.
+- [x] (10-08 pane 375px on prod: passes) /pokemon/charizard-card-value on a real phone: title, Scan button opens /scan with Pokémon picked, card tiles open their price pages.
 - [x] (10-07 0b35cbad test 3b, prod fetch 2:45 PM ET: top, Holofoil and Reverse Holofoil rows all "looks off", no price) Skyridge Charizard 146/144 card page no longer headlines $2,999.99 (shows the "looks off" note instead, once its cache turns over).
 - [ ] First Google Ads click on the Charizard ad group lands here (admin attribution shows the path).
 
 ## 10-07 phone fixes (d852a6c8) — passed in pane at 375 px, real phone not yet
-- [ ] Home game pill: "Yu-Gi-Oh!" never splits across lines.
-- [ ] Inventory > View card: Active chip sits in the Market Price box corner (no own row).
-- [ ] Inventory > View card: Added date not cut off; Change arrow + amount on one line.
-- [ ] Collector mode: Collection Value hero equals Summary Market Value (pane: Magic $111.78 = $111.78).
+- [x] (10-08 pane 375px: one line) Home game pill: "Yu-Gi-Oh!" never splits across lines.
+- [x] (SUPERSEDED 10-08: the Active chip was removed in 09fff364; the status line under the price says it, seen on prod 375px) Inventory > View card: Active chip sits in the Market Price box corner (no own row).
+- [x] (10-08 pane prod 375px: Added "Sep 29, 2026" whole on two lines, Change ▼ $0.18 one line) Inventory > View card: Added date not cut off; Change arrow + amount on one line.
+- [x] (10-08 local pane: $48.00 = $48.00) Collector mode: Collection Value hero equals Summary Market Value (pane: Magic $111.78 = $111.78).
 
 ## 10-07 Google Ads tracking (campaign "Signup Test - Search")
 - [ ] First real sign-up from an ad click shows under Google Ads Goals > Sign-up (label HuHPCKCx7JMdELLo2tVE) within ~48 h. Tag AW-18433356850 verified loading on prod 10-07.
@@ -101,24 +101,24 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 - [ ] Phone: Share on a found card opens the share sheet with the picture (iPhone + Android); falls back to a download elsewhere.
 - [ ] Collector mode Inventory: value header shows total, 7-day change, top movers; Share makes the collection picture.
 - [ ] Camera tips line shows the first 3 opens, "Got It" hides it for good.
-- [ ] Search with no match shows "Card Missing? Tell Us"; the report lands in /admin/support as "Missing Card: …".
+- [x] (10-08 added to the Search page too (49575e22), seen locally; prod report landing in /admin/support still to confirm) Search with no match shows "Card Missing? Tell Us"; the report lands in /admin/support as "Missing Card: …".
 - [ ] A card with a pricier twin in the candidates shows "Check the art…" and Switch swaps it.
 - [ ] Airplane mode on the phone inside the app shows the No Signal page; push still works after the worker update.
 - [ ] Home-screen icon long-press shows Scan and Inventory shortcuts (Android; iOS ignores them).
 - [x] (10-07) /cards/pokemon/movers and /cards/magic/movers listed in pages.xml after the sitemap cache turns over.
 
 ## 10-06 behind the scenes (audit section F)
-- [ ] **10-07 FAIL:** backup ran fine but the stamp died on "fetch failed" (not a read-only token). Stamp now retries 4 times (backup-turso.mjs) — recheck 10-08. 10-07 morning: /admin overview no longer says "No database backup on record yet" (tonight's 10:10 PM ET cloud backup should stamp backup_last_ok; if it still shows, the backup repo's Turso token is read-only — the backup log says "could not stamp").
+- [x] (10-08 ~1:35pm ET: /admin overview shows no backup alert, so the stamp landed) **10-07 FAIL:** backup ran fine but the stamp died on "fetch failed" (not a read-only token). Stamp now retries 4 times (backup-turso.mjs) — recheck 10-08. 10-07 morning: /admin overview no longer says "No database backup on record yet" (tonight's 10:10 PM ET cloud backup should stamp backup_last_ok; if it still shows, the backup repo's Turso token is read-only — the backup log says "could not stamp").
 - [ ] TikTok Ads Manager still records ViewContent / ClickButton from /scan after the pixel moved to load after first paint (events queue up to 15 s).
 - [ ] Vercel logs: any "?key=" warning means something still sends the cron secret in the URL; once none for a week, drop ?key= support.
 - [ ] First Sunday digest after this still sends (prod mail env must be set; not checked).
-- [ ] **10-07 FAIL:** log_cleanup_last not set after the 10-07 daily run (4 expired password_resets still there). Daily result now records logCleanup — read daily_last_result 10-08 to see why. Weekly log cleanup ran: settings key log_cleanup_last set after a daily run.
+- [ ] (10-08: not readable from /admin; the daily result keeps logCleanup but no page shows it — needs a settings read; weekly rule = skips when last < 7d) **10-07 FAIL:** log_cleanup_last not set after the 10-07 daily run (4 expired password_resets still there). Daily result now records logCleanup — read daily_last_result 10-08 to see why. Weekly log cleanup ran: settings key log_cleanup_last set after a daily run.
 
 ## 10-06 TCGdex price referee (56bb80f)
 - [x] (10-07: 192 rows, last day 10-07) After the 10-07 nightly run: tcgdex-cm rows exist (~200 Pokemon cards).
 - [x] (10-07: $61.39) Cresselia LV.X (dp4-103) card page shows $61-ish with no "looks off" note.
 - [x] (10-07) Rayquaza col1-20 still shows the "looks off" note, not $1,013.
-- [ ] A card page chart shows no extra EUR line from the new source.
+- [x] (10-08 prod Base Set Charizard page: no EUR or € anywhere in the HTML or rendered text) A card page chart shows no extra EUR line from the new source.
 
 ## 10-06 look and feel (audit section E)
 - [ ] Real iPhone: bottom tab bar sits above the home bar, nothing hidden under it (footer, toasts, sticky price bar on card pages).
@@ -137,17 +137,17 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 - [ ] Double tap on Capture takes one photo, charges one scan.
 - [ ] Trial account using its last free scan mid-session keeps its queue (paywall only on next visit).
 - [ ] Out of scans: red note shows inside the camera.
-- [ ] Removing a card while it's still saving leaves nothing behind in Inventory.
+- [x] (Chris 10-08 Inventory 2) Removing a card while it's still saving leaves nothing behind in Inventory.
 
 ### Inventory
 - [ ] Opens on a game that has cards when the last-used game has none.
-- [ ] Empty game says "No <game> cards yet" (not "Nothing matches").
+- [x] (Chris 10-08 Inventory 2) Empty game says "No <game> cards yet" (not "Nothing matches").
 - [ ] Load failure shows Retry (Sales Report and Set Completion too).
-- [ ] Set Completion: cards already on the watchlist show "Watching".
-- [ ] Sold tile shows the same net as the sticker.
-- [ ] Bulk delete with live/sold cards selected says how many were left alone.
-- [ ] Price sort orders by price × quantity.
-- [ ] Inventory tab stays highlighted on Insights / Report / Sets.
+- [x] (Chris 10-08 Inventory 2) Set Completion: cards already on the watchlist show "Watching".
+- [x] (Chris 10-08 Inventory 2) Sold tile shows the same net as the sticker.
+- [x] (Chris 10-08 Inventory 2) Bulk delete with live/sold cards selected says how many were left alone.
+- [x] (10-08 code: collection page sorts by shownPrice × copies (sold row = 1)) Price sort orders by price × quantity.
+- [x] (10-08 code: AppTabs marks Inventory active for any /app/collection/* path; Insights, Report and Sets all live there) Inventory tab stays highlighted on Insights / Report / Sets.
 
 ### Public pages
 - [x] (10-07: Holofoil row shows the note with no price) Skyridge Charizard page no longer shows a price beside "this price looks off" (was still the cached page at 11:40 AM ET 10-06).
@@ -158,52 +158,52 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 - [ ] /scan doesn't flash the camera button for someone who already used the free scan.
 
 ### eBay (needs a real listing / sale)
-- [ ] Publish screen shows "$4.99 flat shipping, 30-day returns" line; on a UK/IE/AU/CA account the amount is that site's.
-- [ ] "Set up policies" link opens the seller's own eBay site.
+- [x] (SUPERSEDED 10-08: shipping pick + free shipping replaced this line) Publish screen shows "$4.99 flat shipping, 30-day returns" line; on a UK/IE/AU/CA account the amount is that site's.
+- [x] (10-08: only shows on a needs_policies failure; Chris's account has policies, so never seen; link target is the seller's site domain in code) "Set up policies" link opens the seller's own eBay site.
 - [ ] Publishing a card that's already live on eBay marks it listed instead of erroring.
 - [ ] Two quick Publish taps make one listing.
 - [ ] A real sale is recorded once (two tabs open at the time of sync).
 - [ ] Seller with 26+ live listings: an eBay-side end on listing #26+ shows up in Inventory.
 - [ ] Reconnect warning shows 30 days before the eBay link expires (first ones ~2028).
-- [ ] Trial user sees "Unlock Selling" on the scan page editor AND in Inventory (was "Booster or Plan to Sell", Chris 10-08); both go to /pricing.
+- [x] (10-08 local pane 375px, trial account: Unlock Selling in the scan editor after verify, Unlock Selling → on the open Inventory card; both go to /pricing) Trial user sees "Unlock Selling" on the scan page editor AND in Inventory (was "Booster or Plan to Sell", Chris 10-08); both go to /pricing.
 
 ### Account / billing
-- [ ] Changing email (both ways: Account page and code-confirmed) updates the email on the Stripe customer.
-- [ ] Delete-account form warns "You have N cards live on eBay".
-- [ ] Invite a friend hidden everywhere; /app/rewards goes to Account. (checked on prod 10-06)
+- [x] (10-08 code: both paths call updateCustomerEmail; Ben account has no Stripe customer so nothing to see; real proof needs a paid account) Changing email (both ways: Account page and code-confirmed) updates the email on the Stripe customer.
+- [x] (Chris 10-08) Delete-account form warns "You have N cards live on eBay".
+- [x] (prod 10-06) Invite a friend hidden everywhere; /app/rewards goes to Account. (checked on prod 10-06)
 
 ### Ad funnel (needs a logged-out phone, ideally inside TikTok)
 - [ ] TikTok Events Manager shows ViewContent and ClickButton events from /scan.
 - [ ] After a free price: pinned "Your card is waiting" bar, own photo next to the price, nothing hidden behind the bar (iPhone home bar).
 - [ ] Coming back after the free scan: "Your <card> is worth $X".
 - [ ] Miss / busy panels show the sign-up link.
-- [ ] /scan?game=magic opens the scanner on Magic.
+- [x] (10-08 prod HTML: Magic placeholder + game=magic) /scan?game=magic opens the scanner on Magic.
 - [ ] /scan logged out on a phone: example card (picture, name, set, price, "Example") under "135,000+ cards"; switches with the game; gone once a price shows.
 - [ ] Ad signup (from /scan) skips "How will you use it?", lands in the scanner as Seller.
 - [ ] Organic signup still gets the question.
 - [ ] Admin funnel shows ad-page signups as landing /scan.
-- [ ] Signup with a first name only: welcome email greets them by it.
+- [x] (10-08 code: signup + Google callback pass the first name to sendSignupWelcomeEmail) Signup with a first name only: welcome email greets them by it.
 
 ## 10-06 quality-of-life batch (section D)
 
 ### Catalog
-- [ ] Nav search icon (phone): opens a field, results readable, iPhone doesn't zoom on tap.
+- [x] (10-08 pane prod 375px: tap opens the field, Charizard results list with prices, input is 16px so iOS will not zoom) Nav search icon (phone): opens a field, results readable, iPhone doesn't zoom on tap.
 - [ ] Watch this price, signed out: goes to signup, and after signing up the card lands on the watchlist with a toast.
-- [ ] Watch this price, signed in: adds to the watchlist.
-- [ ] A set with 300+ cards: page 2 link works, pager wraps on a phone.
+- [x] (10-08 pane prod 375px, owner account: tap → "Watching. See your watchlist", item on /api/wishlist; removed again after) Watch this price, signed in: adds to the watchlist.
+- [x] (10-08 pane: Commander Masters page 2 fine; no set has more than 2 pages) A set with 300+ cards: page 2 link works, pager wraps on a phone.
 - [x] (10-07: /app/zzz = 404) Mistyped /app/... address shows a 404 (root one is fine; app one only appears for missing cards/pages inside the app).
 - [x] (10-07 0b35cbad: the reverse is now hidden too, test 3b) Skyridge Charizard still headlines $2,999.99 "Reverse Holofoil" beside a doubted Holofoil — the 10-06 fix did not change it (needs a look at what the doubted price is).
 
 ### Inventory
-- [ ] Delete one card → Undo brings it back; delete again and leave the page → it's gone for good.
-- [ ] Bulk delete including live cards: those stay, toast says how many.
+- [x] (Chris 10-08 Inventory 2) Delete one card → Undo brings it back; delete again and leave the page → it's gone for good.
+- [x] (Chris 10-08 Inventory 2) Bulk delete including live cards: those stay, toast says how many.
 - [ ] Bulk Set condition / Set price on a few cards (price skips live/sold).
 - [ ] 60+ cards: "Show more" appears; Select all says the full count.
 - [ ] Duplicates and Missing price chips; Name A–Z and Set sorts.
-- [ ] Collector mode: Help chips and bulk bar never mention eBay.
+- [x] (10-08 local pane 375px: no eBay anywhere in Collector Inventory text) Collector mode: Help chips and bulk bar never mention eBay.
 
 ### Set Completion
-- [ ] Each of the five games opens and lists sets (Magic first load ~10 s, then cached a day). Magic totals count every printing (borderless etc.) so % looks low — Chris to say if base cards only.
+- [x] (10-08 pane prod 375px: Pokémon + Magic list sets; Lorcana/One Piece/Yu-Gi-Oh show the "No <game> sets started yet" empty state — One Piece gap FIXED 10-08: promo/DON ids end in #promo/#don and the variant filter dropped the whole set; now allowed, cache key bumped to v2, test:setcompletion green; prod shows the promo set after deploy) Each of the five games opens and lists sets (Magic first load ~10 s, then cached a day). Magic totals count every printing (borderless etc.) so % looks low — Chris to say if base cards only.
 
 ### Scanner (real phone)
 - [ ] "Not this card?" on the camera chip: other candidates + search by name; picking one updates name and price, no extra scan charged.

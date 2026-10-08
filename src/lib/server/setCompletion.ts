@@ -140,12 +140,15 @@ async function buildCatalog(game: GameId, setKey: string): Promise<SetCatalog> {
     out.sort(byNumber);
     return { releaseDate: rows[0]?.set_release_date || null, printed: rows[0]?.printed_size ?? null, rows: out };
   }
+  // "#<n>" ids are parallel printings of a base card and stay out; "#promo" / "#don" are the
+  // only id a promo or DON card has (One Piece promos, 10-08), so those sets were coming up empty.
   const cut = setKey.indexOf("|");
   const rows = (await db
     .prepare(
       `SELECT id, name, subtitle, collector_number, set_code, set_total, image_url, set_release_date
          FROM tcg_cards
-        WHERE game = ? AND set_code = ? AND set_name = ? AND image_url <> '' AND id NOT LIKE '%#%'`,
+        WHERE game = ? AND set_code = ? AND set_name = ? AND image_url <> ''
+          AND (id NOT LIKE '%#%' OR id LIKE '%#promo' OR id LIKE '%#don')`,
     )
     .all(game, setKey.slice(0, cut), setKey.slice(cut + 1))) as unknown as { id: string; name: string; subtitle: string; collector_number: string; set_code: string; set_total: number | null; image_url: string; set_release_date: string }[];
   const out = rows.map((r) => ({
@@ -161,7 +164,7 @@ async function buildCatalog(game: GameId, setKey: string): Promise<SetCatalog> {
 
 /** One set's catalog, from card_cache for a day (an object wrapper: cachedList will not memo a bare empty list). */
 async function setCatalog(game: GameId, setKey: string): Promise<SetCatalog> {
-  return cachedList(`sets:cat:v1:${game}:${setKey}`, CAT_TTL_MS, () => buildCatalog(game, setKey));
+  return cachedList(`sets:cat:v2:${game}:${setKey}`, CAT_TTL_MS, () => buildCatalog(game, setKey));
 }
 
 /** Today's market per card id, guard applied: a flagged or missing price is absent from the map. */
