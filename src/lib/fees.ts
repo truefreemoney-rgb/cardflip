@@ -34,7 +34,7 @@ export const POSTAGE_USD = 0.75;
 /**
  * The seller PICKS how a card ships (Chris 10-08: "we shouldn't let the user
  * post to eBay unless they pick a shipping option"): an eBay Standard Envelope
- * ($0.75, tracked, eBay allows it only under a $20 sale price) or a bubble
+ * ($0.75, tracked, Chris caps it at a $100 sale price (10-08)) or a bubble
  * mailer by USPS Ground Advantage (~$5). The buyer pays nothing either way,
  * the postage sits inside the asking price. Nothing is picked by default; the
  * suggested pick (defaultShipMethod) is the envelope while it is allowed.
@@ -43,7 +43,7 @@ export type ShipMethod = "envelope" | "tracked";
 export const SHIP_METHODS: readonly ShipMethod[] = ["envelope", "tracked"];
 export const TRACKED_POSTAGE_USD = 5;
 /** eBay Standard Envelope: the sale price must be under this. */
-export const ENVELOPE_MAX_USD = 20;
+export const ENVELOPE_MAX_USD = 100;
 export function postageFor(method: ShipMethod | null | undefined): number {
   return method === "tracked" ? TRACKED_POSTAGE_USD : POSTAGE_USD;
 }
@@ -54,7 +54,7 @@ export function formatMoneyPostage(n: number): string {
 export function isShipMethod(v: unknown): v is ShipMethod {
   return v === "envelope" || v === "tracked";
 }
-/** Whether the envelope is allowed at this sale price (under eBay's $20 cap). */
+/** Whether the envelope is allowed at this sale price (under the $100 cap). */
 export function envelopeAllowed(gross: number): boolean {
   return gross < ENVELOPE_MAX_USD;
 }

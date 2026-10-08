@@ -3,6 +3,8 @@ import nodemailer from "nodemailer";
 import { FROZEN_SENTENCE, PRICING, ROLLOVER_SENTENCE, SCANS } from "@/lib/pricing";
 import type { Digest } from "@/lib/server/digest";
 import { PRICE_FLAG_LEFT_OUT_NEXT, priceFlagLeftOut } from "@/lib/priceFlag";
+import { defaultShipMethod, type ShipMethod } from "@/lib/fees";
+import { shipLabel, shipSteps } from "@/lib/shipping";
 
 /**
  * Outbound mail — the password-reset link and the subscription welcome.
@@ -290,6 +292,55 @@ export async function sendCardAlertEmail(to: string, hits: CardAlertHit[]): Prom
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
 const usd = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const signed = (n: number) => `${n >= 0 ? "+" : "-"}${usd(Math.abs(n))}`;
+
+export interface SoldMailCard {
+  name: string;
+  set: string;
+  number: string;
+  soldPrice: number | null;
+  /** The pick the seller made before publishing; null on cards listed before the pick existed. */
+  shippingMethod: ShipMethod | null;
+}
+
+/** "Your card sold" with the mailing steps for the pick the seller made (Chris 10-08). One mail per seller per daily pass. */
+export async function sendSoldEmail(to: string, cards: SoldMailCard[]): Promise<void> {
+  if (!isMailConfigured()) throw new Error("Mail isn't configured on this server");
+  if (cards.length === 0) return;
+  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://cardflip.io";
+  const line = (c: SoldMailCard) => `${c.name} (${c.set} · ${c.number})${c.soldPrice != null ? ` — sold for ${usd(c.soldPrice)}` : ""}`;
+  const blocks = cards.map((c) => {
+    const method = c.shippingMethod ?? defaultShipMethod(c.soldPrice ?? 0);
+    return { head: line(c), how: shipLabel(method), steps: shipSteps(method) };
+  });
+  const intro = cards.length === 1 ? "Your card sold on eBay. Here is how to mail it." : `${cards.length} of your cards sold on eBay. Here is how to mail each one.`;
+  const outro = "Mail within 1 business day so your seller rating stays up. The buyer already paid free shipping; the postage came out of your price.";
+  const text = [
+    intro,
+    "",
+    ...blocks.flatMap((b) => [b.head, `Ship it: ${b.how}`, ...b.steps.map((st, i) => `${i + 1}. ${st}`), ""]),
+    `Your inventory: ${site}/app/collection`,
+    "",
+    outro,
+    "",
+    "— CardFlip · support@cardflip.io",
+  ].join("\n");
+  const html = `
+    <p>${esc(intro)}</p>
+    ${blocks
+      .map((b) => `<p><strong>${esc(b.head)}</strong><br/><span style="color:#666">Ship it: ${esc(b.how)}</span></p><ol>${b.steps.map((st) => `<li>${esc(st)}</li>`).join("")}</ol>`)
+      .join("")}
+    <p><a href="${site}/app/collection" style="display:inline-block;padding:10px 18px;border-radius:999px;background:#6d5dfc;color:#fff;text-decoration:none;font-weight:600">Open your inventory</a></p>
+    <p style="color:#666;font-size:13px">${esc(outro)}</p>
+    <p style="color:#999;font-size:12px">— CardFlip · support@cardflip.io</p>`;
+  const first = cards[0];
+  await transport().sendMail({
+    from: fromAddress(),
+    to,
+    subject: cards.length === 1 ? `${first.name} sold${first.soldPrice != null ? ` for ${usd(first.soldPrice)}` : ""} — how to mail it` : `${cards.length} cards sold — how to mail them`,
+    text,
+    html,
+  });
+}
 
 /** Sunday collection digest — one mail per seller per week (lib/server/digest.ts). */
 export async function sendWeeklyDigestEmail(to: string, d: Digest, unsub: { userId: string; token: string }): Promise<void> {

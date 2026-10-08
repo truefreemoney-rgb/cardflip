@@ -185,7 +185,7 @@ const user = await createUser("Golden", "golden@example.com", "hunter22", "user"
 const uid = user.id;
 const JPEG = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(64, 1), Buffer.from([0xff, 0xd9])]);
 const c = await createCard(uid, { cardName: "Charizard", setName: "Base Set", cardNumber: "4", imageUrl: "https://img/4.png", condition: "Near Mint", price: 818 });
-await updateCard(c.id, uid, { verifiedAt: Date.now() });
+await updateCard(c.id, uid, { verifiedAt: Date.now(), shippingMethod: "tracked" });
 const stored = await storeCardPhoto(c.id, uid, JPEG);
 if (!stored.ok) throw new Error(`photo store failed: ${stored.reason}`);
 await completeEbayConnect(uid, "code");

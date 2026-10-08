@@ -65,9 +65,9 @@ const d = await buildDigest(u.id, SUNDAY);
 check("held count excludes sold", d.held, 6);
 check("value moved by the net change (Up +10, Down -12, everything else flat)", d.valueNow < d.valueBefore, true);
 check("gainers = Up only", d.gainers.map((c) => [c.name, c.change > 0, c.pct]), [["Up", true, 89.7]]);
-// Chris 10-08: fees + postage on every card (COSTS_ON_EVERY_CARD). Up is judged on asking prices: $10 → $12.86, $20 → $24.39 = +89.7%, not the raw +100%.
+// Chris 10-08: fees + postage on every card (COSTS_ON_EVERY_CARD). Up is judged on asking prices: $10 → $12.86, $20 → $24.39 (envelope, under the $100 cap) = +89.7%, not the raw +100%.
 // The digest compares ASKING prices (askingPriceFor), and since Chris 10-08 (COSTS_ON_EVERY_CARD) fees + postage
-// ride on every card, both ends of Down: $20 → $24.39, $8 → $10.55 = -56.7%, not the raw -60%.
+// ride on every card, both ends of Down: $20 → $24.39 (envelope), $8 → $10.55 = -56.7%, not the raw -60%.
 const { askingPriceFor } = await import(at("lib/listing.ts"));
 const downPct = Math.round(((askingPriceFor(8, "NM") - askingPriceFor(20, "NM")) / askingPriceFor(20, "NM")) * 1000) / 10;
 check("losers = Down only, % on the asking prices", d.losers.map((c) => [c.name, c.change < 0, c.pct]), [["Down", true, downPct]]);

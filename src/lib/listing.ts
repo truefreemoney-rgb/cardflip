@@ -28,8 +28,8 @@ export function floorNote(quote?: { covers?: number; coverPartial?: boolean; shi
   const method = quote?.shipping ?? defaultShipMethod(keep);
   const postage = postageFor(method);
   return quote?.coverPartial
-    ? `Card value ${keep.toFixed(2)} plus part of the eBay fees and postage`
-    : `Card value ${keep.toFixed(2)} plus eBay fees and ${postage.toFixed(2)} ${method === "tracked" ? "tracked-mailer" : "envelope"} postage, so you keep the full value`;
+    ? `Card value $${keep.toFixed(2)} plus part of the eBay fees and postage`
+    : `Card value $${keep.toFixed(2)} plus eBay fees and $${postage.toFixed(2)} ${method === "tracked" ? "tracked-mailer" : "envelope"} postage, so you keep the full value`;
 }
 
 /**

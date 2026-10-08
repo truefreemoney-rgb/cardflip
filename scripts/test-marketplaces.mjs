@@ -72,7 +72,7 @@ console.log("Table");
   ]);
   check("policy cost set on every non-NZ local row", ["GB", "IE", "AU", "CA"].every((k) => /^\d+\.\d{2}$/.test(MARKETPLACES[k].shipping.policyCost)), true);
   check("US row reproduces today's literals", [US_MARKETPLACE.shipping, US_MARKETPLACE.postage, US_MARKETPLACE.fees.business], [
-    { carrierCode: "USPS", serviceCode: "USPSGroundAdvantage", fallbackServiceCode: "USPSPriority", policyCost: "4.99" },
+    { carrierCode: "USPS", serviceCode: "USPSGroundAdvantage", fallbackServiceCode: "USPSPriority", policyCost: "4.99", envelopeServiceCode: "US_eBayStandardEnvelope" },
     0.75,
     { rate: fees.EBAY_FEE_RATE, flat: fees.EBAY_FLAT_FEE, flatOver: fees.EBAY_FLAT_FEE_OVER_10, flatStep: fees.EBAY_FLAT_FEE_STEP_USD },
   ]);

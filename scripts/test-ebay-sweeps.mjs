@@ -269,7 +269,7 @@ check("nudges: cheap cards target value + costs, not raw market", cheapNudges.ma
   const fineListed = await listedCard({ price: 150, catalogId: "g-fine", listedAt: NOW - 8 * DAY });
   const gn = await getRepriceNudges(uid, NOW);
   check("guard: a listing whose market is flagged gets no reprice nudge", gn.some((x) => x.cardId === junkListed.id), false);
-  check("guard: the normal $300 market still nudges the $150 listing", gn.find((x) => x.cardId === fineListed.id)?.target, costCoveredPrice(300));
+  check("guard: the normal $300 market still nudges the $150 listing", gn.find((x) => x.cardId === fineListed.id)?.target, costCoveredPrice(300, "tracked"));
 
   const wJunk = await addToWishlist(uid, pcard("g-junk", "GuardJunk"), "en", 500);
   const wFine = await addToWishlist(uid, pcard("g-fine", "GuardFine"), "en", 300);

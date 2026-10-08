@@ -100,6 +100,18 @@
   {
     "method": "GET",
     "host": "https://api.ebay.com",
+    "path": "/sell/account/v1/fulfillment_policy?marketplace_id=EBAY_US",
+    "headers": {
+      "Authorization": "Bearer tok-1",
+      "Accept": "application/json",
+      "Content-Language": "en-US",
+      "Accept-Language": "en-US",
+      "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
+    }
+  },
+  {
+    "method": "GET",
+    "host": "https://api.ebay.com",
     "path": "/sell/inventory/v1/location?limit=1",
     "headers": {
       "Authorization": "Bearer tok-1",
@@ -165,6 +177,18 @@
     "method": "GET",
     "host": "https://api.ebay.com",
     "path": "/sell/account/v1/return_policy?marketplace_id=EBAY_US",
+    "headers": {
+      "Authorization": "Bearer tok-1",
+      "Accept": "application/json",
+      "Content-Language": "en-US",
+      "Accept-Language": "en-US",
+      "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
+    }
+  },
+  {
+    "method": "GET",
+    "host": "https://api.ebay.com",
+    "path": "/sell/account/v1/fulfillment_policy?marketplace_id=EBAY_US",
     "headers": {
       "Authorization": "Bearer tok-1",
       "Accept": "application/json",
@@ -307,6 +331,18 @@
     "method": "GET",
     "host": "https://api.ebay.com",
     "path": "/sell/account/v1/return_policy?marketplace_id=EBAY_US",
+    "headers": {
+      "Authorization": "Bearer tok-1",
+      "Accept": "application/json",
+      "Content-Language": "en-US",
+      "Accept-Language": "en-US",
+      "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
+    }
+  },
+  {
+    "method": "GET",
+    "host": "https://api.ebay.com",
+    "path": "/sell/account/v1/fulfillment_policy?marketplace_id=EBAY_US",
     "headers": {
       "Authorization": "Bearer tok-1",
       "Accept": "application/json",

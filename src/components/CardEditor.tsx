@@ -377,7 +377,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
   const hookPoint = useLastRecordedPrice(card?.id ?? "", effectiveVariant(item) ?? null);
   const currentPoint = hookPoint ?? item.currentPoint ?? null;
   // Shipping pick (10-08), hooks above the early returns: the envelope tile is off once the price it
-  // would give is $20 or more (eBay's Standard Envelope cap); a card that grew past the cap after an
+  // would give is $100 or more (the envelope cap); a card that grew past the cap after an
   // envelope pick flips to tracked.
   const envelopeQuote = card ? quotePrice(card, item.condition, item.strategy, effectiveVariant(item), currentPoint, "envelope") : null;
   const envelopeOk = envelopeQuote ? envelopeAllowed(item.priceOverride ?? envelopeQuote.suggested) : true;

@@ -511,7 +511,7 @@ function requireShipping(card: { kind: string; shippingMethod: ShipMethod | null
   if (card.kind === "sealed") return;
   if (!card.shippingMethod) throw new EbaySellError("Pick a shipping option first — Envelope or Tracked mailer, under Shipping on the card", 409);
   if (card.shippingMethod === "envelope" && card.price >= ENVELOPE_MAX_USD) {
-    throw new EbaySellError(`Over ${ENVELOPE_MAX_USD} eBay needs a tracked mailer — pick Tracked mailer under Shipping`, 409);
+    throw new EbaySellError(`Over $${ENVELOPE_MAX_USD} eBay needs a tracked mailer — pick Tracked mailer under Shipping`, 409);
   }
 }
 

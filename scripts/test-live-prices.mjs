@@ -73,7 +73,7 @@ const sold = await mk({ price: 30, catalogCardId: "base1-4" });
 await updateCard(sold.id, user.id, { status: "sold", soldPrice: 30, soldAt: Date.now() });
 const orphan = await mk({ price: 3 });
 // Chris 10-08: fees + postage on every card (COSTS_ON_EVERY_CARD): the market ask now carries the costs, so an already-current row sits at the covered price.
-const current = await mk({ price: costCoveredPrice(20), catalogCardId: "base1-58" });
+const current = await mk({ price: costCoveredPrice(20, "envelope"), catalogCardId: "base1-58" });
 // A row from before scan_price existed: nulled, to be backfilled from the series on its scan day.
 const old = await mk({ price: 12.5, catalogCardId: "base1-58", condition: "Lightly Played" });
 await db.prepare("UPDATE cards SET scan_price = NULL WHERE id = ?").run(old.id);
@@ -96,25 +96,25 @@ const staleDraft = await mk({ price: 480, catalogCardId: "stale-deoxys", cardNam
 // The scanner saves its quick-sale price (88% of market) with the market ask beside it (10-01: a flat
 // $10,000 Charizard read "added at $8,799.99, up 13.6%").
 // Chris 10-08: fees + postage on every card (COSTS_ON_EVERY_CARD): the scanner saves the market ask (costs included) as the scan price.
-const quickScan = await mk({ price: 17.59, scanPrice: costCoveredPrice(20), catalogCardId: "base1-58" });
+const quickScan = await mk({ price: 17.59, scanPrice: costCoveredPrice(20, "envelope"), catalogCardId: "base1-58" });
 
 console.log("askingPriceFor");
 // Chris 10-08: fees + postage on every card (COSTS_ON_EVERY_CARD)
-check("NM = market plus fees and postage", askingPriceFor(20, "Near Mint"), costCoveredPrice(20));
-check("LP applies the condition multiplier", askingPriceFor(20, "Lightly Played"), costCoveredPrice(Math.round(20 * CONDITION_MULTIPLIER["Lightly Played"] * 100) / 100));
-check("unknown condition counts as NM", askingPriceFor(20, "Slabbed"), costCoveredPrice(20));
+check("NM = market plus fees and postage", askingPriceFor(20, "Near Mint"), costCoveredPrice(20, "envelope"));
+check("LP applies the condition multiplier", askingPriceFor(20, "Lightly Played"), costCoveredPrice(Math.round(20 * CONDITION_MULTIPLIER["Lightly Played"] * 100) / 100, "envelope"));
+check("unknown condition counts as NM", askingPriceFor(20, "Slabbed"), costCoveredPrice(20, "envelope"));
 check("no market → 0", askingPriceFor(0, "Near Mint"), 0);
 
 console.log("refreshLivePrices");
 const out = await refreshLivePrices(user.id);
 const by = Object.fromEntries(out.map((p) => [p.cardId, p]));
 const pick = (p, keys) => (p ? Object.fromEntries(keys.map((k) => [k, p[k]])) : p);
-check("untouched draft rewritten to today's market", pick(by[draft.id], ["applied", "suggested", "previous"]), { applied: true, suggested: costCoveredPrice(20), previous: 12.5 });
-check("… and the ledger row moved", (await getCardForUser(draft.id, user.id)).price, costCoveredPrice(20));
-check("LP draft goes through its condition", by[played.id]?.suggested, costCoveredPrice(17));
+check("untouched draft rewritten to today's market", pick(by[draft.id], ["applied", "suggested", "previous"]), { applied: true, suggested: costCoveredPrice(20, "envelope"), previous: 12.5 });
+check("… and the ledger row moved", (await getCardForUser(draft.id, user.id)).price, costCoveredPrice(20, "envelope"));
+check("LP draft goes through its condition", by[played.id]?.suggested, costCoveredPrice(17, "envelope"));
 check("hand-set price reported, not rewritten", pick(by[locked.id], ["applied", "market"]), { applied: false, market: 20 });
 check("… ledger untouched", (await getCardForUser(locked.id, user.id)).price, 9);
-check("listed row reported, not rewritten", pick(by[listed.id], ["applied", "suggested"]), { applied: false, suggested: costCoveredPrice(100) });
+check("listed row reported, not rewritten", pick(by[listed.id], ["applied", "suggested"]), { applied: false, suggested: costCoveredPrice(100, "tracked") });
 check("… ledger untouched", (await getCardForUser(listed.id, user.id)).price, 30);
 check("sold row skipped", sold.id in by, false);
 check("row without a catalog id skipped", orphan.id in by, false);
@@ -124,11 +124,11 @@ check("fresh rows are unlocked", (await getCardForUser(draft.id, user.id)).price
 check("scan price stored on create", (await getCardForUser(draft.id, user.id)).scanPrice, 12.5);
 check("scanned reported from the stored value", by[draft.id]?.scanned, 12.5);
 const quickRow = await getCardForUser(quickScan.id, user.id);
-check("quick-sale scan: the market ask is the scan price, so a flat market shows no move", [quickRow.scanPrice, quickRow.price], [costCoveredPrice(20), costCoveredPrice(20)]);
-check("older row: scanned backfilled from the series on its scan day (LP)", by[old.id]?.scanned, costCoveredPrice(17));
-check("… and persisted", (await getCardForUser(old.id, user.id)).scanPrice, costCoveredPrice(17));
+check("quick-sale scan: the market ask is the scan price, so a flat market shows no move", [quickRow.scanPrice, quickRow.price], [costCoveredPrice(20, "envelope"), costCoveredPrice(20, "envelope")]);
+check("older row: scanned backfilled from the series on its scan day (LP)", by[old.id]?.scanned, costCoveredPrice(17, "envelope"));
+check("… and persisted", (await getCardForUser(old.id, user.id)).scanPrice, costCoveredPrice(17, "envelope"));
 check("variant stored on create and read back", (await getCardForUser(foil.id, user.id)).variant, "foil");
-check("Magic foil row refreshes off the foil series", by[foil.id]?.suggested, costCoveredPrice(50));
+check("Magic foil row refreshes off the foil series", by[foil.id]?.suggested, costCoveredPrice(50, "envelope"));
 // $2 is a cheap card: value + fees + postage on top (09-30), same rule as the scanner.
 check("… the nonfoil copy of the same card stays on nonfoil", by[plain.id]?.suggested, askingPriceFor(2, "Near Mint"));
 check("variant PATCH: null clears it", await updateCard(plain.id, user.id, { variant: "etched" }).then(() => updateCard(plain.id, user.id, { variant: null })).then((c) => c?.variant ?? null), null);
@@ -151,8 +151,8 @@ check("... its suggestion is the normal market ask", by[staleDraft.id]?.suggeste
 check("... the stored 480 is blanked to 0 (the seller never typed it), and stays 0 on the next load", [(await getCardForUser(junkDraft.id, user.id)).price, (await refreshLivePrices(user.id)).find((p) => p.cardId === junkDraft.id)?.applied], [0, false]);
 check("flagged locked and listed rows are flagged too and keep their price", [by[junkLocked.id]?.flag?.hard, by[junkListed.id]?.flag?.hard, (await getCardForUser(junkLocked.id, user.id)).price, (await getCardForUser(junkListed.id, user.id)).price], [true, true, 450, 500]);
 check("flagged row: no scan-price backfill", [by[junkOld.id]?.scanned, (await getCardForUser(junkOld.id, user.id)).scanPrice], [null, null]);
-check("a normal $300 card: suggested as before, no flag", pick(by[fine.id], ["applied", "suggested", "flag"]), { applied: true, suggested: costCoveredPrice(300) });
-check("... and its draft price moved", (await getCardForUser(fine.id, user.id)).price, costCoveredPrice(300));
+check("a normal $300 card: suggested as before, no flag", pick(by[fine.id], ["applied", "suggested", "flag"]), { applied: true, suggested: costCoveredPrice(300, "tracked") });
+check("... and its draft price moved", (await getCardForUser(fine.id, user.id)).price, costCoveredPrice(300, "tracked"));
 
 console.log(failures === 0 ? "\nAll live-price checks passed." : `\n${failures} live-price check(s) FAILED.`);
 process.exit(failures === 0 ? 0 : 1);

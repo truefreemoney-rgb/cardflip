@@ -302,11 +302,11 @@ async function addSeries(catalogId, price, endAgo = 0) {
     .run(catalogId, addDays(TODAY, -9 - endAgo), encodePrices(Array(10).fill(price)), TODAY);
 }
 /** A verified card with a photo, a USD market series, and a US-fee price (what the live refresh writes). */
-async function newCard(uid, { market = 3.2, condition = "Near Mint", locked = false, price = 5, endAgo = 0 } = {}) {
+async function newCard(uid, { market = 3.2, condition = "Near Mint", locked = false, price = 5, endAgo = 0, shipping = price >= 20 || market >= 15 ? "tracked" : "envelope" } = {}) {
   const catalogId = `test-card-${++seq}`;
   if (market != null) await addSeries(catalogId, market, endAgo);
   const c = await createCard(uid, { cardName: "Charizard", setName: "Base Set", cardNumber: "4", imageUrl: "https://img/4.png", condition, price, catalogCardId: catalogId });
-  await updateCard(c.id, uid, { verifiedAt: Date.now(), ...(locked ? { priceLocked: true } : {}) });
+  await updateCard(c.id, uid, { verifiedAt: Date.now(), shippingMethod: shipping, ...(locked ? { priceLocked: true } : {}) });
   const stored = await storeCardPhoto(c.id, uid, JPEG);
   if (!stored.ok) throw new Error(`photo store failed: ${stored.reason}`);
   return c;

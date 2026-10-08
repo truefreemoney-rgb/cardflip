@@ -8,6 +8,13 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 - [ ] Prod, a one-day custom range (both dates today) draws 24 hourly points, not one bar.
 - [ ] The faint dotted "before" line matches the "N before" number under each tile.
 
+## 10-08 shipping pick (seller picks Envelope or Tracked mailer before an eBay post)
+- [ ] Scan editor on the phone: "Shipping · pick one to post on eBay" with two tiles (Envelope $0.75 / Tracked mailer $5.00); Envelope greys out at a $100+ sale price; "? How to ship" opens the two-way sheet.
+- [ ] No pick → the eBay post button shows "🔒 Pick a shipping option to publish"; after a pick the confirm line says free shipping for the buyer, postage already in the price.
+- [ ] First REAL publish with Envelope picked: eBay accepts the "CardFlip envelope" policy (service code US_eBayStandardEnvelope is unverified); if eBay refuses, the listing should still go out on the tracked policy.
+- [ ] Inventory: a live or sold card shows "How to ship it · <pick>" with the 4 steps; "Both ways" opens the sheet.
+- [ ] After a real sale: the "Your card sold" push AND an email with the mailing steps land (daily sweep); check the email reads right on the phone.
+
 ## 10-08 scanner + inventory fixes from the test day
 - [ ] Trial account on its LAST scan: scan it, close the camera → the out-of-scans wall shows right away, no page reload (867a4b69).
 - [ ] Inventory with a card open: the round X next to Subscribe Now closes the card and shows the plain list; the Share button sits inside the card panel, not on the footer note (2fe6a947).

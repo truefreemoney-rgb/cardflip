@@ -5,6 +5,8 @@ import { syncEndedEbayListings } from "@/lib/server/ebayListings";
 import { syncEbayFees } from "@/lib/server/ebayFinances";
 import { sendPushToUser } from "@/lib/server/push";
 import { soldPush } from "@/lib/pushMessages";
+import { isMailConfigured, sendSoldEmail } from "@/lib/server/mail";
+import type { CardRecord } from "@/lib/server/cards";
 import { sweepWishlistAlerts } from "@/lib/server/wishlistAlerts";
 import { sweepCardAlerts } from "@/lib/server/cardAlerts";
 import { sweepAutoOffers } from "@/lib/server/ebayNegotiation";
@@ -241,7 +243,11 @@ export async function runPokemonSteps(
       const r = await syncEbaySales(seller.user_id, true);
       soldCount += r.sold.length;
       // "Your card sold" on the phone (Tier 2 #9); never throws.
-      if (r.sold.length > 0) await sendPushToUser(seller.user_id, soldPush(r.sold.map((c) => ({ name: c.cardName, soldPrice: c.soldPrice }))));
+      if (r.sold.length > 0) {
+        await sendPushToUser(seller.user_id, soldPush(r.sold.map((c) => ({ name: c.cardName, soldPrice: c.soldPrice }))));
+        // Same news by mail, with the mailing steps for the shipping pick (Chris 10-08). Never throws.
+        await sendSoldMail(seller.user_id, r.sold);
+      }
       // After sales, so a sold-out listing flips sold instead of "ended".
       const e = await syncEndedEbayListings(seller.user_id, true);
       endedCount += e.ended.length;
@@ -321,5 +327,22 @@ export async function runDailyIfDue(force = false, now = Date.now()): Promise<Da
     return result;
   } finally {
     running = false;
+  }
+}
+
+/** "Your card sold" mail with how to ship it; skips unconfigured mail and unconfirmed addresses. */
+async function sendSoldMail(userId: string, sold: CardRecord[]): Promise<void> {
+  try {
+    if (!isMailConfigured()) return;
+    const u = (await db.prepare(`SELECT email, email_pending FROM users WHERE id = ?`).get(userId)) as
+      | { email: string | null; email_pending: number }
+      | undefined;
+    if (!u?.email || u.email_pending) return;
+    await sendSoldEmail(
+      u.email,
+      sold.map((c) => ({ name: c.cardName, set: c.setName, number: c.cardNumber, soldPrice: c.soldPrice, shippingMethod: c.shippingMethod })),
+    );
+  } catch (err) {
+    console.error("daily: sold mail failed:", err);
   }
 }
