@@ -4,10 +4,13 @@ import { useMemo, useRef, useState, type HTMLAttributes, type ReactNode } from "
 import Spinner from "@/components/Spinner";
 import SetBrowser from "@/components/SetBrowser";
 import GameToggle from "@/components/GameToggle";
+import MissingCardReport from "@/components/MissingCardReport";
 import { searchTyped } from "@/lib/cards";
 import { GAMES, readSavedGame, saveGame } from "@/lib/games";
 import { pickPrice, priceFlagOf } from "@/lib/listing";
 import type { GameId, PokemonCard, ScanLanguage } from "@/lib/types";
+
+const NO_MATCH = "No cards matched that search.";
 
 /**
  * The one card search (10-01, Chris: "any change to the search in Search
@@ -106,7 +109,7 @@ export function useCardSearch(language: ScanLanguage, onReset?: () => void) {
       const found = (await searchTyped(typed, game, language)) ?? [];
       if (mine !== seq.current) return;
       apply(found, `${found.length} result${found.length === 1 ? "" : "s"} for “${typed}”`);
-      if (found.length === 0) setError("No cards matched that search.");
+      if (found.length === 0) setError(NO_MATCH);
     } catch {
       if (mine !== seq.current) return;
       setError("Search failed — check your connection.");
@@ -208,6 +211,8 @@ export function CardSearchBox({
       )}
       {hint && <p className="text-xs text-zinc-600">{hint}</p>}
       {search.error && <p className="text-xs text-red-400">{search.error}</p>}
+      {/* Catalog miss by name (Chris 10-08): same report as the scanner pick list, lands in /admin/support as "Missing Card:". */}
+      {search.error === NO_MATCH && mode === "search" && search.query.trim() !== "" && <MissingCardReport game={game} typed={search.query} />}
     </>
   );
 }
