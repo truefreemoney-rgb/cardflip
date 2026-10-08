@@ -98,6 +98,7 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 - [ ] /admin attribution shows the sign-up as "Google Ads" (utm_source=googleads suffix).
 
 ## 10-08 game row
+- [ ] Collector mode Inventory: no "Collection value" box above the Market Value line (parked 10-08, Chris). The collection Share picture went with it; Insights page still has its own Share.
 - [ ] Game row on Inventory, Set Completion, Packs and /scan (Chris 10-08 "hate the look of the bar"): one line of small chips, no box, scrolls sideways on the phone, a 0 count not printed. Check it on the iPhone in Inventory and on /scan.
 
 ## 10-06 new features (audit section G)

@@ -52,7 +52,7 @@ import PriceFlagNote, { PriceFlagText, PriceStaleNote } from "@/components/Price
 import { priceFlagLeftOut } from "@/lib/priceFlag";
 import { saleBreakdown, saleNet } from "@/lib/profit";
 import { toast } from "@/components/Toaster";
-import CollectorValueHeader from "@/components/CollectorValueHeader";
+// import CollectorValueHeader from "@/components/CollectorValueHeader"; (parked 10-08, see the render spot)
 import { etDate } from "@/lib/time";
 
 /**
@@ -1899,7 +1899,8 @@ export default function CollectionPage() {
         <GameToggle game={gameView} onChange={switchGame} counts={gameCounts} block />
       </div>
 
-      {pricingOnly && <CollectorValueHeader game={gameView} version={cards.length} value={liveLoaded ? gameMarketTotal : null} />}
+      {/* Collector value box (CollectorValueHeader) parked 10-08 (Chris: "don't think we need the collection value box
+          for now"): it repeated the Market Value line below it. The component stays for when it comes back. */}
 
       {syncError && (
         <p
