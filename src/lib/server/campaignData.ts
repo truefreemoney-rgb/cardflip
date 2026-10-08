@@ -46,10 +46,11 @@ export const SCANS_VARIANT_LABEL: Record<ScansVariant, string> = {
 };
 
 export type TipId = "ebay" | "watchlist" | "sets";
-export const TIPS: Record<TipId, { text: string; path: string; label: string }> = {
-  ebay: { text: "You can list a card on eBay straight from CardFlip. Open a card, tap Publish, and the listing is written for you.", path: "/app/collection", label: "Try it" },
-  watchlist: { text: "Watching a card you don't own yet? Tap \"Watch this price\" on any card page and we email you when it dips.", path: "/scan", label: "Find a card" },
-  sets: { text: "Set Completion shows which cards you still need for a set, with today's prices. Inventory, then Sets.", path: "/app/collection/sets", label: "See your sets" },
+/** One tip per mail, text only (Chris 10-08: no second button). */
+export const TIPS: Record<TipId, { text: string }> = {
+  ebay: { text: "You can list a card on eBay straight from CardFlip. Open a card, tap Publish, and the listing is written for you." },
+  watchlist: { text: "Watching a card you don't own yet? Tap \"Watch this price\" on any card page and we email you when it dips." },
+  sets: { text: "Set Completion shows which cards you still need for a set, with today's prices. Inventory, then Sets." },
 };
 
 export interface ScansFacts {

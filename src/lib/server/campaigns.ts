@@ -185,7 +185,6 @@ function layout(v: { subject: string; firstName: string; headline: string; intro
 }
 
 const tipBlock = (f: { tip: keyof typeof TIPS | null }): Block[] => (f.tip ? [{ title: "One tip", lines: [TIPS[f.tip].text] }] : []);
-const tipButton = (f: { tip: keyof typeof TIPS | null }) => (f.tip ? [{ href: `${SITE_URL}${TIPS[f.tip].path}`, label: TIPS[f.tip].label, color: "#444" }] : []);
 
 export function renderScans(f: ScansFacts, firstName: string, unsubUrl: string): RenderedMail {
   const scan = { href: `${SITE_URL}/scan`, label: "Scan a Card" };
@@ -204,7 +203,7 @@ export function renderScans(f: ScansFacts, firstName: string, unsubUrl: string):
         headline: `You still have ${n} free scan${s(n)} on CardFlip.`,
         intro: "Point your phone camera at any card. CardFlip names it, prices it, and writes the eBay listing.",
         blocks: tipBlock(f),
-        buttons: [scan, ...tipButton(f)],
+        buttons: [scan],
         unsubUrl,
       });
     case "trial_out":
@@ -216,7 +215,7 @@ export function renderScans(f: ScansFacts, firstName: string, unsubUrl: string):
           { lines: [`${PLAN_NAME.pack}: ${PRICE.pack} one time for ${SCANS.pack} scans. No subscription, never expires.`, `${PLAN_NAME.standard} plan: ${PRICE.standard} a month for ${SCANS.standard} scans.`] },
           ...tipBlock(f),
         ],
-        buttons: [{ ...booster, label: `Buy ${SCANS.pack} Scans · ${PRICE.pack}` }, subscribe, ...tipButton(f)],
+        buttons: [{ ...booster, label: `Buy ${SCANS.pack} Scans · ${PRICE.pack}` }, subscribe],
         unsubUrl,
       });
     case "sub_plenty":
@@ -226,7 +225,7 @@ export function renderScans(f: ScansFacts, firstName: string, unsubUrl: string):
         headline: `You still have ${n} of ${f.included} scans.`,
         intro: [next, "Scans never expire, but the quickest way to find out what your cards are worth is to use them."].filter(Boolean).join(" "),
         blocks: tipBlock(f),
-        buttons: [scan, ...tipButton(f)],
+        buttons: [scan],
         unsubUrl,
       });
     case "sub_low":
@@ -236,7 +235,7 @@ export function renderScans(f: ScansFacts, firstName: string, unsubUrl: string):
         headline: n > 0 ? `You have ${n} scan${s(n)} left.` : "You're out of scans.",
         intro: next || "Top up any time and keep scanning.",
         blocks: [{ lines: [`${PLAN_NAME.pack}: ${PRICE.pack} one time for ${SCANS.pack} more scans, on top of your plan.`, ...(f.plan === "standard" ? [`${PLAN_NAME.pro}: ${PRICE.pro} a month for ${SCANS.pro} scans.`] : [])] }, ...tipBlock(f)],
-        buttons: [booster, ...(f.plan === "standard" ? [pro] : []), ...tipButton(f)],
+        buttons: [booster, ...(f.plan === "standard" ? [pro] : [])],
         unsubUrl,
       });
     case "sub_month": {
@@ -249,7 +248,7 @@ export function renderScans(f: ScansFacts, firstName: string, unsubUrl: string):
         headline: `This week: ${line}.`,
         intro: [`You have ${n} scans left.`, next].filter(Boolean).join(" "),
         blocks: tipBlock(f),
-        buttons: [{ href: `${SITE_URL}/app/collection`, label: "Open Inventory" }, ...tipButton(f)],
+        buttons: [{ href: `${SITE_URL}/app/collection`, label: "Open Inventory" }],
         unsubUrl,
       });
     }
