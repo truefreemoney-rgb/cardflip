@@ -1,4 +1,5 @@
 import "server-only";
+import { TCGCSV_HEADERS, TCGCSV_PAUSE_MS } from "@/lib/server/tcgcsv";
 import { db } from "@/lib/db";
 import { decodePrices, encodePrices, setDay, todayUtc, addDays } from "@/lib/priceSeries";
 import type { SeriesKeyed, SeriesUpsert } from "@/lib/server/priceBulkWrite";
@@ -21,8 +22,8 @@ import type { GameId } from "@/lib/types";
  * the median when a set has several of a kind (three tins, two blisters).
  */
 
-const HEADERS = { "User-Agent": "Mozilla/5.0 (compatible; CardFlip/1.0; +https://cardflip.io)" };
-const PAUSE_MS = 80;
+const HEADERS = TCGCSV_HEADERS;
+const PAUSE_MS = TCGCSV_PAUSE_MS;
 export const SEALED_RESCAN_DAYS = 30;
 /** Groups read per daily run: ~0.3s each, so the whole catalog lands within a week. */
 export const SEALED_GROUPS_PER_RUN = 30;

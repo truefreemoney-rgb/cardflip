@@ -14,6 +14,7 @@ import { sweepPriceHistory } from "@/lib/server/priceHistory";
 import { hasTcgplayerMap, refreshPokemonPricesFromTcgcsv } from "@/lib/server/pokemonPriceRefresh";
 import { scanSealedProducts } from "@/lib/server/sealedPrices";
 import { refreshTcgPrices, type TcgRefreshResult } from "@/lib/server/tcgPriceRefresh";
+import { tcgcsvFresh } from "@/lib/server/tcgcsv";
 import { runLogCleanupIfDue, type CleanupResult } from "@/lib/server/logCleanup";
 import type { TcgGame } from "@/lib/server/tcgCards";
 
@@ -96,7 +97,7 @@ export interface DailyResult {
   ran: boolean;
   mtg?: { scanned: number; updated: number; seriesTouched: number; mirrorChanged?: number; seriesSkipped?: number; tcgplayerFilled?: number } | { error: string } | { skipped: string };
   /** Lorcana / One Piece / Yu-Gi-Oh! daily prices + history (lib/server/tcgPriceRefresh.ts). */
-  tcg?: Partial<Record<TcgGame, TcgRefreshResult | { error: string }>>;
+  tcg?: Partial<Record<TcgGame, TcgRefreshResult | { error: string } | { skipped: string }>>;
   pokemonTcgcsv?:
     | { groups: number; groupsFailed: number; seriesTouched: number; sealedSeries?: number; sealedScan?: { groupsScanned: number; groupsFailed: number; products: number } | { error: string } }
     | { error: string }
@@ -143,7 +144,14 @@ export async function runTcgStep(): Promise<NonNullable<DailyResult["tcg"]>> {
   const out: NonNullable<DailyResult["tcg"]> = {};
   for (const game of ["lorcana", "onepiece", "yugioh"] as const) {
     try {
+      // One Piece + Yu-Gi-Oh! come from tcgcsv: pull only when their build moved (house rules, lib/server/tcgcsv.ts).
+      const fresh = game === "lorcana" ? null : await tcgcsvFresh(game);
+      if (fresh && !fresh.changed) {
+        out[game] = { skipped: "tcgcsv unchanged since the last pull" };
+        continue;
+      }
       out[game] = await refreshTcgPrices(game);
+      if (fresh) await fresh.done();
     } catch (err) {
       console.error(`daily: ${game} price refresh failed:`, err);
       out[game] = { error: err instanceof Error ? err.message : String(err) };
@@ -179,8 +187,14 @@ export async function runPokemonSteps(
         sealedScan = { error: err instanceof Error ? err.message : String(err) };
         console.error("daily: sealed product scan failed:", err);
       }
-      const r = await refreshPokemonPricesFromTcgcsv();
-      result.pokemonTcgcsv = { groups: r.groups, groupsFailed: r.groupsFailed, seriesTouched: r.seriesTouched, sealedSeries: r.sealedSeries, sealedScan };
+      const fresh = await tcgcsvFresh("pokemon");
+      if (!fresh.changed) {
+        result.pokemonTcgcsv = { skipped: "tcgcsv unchanged since the last pull" };
+      } else {
+        const r = await refreshPokemonPricesFromTcgcsv();
+        result.pokemonTcgcsv = { groups: r.groups, groupsFailed: r.groupsFailed, seriesTouched: r.seriesTouched, sealedSeries: r.sealedSeries, sealedScan };
+        if (r.groupsFailed < r.groups) await fresh.done();
+      }
     } else {
       result.pokemonTcgcsv = { skipped: "no tcgplayer_products map — run npm run backfill:pokemon and redeploy the seed" };
     }

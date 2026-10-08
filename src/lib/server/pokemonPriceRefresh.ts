@@ -1,3 +1,4 @@
+import { TCGCSV_HEADERS, TCGCSV_PAUSE_MS } from "@/lib/server/tcgcsv";
 import { db } from "@/lib/db";
 import { decodePrices, encodePrices, setDay, todayUtc } from "@/lib/priceSeries";
 import { LOW_TRACKED_USD, readSeriesMap, upsertListingLows, upsertSeriesRows, type ListingLow, type SeriesKeyed, type SeriesUpsert } from "@/lib/server/priceBulkWrite";
@@ -28,9 +29,9 @@ import { readSealedMap, sealedSeriesUpserts } from "@/lib/server/sealedPrices";
  * Same compact price_series rows and 5¢ rule as everything else.
  */
 
-const HEADERS = { "User-Agent": "Mozilla/5.0 (compatible; CardFlip/1.0; +https://cardflip.io)" };
+const HEADERS = TCGCSV_HEADERS;
 const MIN_TRACKED_USD = 0.05;
-const PAUSE_MS = 80;
+const PAUSE_MS = TCGCSV_PAUSE_MS;
 const TRIED_KEY = "tcgcsv_map_tried";
 
 // Schema (tcgplayer_products) lives in lib/db.ts behind the adapter's schema gate.

@@ -1,3 +1,4 @@
+import { TCGCSV_HEADERS, TCGCSV_PAUSE_MS } from "@/lib/server/tcgcsv";
 import { db } from "@/lib/db";
 import { decodePrices, encodePrices, setDay, todayUtc } from "@/lib/priceSeries";
 import { readSeriesMap, upsertSeriesRows, type SeriesUpsert } from "@/lib/server/priceBulkWrite";
@@ -101,7 +102,7 @@ async function withCardmarket(game: TcgGame, base: { points: TcgPoint[]; failed:
  * archive is offline ("temporarily removed", 09-30) — history starts today.
  */
 
-const HEADERS = { "User-Agent": "Mozilla/5.0 (compatible; CardFlip/1.0; +https://cardflip.io)", Accept: "application/json" };
+const HEADERS = TCGCSV_HEADERS;
 const MIN_TRACKED_USD = 0.05;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const num = (v: unknown): number | null => {
@@ -253,7 +254,7 @@ async function lorcanaTcgplayerProducts(): Promise<LorcanaProduct[]> {
       } catch (err) {
         console.warn(`lorcana tcgplayer group ${g.groupId}:`, err instanceof Error ? err.message : err);
       }
-      await sleep(60);
+      await sleep(TCGCSV_PAUSE_MS);
     }
   };
   await Promise.all([1, 2, 3, 4].map(worker));
@@ -353,7 +354,7 @@ async function yugiohPoints(): Promise<{ points: TcgPoint[]; failed: number }> {
         failed++;
         console.warn(`yugioh prices group ${g.groupId}:`, err instanceof Error ? err.message : err);
       }
-      await sleep(60);
+      await sleep(TCGCSV_PAUSE_MS);
     }
   };
   await Promise.all([1, 2, 3, 4, 5, 6].map(worker));

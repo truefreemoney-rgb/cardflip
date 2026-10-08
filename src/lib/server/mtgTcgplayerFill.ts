@@ -1,3 +1,4 @@
+import { TCGCSV_HEADERS } from "@/lib/server/tcgcsv";
 import { db } from "@/lib/db";
 
 /**
@@ -12,7 +13,7 @@ import { db } from "@/lib/db";
  */
 
 const API = "https://tcgcsv.com/tcgplayer/1";
-const UA = { "User-Agent": "Mozilla/5.0 (compatible; CardFlip/1.0; +https://cardflip.io)", Accept: "application/json" };
+const UA = TCGCSV_HEADERS;
 
 export interface MtgGapRow {
   id: string;
