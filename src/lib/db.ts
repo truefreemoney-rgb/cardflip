@@ -804,6 +804,16 @@ const SCHEMA = `
     photo TEXT,
     at INTEGER NOT NULL
   );
+  -- "Watch this price" tapped while signed out (10-08, /api/watch/pending):
+  -- the same trip as pending_scans. Chris signed up in a private tab and
+  -- opened the confirm link elsewhere; localStorage stayed behind. One per
+  -- account; deleted once the card is on the watchlist.
+  CREATE TABLE IF NOT EXISTS pending_watches (
+    user_id TEXT PRIMARY KEY,
+    game TEXT NOT NULL,
+    card_id TEXT NOT NULL,
+    at INTEGER NOT NULL
+  );
   -- "Tell me when CardFlip opens in my country" (Chris 09-30, /unavailable).
   -- country is x-vercel-ip-country, never client-sent; one row per email.
   CREATE TABLE IF NOT EXISTS waitlist (

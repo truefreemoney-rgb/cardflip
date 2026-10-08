@@ -6,6 +6,7 @@ import Link from "next/link";
 import { fetchCardById } from "@/lib/cards";
 import { fetchCurrentUser } from "@/lib/client/auth";
 import { addToWishlist } from "@/lib/client/wishlistApi";
+import { apiFetch } from "@/lib/client/basePath";
 import { pickPrice } from "@/lib/listing";
 import { toast } from "@/components/Toaster";
 import type { GameId } from "@/lib/types";
@@ -80,41 +81,96 @@ export default function WatchPrice({ game, id, className = "" }: { game: GameId;
   );
 }
 
+type Pending = { game: GameId; id: string; at: number };
+
+/** The watch parked in this browser, or null (missing, malformed, older than a week). */
+function readLocalPending(): Pending | null {
+  let raw: string | null = null;
+  try {
+    raw = window.localStorage.getItem(KEY);
+  } catch {
+    return null;
+  }
+  if (!raw) return null;
+  let pending: Partial<Pending> | null = null;
+  try {
+    pending = JSON.parse(raw);
+  } catch {
+    pending = null;
+  }
+  if (!pending?.game || !pending.id || !pending.at || Date.now() - pending.at > MAX_AGE_MS) {
+    dropLocalPending();
+    return null;
+  }
+  return pending as Pending;
+}
+
+function dropLocalPending(): void {
+  try {
+    window.localStorage.removeItem(KEY);
+  } catch {
+    // nothing to do
+  }
+}
+
+/**
+ * Park the browser's pending watch on the server (10-08): the confirm screen
+ * calls this right after signup, so the watch follows the person from a
+ * private tab or TikTok's browser into whichever browser opens the confirm
+ * link (localStorage does not travel; Chris, 10-08). Needs the session the
+ * fresh account already has. Never throws; nothing to do without a watch.
+ */
+export async function pushPendingWatch(): Promise<void> {
+  const pending = readLocalPending();
+  if (!pending) return;
+  try {
+    await apiFetch("/api/watch/pending", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ game: pending.game, id: pending.id }),
+    });
+  } catch {
+    // The local copy still stands for this browser.
+  }
+}
+
+async function fetchServerPending(): Promise<Pending | null> {
+  try {
+    const res = await apiFetch("/api/watch/pending");
+    if (!res.ok) return null;
+    const data = (await res.json()) as { pending?: Pending | null };
+    return data.pending?.game && data.pending.id ? data.pending : null;
+  } catch {
+    return null;
+  }
+}
+
+async function dropServerPending(): Promise<void> {
+  try {
+    await apiFetch("/api/watch/pending", { method: "DELETE" });
+  } catch {
+    // Left behind, it is finished on the next signed-in page.
+  }
+}
+
 /** Mount once inside the signed-in app: finishes a "Watch this price" started while signed out. */
 export function PendingWatch() {
   useEffect(() => {
-    let raw: string | null = null;
-    try {
-      raw = window.localStorage.getItem(KEY);
-    } catch {
-      return;
-    }
-    if (!raw) return;
-    let pending: { game?: GameId; id?: string; at?: number } | null = null;
-    try {
-      pending = JSON.parse(raw);
-    } catch {
-      pending = null;
-    }
-    const drop = () => {
-      try {
-        window.localStorage.removeItem(KEY);
-      } catch {
-        // nothing to do
-      }
+    let cancelled = false;
+    (async () => {
+      const local = readLocalPending();
+      const user = await fetchCurrentUser().catch(() => null);
+      if (!user || cancelled) return; // still signed out: the local copy waits for after signup
+      // This browser's copy first; the server's when the signup happened elsewhere.
+      const pending = local ?? (await fetchServerPending());
+      if (!pending || cancelled) return;
+      dropLocalPending();
+      void dropServerPending();
+      toast((await addById(pending.game, pending.id)) ? "Added to your watchlist" : "Could not add that card to your watchlist", "info");
+    })().catch(() => {});
+    return () => {
+      cancelled = true;
     };
-    if (!pending?.game || !pending.id || !pending.at || Date.now() - pending.at > MAX_AGE_MS) {
-      drop();
-      return;
-    }
-    const { game, id } = pending as { game: GameId; id: string };
-    fetchCurrentUser()
-      .then(async (user) => {
-        if (!user) return; // still signed out: keep it for after signup
-        drop();
-        toast((await addById(game, id)) ? "Added to your watchlist" : "Could not add that card to your watchlist", "info");
-      })
-      .catch(() => {});
   }, []);
   return null;
 }

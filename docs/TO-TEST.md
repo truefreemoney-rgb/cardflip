@@ -190,7 +190,7 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 
 ### Catalog
 - [x] (10-08 pane prod 375px: tap opens the field, Charizard results list with prices, input is 16px so iOS will not zoom) Nav search icon (phone): opens a field, results readable, iPhone doesn't zoom on tap.
-- [ ] Watch this price, signed out: goes to signup, and after signing up the card lands on the watchlist with a toast.
+- [ ] (10-08 FAIL on Chris iPhone private tab: signup OK, confirm link opened elsewhere → nothing on the watchlist; the watch lived only in localStorage. Fixed same day: parked on the server at the confirm screen, pending_watches + /api/watch/pending, claimed on the first signed-in page. Retest: private tab → card page → Watch this price → sign up → open the confirm link anywhere → toast "Added to your watchlist", card on /app/wishlist.) Watch this price, signed out: goes to signup, and after signing up the card lands on the watchlist with a toast.
 - [x] (10-08 pane prod 375px, owner account: tap → "Watching. See your watchlist", item on /api/wishlist; removed again after) Watch this price, signed in: adds to the watchlist.
 - [x] (10-08 pane: Commander Masters page 2 fine; no set has more than 2 pages) A set with 300+ cards: page 2 link works, pager wraps on a phone.
 - [x] (10-07: /app/zzz = 404) Mistyped /app/... address shows a 404 (root one is fine; app one only appears for missing cards/pages inside the app).

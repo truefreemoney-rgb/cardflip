@@ -5,6 +5,7 @@ import Link from "next/link";
 import Spinner from "@/components/Spinner";
 import type { SessionUser } from "@/lib/client/auth";
 import { pushPendingScan } from "@/lib/client/trialScan";
+import { pushPendingWatch } from "@/components/WatchPrice";
 import {
   CODE_LENGTH,
   CODE_TTL_MS,
@@ -270,7 +271,10 @@ export default function ConfirmEmailPanel({
   // up (signup right after the account is made, the wall on a later visit).
   // Never throws, and does nothing when there is no waiting card.
   useEffect(() => {
-    if (mode !== "change") void pushPendingScan();
+    if (mode === "change") return;
+    void pushPendingScan();
+    // "Watch this price" from a public card page rides along the same way (10-08).
+    void pushPendingWatch();
   }, [mode]);
 
   // --- notice being let in from elsewhere -------------------------------------
