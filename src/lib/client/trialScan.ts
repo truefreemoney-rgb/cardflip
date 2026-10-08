@@ -179,6 +179,13 @@ async function dropServerPending(): Promise<void> {
   }
 }
 
+/** Is a scanned card waiting for this account, here or on the server? (The confirm page picks its landing by it, 10-08.) */
+export async function hasPendingScan(): Promise<boolean> {
+  if (readLocalPending()) return true;
+  const parked = await fetchServerPending();
+  return parked !== null && parked !== "unknown";
+}
+
 function clearLocalPending(): void {
   try {
     localStorage.removeItem(PENDING_KEY);

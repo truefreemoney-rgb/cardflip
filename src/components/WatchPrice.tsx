@@ -153,6 +153,11 @@ async function dropServerPending(): Promise<void> {
   }
 }
 
+/** Is a watch waiting for this account, here or on the server? */
+export async function hasPendingWatch(): Promise<boolean> {
+  return Boolean(readLocalPending() ?? (await fetchServerPending()));
+}
+
 /** Mount once inside the signed-in app: finishes a "Watch this price" started while signed out. */
 export function PendingWatch() {
   useEffect(() => {

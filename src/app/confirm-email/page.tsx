@@ -7,6 +7,8 @@ import Logo from "@/components/Logo";
 import Spinner from "@/components/Spinner";
 import { fetchCurrentUser } from "@/lib/client/auth";
 import { VerifyError, confirmLink, peekConfirmLink, type LinkState } from "@/lib/client/emailConfirm";
+import { hasPendingScan } from "@/lib/client/trialScan";
+import { hasPendingWatch } from "@/components/WatchPrice";
 
 /**
  * The Confirm Email button in the mail lands here (/confirm-email?t=...).
@@ -86,9 +88,14 @@ function ConfirmEmail() {
       const out = await confirmLink(token);
       if (out.signedIn) {
         // Signed in by the confirmation itself (10-05, Chris: no more taps): a beat of "Email confirmed", then the open scanner.
+        // A signup that started from "Watch this price" with no card scanned lands on the watchlist instead
+        // (10-08, Chris: "landed me on the scanner camera page").
         setView({ kind: "done", email: out.email });
         setSignedIn(true);
-        window.setTimeout(() => router.replace("/app?scan=1"), 1200);
+        const landing = Promise.all([hasPendingScan(), hasPendingWatch()])
+          .then(([scan, watch]) => (watch && !scan ? "/app/wishlist" : "/app?scan=1"))
+          .catch(() => "/app?scan=1");
+        window.setTimeout(() => void landing.then((to) => router.replace(to)), 1200);
         return;
       }
       setView({ kind: "done", email: out.email });
