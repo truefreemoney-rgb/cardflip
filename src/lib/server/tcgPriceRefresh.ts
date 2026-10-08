@@ -1,4 +1,5 @@
 import { TCGCSV_HEADERS, TCGCSV_PAUSE_MS } from "@/lib/server/tcgcsv";
+import { yugiohBackupFromYgoprodeck } from "@/lib/server/priceBackups";
 import { db } from "@/lib/db";
 import { decodePrices, encodePrices, setDay, todayUtc } from "@/lib/priceSeries";
 import { readSeriesMap, upsertSeriesRows, type SeriesUpsert } from "@/lib/server/priceBulkWrite";
@@ -323,9 +324,17 @@ async function onePiecePoints(): Promise<{ points: TcgPoint[]; failed: number }>
   return { points, failed };
 }
 
-async function yugiohPoints(): Promise<{ points: TcgPoint[]; failed: number }> {
+async function yugiohPoints(): Promise<{ points: TcgPoint[]; failed: number; backup?: string }> {
   const API = "https://tcgcsv.com/tcgplayer/2";
-  const groups = listOf<{ groupId: number }>(await getJson(`${API}/groups`));
+  let groups: { groupId: number }[];
+  try {
+    groups = listOf<{ groupId: number }>(await getJson(`${API}/groups`));
+  } catch (err) {
+    // tcgcsv down (10-08, our agent blocked): YGOPRODeck carries the same TCGplayer price per printing.
+    console.warn("yugioh tcgcsv groups:", err instanceof Error ? err.message : err);
+    const b = await yugiohBackupFromYgoprodeck();
+    return { points: b.points, failed: 1, backup: "ygoprodeck" };
+  }
   const points: TcgPoint[] = [];
   let failed = 0;
   const queue = [...groups];
@@ -358,6 +367,10 @@ async function yugiohPoints(): Promise<{ points: TcgPoint[]; failed: number }> {
     }
   };
   await Promise.all([1, 2, 3, 4, 5, 6].map(worker));
+  if (points.length === 0 && groups.length > 0) {
+    const b = await yugiohBackupFromYgoprodeck();
+    return { points: b.points, failed, backup: "ygoprodeck" };
+  }
   return { points, failed };
 }
 
@@ -399,6 +412,8 @@ export interface TcgRefreshResult {
   pricesChanged: number;
   seriesTouched: number;
   day: string;
+  /** The first source answered nothing; the day's points came from this one instead (lib/server/priceBackups.ts). */
+  backup?: string;
 }
 
 /**
@@ -452,7 +467,9 @@ export function planTcgRefresh(
 
 export async function refreshTcgPrices(game: TcgGame, day = todayUtc()): Promise<TcgRefreshResult> {
   // Order: TCGplayer, then CardTrader (Yu-Gi-Oh), then Cardmarket for whatever is still unpriced.
-  const { points, failed } = await withCardmarket(game, await withCardtrader(game, day, game === "lorcana" ? await lorcanaPointsWithFill() : game === "onepiece" ? await onePiecePoints() : await yugiohPoints()));
+  const first = game === "lorcana" ? await lorcanaPointsWithFill() : game === "onepiece" ? await onePiecePoints() : await yugiohPoints();
+  const backup = (first as { backup?: string }).backup;
+  const { points, failed } = await withCardmarket(game, await withCardtrader(game, day, first));
   // A source that answered nothing at all must not look like "no prices".
   if (points.length === 0) throw new Error(`${game}: no prices fetched (${failed} source calls failed)`);
   const mirror = await mirrorIds(game);
@@ -464,5 +481,5 @@ export async function refreshTcgPrices(game: TcgGame, day = todayUtc()): Promise
   const { columns, upserts } = planTcgRefresh(game, points, mirror, existingSeries, day, otherSeries);
   await updatePriceColumns(columns);
   await upsertSeriesRows(upserts);
-  return { fetched: points.length, sourcesFailed: failed, pricesChanged: columns.length, seriesTouched: upserts.length, day };
+  return { fetched: points.length, sourcesFailed: failed, pricesChanged: columns.length, seriesTouched: upserts.length, day, ...(backup ? { backup } : {}) };
 }

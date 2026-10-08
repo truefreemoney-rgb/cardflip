@@ -99,7 +99,7 @@ export interface DailyResult {
   /** Lorcana / One Piece / Yu-Gi-Oh! daily prices + history (lib/server/tcgPriceRefresh.ts). */
   tcg?: Partial<Record<TcgGame, TcgRefreshResult | { error: string } | { skipped: string }>>;
   pokemonTcgcsv?:
-    | { groups: number; groupsFailed: number; seriesTouched: number; sealedSeries?: number; sealedScan?: { groupsScanned: number; groupsFailed: number; products: number } | { error: string } }
+    | { groups: number; groupsFailed: number; seriesTouched: number; sealedSeries?: number; backup?: { source: string; sets: number; setsDone: number; setsFailed: number; setsLeft: number; series: number }; sealedScan?: { groupsScanned: number; groupsFailed: number; products: number } | { error: string } }
     | { error: string }
     | { skipped: string };
   pokemon?: { recorded: number } | { error: string };
@@ -192,7 +192,7 @@ export async function runPokemonSteps(
         result.pokemonTcgcsv = { skipped: "tcgcsv unchanged since the last pull" };
       } else {
         const r = await refreshPokemonPricesFromTcgcsv();
-        result.pokemonTcgcsv = { groups: r.groups, groupsFailed: r.groupsFailed, seriesTouched: r.seriesTouched, sealedSeries: r.sealedSeries, sealedScan };
+        result.pokemonTcgcsv = { groups: r.groups, groupsFailed: r.groupsFailed, seriesTouched: r.seriesTouched, sealedSeries: r.sealedSeries, ...(r.backup ? { backup: r.backup } : {}), sealedScan };
         if (r.groupsFailed < r.groups) await fresh.done();
       }
     } else {

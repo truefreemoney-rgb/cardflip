@@ -1,4 +1,5 @@
 import { TCGCSV_HEADERS, TCGCSV_PAUSE_MS } from "@/lib/server/tcgcsv";
+import { POKEMON_BACKUP_NEEDED_KEY, pokemonBackupFromPokemontcgIo } from "@/lib/server/priceBackups";
 import { db } from "@/lib/db";
 import { decodePrices, encodePrices, setDay, todayUtc } from "@/lib/priceSeries";
 import { LOW_TRACKED_USD, readSeriesMap, upsertListingLows, upsertSeriesRows, type ListingLow, type SeriesKeyed, type SeriesUpsert } from "@/lib/server/priceBulkWrite";
@@ -43,6 +44,8 @@ export interface PokemonRefreshResult {
   /** Sealed product series written this run (lib/server/sealedPrices.ts). */
   sealedSeries: number;
   day: string;
+  /** tcgcsv answered nothing: the day's points came from pokemontcg.io instead (lib/server/priceBackups.ts). */
+  backup?: { source: "pokemontcg.io"; sets: number; setsDone: number; setsFailed: number; setsLeft: number; series: number };
 }
 
 export async function hasTcgplayerMap(): Promise<boolean> {
@@ -403,6 +406,14 @@ export async function refreshPokemonPricesFromTcgcsv(day = todayUtc()): Promise<
     }
     await new Promise((r) => setTimeout(r, PAUSE_MS));
   }
+  // tcgcsv down for the whole run (10-08, our agent blocked): the same TCGplayer market number from pokemontcg.io.
+  let backup: PokemonRefreshResult["backup"];
+  if (groups.length > 0 && groupsFailed === groups.length) {
+    await setSetting(POKEMON_BACKUP_NEEDED_KEY, day).catch(() => {});
+    const b = await pokemonBackupFromPokemontcgIo(day, existingSeries, touched, { deadline: Date.now() + 110_000 });
+    upserts.push(...b.upserts);
+    backup = { source: "pokemontcg.io", sets: b.sets, setsDone: b.setsDone, setsFailed: b.setsFailed, setsLeft: b.setsLeft, series: b.upserts.length };
+  }
   const sealedUpserts = sealedSeriesUpserts("pokemon", day, sealedPrices, sealedMap, existingSeries);
   await upsertSeriesRows([...upserts, ...sealedUpserts]);
   await upsertListingLows(lows, day).catch((err) => console.warn("listing lows:", err instanceof Error ? err.message : err));
@@ -434,5 +445,5 @@ export async function refreshPokemonPricesFromTcgcsv(day = todayUtc()): Promise<
         .run(cardId, variant);
     }
   }
-  return { groups: groups.length, groupsFailed, seriesTouched: upserts.length + tcgdexSeries, sealedSeries: sealedUpserts.length, day };
+  return { groups: groups.length, groupsFailed, seriesTouched: upserts.length + tcgdexSeries, sealedSeries: sealedUpserts.length, day, ...(backup ? { backup } : {}) };
 }

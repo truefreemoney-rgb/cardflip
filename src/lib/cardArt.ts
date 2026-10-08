@@ -15,7 +15,7 @@
  * and swap to it before giving up. scripts/test-card-art.mjs pins it.
  */
 
-const SET_MAP: Record<string, string> = {
+export const POKEMONTCG_IO_SET_MAP: Record<string, string> = {
   lc: "base6",
   bog: "bp",
   "tk-ex-latia": "tk1a",
@@ -76,7 +76,7 @@ export function fallbackArtUrl(src: string): string | null {
   const m = TCGDEX.exec(src);
   if (!m) return null;
   const [, setId, localId, size] = m;
-  const set = SET_MAP[setId] ?? setId;
+  const set = POKEMONTCG_IO_SET_MAP[setId] ?? setId;
   const number = /^\d+$/.test(localId) ? String(Number(localId)) : localId;
   return `https://images.pokemontcg.io/${set}/${number}${size === "high" ? "_hires" : ""}.png`;
 }
