@@ -3,6 +3,11 @@
 Things that shipped but were never exercised on a real phone or with real
 traffic. Tick when tested; note what you saw. Newest batch first.
 
+## 10-07 /admin/analytics chart redesign (tiles pick the one big chart)
+- [ ] Phone: tap each headline tile; the big chart below switches and scrolls into view; tap/drag the chart shows the time, value and "Before".
+- [ ] Prod, a one-day custom range (both dates today) draws 24 hourly points, not one bar.
+- [ ] The faint dotted "before" line matches the "N before" number under each tile.
+
 ## 10-07 admin email campaigns (/admin/emails), SHIPPED SWITCHED OFF
 - [ ] Prod /admin/emails: both "Send Test To Me" buttons land a [TEST] mail at truefreemoney@gmail.com; check it on the phone (button, prices, Stop link).
 - [x] Chris approved both mails' wording 10-07 ("fine for now"). Switch stays OFF until he says to turn it on.

@@ -162,6 +162,8 @@ check("etOffsetMs: EDT -4h, EST -5h", [etOffsetMs(now), etOffsetMs(Date.UTC(2026
 check("daily keys are Eastern days", a.metrics.pageViews.series.keys.at(-1), "2026-09-26");
 check("24h page views", h.metrics.pageViews.total, 2);
 check("24h prior page views", h.metrics.pageViews.prior, 1);
+check("24h prior series sums to the prior total", h.metrics.pageViews.series.prior.reduce((s, v) => s + v, 0), 1);
+check("7d prior series sums to the prior total", a.metrics.pageViews.series.prior.reduce((s, v) => s + v, 0), a.metrics.pageViews.prior);
 
 console.log("where sign-ups come from (lib/attribution.ts, 09-30)");
 {
@@ -229,6 +231,15 @@ check("parseRange", [parseRange("30d"), parseRange("junk"), parseRange(undefined
   const keys = custom.metrics.pageViews.series.keys;
   check("custom window buckets run from `from` to `to`", [keys[0], keys[keys.length - 1], keys.length], ["2026-09-01", "2026-09-15", 15]);
   check("lifetime money is present", typeof custom.lifetime.soldUsd, "number");
+  check("prior series lines up bucket for bucket", custom.metrics.pageViews.series.prior.length, keys.length);
+  // Chris 10-07: a one-day custom range drew ONE bar. Two days or less is hourly.
+  const oneDay = await getAnalytics(parseWindow({ from: "2026-09-20", to: "2026-09-20" }, now), now);
+  const ok = oneDay.metrics.pageViews.series.keys;
+  check("one-day custom window is hourly, 24 Eastern hours", [oneDay.metrics.pageViews.series.hourly, ok.length, ok[0], ok.at(-1)], [true, 24, "2026-09-20T00", "2026-09-20T23"]);
+  const twoDay = await getAnalytics(parseWindow({ from: "2026-09-19", to: "2026-09-20" }, now), now);
+  check("two-day custom window is hourly (48)", [twoDay.metrics.pageViews.series.hourly, twoDay.metrics.pageViews.series.keys.length], [true, 48]);
+  const threeDay = await getAnalytics(parseWindow({ from: "2026-09-18", to: "2026-09-20" }, now), now);
+  check("three-day custom window is daily", threeDay.metrics.pageViews.series.hourly, false);
 }
 
 // Overview charts (adminStats.ts, 09-30): page_views has a real `day` column (UTC), and SQLite's

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import ActivityBars from "@/components/admin/ActivityBars";
+import AnalyticsCharts, { type ChartMetric } from "@/components/admin/AnalyticsCharts";
 import Expenses from "@/components/admin/Expenses";
 import RangeDates from "@/components/admin/RangeDates";
 import { money, num } from "@/components/admin/format";
@@ -48,32 +48,46 @@ export default async function AdminAnalyticsPage({ searchParams }: { searchParam
   const matchRate = m.visionCalls.total ? Math.round((m.scans.total / m.visionCalls.total) * 100) : null;
   const priorMatchRate = m.visionCalls.prior ? Math.round((m.scans.prior / m.visionCalls.prior) * 100) : null;
 
-  const headline: { label: string; metric: Metric; fmt?: (v: number) => string; good?: boolean }[] = [
-    { label: "Visitors", metric: m.visitors },
-    { label: "Page views", metric: m.pageViews },
-    { label: "Sign-ups", metric: m.signups },
-    { label: "Cards scanned", metric: m.scans },
-    { label: "Subscriptions", metric: m.subPayments },
-    { label: "Boosters", metric: m.boosters },
-  ];
-
-  const trends: { title: string; metric: Metric; color: string; fmt?: (v: number) => string }[] = [
-    { title: "Visitors", metric: m.visitors, color: "#fbbf24" },
-    { title: "Page views", metric: m.pageViews, color: "#f59e0b" },
-    { title: "Sign-ups", metric: m.signups, color: "var(--color-holo-sky)" },
-    { title: "Cards scanned", metric: m.scans, color: "var(--color-brand-400)" },
-    { title: "Price checks", metric: m.priceChecks, color: "var(--color-holo-violet)" },
-    { title: "Listed on eBay", metric: m.listed, color: "#38bdf8" },
-    { title: "Sold", metric: m.sold, color: "#34d399" },
-    { title: "Sales $", metric: m.soldUsd, color: "#34d399", fmt: usd },
-    { title: "Vision spend", metric: m.visionCostUsd, color: "#f472b6", fmt: usd },
-    { title: "Watchlist adds", metric: m.wishlist, color: "var(--color-holo-gold)" },
-    { title: "Help messages", metric: m.helpMessages, color: "#a78bfa" },
-    { title: "Server errors", metric: m.errors, color: "#f87171" },
-  ];
-
+  const chart = (id: string, label: string, metric: Metric, color: string, extra: Partial<ChartMetric> = {}): ChartMetric => ({
+    id, label, color, total: metric.total, prior: metric.prior,
+    keys: metric.series.keys, values: metric.series.values, priorValues: metric.series.prior, hourly: metric.series.hourly,
+    ...extra,
+  });
   // Total income (Chris 10-07): subscription payments + Booster buys, same window and the one before.
-  const income = { total: m.subIncomeUsd.total + m.boosterIncomeUsd.total, prior: m.subIncomeUsd.prior + m.boosterIncomeUsd.prior };
+  const sumSeries = (x: number[], y: number[]) => x.map((v, i) => v + (y[i] ?? 0));
+  const income: Metric = {
+    total: m.subIncomeUsd.total + m.boosterIncomeUsd.total,
+    prior: m.subIncomeUsd.prior + m.boosterIncomeUsd.prior,
+    series: {
+      ...m.subIncomeUsd.series,
+      values: sumSeries(m.subIncomeUsd.series.values, m.boosterIncomeUsd.series.values),
+      prior: sumSeries(m.subIncomeUsd.series.prior, m.boosterIncomeUsd.series.prior),
+    },
+  };
+
+  // The tiles are the chart selector (AnalyticsCharts): tap one, the big chart draws it.
+  const headline: ChartMetric[] = [
+    chart("visitors", "Visitors", m.visitors, "#fbbf24"),
+    chart("pageViews", "Page views", m.pageViews, "#fb923c"),
+    chart("signups", "Sign-ups", m.signups, "#7dd3fc"),
+    chart("scans", "Cards scanned", m.scans, "#a5b4fc"),
+    chart("subs", "Subscriptions", m.subPayments, "#34d399"),
+    chart("boosters", "Boosters", m.boosters, "#fcd34d"),
+    chart("income", "Total income", income, "#34d399", {
+      usd: true, wide: true,
+      note: `Subscriptions ${usd(m.subIncomeUsd.total)} + boosters ${usd(m.boosterIncomeUsd.total)}`,
+    }),
+  ];
+  const secondary: ChartMetric[] = [
+    chart("priceChecks", "Price checks", m.priceChecks, "#a78bfa"),
+    chart("listed", "Listed on eBay", m.listed, "#38bdf8"),
+    chart("sold", "Sold", m.sold, "#34d399"),
+    chart("soldUsd", "Sales $", m.soldUsd, "#34d399", { usd: true }),
+    chart("wishlist", "Watchlist adds", m.wishlist, "#fcd34d"),
+    chart("help", "Help messages", m.helpMessages, "#f0abfc"),
+    chart("vision", "Vision spend", m.visionCostUsd, "#f472b6", { usd: true, invert: true }),
+    chart("errors", "Server errors", m.errors, "#f87171", { invert: true }),
+  ];
   const sub = a.subscriptions;
   const scanTotal = a.scansByGame.reduce((s, g) => s + g.scans, 0);
   const deviceTotal = a.devices.reduce((s, d) => s + d.visitors, 0);
@@ -91,41 +105,8 @@ export default async function AdminAnalyticsPage({ searchParams }: { searchParam
         <RangePicker range={range} custom={custom} className="hidden sm:flex" />
       </div>
 
-      {/* Headline */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-        {headline.map((k) => (
-          <Tile key={k.label}>
-            <p className={`font-display text-2xl font-semibold tabular-nums ${k.good ? "text-emerald-400" : "text-white"}`}>
-              {(k.fmt ?? num)(k.metric.total)}
-            </p>
-            <p className="mt-0.5 text-xs text-zinc-500">{k.label}</p>
-            <Delta cur={k.metric.total} prior={k.metric.prior} fmt={k.fmt} />
-          </Tile>
-        ))}
-        <Tile className="col-span-2 md:col-span-3 xl:col-span-6">
-          <p className="font-display text-2xl font-semibold tabular-nums text-emerald-400">{usd(income.total)}</p>
-          <p className="mt-0.5 text-xs text-zinc-500">
-            Total income · subscriptions {usd(m.subIncomeUsd.total)} + boosters {usd(m.boosterIncomeUsd.total)}
-          </p>
-          <Delta cur={income.total} prior={income.prior} fmt={usd} />
-        </Tile>
-      </div>
-
-      {/* Trends */}
-      <H2>Trends</H2>
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {trends.map((c) => (
-          <Tile key={c.title}>
-            <div className="mb-2 flex items-baseline justify-between gap-2">
-              <p className="text-sm font-medium text-zinc-200">{c.title}</p>
-              <p className="text-xs text-zinc-500 tabular-nums">
-                {(c.fmt ?? num)(c.metric.total)} <Delta cur={c.metric.total} prior={c.metric.prior} fmt={c.fmt} inline />
-              </p>
-            </div>
-            <ActivityBars days={c.metric.series.keys} values={c.metric.series.values} color={c.color} hourly={c.metric.series.hourly} unit={c.fmt ? "usd" : undefined} />
-          </Tile>
-        ))}
-      </div>
+      {/* Headline tiles + the one big chart + secondary tiles */}
+      <AnalyticsCharts headline={headline} secondary={secondary} priorLabel={priorLabel} />
 
       {/* Funnel */}
       <H2>Funnel</H2>

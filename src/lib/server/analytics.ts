@@ -69,6 +69,8 @@ export interface Series {
   /** Bucket keys, oldest first: "YYYY-MM-DD" or (hourly) "YYYY-MM-DDTHH", Eastern time (Chris 09-26: "this should be on EST time"). */
   keys: string[];
   values: number[];
+  /** The period before, bucket for bucket (index i = the same distance into its window), for the faint overlay line. */
+  prior: number[];
   hourly: boolean;
 }
 
@@ -213,7 +215,7 @@ function fill(sparse: { k: string; n: number }[], since: number, now: number, ho
     keys.push(k);
     values.push(map.get(k) ?? 0);
   }
-  return { keys, values, hourly };
+  return { keys, values, prior: [], hourly };
 }
 
 interface Spec {
@@ -232,15 +234,17 @@ async function metric(spec: Spec, since: number, now: number, hourly: boolean): 
     : `date(${shifted}, 'unixepoch')`;
   const where = spec.where ? `AND ${spec.where}` : "";
   const len = now - since;
-  const [sparse, total, prior] = await Promise.all([
-    rows<{ k: string; n: number }>(
-      `SELECT ${bucket} AS k, ${spec.agg} AS n FROM ${spec.table} WHERE ${spec.ts} >= ? AND ${spec.ts} < ? ${where} GROUP BY k`,
-      since, now + 1,
-    ),
+  const sparseSql = `SELECT ${bucket} AS k, ${spec.agg} AS n FROM ${spec.table} WHERE ${spec.ts} >= ? AND ${spec.ts} < ? ${where} GROUP BY k`;
+  const [sparse, priorSparse, total, prior] = await Promise.all([
+    rows<{ k: string; n: number }>(sparseSql, since, now + 1),
+    rows<{ k: string; n: number }>(sparseSql, since - len, since),
     scalar(`SELECT ${spec.agg} AS n FROM ${spec.table} WHERE ${spec.ts} >= ? AND ${spec.ts} < ? ${where}`, since, now + 1),
     scalar(`SELECT ${spec.agg} AS n FROM ${spec.table} WHERE ${spec.ts} >= ? AND ${spec.ts} < ? ${where}`, since - len, since),
   ]);
-  return { total, prior, series: fill(sparse, since, now, hourly, offset) };
+  const series = fill(sparse, since, now, hourly, offset);
+  const before = fill(priorSparse, since - len, since - 1, hourly, offset).values;
+  series.prior = series.keys.map((_, i) => before[i] ?? 0);
+  return { total, prior, series };
 }
 
 /** Sign-ups and visitors by source, campaign and landing page for [since, end). Every query is wrapped: a database without the columns reads as zeros. */
@@ -322,7 +326,8 @@ export async function getAnalytics(window: Window, realNow = Date.now()): Promis
   const since = typeof window === "string" ? realNow - RANGES.find((r) => r.id === window)!.hours * HOUR_MS : window.since;
   // A custom window ends one ms before the next Eastern midnight so the last bucket is the `to` day, not the day after.
   const now = typeof window === "string" ? realNow : window.end - 1;
-  const hourly = range === "24h";
+  // Hourly for any window of two days or less (Chris 10-07: a one-day custom range drew a single bar).
+  const hourly = range === "24h" || (typeof window !== "string" && window.days <= 2);
   const m = (spec: Spec) => metric(spec, since, now, hourly);
 
   const [
@@ -397,7 +402,7 @@ export async function getAnalytics(window: Window, realNow = Date.now()): Promis
   const visionCostUsd: Metric = {
     total: visionCostMicros.total / 1e6,
     prior: visionCostMicros.prior / 1e6,
-    series: { ...visionCostMicros.series, values: visionCostMicros.series.values.map((v) => v / 1e6) },
+    series: { ...visionCostMicros.series, values: visionCostMicros.series.values.map((v) => v / 1e6), prior: visionCostMicros.series.prior.map((v) => v / 1e6) },
   };
 
   const active = (plan: string) =>
