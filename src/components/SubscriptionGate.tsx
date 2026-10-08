@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useSession } from "@/components/SessionProvider";
 import { canUseApp } from "@/lib/client/auth";
@@ -29,11 +29,16 @@ const OPEN_PATHS = ["/app/account", "/app/help", "/app/collection"];
 export default function SubscriptionGate({ children }: { children: React.ReactNode }) {
   const { user, status, setUser, refresh } = useSession();
   const pathname = usePathname();
-  // The scanner page that was usable when it opened stays up if the last scan spends the last free one (402 mid-session):
-  // the paywall used to replace it and wipe the queue. Its own banner says scans ran out; the paywall shows on the next visit.
+  // The camera that was usable when it opened stays up if the last scan spends the last free one (402 mid-session):
+  // the paywall used to replace it and wipe the queue. The scanner page tells us when the camera opens and closes
+  // (window event "cardflip:camera"); the wall shows the moment it closes (10-08, Chris: "I had to refresh the scan
+  // page to get the wall, that's not good"), never only on the next full reload.
   const [scannerOpen, setScannerOpen] = useState(false);
-  const usable = status === "ready" && !!user && canUseApp(user);
-  if (scannerOpen !== (pathname === "/app" && (usable || scannerOpen))) setScannerOpen(!scannerOpen);
+  useEffect(() => {
+    const onCamera = (e: Event) => setScannerOpen(Boolean((e as CustomEvent<boolean>).detail));
+    window.addEventListener("cardflip:camera", onCamera);
+    return () => window.removeEventListener("cardflip:camera", onCamera);
+  }, []);
   if (status !== "ready" || !user) return <>{children}</>;
   if (user.role === "admin" || OPEN_PATHS.some((p) => pathname.startsWith(p))) return <>{children}</>;
   if (user.mustConfirmEmail) {

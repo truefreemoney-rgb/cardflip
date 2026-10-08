@@ -214,6 +214,10 @@ export default function AppPage() {
   const [cameraOpen, setCameraOpen] = useState(
     () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("scan") === "1",
   );
+  // The gate (SubscriptionGate) keeps the scanner up only while the camera is open: mirror the state to it.
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("cardflip:camera", { detail: cameraOpen }));
+  }, [cameraOpen]);
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("scan") === "1") window.history.replaceState(null, "", "/app");
   }, []);
@@ -407,6 +411,9 @@ export default function AppPage() {
             setScanUsage(vision.usage);
             // The header counter follows every scan (Chris, 09-07).
             patchUser({ scans: vision.usage });
+            // The last free scan just went (10-08, Chris: "I had to refresh the scan page to get the wall"): re-read the
+            // session now so appAccess flips and the gate shows the wall as soon as the camera closes.
+            if (vision.usage.remaining === 0) void refresh();
           }
           // A trial that just ran out: re-read the session so the
           // SubscriptionGate swaps the scanner for the paywall.
