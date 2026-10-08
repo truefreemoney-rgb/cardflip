@@ -103,3 +103,9 @@ export async function scanSpendSince(sinceMs: number): Promise<ScanSpend> {
     avgOutputTokens: Math.round(Number(row.avg_out)),
   };
 }
+
+/** True when the account made a (charged) scan within `withinMs`: a save right after the last free scan is still paid for. */
+export async function scannedRecently(userId: string, withinMs: number): Promise<boolean> {
+  const row = (await db.prepare("SELECT 1 AS one FROM scan_usage WHERE user_id = ? AND at >= ? LIMIT 1").get(userId, Date.now() - withinMs)) as { one: number } | undefined;
+  return Boolean(row);
+}

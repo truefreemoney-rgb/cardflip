@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { requireUser, AuthError, subscriptionGate } from "@/lib/server/auth";
 import { createCard, deleteCards, listCardsForUser } from "@/lib/server/cards";
 import { ownsPack } from "@/lib/server/packs";
+import { scannedRecently } from "@/lib/server/scanUsage";
 import { ledgerFloorProblem } from "@/lib/server/ebayMarket";
 
 export async function GET() {
@@ -39,8 +40,10 @@ export async function DELETE(req: Request) {
 export async function POST(req: Request) {
   try {
     const user = await requireUser();
+    // The scan already paid for this card (10-08, Chris: the last free scan identified the card and then
+    // "Failed" to save). A scan in the last 30 minutes lets the save through; the vision route is the gate that charges.
     const wall = subscriptionGate(user);
-    if (wall) return wall;
+    if (wall && !(await scannedRecently(user.id, 30 * 60_000))) return wall;
     const body = await req.json().catch(() => null);
 
     // Same caps as the PATCH in [id]/route.ts (10-01 sweep: this route stored any length).
