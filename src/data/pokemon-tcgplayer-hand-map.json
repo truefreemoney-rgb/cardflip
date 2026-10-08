@@ -1,0 +1,12 @@
+[
+  { "cardId": "ex13-103", "productId": 87427, "groupId": 1379, "productName": "Mewtwo Star", "note": "EX Holon Phantoms, Number 103/110" },
+  { "cardId": "ex12-92", "productId": 88678, "groupId": 1378, "productName": "Registeel Star", "note": "EX Legend Maker, Number 92/92" },
+  { "cardId": "ex7-107", "productId": 87616, "groupId": 1428, "productName": "Mudkip Star", "note": "EX Team Rocket Returns, Number 107/109" },
+  { "cardId": "pop4-17", "productId": 84774, "groupId": 1452, "productName": "Deoxys ex", "note": "POP Series 4, Number 017/017" },
+  { "cardId": "pop5-16", "productId": 85329, "groupId": 1439, "productName": "Espeon Star", "note": "POP Series 5, Number 016/017" },
+  { "cardId": "ecard3-H09", "productId": 85668, "groupId": 1372, "productName": "Gengar (H9)", "note": "Skyridge, Number H09/H32 (the reverse-holo H card, not Gengar 010/144)" },
+  { "cardId": "dpp-DP05", "productId": 90054, "groupId": 1421, "productName": "Tropical Wind - DP05 (Worlds 07)", "note": "Base product; the [Staff] version is a separate product" },
+  { "cardId": "dpp-DP25", "productId": 90055, "groupId": 1421, "productName": "Tropical Wind - DP25 (Worlds 08)", "note": "Base product; the [Staff] version is a separate product" },
+  { "cardId": "dpp-DP48", "productId": 90056, "groupId": 1421, "productName": "Tropical Wind - DP48 (Worlds 09)", "note": "Base product; the [Staff] version is a separate product" },
+  { "cardId": "np-27", "productId": 90050, "groupId": 1423, "productName": "Tropical Tidal Wave - 027 (2005 World Championships) [Participation]", "note": "Nintendo Promos Number 027; placement versions (Top 32, Finalist, Staff...) are separate products" }
+]

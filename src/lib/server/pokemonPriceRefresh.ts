@@ -19,6 +19,7 @@ import {
   type TcgGroup,
   type TcgProduct,
 } from "@/lib/tcgcsv";
+import { loadPokemonHandMap } from "@/lib/server/pokemonHandMap";
 import { readSealedMap, sealedSeriesUpserts } from "@/lib/server/sealedPrices";
 
 /**
@@ -288,6 +289,7 @@ async function tcgdexReferee(day: string, tcg: Map<string, SeriesKeyed>, max = 6
 }
 
 export async function refreshPokemonPricesFromTcgcsv(day = todayUtc()): Promise<PokemonRefreshResult> {
+  await loadPokemonHandMap(); // best-effort, never throws
   try {
     await mapNewPokemonGroups();
   } catch (err) {
