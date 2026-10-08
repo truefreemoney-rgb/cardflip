@@ -158,6 +158,12 @@ export default function PlanCard({
           primary={false}
         />
       )}
+      {/* Phones (Chris 10-08): the Booster comes right after the free trial, not at the foot of the page. */}
+      {trial && (
+        <div className="md:hidden">
+          <PackStrip sessionUser={sessionUser} />
+        </div>
+      )}
       <Card
         sessionUser={sessionUser}
         plan="standard"
@@ -183,7 +189,9 @@ export default function PlanCard({
         primary={false}
       />
     </div>
-    <PackStrip sessionUser={sessionUser} />
+    <div className={`mt-3 ${trial ? "hidden md:block" : ""}`}>
+      <PackStrip sessionUser={sessionUser} />
+    </div>
     </div>
   );
 }
@@ -195,7 +203,7 @@ export default function PlanCard({
  */
 function PackStrip({ sessionUser }: { sessionUser?: SessionUser }) {
   return (
-    <div className="mt-3 flex flex-col gap-6 rounded-3xl border border-edge bg-surface-1 p-7 sm:p-8 md:flex-row md:items-center md:gap-8">
+    <div className="flex flex-col gap-6 rounded-3xl border border-edge bg-surface-1 p-7 sm:p-8 md:flex-row md:items-center md:gap-8">
       <div className="md:w-52 md:shrink-0">
         <p className="font-display text-lg font-semibold text-white">Booster</p>
         <p className="mt-1 text-sm text-zinc-500">{SCANS.pack} scans, no subscription</p>
