@@ -35,6 +35,7 @@ export function draftInputFromBody(body: unknown): Omit<DraftInput, "hasPhoto"> 
         : null,
     firstEdition: Boolean(b.firstEdition),
     ...(b.strategy === "quick" ? { strategy: "quick" as const } : {}),
+    ...(b.shippingMethod === "envelope" || b.shippingMethod === "tracked" ? { shippingMethod: b.shippingMethod as "envelope" | "tracked" } : {}),
     quantity: Number.isFinite(Number(b.quantity)) ? Math.min(99, Math.max(1, Math.floor(Number(b.quantity)))) : 1,
     productType: b.productType ? String(b.productType) : null,
     language: b.language === "ja" || b.language === "zh" ? b.language : "en",

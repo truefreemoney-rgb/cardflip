@@ -50,6 +50,8 @@ export interface ServerCard {
   firstEdition: boolean;
   /** Variant held as (Magic finish / Pokémon printing); null = default. */
   variant: string | null;
+  /** Shipping the seller picked ("envelope" | "tracked"); null = not picked yet. */
+  shippingMethod: "envelope" | "tracked" | null;
   /** Catalog rarity; null on rows scanned before it was stored. */
   rarity: string | null;
   /** Seller-chosen folder; null = uncategorized. */
@@ -121,6 +123,8 @@ export interface UpdateCardInput {
   priceLocked?: boolean;
   /** What the seller paid; null clears it. */
   costBasis?: number | null;
+  /** Shipping pick; null clears it. */
+  shippingMethod?: "envelope" | "tracked" | null;
   /** Price alert target; null clears it. */
   alertPrice?: number | null;
 }

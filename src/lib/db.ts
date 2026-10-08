@@ -929,6 +929,8 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
       // 1st Edition stamp (WotC-era Pokémon) — read by the scanner or ticked
       // by the seller. Its own market; shown as a pill in Inventory (09-04).
       "first_edition INTEGER",
+      // How the seller mails it: "envelope" | "tracked" (10-08). Required before an eBay post.
+      "shipping_method TEXT",
       // Catalog rarity ("Common", "Illustration Rare", MTG "mythic") copied
       // onto the row so Inventory can sort by it (Chris, 09-04).
       "rarity TEXT",

@@ -1,6 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
+import { isShipMethod, type ShipMethod } from "@/lib/fees";
 import { ebayListingUrl } from "@/lib/ebayInventory";
 import { marketplaceByEbayId } from "@/lib/marketplaces";
 import { EBAY_FEE_RATE, EBAY_FLAT_FEE, EBAY_FLAT_FEE_OVER_10 } from "@/lib/fees";
@@ -42,6 +43,8 @@ export interface CardRecord {
   soldByHand: boolean;
   /** What the seller paid for it; null = not entered. Profit = sale − fees − postage − this. */
   costBasis: number | null;
+  /** Shipping the seller picked ("envelope" | "tracked"); null = not picked. Required to post on eBay (10-08). */
+  shippingMethod: ShipMethod | null;
   /** Owned-card price alert: mail when the asking price reaches this; null = off. alertedAt = sent. */
   alertPrice: number | null;
   alertedAt: number | null;
@@ -120,6 +123,7 @@ interface CardRow {
   sold_fees: number | null;
   sold_by_hand?: number | null;
   cost_basis: number | null;
+  shipping_method: string | null;
   alert_price: number | null;
   alerted_at: number | null;
   spike_alerted_at: number | null;
@@ -176,6 +180,7 @@ function fromRow(row: CardRow): CardRecord {
     soldFees: row.sold_fees ?? null,
     soldByHand: row.sold_by_hand === 1,
     costBasis: row.cost_basis ?? null,
+    shippingMethod: isShipMethod(row.shipping_method) ? row.shipping_method : null,
     alertPrice: row.alert_price ?? null,
     alertedAt: row.alerted_at ?? null,
     ebayOrderId: row.ebay_order_id ?? null,
@@ -235,6 +240,7 @@ export interface NewCard {
   matchDoubt?: string | null;
   /** What the seller paid, when known at creation (CSV import). */
   costBasis?: number | null;
+  shippingMethod?: ShipMethod | null;
   /** 1st Edition printing (a "-1st" catalog twin). */
   firstEdition?: boolean;
   /** Variant the scan read (Magic finish) — the seller can change it in the editor. */
@@ -252,8 +258,8 @@ export async function createCard(userId: string, card: NewCard): Promise<CardRec
   await db
     .prepare(
       `INSERT INTO cards
-         (id, user_id, kind, game, card_name, set_name, card_number, image_url, condition, product_type, status, price, scan_price, catalog_card_id, rarity, category, pack_id, verified_at, match_doubt, cost_basis, first_edition, variant, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ready', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (id, user_id, kind, game, card_name, set_name, card_number, image_url, condition, product_type, status, price, scan_price, catalog_card_id, rarity, category, pack_id, verified_at, match_doubt, cost_basis, shipping_method, first_edition, variant, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ready', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -278,6 +284,7 @@ export async function createCard(userId: string, card: NewCard): Promise<CardRec
       card.verifiedAt ?? null,
       card.matchDoubt ?? null,
       card.costBasis ?? null,
+      card.shippingMethod ?? null,
       card.firstEdition ? 1 : 0,
       card.variant ?? null,
       now,
@@ -312,6 +319,7 @@ export async function createCard(userId: string, card: NewCard): Promise<CardRec
     soldFees: null,
     soldByHand: false,
     costBasis: card.costBasis ?? null,
+    shippingMethod: card.shippingMethod ?? null,
     alertPrice: null,
     alertedAt: null,
     ebayOrderId: null,
@@ -600,6 +608,7 @@ export interface CardUpdate {
   /** True when the price in this patch was typed/chosen by the seller. */
   priceLocked?: boolean;
   costBasis?: number | null;
+  shippingMethod?: ShipMethod | null;
   /** Price alert target; null clears. Any change re-arms the alert. */
   alertPrice?: number | null;
 }
@@ -639,6 +648,7 @@ export async function updateCard(
     variant: patch.variant !== undefined ? patch.variant : existingRow.variant,
     price_locked: patch.priceLocked !== undefined ? (patch.priceLocked ? 1 : 0) : existingRow.price_locked,
     cost_basis: patch.costBasis !== undefined ? patch.costBasis : existingRow.cost_basis,
+    shipping_method: patch.shippingMethod !== undefined ? patch.shippingMethod : existingRow.shipping_method,
     alert_price: patch.alertPrice !== undefined ? patch.alertPrice : existingRow.alert_price,
     alerted_at: patch.alertPrice !== undefined && patch.alertPrice !== existingRow.alert_price ? null : existingRow.alerted_at,
     // Any status move settles the ended flag — sold/unlisted cards don't
@@ -669,7 +679,7 @@ export async function updateCard(
   await db
     .prepare(
       `UPDATE cards
-       SET card_name = ?, set_name = ?, card_number = ?, image_url = ?, catalog_card_id = ?, rarity = ?, category = ?, condition = ?, price = ?, quantity = ?, status = ?, listed_at = ?, sold_price = ?, sold_at = ?, verified_at = ?, match_doubt = ?, first_edition = ?, variant = ?, price_locked = ?, cost_basis = ?, alert_price = ?, alerted_at = ?, sold_fees = ?, ebay_order_id = ?, ebay_line_item_id = ?, sold_price_local = ?, sold_currency = ?, ebay_ended_at = ?, scan_price = ?, sold_by_hand = ?, updated_at = ?
+       SET card_name = ?, set_name = ?, card_number = ?, image_url = ?, catalog_card_id = ?, rarity = ?, category = ?, condition = ?, price = ?, quantity = ?, status = ?, listed_at = ?, sold_price = ?, sold_at = ?, verified_at = ?, match_doubt = ?, first_edition = ?, variant = ?, price_locked = ?, cost_basis = ?, shipping_method = ?, alert_price = ?, alerted_at = ?, sold_fees = ?, ebay_order_id = ?, ebay_line_item_id = ?, sold_price_local = ?, sold_currency = ?, ebay_ended_at = ?, scan_price = ?, sold_by_hand = ?, updated_at = ?
        WHERE id = ? AND user_id = ?`,
     )
     .run(
@@ -693,6 +703,7 @@ export async function updateCard(
       merged.variant ?? null,
       merged.price_locked ?? 0,
       merged.cost_basis ?? null,
+      merged.shipping_method ?? null,
       merged.alert_price ?? null,
       merged.alerted_at ?? null,
       merged.sold_fees,
