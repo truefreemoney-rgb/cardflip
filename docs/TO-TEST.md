@@ -8,6 +8,12 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 - [ ] Prod, a one-day custom range (both dates today) draws 24 hourly points, not one bar.
 - [ ] The faint dotted "before" line matches the "N before" number under each tile.
 
+## 10-08 Publish screen + Public pages blocks (TODAY-10-08.md 11:30 + 11:45) — checked 10-08
+- [x] (Chris) Delete-account form warns about live cards. Email change on the Ben account: trial, no Stripe customer, nothing to follow (code updates Stripe on both paths; real proof needs a paid account — parked).
+- [x] (pane, prod, 375px) /pokemon/charizard-card-value: title right, Scan → /scan?game=pokemon, tiles → card pages, Start Your Free Trial → /signup, no sideways scroll. Home Yu-Gi-Oh! pill one line.
+- [x] (pane) Set with 300+ cards: /cards/magic/commander-masters/page/2 renders 249 cards, pager fine (no set has more than 2 pages at 300 a page, so wrapping never comes up).
+- [ ] OPEN: Search page (/app/price-check) on a made-up name says "No cards matched that search." with NO "Card Missing? Tell Us" — the report button only lives in the scanner pick-by-name list and the card editor. Chris to decide whether it belongs on the Search page too.
+
 ## 10-08 Inventory 2 block (TODAY-10-08.md 11:10) — Chris 10-08: all 6 pass
 - [x] Delete one card → Undo; delete again + leave → gone. Bulk delete keeps the live card, toast counts. Remove while saving → nothing left. Empty game copy. Set Completion "✓ Watching". Sold tile net = sticker.
 
