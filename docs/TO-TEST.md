@@ -105,7 +105,7 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 - [x] 10-08 PASS iPhone (Chris: "share card feature works"; Android not checked) Phone: Share on a found card opens the share sheet with the picture; falls back to a download elsewhere.
 - [x] 10-08 PASS iPhone (Chris: "share works on inventory") Inventory card sheet (tap a card): Share sits in the title bar beside the X and makes the same card picture (Chris 10-08 "inventory card should have a share also"). Not on sealed product.
 - [x] (10-08 pane prod 375px: $111.90, ▼ $0.67 over 7 days, three movers, Share button present = Market Value $111.90; the picture itself is a phone check) Collector mode Inventory: value header shows total, 7-day change, top movers; Share makes the collection picture.
-- [ ] Camera tips line shows the first 3 opens, "Got It" hides it for good.
+- [x] 10-08 PASS iPhone (tips line gone after the first opens; "Keep going for a whole stack" in its place; Got It itself not tapped) Camera tips line shows the first 3 opens, "Got It" hides it for good.
 - [x] (10-08 added to the Search page too (49575e22), seen locally; prod report landing in /admin/support still to confirm) Search with no match shows "Card Missing? Tell Us"; the report lands in /admin/support as "Missing Card: …".
 - [ ] A card with a pricier twin in the candidates shows "Check the art…" and Switch swaps it.
 - [ ] Airplane mode on the phone inside the app shows the No Signal page; push still works after the worker update.
@@ -126,7 +126,7 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 - [x] (10-08 prod Base Set Charizard page: no EUR or € anywhere in the HTML or rendered text) A card page chart shows no extra EUR line from the new source.
 
 ## 10-06 look and feel (audit section E)
-- [ ] Real iPhone: bottom tab bar sits above the home bar, nothing hidden under it (footer, toasts, sticky price bar on card pages).
+- [x] 10-08 PASS from Chris iPhone screenshots (Inventory, scanner, /scan: tab bar clear of the home bar; sticky price bar on card pages not checked) Real iPhone: bottom tab bar sits above the home bar, nothing hidden under it.
 - [x] (10-08 local pane 375px: End listing confirm is a bottom sheet pinned to the bottom edge with Cancel / End listing; Cancel closes it. Back gesture = real phone only) Confirm pop-up (e.g. bulk delete) slides up as a bottom sheet on phone, Cancel/Confirm both work, Back gesture cancels.
 - [ ] Swipe the sheet handle down closes the card peek on the home page.
 - [ ] Loading skeletons show on slow 4G for Inventory, card pages, set pages.
