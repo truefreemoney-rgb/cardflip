@@ -211,6 +211,8 @@ function MarkSoldSheet({
   onSubmit: (price: number) => void;
 }) {
   const [price, setPrice] = useState(card.price);
+  // Second step (Chris, 10-08): a sold record can't be undone, so the button asks once more before it writes.
+  const [sure, setSure] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   useFocusTrap(panelRef);
   useBodyScrollLock();
@@ -256,25 +258,38 @@ function MarkSoldSheet({
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            if (price > 0) onSubmit(price);
+            if (price <= 0) return;
+            if (!sure) setSure(true);
+            else onSubmit(price);
           }}
         >
-          <label className="mt-5 block">
-            <span className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">What Did It Sell For?</span>
-            <span className="mt-1.5 flex items-center rounded-xl border border-edge bg-black/40 px-4 focus-within:border-brand-400">
-              <span className="text-2xl font-semibold text-zinc-500">$</span>
-              <PriceInput
-                value={price}
-                onValue={setPrice}
-                className="w-full bg-transparent py-3 pl-2 text-right font-display text-3xl font-semibold tracking-tight text-white outline-none"
-              />
-            </span>
-          </label>
-          <p className="mt-3 text-xs text-zinc-500">The sale counts in your stats. The card stays in Inventory as a sold record.</p>
+          {sure ? (
+            <div className="mt-5 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3">
+              <p className="text-sm font-semibold text-amber-200">Are you sure?</p>
+              <p className="mt-1 text-sm text-zinc-300">
+                This marks it sold for ${price.toFixed(2)}. It can&apos;t be undone.
+              </p>
+            </div>
+          ) : (
+            <>
+              <label className="mt-5 block">
+                <span className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">What Did It Sell For?</span>
+                <span className="mt-1.5 flex items-center rounded-xl border border-edge bg-black/40 px-4 focus-within:border-brand-400">
+                  <span className="text-2xl font-semibold text-zinc-500">$</span>
+                  <PriceInput
+                    value={price}
+                    onValue={setPrice}
+                    className="w-full bg-transparent py-3 pl-2 text-right font-display text-3xl font-semibold tracking-tight text-white outline-none"
+                  />
+                </span>
+              </label>
+              <p className="mt-3 text-xs text-zinc-500">The sale counts in your stats. The card stays in Inventory as a sold record.</p>
+            </>
+          )}
           <div className="mt-5 flex gap-2">
             <button
               type="button"
-              onClick={onClose}
+              onClick={sure ? () => setSure(false) : onClose}
               className="flex-1 rounded-full border border-edge px-4 py-2.5 text-sm font-medium text-zinc-300 transition hover:text-white"
             >
               Cancel
@@ -284,7 +299,7 @@ function MarkSoldSheet({
               disabled={price <= 0}
               className="flex flex-[2] items-center justify-center rounded-full bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-400 disabled:cursor-default disabled:opacity-40"
             >
-              Mark as Sold
+              {sure ? "Yes, Mark as Sold" : "Mark as Sold"}
             </button>
           </div>
         </form>
@@ -526,6 +541,8 @@ export default function CollectionPage() {
   const catalogCache = useRef<Record<string, PokemonCard>>({});
   // Mark as Sold popup (Chris, 10-01): the ledger row it is asking about.
   const [soldSheet, setSoldSheet] = useState<string | null>(null);
+  // Bulk "Mark sold" asks once more first (Chris, 10-08: a sold record can't be undone): the live rows it would mark.
+  const [bulkSoldAsk, setBulkSoldAsk] = useState<ServerCard[] | null>(null);
   // Verify Match happens IN the detail sheet (Chris, 10-01), not on the
   // listing page. Yu-Gi-Oh! foils and One Piece printings share one number,
   // so those games ask "which one is yours?" there too: the choices per
@@ -2601,13 +2618,7 @@ export default function CollectionPage() {
                 )}
                 {listed.length > 0 && (
                   <button
-                    onClick={() =>
-                      void applyToAll(
-                        listed,
-                        (c) => soldNowPatch(c.price),
-                        `${listed.length} marked sold at asking price`,
-                      )
-                    }
+                    onClick={() => setBulkSoldAsk(listed)}
                     title="Records each sale at its asking price — click a sold row's price to correct one"
                     className={bulkBtn}
                   >
@@ -3492,6 +3503,45 @@ export default function CollectionPage() {
           />
         );
       })()}
+      {bulkSoldAsk && (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/80 p-0 backdrop-blur-sm sm:items-center sm:p-4" onClick={() => setBulkSoldAsk(null)}>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Mark selected cards as sold"
+            onClick={(e) => e.stopPropagation()}
+            className="animate-fade-up w-full max-w-md rounded-t-2xl border border-edge bg-surface-1 p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl shadow-black/60 sm:rounded-2xl sm:p-6"
+          >
+            <p className="font-display text-lg font-semibold leading-snug text-white">Are you sure?</p>
+            <p className="mt-2 text-sm text-zinc-300">
+              This marks {bulkSoldAsk.length} {bulkSoldAsk.length === 1 ? "card" : "cards"} sold at {bulkSoldAsk.length === 1 ? "its" : "their"} asking price. It can&apos;t be undone.
+            </p>
+            <div className="mt-5 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setBulkSoldAsk(null)}
+                className="flex-1 rounded-full border border-edge px-4 py-2.5 text-sm font-medium text-zinc-300 transition hover:text-white"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const targets = bulkSoldAsk;
+                  setBulkSoldAsk(null);
+                  void Promise.all(targets.map((c) => applyPatch(c, soldNowPatch(c.price)))).then(() => {
+                    setSelected(new Set());
+                    toast(`${targets.length} marked sold at asking price`);
+                  });
+                }}
+                className="flex flex-[2] items-center justify-center rounded-full bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-400"
+              >
+                Yes, Mark as Sold
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {priceSheet && (() => {
         const card = cards.find((c) => c.id === priceSheet);
         if (!card) return null;
