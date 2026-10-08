@@ -304,7 +304,7 @@ export function renderWeek(f: WeekFacts, firstName: string, unsubUrl: string): R
         : "This week in cards";
   const blocks: Block[] = [
     // Card rows with pictures (Chris 10-08: "this style looked better"): the biggest move in each game, biggest first.
-    { title: "Biggest move in each game", cards: f.moves },
+    { title: "Biggest move in each game", cards: f.moves ?? [] },
     ...(f.set ? [{ title: "Set to watch", lines: [`${f.set.name} (${GAMES[f.set.game].label}): ${f.set.risers} of the top 20 risers came from this set.`] }] : []),
     ...(f.sleeper ? [{ title: "Sleeper under $5", cards: [f.sleeper] }] : []),
     { title: "On CardFlip this week", lines: [`${f.scans.toLocaleString("en-US")} card${f.scans === 1 ? "" : "s"} scanned.${f.mostScanned ? ` Most scanned: ${f.mostScanned}.` : ""}`] },

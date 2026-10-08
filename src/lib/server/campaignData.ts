@@ -354,7 +354,7 @@ function moverCard(m: MoverLike, game: GameId): MailCard & { cardId: string } {
  */
 const FACTS_TTL = 6 * 3_600_000;
 async function memo<T>(key: string, now: number, quick: boolean, build: () => Promise<T>): Promise<T | null> {
-  const k = `email:v1:${key}:${todayUtc(now)}`;
+  const k = `email:v2:${key}:${todayUtc(now)}`;
   if (!quick) return cachedList(k, FACTS_TTL, build, now);
   return (await cachedListSwr<T | null>(k, FACTS_TTL, build, null, now)).value;
 }
