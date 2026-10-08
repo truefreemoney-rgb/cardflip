@@ -39,7 +39,7 @@ export default function GameToggle({ game, onChange, compact = false, counts, bl
     <div
       role="radiogroup"
       aria-label="Card game"
-      className={`${block ? "flex w-full justify-center" : "inline-flex"} rounded-full border border-edge bg-surface-1 p-1 ${visible.length > 4 ? "text-[11px]" : compact ? "text-xs" : "text-sm"}`}
+      className={`${block ? "flex w-full flex-wrap justify-center rounded-3xl" : "inline-flex rounded-full"} border border-edge bg-surface-1 p-1 ${visible.length > 4 ? "text-[11px]" : compact ? "text-xs" : "text-sm"}`}
     >
       {visible.map((id) => (
         <button

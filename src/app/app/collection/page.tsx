@@ -1873,7 +1873,8 @@ export default function CollectionPage() {
           switch was invisible on a phone (Chris, 09-06: "inventory needs a
           button to switch between pokemon and magic" — it had one). */}
       {/* Phones: five pills with counts do not fit 375px, so the row scrolls sideways with real padding instead of squeezing ("One Piece · 1Yu-Gi-Oh! · 0"). */}
-      <div className="-mx-4 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:overflow-visible sm:px-0 sm:pb-0 [&::-webkit-scrollbar]:hidden [&>div]:min-w-max [&>div>button]:px-3.5 [&>div>button]:py-2 sm:[&>div]:min-w-0 sm:[&>div>button]:px-2">
+      {/* Wraps into two rows on a phone instead of sliding off screen (Chris 10-08). */}
+      <div className="[&>div>button]:px-3.5 [&>div>button]:py-2 sm:[&>div>button]:px-2">
         <GameToggle game={gameView} onChange={switchGame} counts={gameCounts} block />
       </div>
 
@@ -3257,7 +3258,7 @@ export default function CollectionPage() {
                 {/* ONE action row. Phone: primary stretches, quiet buttons
                     beside it, indented under the name block. sm+: tucked
                     right on the same visual line as the price. */}
-                <div className="mt-2.5 flex items-center gap-2 pl-8 sm:mt-0 sm:grid sm:shrink-0 sm:grid-cols-[7rem_7rem_6.5rem_2rem] sm:gap-1.5 sm:pl-0">
+                <div className="mt-2.5 flex flex-wrap items-center gap-2 pl-8 sm:mt-0 sm:grid sm:shrink-0 sm:grid-cols-[7rem_7rem_6.5rem_2rem] sm:gap-1.5 sm:pl-0">
                   {draft && card.kind !== "sealed" && !card.verifiedAt && (
                     // Verify Match opens the big card sheet and the verifying
                     // happens in there, photo beside the match (Chris, 10-01).
