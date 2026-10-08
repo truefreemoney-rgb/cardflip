@@ -29,8 +29,20 @@ import { fetchCurrentUser, logout, type SessionUser } from "@/lib/client/auth";
  * 343px-wide phone line. Both rows are centered — the same masthead-over-
  * pill shape as the app header's phone layout. From sm it is the one row.
  */
+const NAV_HINT = "cf_nav_signed_in";
+
 export default function MarketingNav() {
   const [user, setUser] = useState<SessionUser | null>(null);
+  // No flash of "Log In" on a signed-in phone (Chris 10-08): until the session answers, the two account slots stay
+  // invisible unless the last visit left a signed-in hint, in which case the signed-in pair shows at once.
+  const [known, setKnown] = useState(false);
+  const [hinted] = useState(() => {
+    try {
+      return typeof window !== "undefined" && window.localStorage.getItem(NAV_HINT) === "1";
+    } catch {
+      return false;
+    }
+  });
   const [searching, setSearching] = useState(false);
   // On /cards/{game}/... the search stays inside that game.
   const pathname = usePathname() ?? "";
@@ -40,9 +52,18 @@ export default function MarketingNav() {
     let alive = true;
     fetchCurrentUser()
       .then((u) => {
-        if (alive) setUser(u);
+        if (!alive) return;
+        setUser(u);
+        setKnown(true);
+        try {
+          window.localStorage.setItem(NAV_HINT, u ? "1" : "0");
+        } catch {
+          /* private mode */
+        }
       })
-      .catch(() => {});
+      .catch(() => {
+        if (alive) setKnown(true);
+      });
     return () => {
       alive = false;
     };
@@ -80,7 +101,7 @@ export default function MarketingNav() {
           <Link href="/pricing" className={link}>
             Pricing
           </Link>
-          {user ? (
+          {user || (!known && hinted) ? (
             <>
               <button
                 type="button"
@@ -103,12 +124,12 @@ export default function MarketingNav() {
             </>
           ) : (
             <>
-              <Link href="/login" className={link}>
+              <Link href="/login" className={`${link} ${known ? "" : "invisible"}`}>
                 Log In
               </Link>
               <Link
                 href="/signup"
-                className="ml-1 whitespace-nowrap rounded-full bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-400"
+                className={`ml-1 whitespace-nowrap rounded-full bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-400 ${known ? "" : "invisible"}`}
               >
                 Get Started
               </Link>
