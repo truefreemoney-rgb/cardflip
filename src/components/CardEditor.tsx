@@ -850,6 +850,16 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
             else if (card.rarity) cells.push({ label: "Rarity", value: <span className="text-brand-300">{card.rarity}</span> });
             if (quote) {
               const ebayBasis = /^eBay/i.test(quote.price.label);
+              const listingsLink = (
+                <a
+                  href={item.ebay?.searchUrl ?? ebaySearchUrl(card, facts)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block truncate text-xs text-zinc-500 underline decoration-zinc-600 underline-offset-2 hover:text-white"
+                >
+                  {item.ebay && item.ebay.count > 0 ? `${item.ebay.count} listing${item.ebay.count === 1 ? "" : "s"} ↗` : "See listings ↗"}
+                </a>
+              );
               cells.push({
                 label: "Market",
                 value: (
@@ -859,45 +869,21 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
                     ) : (
                       <span className="font-display text-white">{formatMoney(quote.base, quote.price.currency)}</span>
                     )}
-                    {!ebayBasis && <span className="ml-1.5 text-xs text-zinc-500">{quote.price.label}</span>}
+                    {/* The basis on its own line (10-08, Chris: "$1,134.85 1st …" was clipped beside the number). */}
+                    <span className="block truncate text-xs text-zinc-500">{quote.price.label}</span>
                   </>
                 ),
               });
-              // The road to other sellers' listings must survive the pricing
-              // basis (Chris): whichever chip isn't the market one links to
-              // the eBay search.
+              // "eBay asking" is OUR number (Chris 10-08): the market price through condition, fees and shipping
+              // (quote.suggested), never the average of other sellers' live listings. Those stay as the small link.
               cells.push({
                 label: "eBay asking",
-                value: ebayBasis ? (
-                  <a
-                    href={item.ebay?.searchUrl ?? ebaySearchUrl(card, facts)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-zinc-300 underline decoration-zinc-600 underline-offset-2 hover:text-white"
-                  >
-                    {quote.price.label} ↗
-                  </a>
-                ) : item.ebay && item.ebay.count > 0 ? (
-                  <a
-                    href={item.ebay.searchUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-zinc-300 underline decoration-zinc-600 underline-offset-2 hover:text-white"
-                  >
-                    {formatMoney(item.ebay.average, "USD")}
-                    <span className="ml-1.5 text-xs text-zinc-500">
-                      {item.ebay.count} listing{item.ebay.count === 1 ? "" : "s"} ↗
-                    </span>
-                  </a>
-                ) : (
-                  <a
-                    href={ebaySearchUrl(card, facts)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-zinc-400 underline decoration-zinc-600 underline-offset-2 hover:text-white"
-                  >
-                    See Listings ↗
-                  </a>
+                value: (
+                  <>
+                    <span className="font-display text-white">{formatMoney(quote.suggested, quote.price.currency)}</span>
+                    {ebayBasis ? <span className="block truncate text-xs text-zinc-500">{quote.price.label}</span> : null}
+                    {listingsLink}
+                  </>
                 ),
               });
             }
@@ -910,7 +896,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
                 {cells.map((c) => (
                   <div key={c.label} className="min-w-0 px-3 py-2">
                     <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">{c.label}</dt>
-                    <dd className="mt-0.5 truncate text-sm font-medium">{c.value}</dd>
+                    <dd className="mt-0.5 text-sm font-medium">{c.value}</dd>
                   </div>
                 ))}
               </dl>
