@@ -5,7 +5,7 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 
 ## 10-07 admin email campaigns (/admin/emails), SHIPPED SWITCHED OFF
 - [ ] Prod /admin/emails: both "Send Test To Me" buttons land a [TEST] mail at truefreemoney@gmail.com; check it on the phone (button, prices, Stop link).
-- [ ] Chris approves both mails' wording before the switch goes on.
+- [x] Chris approved both mails' wording 10-07 ("fine for now"). Switch stays OFF until he says to turn it on.
 - [ ] After switching on: the first Tue/Fri morning run shows in the Send Log, and "Stop these emails" shows the "No more update emails" page and stops digest + campaigns.
 
 ## 10-07 signup email typo hint (an ad signup typed @iclod.org and had to sign up twice)

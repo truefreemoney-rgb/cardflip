@@ -6,6 +6,7 @@ import AdminKeepAlive from "@/components/admin/AdminKeepAlive";
 import AdminSignOut from "@/components/admin/AdminSignOut";
 import { adminUsingDefaults, helperName } from "@/lib/adminAuth";
 import { adminRole } from "@/lib/server/adminGate";
+import { adminBadges } from "@/lib/server/adminBadges";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,7 @@ export default async function AdminConsoleLayout({ children }: { children: React
   // A helper (lib/adminAuth.ts) gets the Tasks page and nothing else; every
   // other console page sends her back there (requireOwnerPage).
   const helper = role === "helper";
+  const badges = helper ? {} : await adminBadges();
   return (
     <div className="flex min-h-dvh flex-col bg-background text-foreground">
       <AdminKeepAlive />
@@ -30,7 +32,7 @@ export default async function AdminConsoleLayout({ children }: { children: React
             <Logo size="sm" />
             <span className="rounded-full bg-brand-500/15 px-2.5 py-0.5 text-xs font-medium text-brand-300">{helper ? `${helperName()} · helper` : "Admin console"}</span>
           </div>
-          {helper ? <span className="rounded-full border border-edge bg-surface-1 px-3 py-1 text-xs text-white">Tasks</span> : <AdminNav />}
+          {helper ? <span className="rounded-full border border-edge bg-surface-1 px-3 py-1 text-xs text-white">Tasks</span> : <AdminNav badges={badges} />}
           <div className="flex items-center gap-4 text-sm">
             <Link href="/app" className="text-zinc-400 transition hover:text-white">← App</Link>
             <AdminSignOut />

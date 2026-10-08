@@ -77,19 +77,12 @@ export const STATUS_STYLE: Record<string, string> = {
  * the pill 404'd on prod, and everything it showed (price history, daily
  * refresh, mirrors, storage) already lives on /admin/system.
  */
-export const ADMIN_NAV = [
-  ["/admin", "Overview"],
-  ["/admin/analytics", "Analytics"],
-  ["/admin/adtest", "Ad Test"],
-  ["/admin/switches", "Switches"],
-  ["/admin/emails", "Emails"],
-  ["/admin/board", "Tasks"],
-  ["/admin/social", "Social"],
-  ["/admin/users", "Users"],
-  ["/admin/waitlist", "Waitlist"],
-  ["/admin/cards", "Cards"],
-  ["/admin/errors", "Log"],
-  ["/admin/support", "Support"],
-  ["/admin/system", "System"],
-  ["/admin/drop", "Drop"],
-] as const;
+export const ADMIN_NAV_GROUPS: ReadonlyArray<{ label: string; pages: ReadonlyArray<readonly [string, string]> }> = [
+  { label: "Money", pages: [["/admin", "Overview"], ["/admin/analytics", "Analytics"], ["/admin/adtest", "Ad Test"], ["/admin/emails", "Emails"]] },
+  { label: "People", pages: [["/admin/users", "Users"], ["/admin/waitlist", "Waitlist"], ["/admin/support", "Support"]] },
+  { label: "Content", pages: [["/admin/social", "Social"], ["/admin/cards", "Cards"], ["/admin/drop", "Drop"]] },
+  { label: "Settings", pages: [["/admin/switches", "Switches"], ["/admin/board", "Tasks"], ["/admin/errors", "Log"], ["/admin/system", "System"]] },
+];
+
+/** Every page, flat, in nav order. */
+export const ADMIN_NAV = ADMIN_NAV_GROUPS.flatMap((g) => g.pages);
