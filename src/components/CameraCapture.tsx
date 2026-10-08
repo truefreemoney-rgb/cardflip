@@ -13,7 +13,6 @@ import CardImage from "@/components/CardImage";
 import CandidatePicker from "@/components/CandidatePicker";
 import VerifyAllSheet from "@/components/VerifyAllSheet";
 import { effectiveVariant, formatMoney, headlinePrice, marketFlagOf } from "@/lib/listing";
-import { pricierSibling } from "@/lib/variantWarning";
 import { fxCapture, fxMatch, fxMiss, revealTier, type RevealTier } from "@/lib/client/scanFx";
 import type { PokemonCard, ScanItem } from "@/lib/types";
 import {
@@ -1202,10 +1201,10 @@ function revealMarket(item: ScanItem): number | null {
   return price > 0 ? price : null;
 }
 
-function RevealChip({ item, onOpen, onRemove, onSwap, onPickSibling, verify }: ToastProps) {
+function RevealChip({ item, onOpen, onRemove, onSwap, verify }: ToastProps) {
   const card = item.card!;
   // A look-alike printing worth much more (Special Illustration vs regular): say so, never switch by itself.
-  const sibling = onPickSibling ? pricierSibling(item) : null;
+  // The "Check the art … Switch" nudge for a pricier twin is gone (Chris 10-08: "i don't like this switch option, remove that").
   // Hold the number until the chart point is fetched (undefined = not yet):
   // it can move the market to today's figure, and the number is revealed
   // once, never corrected a beat later. eBay comps no longer feed this number
@@ -1279,20 +1278,6 @@ function RevealChip({ item, onOpen, onRemove, onSwap, onPickSibling, verify }: T
         )}
       </div>
     </div>
-      {sibling && onPickSibling && (
-        <div role="status" className="flex w-full items-center gap-2 rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2">
-          <p className="min-w-0 flex-1 text-xs leading-snug text-amber-200">
-            <span className="font-semibold">Check the art:</span> the {sibling.card.rarity || "other"} version is worth {formatMoney(sibling.extra)} more.
-          </p>
-          <button
-            type="button"
-            onClick={() => onPickSibling(sibling.card)}
-            className="shrink-0 rounded-full bg-amber-400 px-3 py-1.5 text-xs font-semibold text-black transition hover:bg-amber-300"
-          >
-            Switch
-          </button>
-        </div>
-      )}
       {/* The next step lives on the result (Chris, 09-04): one button, names
           the outcome. Keeps scanning if ignored. 10-02: it counts the scans
           waiting and carries their total ("5 Scans Waiting To Verify · $23.40"),
