@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { justRestoredScrollY, pinScroll } from "@/lib/client/useBodyScrollLock";
 
 /**
  * Android's back button (and the iOS back-swipe) closes the SHEET, not the
@@ -81,28 +82,11 @@ export function useBackToClose(id: string, onClose: () => void, open = true): vo
         // (the handle drag still jumped after the first fix, Chris 10-08), so
         // restoration is switched off for the traversal and the offset is
         // re-applied a few times over the next beats.
-        const y = window.scrollY;
-        const prev = window.history.scrollRestoration;
-        try {
-          window.history.scrollRestoration = "manual";
-        } catch {
-          // Older engines: the scrollTo calls below still do the work.
-        }
-        const put = () => window.scrollTo(0, y);
-        const keep = () => {
-          put();
-          window.requestAnimationFrame(put);
-          window.setTimeout(put, 50);
-          window.setTimeout(() => {
-            put();
-            try {
-              window.history.scrollRestoration = prev;
-            } catch {
-              // nothing to restore
-            }
-          }, 300);
-        };
-        window.addEventListener("popstate", keep, { once: true });
+        // The offset comes from the scroll lock's own record: a fresh
+        // window.scrollY read here is 0 for a beat on iOS (third round, 10-08:
+        // "shoots me to the top").
+        const y = justRestoredScrollY() ?? window.scrollY;
+        window.addEventListener("popstate", () => pinScroll(y), { once: true });
         window.history.back();
       }, 0);
       pendingPop = { marker, timer };
