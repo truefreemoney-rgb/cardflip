@@ -274,7 +274,7 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
             // Trial sellers see one thing here (Chris, 09-06): Subscribe now,
             // leading to the three plans. Connect-eBay comes after.
             <Link href="/pricing" className={ebayButton + " text-center"}>
-              Booster or Plan to Sell
+              Unlock Selling
             </Link>
           ) : canPost && !verified ? (
             <button

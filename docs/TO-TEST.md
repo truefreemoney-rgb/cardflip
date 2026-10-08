@@ -149,7 +149,7 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 - [ ] A real sale is recorded once (two tabs open at the time of sync).
 - [ ] Seller with 26+ live listings: an eBay-side end on listing #26+ shows up in Inventory.
 - [ ] Reconnect warning shows 30 days before the eBay link expires (first ones ~2028).
-- [ ] Trial user sees "Booster or Plan to Sell".
+- [ ] Trial user sees "Unlock Selling" on the scan page editor AND in Inventory (was "Booster or Plan to Sell", Chris 10-08); both go to /pricing.
 
 ### Account / billing
 - [ ] Changing email (both ways: Account page and code-confirmed) updates the email on the Stripe customer.

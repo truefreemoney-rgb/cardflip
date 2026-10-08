@@ -463,6 +463,8 @@ export default function CollectionPage() {
   const { user } = useSession();
   // Pricing only (10-04): the eBay selling UI is hidden, listings untouched.
   const pricingOnly = Boolean(user?.pricingOnly);
+  // Trial sellers see "Unlock Selling" where Build the Listing sits (Chris 10-08): the label says what the tap does.
+  const trialOnly = !!user && user.role !== "admin" && user.tier === "trial";
   const [cards, setCards] = useState<ServerCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<StatusFilter>("all");
@@ -978,8 +980,8 @@ export default function CollectionPage() {
         {/* Actions: one primary, then the quiet row */}
         <div className="flex flex-col gap-2 p-4">
           {draft && card.kind !== "sealed" && card.verifiedAt && (
-            <Link href={href} className={`${primary} bg-brand-500 hover:bg-brand-400`}>
-              {pricingOnly ? "Edit Card →" : "Build the Listing →"}
+            <Link href={trialOnly && !pricingOnly ? "/pricing" : href} className={`${primary} bg-brand-500 hover:bg-brand-400`}>
+              {pricingOnly ? "Edit Card →" : trialOnly ? "Unlock Selling →" : "Build the Listing →"}
             </Link>
           )}
           {/* Verifying happens right here (Chris, 10-01): the photo and the
