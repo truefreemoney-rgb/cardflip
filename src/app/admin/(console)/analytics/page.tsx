@@ -95,7 +95,8 @@ export default async function AdminAnalyticsPage({ searchParams }: { searchParam
 
   return (
     <section className="pb-20 sm:pb-0">
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+      {/* z-30: the Dates panel opens over the chart tiles (they are positioned, so they would paint on top). */}
+      <div className="relative z-30 mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-white">Analytics</h1>
           <p className="mt-1 text-sm text-zinc-500">
