@@ -16,7 +16,7 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 - [ ] Vercel cron list shows /api/cron/emails at 14:00 + 15:00 UTC Tue/Thu and 22:30 + 23:30 UTC Sun; a cron hit while OFF logs nothing and sends nothing.
 - [ ] The old Sunday digest no longer sends from the daily job (Sunday 10-11: only the owner-copy of the week mail, if ON).
 ## 10-07 signup email typo hint (an ad signup typed @iclod.org and had to sign up twice)
-- [ ] Real phone: type name@gmial.com, tap Password → yellow "Did you mean name@gmail.com?"; tap it → box fixed, hint gone.
+- [x] (10-08 Chris, phone: works) Real phone: type name@gmial.com, tap Password → yellow "Did you mean name@gmail.com?"; tap it → box fixed, hint gone.
 - [ ] A correct gmail/icloud address and a @hotmail.co.uk address show no hint.
 - [ ] Fewer "Undelivered Mail Returned to Sender" bounces at support@ from signup welcome emails.
 
@@ -38,7 +38,7 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 - [x] /admin and /admin/login look and behave exactly as before (code email, no Google button). (10-07 prod: no Google button on /admin/login)
 
 ## 10-07 signup: "First name" box renamed "Username" (4 of 6 Google Ads visitors left the signup form)
-- [ ] Signed out on a phone: /signup shows Username / Email / Password; empty Username says "Enter a username."
+- [x] (10-08 Chris, phone: works) Signed out on a phone: /signup shows Username / Email / Password; empty Username says "Enter a username."
 - [ ] /admin/adtest over the next days: Google Ads "Opened the signup page" → "Made an account" rate improves.
 
 ## 10-07 7 hashtags on X / Facebook / Bluesky (was 2/2/3); Instagram 5 and Threads 1 are platform limits
