@@ -54,7 +54,7 @@ export default async function AdminAnalyticsPage({ searchParams }: { searchParam
     { label: "Sign-ups", metric: m.signups },
     { label: "Cards scanned", metric: m.scans },
     { label: "Subscriptions", metric: m.subPayments },
-    { label: "Subscription income", metric: m.subIncomeUsd, fmt: usd, good: true },
+    { label: "Boosters", metric: m.boosters },
   ];
 
   const trends: { title: string; metric: Metric; color: string; fmt?: (v: number) => string }[] = [
@@ -72,6 +72,8 @@ export default async function AdminAnalyticsPage({ searchParams }: { searchParam
     { title: "Server errors", metric: m.errors, color: "#f87171" },
   ];
 
+  // Total income (Chris 10-07): subscription payments + Booster buys, same window and the one before.
+  const income = { total: m.subIncomeUsd.total + m.boosterIncomeUsd.total, prior: m.subIncomeUsd.prior + m.boosterIncomeUsd.prior };
   const sub = a.subscriptions;
   const scanTotal = a.scansByGame.reduce((s, g) => s + g.scans, 0);
   const deviceTotal = a.devices.reduce((s, d) => s + d.visitors, 0);
@@ -100,6 +102,13 @@ export default async function AdminAnalyticsPage({ searchParams }: { searchParam
             <Delta cur={k.metric.total} prior={k.metric.prior} fmt={k.fmt} />
           </Tile>
         ))}
+        <Tile className="col-span-2 md:col-span-3 xl:col-span-6">
+          <p className="font-display text-2xl font-semibold tabular-nums text-emerald-400">{usd(income.total)}</p>
+          <p className="mt-0.5 text-xs text-zinc-500">
+            Total income · subscriptions {usd(m.subIncomeUsd.total)} + boosters {usd(m.boosterIncomeUsd.total)}
+          </p>
+          <Delta cur={income.total} prior={income.prior} fmt={usd} />
+        </Tile>
       </div>
 
       {/* Trends */}
