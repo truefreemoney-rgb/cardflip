@@ -132,6 +132,7 @@ function buildResumed(row: ServerCard, game: GameId, results: PokemonCard[], car
   grading,
   firstEdition: row.firstEdition,
   variant: row.variant ?? null,
+  shipping: row.shippingMethod ?? null,
   // Slabs price off raw market as a floor, never quick-sale discounts.
   strategy: grading ? "market" : "quick",
   condition: asCondition(row.condition) ?? "Near Mint",
@@ -345,6 +346,9 @@ export default function AppPage() {
       // the card IS on eBay and which series prices it — sync it at once.
       if ("variant" in patch) {
         void updateServerCard(item.serverId, { variant: patch.variant ?? null });
+      }
+      if ("shipping" in patch) {
+        void updateServerCard(item.serverId, { shippingMethod: patch.shipping ?? null });
       }
     },
     [commit],

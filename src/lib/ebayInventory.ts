@@ -35,6 +35,7 @@ import type {
 import { SITE_URL } from "./siteUrl.ts";
 import { belowFloor, belowFloorFor, floorRefusal, floorRefusalFor, listingFloorFor } from "./fees.ts";
 import { US_MARKETPLACE, currencySymbol, merchantLocationKeyFor, policyNameFor, type EbayAccountType, type Marketplace } from "./marketplaces.ts";
+import type { ShipMethod } from "./fees.ts";
 import { GAMES, printedCardNumber } from "./games.ts";
 import { ebayFeatures, ebayFinish, ebayRarityWord } from "./ebayVocab.ts";
 
@@ -80,6 +81,8 @@ export interface DraftInput {
    * way the US quote does. Absent = full value.
    */
   strategy?: PriceStrategy;
+  /** The seller's shipping pick (10-08); the server saves it on the card and picks the matching policy. */
+  shippingMethod?: ShipMethod;
   /** Identical copies sold on this one listing (1–99); defaults to 1. */
   quantity?: number;
   kind: ItemKind;
@@ -599,6 +602,13 @@ function policyBase(marketplace: Marketplace) {
  * API takes a carrier name only on some sites), then the site's alternate
  * code. The throwaway-policy check per site is what the sandbox run is for.
  */
+/** The envelope policy's service tries (US only): eBay Standard Envelope with the USPS carrier, then without. */
+export function envelopeAttempts(marketplace: Marketplace): { serviceCode: string; carrierCode: string | null }[] {
+  const code = marketplace.shipping.envelopeServiceCode;
+  if (!code) return [];
+  return [{ serviceCode: code, carrierCode: marketplace.shipping.carrierCode }, { serviceCode: code, carrierCode: null }];
+}
+
 export function fulfillmentAttempts(marketplace: Marketplace): { serviceCode: string; carrierCode: string | null }[] {
   const s = marketplace.shipping;
   const out: { serviceCode: string; carrierCode: string | null }[] = [{ serviceCode: s.serviceCode, carrierCode: s.carrierCode }];
@@ -617,10 +627,12 @@ export function fulfillmentAttempts(marketplace: Marketplace): { serviceCode: st
  * (08-27, LOGISTICS_INFO_IS_MISSING: buyerResponsibleForShipping is a
  * freight flag, not "buyer pays"); buyer-pays is simply a non-zero flat cost.
  */
-export function fulfillmentPolicyBody(marketplace: Marketplace, serviceCode: string, carrierCode: string | null) {
+export function fulfillmentPolicyBody(marketplace: Marketplace, serviceCode: string, carrierCode: string | null, kind: "tracked" | "envelope" = "tracked") {
   return {
     ...policyBase(marketplace),
-    name: policyNameFor(marketplace, "CardFlip shipping"),
+    // "CardFlip shipping" = the tracked mailer policy (its pre-10-08 name, kept so existing accounts match);
+    // "CardFlip envelope" = eBay Standard Envelope for cards under $20.
+    name: policyNameFor(marketplace, kind === "envelope" ? "CardFlip envelope" : "CardFlip shipping"),
     handlingTime: { value: 1, unit: "DAY" },
     shippingOptions: [
       {

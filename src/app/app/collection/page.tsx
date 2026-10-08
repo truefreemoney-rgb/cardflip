@@ -44,6 +44,8 @@ import { priceFloorFor, useLocalMarket } from "@/lib/client/localMarket";
 import { toLocal } from "@/lib/localPricing";
 import { formatLocalAmount, marketplaceByEbayId, marketplaceLabel } from "@/lib/marketplaces";
 import { CONDITIONS, askingNoteFor, ebaySoldSearchUrl, formatMoney, isFirstEditionCard } from "@/lib/listing";
+import { shipLabel, shipSteps } from "@/lib/shipping";
+import ShippingHelpSheet from "@/components/ShippingHelpSheet";
 import { foilChoices, foilLabel } from "@/lib/yugioh";
 import { printingChoices, printingLabel } from "@/lib/onepiece";
 import PriceFlagNote, { PriceFlagText, PriceStaleNote } from "@/components/PriceFlagNote";
@@ -466,6 +468,8 @@ export default function CollectionPage() {
   // Trial sellers see "Unlock Selling" where Build the Listing sits (Chris 10-08): the label says what the tap does.
   const trialOnly = !!user && user.role !== "admin" && user.tier === "trial";
   const [cards, setCards] = useState<ServerCard[]>([]);
+  // "Both ways" shipping help open for this card id (10-08).
+  const [shipHelpFor, setShipHelpFor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<StatusFilter>("all");
   const [view, setView] = useState<InventoryView>(() => {
@@ -780,6 +784,23 @@ export default function CollectionPage() {
           {!flagged && !sold && lp?.stale && <PriceStaleNote className="mt-1.5" days={lp.stale.days} soldUrl={ebaySoldSearchUrl(catalogStub(card), { firstEdition: card.firstEdition })} />}
           {costNote && <p className="mt-1.5 text-xs leading-relaxed text-zinc-300">{costNote}</p>}
           {note && <p className="mt-1.5 text-xs leading-relaxed text-zinc-500">{note}</p>}
+          {/* How to ship it (Chris 10-08): the pick and its steps, once the card is live or sold. */}
+          {(live || sold) && card.kind !== "sealed" && (
+            <div className="mt-3 rounded-xl border border-edge bg-surface-1 p-3">
+              <p className="flex items-center justify-between gap-2 text-xs font-semibold text-white">
+                <span>How to ship it · {shipLabel(card.shippingMethod)}</span>
+                <button type="button" onClick={() => setShipHelpFor(card.id)} className="text-[11px] font-medium text-brand-300 underline-offset-2 hover:underline">
+                  Both ways
+                </button>
+              </p>
+              <ol className="mt-1.5 flex list-decimal flex-col gap-1 pl-4 text-[12px] leading-snug text-zinc-300">
+                {shipSteps(card.shippingMethod ?? "tracked").map((s) => (
+                  <li key={s}>{s}</li>
+                ))}
+              </ol>
+              {shipHelpFor === card.id && <ShippingHelpSheet picked={card.shippingMethod} onClose={() => setShipHelpFor(null)} />}
+            </div>
+          )}
           {/* Added → now (Chris, 09-08): the price when the card was added,
               the price today, and the move in $ and %. Both sides are the
               MARKET price since 10-02 (the hero leads with it): the market on
