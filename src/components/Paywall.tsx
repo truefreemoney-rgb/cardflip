@@ -83,7 +83,7 @@ export default function Paywall() {
       <div className="mt-5 w-full max-w-md rounded-2xl border border-edge bg-surface-1 p-4">
         {cardCount != null && cardCount > 0 && (
           <p className="mb-3 text-center font-semibold text-white">
-            Your {cardCount.toLocaleString("en-US")} {cardCount === 1 ? "card is" : "cards are"} saved.
+            Your {cardCount.toLocaleString("en-US")} {cardCount === 1 ? "card is" : "cards are"} saved in Inventory.
           </p>
         )}
         <div className="flex flex-col gap-2">
