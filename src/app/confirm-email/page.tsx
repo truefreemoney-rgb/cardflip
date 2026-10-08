@@ -42,6 +42,8 @@ function ConfirmEmail() {
   // undefined = not asked yet; null = nobody signed in on this browser.
   const [signedIn, setSignedIn] = useState<boolean | undefined>(undefined);
   const [attempt, setAttempt] = useState(0);
+  // Where a fresh confirmation goes (10-08): the open scanner, or the watchlist for a "Watch this price" signup.
+  const [landing, setLanding] = useState<"/app?scan=1" | "/app/wishlist">("/app?scan=1");
 
   useEffect(() => {
     if (!token) return;
@@ -92,10 +94,11 @@ function ConfirmEmail() {
         // (10-08, Chris: "landed me on the scanner camera page").
         setView({ kind: "done", email: out.email });
         setSignedIn(true);
-        const landing = Promise.all([hasPendingScan(), hasPendingWatch()])
-          .then(([scan, watch]) => (watch && !scan ? "/app/wishlist" : "/app?scan=1"))
-          .catch(() => "/app?scan=1");
-        window.setTimeout(() => void landing.then((to) => router.replace(to)), 1200);
+        const to = await Promise.all([hasPendingScan(), hasPendingWatch()])
+          .then(([scan, watch]) => (watch && !scan ? ("/app/wishlist" as const) : ("/app?scan=1" as const)))
+          .catch(() => "/app?scan=1" as const);
+        setLanding(to);
+        window.setTimeout(() => router.replace(to), 1200);
         return;
       }
       setView({ kind: "done", email: out.email });
@@ -158,7 +161,7 @@ function ConfirmEmail() {
       <>
         {signedIn ? (
           <p className="mt-6 flex items-center justify-center gap-2 text-sm text-zinc-300">
-            <Spinner className="h-4 w-4" /> Opening your scanner…
+            <Spinner className="h-4 w-4" /> {landing === "/app/wishlist" ? "Opening your watchlist…" : "Opening your scanner…"}
           </p>
         ) : (
           <>

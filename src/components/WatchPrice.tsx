@@ -21,6 +21,8 @@ import type { GameId } from "@/lib/types";
  */
 
 const KEY = "cardflip.pendingWatch";
+/** Fired on window once a pending watch is on the watchlist; the watchlist page reloads its list on it (10-08). */
+export const WATCH_ADDED_EVENT = "cardflip:watch-added";
 const MAX_AGE_MS = 7 * 86_400_000;
 
 async function addById(game: GameId, id: string): Promise<boolean> {
@@ -171,7 +173,10 @@ export function PendingWatch() {
       if (!pending || cancelled) return;
       dropLocalPending();
       void dropServerPending();
-      toast((await addById(pending.game, pending.id)) ? "Added to your watchlist" : "Could not add that card to your watchlist", "info");
+      const added = await addById(pending.game, pending.id);
+      toast(added ? "Added to your watchlist" : "Could not add that card to your watchlist", "info");
+      // The watchlist page may have loaded its list before this landed (Chris 10-08: "didn't save the card").
+      if (added) window.dispatchEvent(new Event(WATCH_ADDED_EVENT));
     })().catch(() => {});
     return () => {
       cancelled = true;

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import CardImage from "@/components/CardImage";
+import { WATCH_ADDED_EVENT } from "@/components/WatchPrice";
 import CardDetailModal from "@/components/CardDetailModal";
 import Spinner from "@/components/Spinner";
 import { CardSearchBox, CardSearchResults, useCardSearch } from "@/components/CardSearch";
@@ -305,6 +306,12 @@ export default function WishlistPage() {
 
   const userId = user?.id;
   const [loadSeq, setLoadSeq] = useState(0);
+  // A "Watch this price" parked before signup lands after this page's first load (PendingWatch in the layout).
+  useEffect(() => {
+    const bump = () => setLoadSeq((n) => n + 1);
+    window.addEventListener(WATCH_ADDED_EVENT, bump);
+    return () => window.removeEventListener(WATCH_ADDED_EVENT, bump);
+  }, []);
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
