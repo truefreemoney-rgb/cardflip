@@ -97,6 +97,10 @@ export interface Analytics {
     listed: Metric;
     sold: Metric;
     soldUsd: Metric;
+    /** Subscription payments that cleared (scan_credits kind payment: first month and renewals). */
+    subPayments: Metric;
+    /** Those payments in dollars at the plan's USD price (pricing.ts); a local-currency payment counts at its USD price. */
+    subIncomeUsd: Metric;
     wishlist: Metric;
     helpMessages: Metric;
     errors: Metric;
@@ -320,6 +324,7 @@ export async function getAnalytics(window: Window, realNow = Date.now()): Promis
 
   const [
     visitors, pageViews, signups, scans, visionCalls, visionCostMicros, priceChecks, listed, sold, soldUsd,
+    subPayments, subIncomeUsd,
     wishlist, helpMessages, errors,
     cohort, everyone,
     pages, referrers, devices, countries, detailRows,
@@ -339,6 +344,8 @@ export async function getAnalytics(window: Window, realNow = Date.now()): Promis
     m({ table: "cards", ts: "listed_at", agg: "COUNT(*)" }),
     m({ table: "cards", ts: "sold_at", agg: "COUNT(*)", where: "status = 'sold'" }),
     m({ table: "cards", ts: "sold_at", agg: "COALESCE(SUM(sold_price), 0)", where: "status = 'sold'" }),
+    m({ table: "scan_credits", ts: "created_at", agg: "COUNT(*)", where: "kind = 'payment'" }),
+    m({ table: "scan_credits", ts: "created_at", agg: `COALESCE(SUM(CASE plan WHEN 'pro' THEN ${PLAN_USD.pro} ELSE ${PLAN_USD.standard} END), 0)`, where: "kind = 'payment'" }),
     m({ table: "wishlist_items", ts: "added_at", agg: "COUNT(*)" }),
     m({ table: "help_messages", ts: "created_at", agg: "COUNT(*)", where: "role = 'user'" }),
     m({ table: "error_events", ts: "at", agg: "COUNT(*)" }),
@@ -413,7 +420,7 @@ export async function getAnalytics(window: Window, realNow = Date.now()): Promis
     range,
     since,
     lifetime: { soldUsd: lifeSoldUsd, sold: lifeSold, listed: lifeListed },
-    metrics: { visitors, pageViews, signups, scans, visionCalls, visionCostUsd, priceChecks, listed, sold, soldUsd, wishlist, helpMessages, errors },
+    metrics: { visitors, pageViews, signups, scans, visionCalls, visionCostUsd, priceChecks, listed, sold, soldUsd, subPayments, subIncomeUsd, wishlist, helpMessages, errors },
     funnel: { cohort, everyone },
     pages: pages.map((p) => ({ path: p.path, views: Number(p.views), visitors: Number(p.visitors) })),
     referrers: referrers.map((r) => ({ host: r.host, visitors: Number(r.visitors) })),

@@ -53,8 +53,8 @@ export default async function AdminAnalyticsPage({ searchParams }: { searchParam
     { label: "Page views", metric: m.pageViews },
     { label: "Sign-ups", metric: m.signups },
     { label: "Cards scanned", metric: m.scans },
-    { label: "Sold", metric: m.sold },
-    { label: "Sales", metric: m.soldUsd, fmt: usd, good: true },
+    { label: "Subscriptions", metric: m.subPayments },
+    { label: "Subscription income", metric: m.subIncomeUsd, fmt: usd, good: true },
   ];
 
   const trends: { title: string; metric: Metric; color: string; fmt?: (v: number) => string }[] = [
