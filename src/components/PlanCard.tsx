@@ -15,7 +15,7 @@ export const PLAN = {
     `${SCANS.standard} card scans a month, by camera`,
     "Card reading with condition and 1st Edition detection",
     "Live market price for the exact printing and variant",
-    "eBay listings written, published and repriced from CardFlip",
+    "Sell on eBay: listings written, published and repriced from CardFlip",
     "Inventory with categories, sort by value or rarity, sales tracking",
     "Watchlist with price alerts and 90-day history",
   ],
@@ -26,6 +26,7 @@ export const PRO = {
   scans: PRICING.pro.scans,
   lines: [
     `${SCANS.pro} card scans a month, by camera`,
+    "Sell on eBay straight from CardFlip",
     "Everything in CardFlip",
     "Built for a few hundred cards a week",
     "Same live pricing, same eBay publishing",
@@ -40,6 +41,7 @@ export const PACK = {
   scans: PRICING.pack.scans,
   lines: [
     `${SCANS.pack} card scans, by camera`,
+    "Sell on eBay straight from CardFlip",
     "One-time payment, no subscription",
     "Scans never expire",
     "Everything in CardFlip while you have scans left",
