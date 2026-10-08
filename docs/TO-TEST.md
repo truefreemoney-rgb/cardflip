@@ -3,6 +3,10 @@
 Things that shipped but were never exercised on a real phone or with real
 traffic. Tick when tested; note what you saw. Newest batch first.
 
+## 10-08 Mark as Sold asks once more (c35b831c; Chris: a sold record can't be undone)
+- [ ] Inventory, a draft or ended card > Mark as Sold > price > Mark as Sold: the sheet turns into "Are you sure? This marks it sold for $X. It can't be undone." with Cancel (back to the price) and Yes, Mark as Sold. Yes records the sale.
+- [ ] Inventory bulk: select live cards > Mark sold (N): the same Are you sure sheet with the count; Cancel leaves them live; Yes marks them sold at asking price.
+
 ## 10-08 TikTok caption opener rotation (10b680b3; Chris: no more exact copies of previous posts' text)
 - [ ] 10-09 captions.txt (night render ~9:15pm 10-08): the three captions open with three DIFFERENT first lines, each still saying type cardflip.io in your browser; 10-10's 7am opener differs from 10-09's 7am.
 - [ ] 10-09 posts with a new library sound each (not Funk it up, not Pokemon Theme Song): views in the first hour back above ~50 like the 7am/1pm posts, no repeat of the 10-08 7pm dead post.
