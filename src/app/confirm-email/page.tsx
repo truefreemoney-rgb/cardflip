@@ -8,7 +8,7 @@ import Spinner from "@/components/Spinner";
 import { fetchCurrentUser } from "@/lib/client/auth";
 import { VerifyError, confirmLink, peekConfirmLink, type LinkState } from "@/lib/client/emailConfirm";
 import { hasPendingScan } from "@/lib/client/trialScan";
-import { hasPendingWatch } from "@/components/WatchPrice";
+import { claimPendingWatch, hasPendingWatch } from "@/components/WatchPrice";
 
 /**
  * The Confirm Email button in the mail lands here (/confirm-email?t=...).
@@ -43,7 +43,7 @@ function ConfirmEmail() {
   const [signedIn, setSignedIn] = useState<boolean | undefined>(undefined);
   const [attempt, setAttempt] = useState(0);
   // Where a fresh confirmation goes (10-08): the open scanner, or the watchlist for a "Watch this price" signup.
-  const [landing, setLanding] = useState<"/app?scan=1" | "/app/wishlist">("/app?scan=1");
+  const [landing, setLanding] = useState<"/app?scan=1" | "/app/wishlist?watched=1">("/app?scan=1");
 
   useEffect(() => {
     if (!token) return;
@@ -94,11 +94,15 @@ function ConfirmEmail() {
         // (10-08, Chris: "landed me on the scanner camera page").
         setView({ kind: "done", email: out.email });
         setSignedIn(true);
+        const beat = new Promise<void>((resolve) => window.setTimeout(resolve, 1200));
         const to = await Promise.all([hasPendingScan(), hasPendingWatch()])
-          .then(([scan, watch]) => (watch && !scan ? ("/app/wishlist" as const) : ("/app?scan=1" as const)))
+          .then(([scan, watch]) => (watch && !scan ? ("/app/wishlist?watched=1" as const) : ("/app?scan=1" as const)))
           .catch(() => "/app?scan=1" as const);
         setLanding(to);
-        window.setTimeout(() => router.replace(to), 1200);
+        // The watch is added HERE, inside the beat, so the watchlist opens with the card already on it.
+        if (to === "/app/wishlist?watched=1") await claimPendingWatch().catch(() => "none");
+        await beat;
+        router.replace(to);
         return;
       }
       setView({ kind: "done", email: out.email });
@@ -161,7 +165,7 @@ function ConfirmEmail() {
       <>
         {signedIn ? (
           <p className="mt-6 flex items-center justify-center gap-2 text-sm text-zinc-300">
-            <Spinner className="h-4 w-4" /> {landing === "/app/wishlist" ? "Opening your watchlist…" : "Opening your scanner…"}
+            <Spinner className="h-4 w-4" /> {landing === "/app/wishlist?watched=1" ? "Opening your watchlist…" : "Opening your scanner…"}
           </p>
         ) : (
           <>

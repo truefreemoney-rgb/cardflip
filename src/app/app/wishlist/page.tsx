@@ -306,6 +306,14 @@ export default function WishlistPage() {
 
   const userId = user?.id;
   const [loadSeq, setLoadSeq] = useState(0);
+  // ?watched=1 (10-08): the confirm link added the parked watch before opening this page; say so once.
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("watched") !== "1") return;
+    url.searchParams.delete("watched");
+    window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+    toast("Added to your watchlist", "info");
+  }, []);
   // A "Watch this price" parked before signup lands after this page's first load (PendingWatch in the layout).
   useEffect(() => {
     const bump = () => setLoadSeq((n) => n + 1);

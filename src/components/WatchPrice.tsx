@@ -160,24 +160,37 @@ export async function hasPendingWatch(): Promise<boolean> {
   return Boolean(readLocalPending() ?? (await fetchServerPending()));
 }
 
+/**
+ * Finish the parked watch for the signed-in account: this browser's copy first,
+ * the server's when the signup happened elsewhere. "none" = nothing waiting;
+ * true/false = added or not. The confirm page runs this during its "Email
+ * confirmed" beat so the watchlist opens with the card already on it (Chris
+ * 10-08: a 2-3 s wait after landing); the app layout runs it for every other
+ * first signed-in page.
+ */
+export async function claimPendingWatch(): Promise<boolean | "none"> {
+  const local = readLocalPending();
+  const user = await fetchCurrentUser().catch(() => null);
+  if (!user) return "none"; // still signed out: the local copy waits for after signup
+  const pending = local ?? (await fetchServerPending());
+  if (!pending) return "none";
+  dropLocalPending();
+  void dropServerPending();
+  return addById(pending.game, pending.id);
+}
+
 /** Mount once inside the signed-in app: finishes a "Watch this price" started while signed out. */
 export function PendingWatch() {
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      const local = readLocalPending();
-      const user = await fetchCurrentUser().catch(() => null);
-      if (!user || cancelled) return; // still signed out: the local copy waits for after signup
-      // This browser's copy first; the server's when the signup happened elsewhere.
-      const pending = local ?? (await fetchServerPending());
-      if (!pending || cancelled) return;
-      dropLocalPending();
-      void dropServerPending();
-      const added = await addById(pending.game, pending.id);
-      toast(added ? "Added to your watchlist" : "Could not add that card to your watchlist", "info");
-      // The watchlist page may have loaded its list before this landed (Chris 10-08: "didn't save the card").
-      if (added) window.dispatchEvent(new Event(WATCH_ADDED_EVENT));
-    })().catch(() => {});
+    claimPendingWatch()
+      .then((added) => {
+        if (cancelled || added === "none") return;
+        toast(added ? "Added to your watchlist" : "Could not add that card to your watchlist", "info");
+        // The watchlist page may have loaded its list before this landed (Chris 10-08: "didn't save the card").
+        if (added) window.dispatchEvent(new Event(WATCH_ADDED_EVENT));
+      })
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
