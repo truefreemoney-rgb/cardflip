@@ -101,7 +101,7 @@ async function withCardmarket(game: TcgGame, base: { points: TcgPoint[]; failed:
  * archive is offline ("temporarily removed", 09-30) — history starts today.
  */
 
-const HEADERS = { "User-Agent": "CardFlip/1.0 (+https://cardflip.io)", Accept: "application/json" };
+const HEADERS = { "User-Agent": "Mozilla/5.0 (compatible; CardFlip/1.0; +https://cardflip.io)", Accept: "application/json" };
 const MIN_TRACKED_USD = 0.05;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const num = (v: unknown): number | null => {

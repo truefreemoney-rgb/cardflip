@@ -21,7 +21,7 @@ import type { GameId } from "@/lib/types";
  * the median when a set has several of a kind (three tins, two blisters).
  */
 
-const HEADERS = { "User-Agent": "CardFlip/1.0 (+https://cardflip.io)" };
+const HEADERS = { "User-Agent": "Mozilla/5.0 (compatible; CardFlip/1.0; +https://cardflip.io)" };
 const PAUSE_MS = 80;
 export const SEALED_RESCAN_DAYS = 30;
 /** Groups read per daily run: ~0.3s each, so the whole catalog lands within a week. */

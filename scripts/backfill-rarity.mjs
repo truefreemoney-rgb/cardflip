@@ -88,7 +88,7 @@ let second = 0;
 for (const [gid, list] of byGroup) {
   try {
     const res = await fetch(`https://tcgcsv.com/tcgplayer/3/${gid}/products`, {
-      headers: { "User-Agent": "CardFlip/1.0 (+https://cardflip.io)" },
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; CardFlip/1.0; +https://cardflip.io)" },
     });
     const products = (await res.json()).results ?? [];
     const rarityOf = new Map(

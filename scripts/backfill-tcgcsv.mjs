@@ -58,7 +58,7 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_tcgplayer_products_group ON tcgplayer_products(group_id);
 `);
 
-const HEADERS = { "User-Agent": "CardFlip/1.0 (+https://cardflip-superior.fly.dev)" };
+const HEADERS = { "User-Agent": "Mozilla/5.0 (compatible; CardFlip/1.0; +https://cardflip.io)" };
 async function getJson(url) {
   const res = await fetch(url, { headers: HEADERS });
   if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);

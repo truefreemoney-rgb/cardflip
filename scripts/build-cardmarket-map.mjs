@@ -21,7 +21,7 @@ import { createClient } from "@libsql/client";
 const game = process.argv[process.argv.indexOf("--game") + 1];
 const CM_GAME = { yugioh: 3, lorcana: 19, onepiece: 18 }[game];
 if (!CM_GAME) throw new Error("--game yugioh|lorcana|onepiece");
-const UA = { "User-Agent": "CardFlip/1.0 (support@cardflip.io)" };
+const UA = { "User-Agent": "Mozilla/5.0 (compatible; CardFlip/1.0; +https://cardflip.io)" };
 
 let c;
 if (process.argv.includes("--prod")) {

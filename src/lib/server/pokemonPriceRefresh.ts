@@ -28,7 +28,7 @@ import { readSealedMap, sealedSeriesUpserts } from "@/lib/server/sealedPrices";
  * Same compact price_series rows and 5¢ rule as everything else.
  */
 
-const HEADERS = { "User-Agent": "CardFlip/1.0 (+https://cardflip-superior.fly.dev)" };
+const HEADERS = { "User-Agent": "Mozilla/5.0 (compatible; CardFlip/1.0; +https://cardflip.io)" };
 const MIN_TRACKED_USD = 0.05;
 const PAUSE_MS = 80;
 const TRIED_KEY = "tcgcsv_map_tried";
