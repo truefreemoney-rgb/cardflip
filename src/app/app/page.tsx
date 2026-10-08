@@ -1527,6 +1527,23 @@ export default function AppPage() {
                 </div>
               )}
             </div>
+              {selected && (
+                // Close the open card (Chris 10-08: "a close button … to close the scan out and take you to the inventory page").
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedId(null);
+                    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                  aria-label="Close card"
+                  title="Close card"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-edge text-zinc-300 transition hover:border-brand-400 hover:text-white sm:order-last"
+                >
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+                    <path d="M6 6l12 12M18 6L6 18" />
+                  </svg>
+                </button>
+              )}
               {user.role !== "admin" && user.tier === "trial" && !user.ebayConnected ? (
                 // Trial: selling is paid, so the one action here is Subscribe
                 // (Chris, 09-06) — the plans page, not the eBay consent screen.
