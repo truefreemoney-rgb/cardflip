@@ -41,7 +41,7 @@ export const SCANS_VARIANT_LABEL: Record<ScansVariant, string> = {
   trial_out: "Trial, out of scans",
   sub_plenty: "Subscriber, barely used",
   sub_low: "Subscriber, running low",
-  sub_month: "Subscriber, month report",
+  sub_month: "Subscriber, week report",
 };
 
 export type TipId = "ebay" | "watchlist" | "sets";
@@ -61,7 +61,7 @@ export interface ScansFacts {
   nextCreditAt: number | null;
   /** Plan id so the "Move to Pro" button shows for the standard plan only. */
   plan: "standard" | "pro" | null;
-  /** The month report (sub_month): scans + cards added in the last 30 days, collection change in dollars. */
+  /** The week report (sub_month): scans + cards added in the last 7 days, collection change in dollars (Chris 10-08: past week, not month). */
   month?: { scans: number; cardsAdded: number; valueChange: number | null };
   tip: TipId | null;
 }
@@ -101,10 +101,11 @@ export async function scansFacts(user: User, now = Date.now()): Promise<ScansFac
   const left = q.remaining ?? 0;
   const plan = tier === "pack" ? null : user.plan;
   const nextCreditAt = tier === "pack" ? null : (q.nextCreditAt ?? null);
-  const used = await scansSince(user.id, now - 30 * DAY);
   if (left < included / 10) return { variant: "sub_low", left, included, nextCreditAt, plan, tip };
-  if (used < included / 4) return { variant: "sub_plenty", left, included, nextCreditAt, plan, tip };
-  const cardsAdded = await cardsAddedSince(user.id, now - 30 * DAY);
+  // Barely used: three quarters or more of one payment's scans still banked.
+  if (left >= included * 0.75) return { variant: "sub_plenty", left, included, nextCreditAt, plan, tip };
+  const used = await scansSince(user.id, now - 7 * DAY);
+  const cardsAdded = await cardsAddedSince(user.id, now - 7 * DAY);
   let valueChange: number | null = null;
   try {
     const d = await buildDigest(user.id, now);
@@ -273,27 +274,110 @@ export async function rememberBinderCards(cards: MailCard[], day = todayUtc()): 
   await setSetting(BINDER_SEEN_KEY, JSON.stringify(seen));
 }
 
-function moverCard(m: Mover, game: GameId): MailCard & { cardId: string } {
+/** The movers reader for the games social.ts does not cover (Lorcana, One Piece, Yu-Gi-Oh!, series since 09-30): 7-day moves on tcg_cards' TCGplayer USD series, each judged by the price guard, both ends at the floor. Shaped like social.ts' Mover so the rest of this file treats all five games alike. */
+type MoverLike = Pick<Mover, "cardId" | "name" | "setName" | "number" | "imageUrl" | "variant" | "from" | "to" | "pct">;
+const YOUNG_LIMIT_ROWS = 4000;
+
+async function youngGameMovers(game: GameId, day: string, { direction = "up" as "up" | "down" | "both", minPrice = 10, band = undefined as [number, number] | undefined, limit = 10, days = 7 } = {}): Promise<MoverLike[]> {
+  const weekAgo = addDays(day, -days);
+  const [lo, hi] = band ?? [minPrice, Infinity];
+  const rows = (await db
+    .prepare(
+      `SELECT p.card_id, p.variant, p.start_day, p.prices, t.name, t.subtitle, t.set_name, t.collector_number, t.image_url
+         FROM price_series p JOIN tcg_cards t ON t.id = p.card_id
+        WHERE p.game = ? AND p.source = 'tcgplayer' AND p.currency = 'USD' AND p.updated_day >= ? AND p.start_day <= ? AND t.image_url <> ''
+          AND COALESCE(json_extract(p.prices, '$[#-1]'), json_extract(p.prices, '$[#-2]'), 0) >= ?
+          ${hi < Infinity ? "AND COALESCE(json_extract(p.prices, '$[#-1]'), json_extract(p.prices, '$[#-2]'), 0) < ?" : ""}
+        LIMIT ${YOUNG_LIMIT_ROWS}`,
+    )
+    .all(...(hi < Infinity ? [game, addDays(day, -3), weekAgo, lo, hi] : [game, addDays(day, -3), weekAgo, lo]))) as unknown as Array<{
+    card_id: string;
+    variant: string;
+    start_day: string;
+    prices: string;
+    name: string;
+    subtitle: string;
+    set_name: string;
+    collector_number: string;
+    image_url: string;
+  }>;
+  const moves: Array<MoverLike & { abs: number }> = [];
+  for (const r of rows) {
+    const s = { startDay: r.start_day, prices: decodePrices(r.prices) };
+    const to = onDay(s, day);
+    const from = onDay(s, weekAgo);
+    if (to == null || from == null || !(to > 0) || !(from > 0) || Math.min(to, from) < lo || to === from) continue;
+    // A move that is one odd point: the price must have held two days on each end.
+    const idx = Math.round((Date.parse(day + "T00:00:00Z") - Date.parse(s.startDay + "T00:00:00Z")) / DAY);
+    const held = (i: number, v: number) => (s.prices[i] ?? s.prices[i - 1]) === v && (s.prices[i - 1] ?? s.prices[i]) === v;
+    if (!held(Math.min(idx, s.prices.length - 1), to) || !held(Math.min(idx - days, s.prices.length - 1), from)) continue;
+    const p = ((to - from) / from) * 100;
+    if ((direction === "up" && p <= 0) || (direction === "down" && p >= 0)) continue;
+    moves.push({ cardId: r.card_id, name: r.subtitle ? `${r.name} - ${r.subtitle}` : r.name, setName: r.set_name, number: r.collector_number, imageUrl: r.image_url, variant: r.variant, from, to, pct: Math.round(p * 10) / 10, abs: Math.abs(p) });
+  }
+  moves.sort((a, b) => b.abs - a.abs);
+  const seen = new Set<string>();
+  const out: MoverLike[] = [];
+  const data = await loadTrustData(moves.slice(0, limit * 4).map((m) => ({ cardId: m.cardId, game })), day);
+  for (const m of moves) {
+    if (seen.has(m.cardId)) continue;
+    const d = data.get(m.cardId);
+    if (d && judgeFull(d, { variant: m.variant, day }).flag) continue;
+    seen.add(m.cardId);
+    out.push(m);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
+/** One reader for all five games: social.ts for Pokémon + Magic, the young-game reader for the rest. */
+async function moversFor(game: GameId, day: string, opts: { direction?: "up" | "down" | "both"; minPrice?: number; band?: [number, number]; limit?: number; days?: number } = {}): Promise<MoverLike[]> {
+  if (MOVER_GAMES.includes(game)) {
+    const list = await topMovers(game, day, opts);
+    return list.filter((m) => !m.unsettled);
+  }
+  return youngGameMovers(game, day, opts);
+}
+
+function moverCard(m: MoverLike, game: GameId): MailCard & { cardId: string } {
   return { name: m.name, set: m.setName, number: m.number, game, image: m.imageUrl || null, url: "", price: m.to, before: m.from, cardId: m.cardId };
 }
 
 /** Three ordinary-looking cards from one game worth $15-$200 that moved up this week: the "worth checking your binder for" list. */
 export async function binderCards(game: GameId, now: number, limit = 3): Promise<MailCard[]> {
-  if (!MOVER_GAMES.includes(game)) return [];
   const day = todayUtc(now);
   const seen = await binderSeen();
   const keep = addDays(day, -BINDER_SEEN_DAYS);
-  let list = await topMovers(game, day, { direction: "up", limit: limit * 6, minPrice: BINDER_MIN, band: [BINDER_MIN, BINDER_MAX] });
-  if (list.length < limit) list = await topMovers(game, day, { direction: "up", limit: limit * 6, minPrice: BINDER_MIN, band: [BINDER_MIN, BINDER_MAX], days: 6 });
-  const fresh = list.filter((m) => m.imageUrl && !m.unsettled && m.to < BINDER_MAX && !(seen[`${game}:${m.name}:${m.number}`] >= keep));
-  const picked = (fresh.length >= limit ? fresh : list.filter((m) => m.imageUrl && !m.unsettled)).slice(0, limit).map((m) => moverCard(m, game));
+  let list = await moversFor(game, day, { direction: "up", limit: limit * 6, minPrice: BINDER_MIN, band: [BINDER_MIN, BINDER_MAX] });
+  if (list.length < limit) list = await moversFor(game, day, { direction: "up", limit: limit * 6, minPrice: BINDER_MIN, band: [BINDER_MIN, BINDER_MAX], days: 6 });
+  const fresh = list.filter((m) => m.imageUrl && m.to < BINDER_MAX && !(seen[`${game}:${m.name}:${m.number}`] >= keep));
+  const picked = (fresh.length >= limit ? fresh : list.filter((m) => m.imageUrl)).slice(0, limit).map((m) => moverCard(m, game));
   const links = await linksFor(picked.map((p) => ({ cardId: p.cardId, game })));
   return picked.map(({ cardId, ...c }) => ({ ...c, url: links.get(cardId)?.url ?? `${SITE_URL}${gamePath(game)}` }));
 }
 
 /** One card per game: the game's biggest guard-checked jump this week, or its lead card where the history is too young. */
+const JUMP_MIN_PCT = 10;
+
+/** gameJumps (social.ts) with the three young games' own biggest weekly jump filled in where social.ts would show a lead card. */
+async function allGameJumps(day: string) {
+  const leads = await gameJumps(day);
+  return Promise.all(
+    leads.map(async (l) => {
+      if (MOVER_GAMES.includes(l.game) || (l.pct != null && l.from != null)) return l;
+      try {
+        const [m] = await youngGameMovers(l.game, day, { direction: "up", limit: 1 });
+        if (m && m.pct >= JUMP_MIN_PCT) return { ...l, name: m.name, setName: m.setName, number: m.number, price: m.to, imageUrl: m.imageUrl, cardId: m.cardId, from: m.from, pct: m.pct, variant: m.variant };
+      } catch (err) {
+        console.warn(`campaign: ${l.game} jump failed`, err);
+      }
+      return l;
+    }),
+  );
+}
+
 export async function fiveGameCards(now = Date.now()): Promise<MailCard[]> {
-  const leads = await gameJumps(todayUtc(now));
+  const leads = await allGameJumps(todayUtc(now));
   const links = await linksFor(leads.map((l) => ({ cardId: l.cardId ?? null, game: l.game })));
   return leads.map((l) => ({
     name: l.name,
@@ -336,7 +420,7 @@ export interface WeekFacts {
 
 const INDEX_TOP = 200;
 
-/** The median 7-day move of a game's INDEX_TOP priciest guard-passed cards; null when the history is too young. */
+/** The trimmed-mean 7-day move of a game's INDEX_TOP priciest guard-passed cards; null when the history is too young. */
 async function gameIndex(game: GameId, day: string): Promise<number | null> {
   const rows = (await db
     .prepare(
@@ -366,10 +450,11 @@ async function gameIndex(game: GameId, day: string): Promise<number | null> {
     if (moves.length >= INDEX_TOP) break;
   }
   if (moves.length < 20) return null;
+  // Trimmed mean (the middle 80%): most cards sit still in a week, so the median is always 0; the extremes are one card's story.
   moves.sort((a, b) => a - b);
-  const mid = Math.floor(moves.length / 2);
-  const median = moves.length % 2 ? moves[mid] : (moves[mid - 1] + moves[mid]) / 2;
-  return Math.round(median * 10) / 10;
+  const cut = Math.floor(moves.length / 10);
+  const mid = moves.slice(cut, moves.length - cut);
+  return Math.round((mid.reduce((a, b) => a + b, 0) / mid.length) * 10) / 10;
 }
 
 async function scansThisWeek(now: number): Promise<{ scans: number; mostScanned: string | null }> {
@@ -394,7 +479,7 @@ async function scansThisWeek(now: number): Promise<{ scans: number; mostScanned:
 
 export async function weekFacts(now = Date.now()): Promise<WeekFacts> {
   const day = todayUtc(now);
-  const jumps = await gameJumps(day);
+  const jumps = await allGameJumps(day);
   const games: WeekFacts["games"] = [];
   for (const g of GAME_IDS) {
     const lead = jumps.find((j) => j.game === g);
@@ -408,7 +493,7 @@ export async function weekFacts(now = Date.now()): Promise<WeekFacts> {
       lead?.pct != null && lead.from != null
         ? `${lead.name} ${money(lead.from)} → ${money(lead.price)}`
         : movePct == null
-          ? "prices tracked since Sept 30, more soon"
+          ? "not enough history yet"
           : Math.abs(movePct) < 0.5
             ? "quiet week"
             : movePct > 0
@@ -425,16 +510,16 @@ export async function weekFacts(now = Date.now()): Promise<WeekFacts> {
   }
 
   let set: WeekFacts["set"] = null;
-  for (const g of MOVER_GAMES) {
-    const risers = await topMovers(g, day, { direction: "up", limit: 20 });
+  for (const g of GAME_IDS) {
+    const risers = await moversFor(g, day, { direction: "up", limit: 20 });
     const bySet = new Map<string, number>();
-    for (const m of risers) bySet.set(m.setName, (bySet.get(m.setName) ?? 0) + 1);
+    for (const m of risers) if (!/promo/i.test(m.setName)) bySet.set(m.setName, (bySet.get(m.setName) ?? 0) + 1);
     for (const [name, n] of bySet) if (n >= 3 && (!set || n > set.risers)) set = { name, game: g, risers: n };
   }
 
   let sleeper: WeekFacts["sleeper"] = null;
-  for (const g of MOVER_GAMES) {
-    const [s] = await sleepers(g, day, { limit: 1 });
+  for (const g of GAME_IDS) {
+    const [s] = MOVER_GAMES.includes(g) ? await sleepers(g, day, { limit: 1 }) : (await youngGameMovers(g, day, { direction: "up", limit: 5, minPrice: 1, band: [1, 5] })).filter((m) => m.pct >= 15).slice(0, 1);
     if (s) {
       const links = await linksFor([{ cardId: s.cardId, game: g }]);
       sleeper = { ...moverCard(s, g), url: links.get(s.cardId)?.url ?? `${SITE_URL}${gamePath(g)}`, pct: s.pct };

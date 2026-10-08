@@ -14,7 +14,7 @@ Everyone gets a scans mail, with different numbers and buttons:
 | Trial, 0 left | You're out of scans | Buy 100 Scans $4.99 · Subscribe $9.99/mo |
 | Subscriber, under 1/4 used | You still have X of Y scans this month, they reset on the Nth | Scan |
 | Subscriber, under 10% left | You have X scans left until the Nth | Booster $4.99 · (standard plan only) Move to Pro 750/mo |
-| Subscriber, in between | This month: X scans, Y cards added, collection up/down $Z | Inventory |
+| Subscriber, in between | This week: X scans, Y cards added, collection up/down $Z (past 7 days, Chris 10-08) | Inventory |
 
 Every version ends with ONE tip the person hasn't used yet (never listed on
 eBay, never used the watchlist, never opened Set Completion). One tip per mail.
@@ -34,7 +34,7 @@ eBay, never used the watchlist, never opened Set Completion). One tip per mail.
 
 About the week, not their cards. No card tiles. Score-sheet style:
 
-- THE WEEK: one line per game (avg move of the top 200 cards, one-line note).
+- THE WEEK: one line per game, all five (trimmed-mean 7-day move of the top 200 cards + that game's biggest jump as the note). Lorcana / One Piece / Yu-Gi-Oh! movers come from campaignData.ts youngGameMovers (tcg_cards series, guard-checked); social.ts MOVER_GAMES stays Pokémon + Magic.
 - BIGGEST JUMP: one card, old → new price, %.
 - SET TO WATCH: the set with the most top-20 risers.
 - SLEEPER UNDER $5.

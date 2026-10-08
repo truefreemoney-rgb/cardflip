@@ -244,9 +244,9 @@ export function renderScans(f: ScansFacts, firstName: string, unsubUrl: string):
       const value = m.valueChange == null ? "" : m.valueChange >= 0 ? `collection up ${money(m.valueChange)}` : `collection down ${money(-m.valueChange)}`;
       const line = [`${m.scans} scan${s(m.scans)}`, `${m.cardsAdded} card${s(m.cardsAdded)} added`, value].filter(Boolean).join(", ");
       return layout({
-        subject: `Your month so far: ${line}`,
+        subject: `Your week: ${line}`,
         firstName,
-        headline: `This month: ${line}.`,
+        headline: `This week: ${line}.`,
         intro: [`You have ${n} scans left.`, next].filter(Boolean).join(" "),
         blocks: tipBlock(f),
         buttons: [{ href: `${SITE_URL}/app/collection`, label: "Open Inventory" }, ...tipButton(f)],
@@ -405,7 +405,7 @@ function sampleScans(v: ScansVariant, now: number): ScansFacts {
     case "sub_low":
       return { variant: v, left: 18, included: 250, nextCreditAt: inDays(12, now), plan: "standard", tip: "sets" };
     case "sub_month":
-      return { variant: v, left: 112, included: 250, nextCreditAt: inDays(12, now), plan: "pro", month: { scans: 112, cardsAdded: 97, valueChange: 41.2 }, tip: "ebay" };
+      return { variant: v, left: 112, included: 250, nextCreditAt: inDays(12, now), plan: "pro", month: { scans: 31, cardsAdded: 27, valueChange: 41.2 }, tip: "ebay" };
   }
 }
 
