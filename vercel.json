@@ -6,34 +6,122 @@
     }
   },
   "crons": [
-    { "path": "/api/cron/mtg-prices", "schedule": "0 9 * * *" },
-    { "path": "/api/cron/mtg-prices?resume=1", "schedule": "30 11 * * *" },
-    { "path": "/api/cron/tcg-prices", "schedule": "25 9 * * *" },
-    { "path": "/api/cron/pokemon-prices", "schedule": "45 9 * * *" },
-    { "path": "/api/cron/pokemon-backup", "schedule": "30 10 * * *" },
-    { "path": "/api/cron/pokemon-backup", "schedule": "0 11 * * *" },
-    { "path": "/api/cron/pokemon-backup", "schedule": "35 11 * * *" },
-    { "path": "/api/cron/social-video", "schedule": "40 16 * * *" },
-    { "path": "/api/cron/social-video", "schedule": "40 17 * * *" },
-    { "path": "/api/cron/social-tiktok", "schedule": "15 1 * * *" },
-    { "path": "/api/cron/social-tiktok", "schedule": "15 2 * * *" },
-    { "path": "/api/cron/social-tiktok", "schedule": "45 9 * * *" },
-    { "path": "/api/cron/social-tiktok", "schedule": "45 10 * * *" },
-    { "path": "/api/social/publish", "schedule": "5 11 * * *" },
-    { "path": "/api/social/publish", "schedule": "5 12 * * *" },
-    { "path": "/api/social/publish", "schedule": "5 17 * * *" },
-    { "path": "/api/social/publish", "schedule": "5 18 * * *" },
-    { "path": "/api/social/publish", "schedule": "5 23 * * *" },
-    { "path": "/api/social/publish", "schedule": "5 0 * * *" },
-    { "path": "/api/cron/social-inbox", "schedule": "5 12 * * *" },
-    { "path": "/api/cron/social-inbox", "schedule": "5 13 * * *" },
-    { "path": "/api/cron/social-inbox", "schedule": "5 18 * * *" },
-    { "path": "/api/cron/social-inbox", "schedule": "5 19 * * *" },
-    { "path": "/api/cron/social-inbox", "schedule": "5 0 * * *" },
-    { "path": "/api/cron/social-inbox", "schedule": "5 1 * * *" },
-    { "path": "/api/cron/emails", "schedule": "0 14 * * 2,4" },
-    { "path": "/api/cron/emails", "schedule": "0 15 * * 2,4" },
-    { "path": "/api/cron/emails", "schedule": "30 22 * * 0" },
-    { "path": "/api/cron/emails", "schedule": "30 23 * * 0" }
-  ]
+    {
+      "path": "/api/cron/mtg-prices",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/mtg-prices?resume=1",
+      "schedule": "30 11 * * *"
+    },
+    {
+      "path": "/api/cron/tcg-prices",
+      "schedule": "25 9 * * *"
+    },
+    {
+      "path": "/api/cron/pokemon-prices",
+      "schedule": "45 9 * * *"
+    },
+    {
+      "path": "/api/cron/pokemon-backup",
+      "schedule": "30 10 * * *"
+    },
+    {
+      "path": "/api/cron/pokemon-backup",
+      "schedule": "0 11 * * *"
+    },
+    {
+      "path": "/api/cron/pokemon-backup",
+      "schedule": "35 11 * * *"
+    },
+    {
+      "path": "/api/cron/social-video",
+      "schedule": "40 16 * * *"
+    },
+    {
+      "path": "/api/cron/social-video",
+      "schedule": "40 17 * * *"
+    },
+    {
+      "path": "/api/cron/social-tiktok",
+      "schedule": "15 1 * * *"
+    },
+    {
+      "path": "/api/cron/social-tiktok",
+      "schedule": "15 2 * * *"
+    },
+    {
+      "path": "/api/cron/social-tiktok",
+      "schedule": "45 9 * * *"
+    },
+    {
+      "path": "/api/cron/social-tiktok",
+      "schedule": "45 10 * * *"
+    },
+    {
+      "path": "/api/social/publish",
+      "schedule": "5 11 * * *"
+    },
+    {
+      "path": "/api/social/publish",
+      "schedule": "5 12 * * *"
+    },
+    {
+      "path": "/api/social/publish",
+      "schedule": "5 17 * * *"
+    },
+    {
+      "path": "/api/social/publish",
+      "schedule": "5 18 * * *"
+    },
+    {
+      "path": "/api/social/publish",
+      "schedule": "5 23 * * *"
+    },
+    {
+      "path": "/api/social/publish",
+      "schedule": "5 0 * * *"
+    },
+    {
+      "path": "/api/cron/social-inbox",
+      "schedule": "5 12 * * *"
+    },
+    {
+      "path": "/api/cron/social-inbox",
+      "schedule": "5 13 * * *"
+    },
+    {
+      "path": "/api/cron/social-inbox",
+      "schedule": "5 18 * * *"
+    },
+    {
+      "path": "/api/cron/social-inbox",
+      "schedule": "5 19 * * *"
+    },
+    {
+      "path": "/api/cron/social-inbox",
+      "schedule": "5 0 * * *"
+    },
+    {
+      "path": "/api/cron/social-inbox",
+      "schedule": "5 1 * * *"
+    },
+    {
+      "path": "/api/cron/emails",
+      "schedule": "0 14 * * 2,4"
+    },
+    {
+      "path": "/api/cron/emails",
+      "schedule": "0 15 * * 2,4"
+    },
+    {
+      "path": "/api/cron/emails",
+      "schedule": "30 22 * * 0"
+    },
+    {
+      "path": "/api/cron/emails",
+      "schedule": "30 23 * * 0"
+    }
+  ],
+  "ignoreCommand": "sh scripts/vercel-ignore.sh"
 }
