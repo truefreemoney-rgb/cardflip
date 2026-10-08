@@ -104,12 +104,12 @@ export function candidateKinds(slot: Slot, day: string, drafts: Pick<SocialPost,
  * site (fitText to the site's limit, hashtags kept) and from the EXACT data
  * the video drew, so the caption always names what is on screen.
  */
-export function tiktokPost(d: SocialPost, data: { cards?: VideoCard[]; leads?: LeadCard[]; winner?: 0 | 1 }): { title: string; caption: string } {
+export function tiktokPost(d: SocialPost, data: { cards?: VideoCard[]; leads?: LeadCard[]; winner?: 0 | 1; slot?: Slot; day?: string }): { title: string; caption: string } {
   const applied = data.cards?.length ? applyVideoCards(d, data.cards, { winner: data.winner }) : data.leads?.length ? applyGameLeads(d, data.leads) : d;
   // The all-games caption is written for the picture ("In the picture, one card …"); on TikTok it is a video. Only the TikTok copy changes.
   return {
     title: applied.title,
-    caption: tiktokLead(fitText({ ...applied, hashtags: tiktokTags(applied.hashtags, applied.mixed ? "mixed" : applied.game) }, TIKTOK_MAX_CHARS, TIKTOK_MAX_TAGS).replace(/^In the picture,/m, "In the video,")),
+    caption: tiktokLead(fitText({ ...applied, hashtags: tiktokTags(applied.hashtags, applied.mixed ? "mixed" : applied.game) }, TIKTOK_MAX_CHARS, TIKTOK_MAX_TAGS).replace(/^In the picture,/m, "In the video,"), leadPick(data.slot, data.day ?? d.day)),
   };
 }
 
@@ -117,7 +117,33 @@ export function tiktokPost(d: SocialPost, data: { cards?: VideoCard[]; leads?: L
 const SIGN_OFF = "Scan a card, see what it's worth. cardflip.io";
 // 10-05: no clickable bio link yet (personal account, under 1,000 followers), so "link in bio" read as broken; the
 // address is typed. The video's last frame shows it big (social-scene.mjs #outro .url).
-export const TIKTOK_LEAD = "Scan a card, see what it's worth: type cardflip.io in your browser";
+// 10-08 (Chris: "no more exact copies of previous posts text"): every post had the same first line for a week, and
+// TikTok buried two 7pm posts that day. The opener now rotates through these; each still tells the viewer to type
+// cardflip.io in their browser (the only way in: no bio link, and never "open Safari").
+export const TIKTOK_LEADS = [
+  "Scan a card, see what it's worth: type cardflip.io in your browser",
+  "Want to know what your cards are worth? Type cardflip.io in your browser and scan one",
+  "Every price in this video comes from cardflip.io. Type it in your browser to scan your own",
+  "Got a card like this? Type cardflip.io in your browser and scan it to see today's price",
+  "What's your binder worth? Type cardflip.io in your browser, point the camera at a card",
+  "Check your own cards against these prices: type cardflip.io in your browser",
+  "These prices are live on cardflip.io. Type it in your browser and scan a card of yours",
+] as const;
+export const TIKTOK_LEAD = TIKTOK_LEADS[0];
+
+const SLOT_INDEX: Record<Slot, number> = { morning: 0, midday: 1, evening: 2 };
+/**
+ * Which opener a post gets: three posts a day step through the seven in
+ * order (day * 3 + slot), so two posts in a row never share one and the same
+ * slot never repeats its opener on the next day (7 and 3 share no factor).
+ * No slot or day = the first opener (tests, old callers).
+ */
+export function leadPick(slot?: Slot, day?: string): number {
+  if (!slot || !day) return 0;
+  const dayNumber = Math.round(Date.parse(`${day}T00:00:00Z`) / 86_400_000);
+  if (!Number.isFinite(dayNumber)) return 0;
+  return (dayNumber * 3 + SLOT_INDEX[slot]) % TIKTOK_LEADS.length;
+}
 
 /**
  * TikTok never links a URL in a caption and shows about one line before
@@ -126,14 +152,16 @@ export const TIKTOK_LEAD = "Scan a card, see what it's worth: type cardflip.io i
  * cue TikTok viewers act on ("link in bio"); the rest of the caption follows.
  * Pure, so the hand-post captions (captions.txt) and the registered rows agree.
  */
-export function tiktokLead(caption: string): string {
-  if (caption.startsWith(TIKTOK_LEAD)) return caption;
-  const lines = caption.split("\n").filter((l) => l !== SIGN_OFF);
+export function tiktokLead(caption: string, pick = 0): string {
+  const lead = TIKTOK_LEADS[((pick % TIKTOK_LEADS.length) + TIKTOK_LEADS.length) % TIKTOK_LEADS.length];
+  if (caption.startsWith(lead)) return caption;
+  // Idempotent: a caption that already opens with any opener gets it swapped, never stacked.
+  const lines = caption.split("\n").filter((l) => l !== SIGN_OFF && !(TIKTOK_LEADS as readonly string[]).includes(l));
   while (lines.length && lines[0] === "") lines.shift();
   while (lines.length && lines[lines.length - 1] === "") lines.pop();
   // The sign-off left a blank before the hashtags; keep one blank between the body and the tags.
   const body = lines.join("\n").replace(/\n\n\n+/g, "\n\n");
-  return `${TIKTOK_LEAD}\n\n${body}`;
+  return `${lead}\n\n${body}`;
 }
 
 /**
@@ -294,7 +322,7 @@ export interface RegisterInput {
 export async function registerTiktokVideo(i: RegisterInput): Promise<{ spec: TiktokSpec; shared: VideoSpec | null; replaced: string[] }> {
   await ensureSchedule();
   const plan = planTag(i.slot, i.day);
-  const post = tiktokPost(i.draft, { cards: i.cards, leads: i.leads, winner: i.winner });
+  const post = tiktokPost(i.draft, { cards: i.cards, leads: i.leads, winner: i.winner, slot: i.slot, day: i.day });
   // The shared row is keyed by the DRAFT's game (10-03: an angle video may be Magic's), the key the publisher reads (videoKey(d.game, …)).
   const game: GameId = i.draft.game ?? TIKTOK_GAME;
   const base: VideoSpec = {
