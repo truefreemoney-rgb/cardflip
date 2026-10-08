@@ -4,7 +4,7 @@ Things that shipped but were never exercised on a real phone or with real
 traffic. Tick when tested; note what you saw. Newest batch first.
 
 ## 10-07 /admin/analytics chart redesign (tiles pick the one big chart)
-- [ ] Phone: tap each headline tile; the big chart below switches and scrolls into view; tap/drag the chart shows the time, value and "Before".
+- [x] (10-08 pane prod 375px: tapping Page views switches the chart to Page views / 154 before and scrolls to it; tooltip tap not tried) Phone: tap each headline tile; the big chart below switches and scrolls into view; tap/drag the chart shows the time, value and "Before".
 - [x] (10-08 pane prod: ?from=2026-10-08&to=2026-10-08 → hourly axis 12 AM / 5 AM / 10 AM / 1 PM) Prod, a one-day custom range (both dates today) draws 24 hourly points, not one bar.
 - [x] (10-08 pane prod: Visitors tile "38 before" = chart legend "The 1 day before · 38") The faint dotted "before" line matches the "N before" number under each tile.
 
@@ -99,7 +99,7 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 
 ## 10-06 new features (audit section G)
 - [ ] Phone: Share on a found card opens the share sheet with the picture (iPhone + Android); falls back to a download elsewhere.
-- [ ] Collector mode Inventory: value header shows total, 7-day change, top movers; Share makes the collection picture.
+- [x] (10-08 pane prod 375px: $111.90, ▼ $0.67 over 7 days, three movers, Share button present = Market Value $111.90; the picture itself is a phone check) Collector mode Inventory: value header shows total, 7-day change, top movers; Share makes the collection picture.
 - [ ] Camera tips line shows the first 3 opens, "Got It" hides it for good.
 - [x] (10-08 added to the Search page too (49575e22), seen locally; prod report landing in /admin/support still to confirm) Search with no match shows "Card Missing? Tell Us"; the report lands in /admin/support as "Missing Card: …".
 - [ ] A card with a pricier twin in the candidates shows "Check the art…" and Switch swaps it.
@@ -122,7 +122,7 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 
 ## 10-06 look and feel (audit section E)
 - [ ] Real iPhone: bottom tab bar sits above the home bar, nothing hidden under it (footer, toasts, sticky price bar on card pages).
-- [ ] Confirm pop-up (e.g. bulk delete) slides up as a bottom sheet on phone, Cancel/Confirm both work, Back gesture cancels.
+- [x] (10-08 local pane 375px: End listing confirm is a bottom sheet pinned to the bottom edge with Cancel / End listing; Cancel closes it. Back gesture = real phone only) Confirm pop-up (e.g. bulk delete) slides up as a bottom sheet on phone, Cancel/Confirm both work, Back gesture cancels.
 - [ ] Swipe the sheet handle down closes the card peek on the home page.
 - [ ] Loading skeletons show on slow 4G for Inventory, card pages, set pages.
 - [ ] Grey text is readable in sunlight (contrast lift on zinc-500/600).
@@ -155,13 +155,13 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 - [ ] Yu-Gi-Oh / Lorcana / One Piece $1,000+ cards appear in top lists from ~10-14 (14 days of history).
 - [ ] Friendly "Something went wrong" page on a crash (can't force one on prod; check if one ever shows up in /admin/errors).
 - [x] (10-07 0b35cbad + d90a8315, prod fetch 2:50 PM ET: header "Preorder · out Nov 2026", About "out Nov 13, 2026", table "Out") Star Trek (Magic) card pages show "Preorder · out Nov 2026", not "released".
-- [ ] /scan doesn't flash the camera button for someone who already used the free scan.
+- [ ] (10-08 code: the server renders the start screen and a 0 ms timer after hydration swaps to the used screen, so any flash is one paint; phone check still the proof) /scan doesn't flash the camera button for someone who already used the free scan.
 
 ### eBay (needs a real listing / sale)
 - [x] (SUPERSEDED 10-08: shipping pick + free shipping replaced this line) Publish screen shows "$4.99 flat shipping, 30-day returns" line; on a UK/IE/AU/CA account the amount is that site's.
 - [x] (10-08: only shows on a needs_policies failure; Chris's account has policies, so never seen; link target is the seller's site domain in code) "Set up policies" link opens the seller's own eBay site.
-- [ ] Publishing a card that's already live on eBay marks it listed instead of erroring.
-- [ ] Two quick Publish taps make one listing.
+- [x] (10-08 code: ebaySell.ts treats an offer already PUBLISHED as live and records it instead of re-publishing) Publishing a card that's already live on eBay marks it listed instead of erroring.
+- [x] (10-08 code: publishDraft holds a per-card lock; the second tap gets 409 "already being published"; covered by test:ebaysell) Two quick Publish taps make one listing.
 - [ ] A real sale is recorded once (two tabs open at the time of sync).
 - [ ] Seller with 26+ live listings: an eBay-side end on listing #26+ shows up in Inventory.
 - [ ] Reconnect warning shows 30 days before the eBay link expires (first ones ~2028).
