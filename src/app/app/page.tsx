@@ -214,10 +214,11 @@ export default function AppPage() {
   const [cameraOpen, setCameraOpen] = useState(
     () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("scan") === "1",
   );
-  // The gate (SubscriptionGate) keeps the scanner up only while the camera is open: mirror the state to it.
+  // The gate (SubscriptionGate) keeps the scanner page up while the camera is open OR cards are still in the queue
+  // (10-08, Chris: the last free scan must still be verifiable), and shows the wall on the next visit to the Scanner.
   useEffect(() => {
-    window.dispatchEvent(new CustomEvent("cardflip:camera", { detail: cameraOpen }));
-  }, [cameraOpen]);
+    window.dispatchEvent(new CustomEvent("cardflip:camera", { detail: cameraOpen || items.length > 0 }));
+  }, [cameraOpen, items.length]);
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("scan") === "1") window.history.replaceState(null, "", "/app");
   }, []);
