@@ -77,10 +77,30 @@ export function useBackToClose(id: string, onClose: () => void, open = true): vo
         // while the body was pinned for the sheet (useBodyScrollLock), so the
         // saved position is wrong: the home page jumped to the bottom on X
         // (Chris 10-08). Put the page back where the unlock left it.
+        // Safari applies its restore after the popstate on a touch-driven close
+        // (the handle drag still jumped after the first fix, Chris 10-08), so
+        // restoration is switched off for the traversal and the offset is
+        // re-applied a few times over the next beats.
         const y = window.scrollY;
+        const prev = window.history.scrollRestoration;
+        try {
+          window.history.scrollRestoration = "manual";
+        } catch {
+          // Older engines: the scrollTo calls below still do the work.
+        }
+        const put = () => window.scrollTo(0, y);
         const keep = () => {
-          window.scrollTo(0, y);
-          window.requestAnimationFrame(() => window.scrollTo(0, y));
+          put();
+          window.requestAnimationFrame(put);
+          window.setTimeout(put, 50);
+          window.setTimeout(() => {
+            put();
+            try {
+              window.history.scrollRestoration = prev;
+            } catch {
+              // nothing to restore
+            }
+          }, 300);
         };
         window.addEventListener("popstate", keep, { once: true });
         window.history.back();
