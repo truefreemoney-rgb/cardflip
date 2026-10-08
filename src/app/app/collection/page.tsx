@@ -1689,6 +1689,8 @@ export default function CollectionPage() {
 
   // The whole game's rows total, same rule as stats.inPlayMarket below but never scoped by a filter:
   // drafts (minus flagged unlocked ones) + live listings, each at its row's Market price.
+  // Fed the Collector value box, parked 10-08; kept for its return.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const gameMarketTotal = gameCards
     .filter((c) => isLive(c) || (c.status === "ready" && (c.priceLocked || livePrices[c.id]?.flag == null)))
     .reduce((sum, c) => sum + (marketById[c.id] ?? c.price) * (c.quantity || 1), 0);
