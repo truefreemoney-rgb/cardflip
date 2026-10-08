@@ -32,8 +32,8 @@ export async function POST(req: Request, { params }: RouteParams) {
     const user = await findUserById(id);
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
     // A free-trial account (10-08, Chris: "add another scan to the benfeinstein account so I can test it again"):
-    // plan scans would sit frozen there, so the delta moves the trial counter instead (+1 = one more free scan).
-    if (scanTier(user) === "trial") {
+    // plan scans would sit frozen there, so with { trial: true } the delta moves the trial counter instead (+1 = one more free scan).
+    if (body?.trial === true && scanTier(user) === "trial") {
       const before = user.trialScansUsed ?? 0;
       const after = Math.max(0, Math.min(TRIAL_SCANS, before - delta));
       await db.prepare("UPDATE users SET trial_scans_used = ? WHERE id = ?").run(after, id);
