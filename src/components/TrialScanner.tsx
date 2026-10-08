@@ -9,8 +9,8 @@ import GameToggle from "@/components/GameToggle";
 import { fetchCurrentUser } from "@/lib/client/auth";
 import { trialScanWithVision } from "@/lib/client/visionApi";
 import { TRIAL_DONE_KEY, matchTrialRead, savePendingScan, trialPrice } from "@/lib/client/trialScan";
-import { searchTyped } from "@/lib/cards";
-import { formatMoney } from "@/lib/listing";
+import { fetchCardById, searchTyped } from "@/lib/cards";
+import { formatMoney, marketFlagOf } from "@/lib/listing";
 import { GAMES } from "@/lib/games";
 import { pixelTrack } from "@/lib/client/pixel";
 import { SCANS } from "@/lib/pricing";
@@ -282,6 +282,23 @@ export default function TrialScanner({
   // Scan button changes, opening the real scanner instead of the one free scan. No trial or signup lines for them.
   const found = phase.kind === "found" ? phase : null;
   const price = found ? trialPrice(found.card) : null;
+  // A match with no price and no flag is a lookup that lost its price on the way (upstream slow or empty,
+  // 10-08 Maractus): one re-read by id, which answers from the held series, before "no price" is shown.
+  const retryId = found && price == null && !marketFlagOf(found.card) ? found.card.id : null;
+  useEffect(() => {
+    if (!retryId) return;
+    let live = true;
+    fetchCardById(retryId, game)
+      .then((fresh) => {
+        if (!live || !fresh || trialPrice(fresh) == null) return;
+        setPhase((p) => (p.kind === "found" && p.card.id === retryId ? { ...p, card: fresh } : p));
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [retryId]);
   // The example fills the idle screen only: no result, no search list, not the "used" screen.
   const idle = phase.kind === "start" || phase.kind === "reading" || phase.kind === "miss";
   const ex = idle && !results ? examples[game] : undefined;

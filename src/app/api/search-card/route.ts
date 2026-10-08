@@ -400,8 +400,13 @@ export async function GET(req: NextRequest) {
         // and there's nothing to gain by it — identification already comes
         // from the local mirror, which is instant either way.
         if (priced) {
-          if (hasMarketPrice(priced)) await putCachedCards(lang, cacheName, cacheNumber, priced);
-          return NextResponse.json({ cards: await flagged(priced), matchedOn, source: "local" });
+          if (hasMarketPrice(priced)) {
+            await putCachedCards(lang, cacheName, cacheNumber, priced);
+            return NextResponse.json({ cards: await flagged(priced), matchedOn, source: "local" });
+          }
+          // Upstream answered with no price (10-08: Maractus Black Bolt 093 scanned on /scan showed "no trusted
+          // market price" while its own series held $6.81): the last held point stands in, as on the id path.
+          return NextResponse.json({ cards: await flagged(await heldPrices(priced)), matchedOn, source: "local", pricing: "held" });
         }
 
         // Budget blown: answer with the identification now; pricing lands in
