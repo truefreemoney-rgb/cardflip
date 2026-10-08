@@ -17,6 +17,8 @@ import PriceHistoryChart from "@/components/PriceHistoryChartLazy";
 import PriceConfidenceLive from "@/components/PriceConfidenceLive";
 import { cardTrend } from "@/lib/client/priceHistoryData";
 import { displayCardNumber } from "@/lib/games";
+import ShareImageButton from "@/components/ShareImageButton";
+import { cardKey } from "@/lib/cardPages";
 import type { PokemonCard, ScanLanguage } from "@/lib/types";
 
 interface Props {
@@ -133,6 +135,14 @@ export default function CardDetailModal({
                 .join(" · ")}
             </p>
           </div>
+          {/* Share (Chris 10-08: "inventory card should have a share also"): the same 1080x1920 card picture the scanner's editor shares. */}
+          {!sealed && card.id && (
+            <ShareImageButton
+              path={`/api/share/card?game=${card.game ?? "pokemon"}&id=${encodeURIComponent(cardKey(card.game ?? "pokemon", { id: card.id, setCode: card.setCode, number: card.number }))}`}
+              fileName="cardflip-card"
+              className="shrink-0"
+            />
+          )}
           <button
             onClick={onClose}
             aria-label="Close"
