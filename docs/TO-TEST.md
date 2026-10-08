@@ -174,8 +174,9 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 
 ### Ad funnel (needs a logged-out phone, ideally inside TikTok)
 - [ ] TikTok Events Manager shows ViewContent and ClickButton events from /scan.
-- [ ] After a free price: pinned "Your card is waiting" bar, own photo next to the price, nothing hidden behind the bar (iPhone home bar).
-- [ ] Coming back after the free scan: "Your <card> is worth $X".
+- [x] 10-08 PASS (Chris iPhone, Okidogi $0.15): pinned "Your card is waiting" bar, own photo next to the price, nothing behind the home bar.
+- [x] 10-08 PASS: coming back shows "Your Okidogi is worth $0.15".
+- [ ] Free scan on /scan (10-08): after Capture the camera stays open with the IDENTIFYING sweep, then the MATCH FOUND chip (chime, price counting up) for ~1.6 s, then the result page. A miss still leaves the camera and says why on the page.
 - [ ] Miss / busy panels show the sign-up link.
 - [x] (10-08 prod HTML: Magic placeholder + game=magic) /scan?game=magic opens the scanner on Magic.
 - [x] (Chris 10-08 5:39pm iPhone private tab: Charizard ex $39.42 on Pokémon, Sol Ring $38.93 on Magic; "gone once a price shows" not yet seen) /scan logged out on a phone: example card (picture, name, set, price, "Example") under "135,000+ cards"; switches with the game; gone once a price shows.

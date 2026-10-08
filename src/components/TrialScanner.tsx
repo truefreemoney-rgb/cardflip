@@ -14,7 +14,7 @@ import { formatMoney } from "@/lib/listing";
 import { GAMES } from "@/lib/games";
 import { pixelTrack } from "@/lib/client/pixel";
 import { SCANS } from "@/lib/pricing";
-import type { GameId, PokemonCard } from "@/lib/types";
+import type { GameId, PokemonCard, ScanItem } from "@/lib/types";
 
 /**
  * The ad landing page (10-05, /scan): one free scan with no account. The
@@ -54,6 +54,57 @@ const CTA =
 function step(name: "camera" | "searched" | "price" | "miss" | "signup" | "stay10" | "tap" | `cam-${string}`) {
   fetch("/api/visit", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ path: `/scan/${name}` }), keepalive: true }).catch(() => {});
 }
+
+/**
+ * The free scan runs inside the camera, like the app's (Chris 10-08: "it doesn't search during scan like
+ * normal"): the viewfinder sweeps with "Identifying…", the match chip lands, then the page takes over.
+ */
+function trialItem(file: File, game: GameId): ScanItem {
+  return {
+    id: `trial-${Date.now()}`,
+    kind: "card",
+    game,
+    serverId: null,
+    file,
+    previewUrl: URL.createObjectURL(file),
+    language: "en",
+    status: "scanning",
+    candidates: [],
+    card: null,
+    condition: "Near Mint",
+    strategy: "market",
+    variant: null,
+    firstEdition: false,
+    grading: null,
+    productType: null,
+    priceOverride: null,
+    costBasis: null,
+    titleOverride: null,
+    descriptionOverride: null,
+    vision: null,
+    visionStatus: "idle",
+    ebay: null,
+    ebayStatus: "idle",
+    ebaySold: null,
+    ebaySoldStatus: "unavailable",
+    ebaySoldUrl: null,
+    ebayOfferId: null,
+    ebayListingUrl: null,
+    ebayDraftUrl: null,
+    photoAt: null,
+    error: null,
+    listedPrice: null,
+    listedAt: null,
+    soldPrice: null,
+    soldAt: null,
+    verifiedAt: null,
+    matchDoubt: null,
+    currentPoint: null,
+  };
+}
+
+/** How long the match chip sits in the camera before the result page takes over. */
+const REVEAL_MS = 1600;
 
 /** The last priced card, kept here so the "used" screen can name it (the pending-scan key is cleared at signup). */
 const LAST_KEY = "cardflip.trialLast";
@@ -123,6 +174,8 @@ export default function TrialScanner({
   const [last, setLast] = useState<LastResult | null>(null);
   const [phase, setPhase] = useState<Phase>({ kind: "start" });
   const [cameraOpen, setCameraOpen] = useState(false);
+  /** The capture in flight, shown in the camera's result slot (sweep → match chip) until the page takes over. */
+  const [camScan, setCamScan] = useState<ScanItem | null>(null);
   const [signedIn, setSignedIn] = useState(initialSignedIn);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<PokemonCard[] | null>(null);
@@ -171,16 +224,26 @@ export default function TrialScanner({
   }, []);
 
   async function onCapture(file: File) {
-    setCameraOpen(false);
+    const item = trialItem(file, game);
+    setCamScan(item);
     setPhase({ kind: "reading" });
+    // A miss leaves the camera and says why on the page, as before.
+    const leave = (next: Phase) => {
+      setCameraOpen(false);
+      setCamScan(null);
+      setPhase(next);
+    };
     const scan = await trialScanWithVision(file, game);
     if (scan.status !== "done" || !scan.read) step("miss");
-    if (scan.status === "used") return setPhase({ kind: "used" });
-    if (scan.status === "busy") return setPhase({ kind: "miss", message: "The free scanner is busy right now. Sign up and scan in the app" });
-    if (scan.status !== "done" || !scan.read) return setPhase({ kind: "miss", message: "Couldn't read that photo. Try again, card flat and in the frame" });
+    if (scan.status === "used") return leave({ kind: "used" });
+    if (scan.status === "busy") return leave({ kind: "miss", message: "The free scanner is busy right now. Sign up and scan in the app" });
+    if (scan.status !== "done" || !scan.read) return leave({ kind: "miss", message: "Couldn't read that photo. Try again, card flat and in the frame" });
     const match = await matchTrialRead(scan.read, game);
     if (!match.card) step("miss");
-    if (!match.card) return setPhase({ kind: "miss", message: match.error ?? "No match for that one" });
+    if (!match.card) return leave({ kind: "miss", message: match.error ?? "No match for that one" });
+    // The match lands in the camera first (chime, MATCH FOUND, the number counting up), then the page.
+    setCamScan({ ...item, status: "review", card: match.card, candidates: [match.card], vision: scan.read, visionStatus: "done" });
+    await new Promise((r) => setTimeout(r, REVEAL_MS));
     const g = scan.read.game ?? game;
     savePendingScan(match.card, g, scan.photo);
     try {
@@ -189,7 +252,7 @@ export default function TrialScanner({
       // The server still counts the tries.
     }
     priceShown(match.card);
-    setPhase({ kind: "found", card: match.card, scanned: true, photo: scan.photo });
+    leave({ kind: "found", card: match.card, scanned: true, photo: scan.photo });
   }
 
   async function search(e: React.FormEvent) {
@@ -419,7 +482,7 @@ export default function TrialScanner({
       )}
 
       {/* /scan/cam-live|mirror|native|err-<name> (10-06): "camera blocked" told apart from "left". */}
-      {cameraOpen && <CameraCapture game={game} onGameChange={setGame} onCapture={(f) => void onCapture(f)} onClose={() => setCameraOpen(false)} onCamera={(s) => step(`cam-${s}`)} />}
+      {cameraOpen && <CameraCapture game={game} onGameChange={setGame} lastScan={camScan} onCapture={(f) => void onCapture(f)} onClose={() => { setCameraOpen(false); setCamScan(null); }} onCamera={(s) => step(`cam-${s}`)} />}
     </div>
   );
 }
