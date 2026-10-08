@@ -156,6 +156,9 @@ export default function Sheet({
         aria-labelledby={title ? titleId : undefined}
         aria-label={title ? undefined : label}
         tabIndex={-1}
+        // Keyboard up (10-08, Chris: the category sheet's button sat off screen in portrait): the panel may not be
+        // taller than the space the keyboard leaves, so its buttons stay reachable and the body scrolls inside.
+        style={kbd > 0 ? { maxHeight: `calc(100dvh - ${kbd + 8}px)` } : undefined}
         className={`panel-solid relative flex max-h-[85dvh] w-full ${maxWidth} flex-col overflow-hidden rounded-t-3xl border border-b-0 shadow-2xl shadow-black/60 outline-none md:rounded-2xl md:border-b ${panelClassName}`}
       >
         <div
