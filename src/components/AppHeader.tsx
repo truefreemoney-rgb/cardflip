@@ -71,9 +71,10 @@ export default function AppHeader() {
             ) : user.tier === "trial" ? (
               // Payment does not prove the inbox, so a walled account has no Subscribe yet.
               user.mustConfirmEmail ? null : (
+                // Out of scans: the counter already reads "Get More Scans" (same page), so phones drop this twin to loosen the row (Chris 10-08).
                 <Link
                   href="/pricing"
-                  className="rounded-full bg-brand-500 px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-brand-400"
+                  className={`rounded-full bg-brand-500 px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-brand-400 ${user.scans && user.scans.remaining !== null && user.scans.remaining <= 0 ? "hidden sm:inline-block" : ""}`}
                 >
                   Subscribe
                 </Link>
