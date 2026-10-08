@@ -40,7 +40,7 @@ Each phone check is 1 to 3 minutes; blocks are sized to that. I tick docs/TO-TES
 | 4:00 | 30 min | Same. |
 | 4:30 | 30 min | Same. |
 | 5:00 | 30 min | **Google Ads read with me** (no changes): avg CPC both campaigns, signups 10-07 vs 10-08, cost per signup. Decide whether anything changes tomorrow. |
-| 5:30 | 30 min | Open slot. |
+| 5:30 | 30 min | **Follow up on tcgcsv.** You check the tcgcsv Discord #development for CptSpaceToaster's reply to the unblock ask (posted ~9:40am). Tell me what he said; if unblocked I run the price refresh and confirm Pokémon + Yu-Gi-Oh! came back. No reply yet = leave it, check again tomorrow morning. |
 | 6:00 | 30 min | Open slot. |
 | 6:30 | 25 min | Break. I build the 7pm pair. |
 | 6:55 | 20 min | **7:00 TikTok + Pinterest** (Pokémon most valuable). |
