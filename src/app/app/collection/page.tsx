@@ -687,9 +687,7 @@ export default function CollectionPage() {
       <span className="rounded-full bg-amber-400/10 px-3 py-1 text-xs font-semibold text-amber-300">Auction ended</span>
     ) : sold ? (
       <span className="rounded-full bg-sky-400/10 px-3 py-1 text-xs font-semibold text-sky-300">Sold</span>
-    ) : card.verifiedAt ? (
-      <span className="rounded-full bg-emerald-400/10 px-3 py-1 text-xs font-semibold text-emerald-400">Active</span>
-    ) : (
+    ) : card.verifiedAt ? null : ( // "Active" said what "Verified, not listed yet." already says (Chris 10-08)
       <span className="rounded-full bg-amber-400/90 px-3 py-1 text-xs font-semibold text-black">Verify match</span>
     );
     // Sold rows are the record: never deleted, never relisted, always
