@@ -67,7 +67,7 @@ export const CAMPAIGN_WHEN: Record<CampaignId, { day: string; hour: number; minu
 };
 export const SAME_GAP_DAYS = 6;
 /** A brand-new account gets the signup welcome, not a campaign. */
-const MIN_AGE_MS = 12 * 3_600_000; // 12h (was 24h, Chris 10-09: yesterday evening's signups get Thursday's mail)
+const MIN_AGE_MS = 12 * 3_600_000; // 12h (was 24h, Chris 10-08: yesterday evening's signups get Thursday's mail)
 export const SIGNUP_CUTOFF = EMAIL_CUTOFF;
 const USER_CAP = 500;
 const DAY = 86_400_000;
