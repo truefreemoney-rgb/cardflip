@@ -1561,7 +1561,7 @@ export default function AppPage() {
                   type="button"
                   onClick={() => {
                     setSelectedId(null);
-                    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+                    router.push("/app/collection"); // the X closes the scan and lands on Inventory (Chris 10-08: "it just blanks out the card below")
                   }}
                   aria-label="Close card"
                   title="Close card"
