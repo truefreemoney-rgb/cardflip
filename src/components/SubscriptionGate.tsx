@@ -39,9 +39,13 @@ export default function SubscriptionGate({ children }: { children: React.ReactNo
     window.addEventListener("cardflip:camera", onCamera);
     return () => window.removeEventListener("cardflip:camera", onCamera);
   }, []);
-  useEffect(() => {
-    if (pathname !== "/app") setScannerOpen(false);
-  }, [pathname]);
+  // Leaving /app clears it. Adjusted during render (React's "store the previous prop" pattern) rather than in an
+  // effect: the lint rule forbids a synchronous setState inside an effect, and this keeps CI green.
+  const [seenPath, setSeenPath] = useState(pathname);
+  if (pathname !== seenPath) {
+    setSeenPath(pathname);
+    if (pathname !== "/app" && scannerOpen) setScannerOpen(false);
+  }
   if (status !== "ready" || !user) return <>{children}</>;
   if (user.role === "admin" || OPEN_PATHS.some((p) => pathname.startsWith(p))) return <>{children}</>;
   if (user.mustConfirmEmail) {

@@ -1134,7 +1134,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
 
       <div className="grid gap-4 sm:grid-cols-2">
         {GRADED_LOCKED && !item.grading ? (
-          <p className="text-xs text-zinc-500 sm:col-span-2">Graded slabs aren&apos;t accepted yet. Raw cards only for now.</p>
+          null /* no slabs notice (Chris 10-08: "you can remove the Graded slabs... text") */
         ) : (
         <label className="flex flex-col gap-1.5 text-sm font-medium text-zinc-300">
           Graded slab

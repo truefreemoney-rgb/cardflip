@@ -215,16 +215,6 @@ export default function MarketMetricsPanel({
             ? "No comparable listings"
             : "Couldn't reach eBay";
 
-  // Collapsed by default: the editor is a window to sell, not to study
-  // comps, so the panel is one summary line until the seller asks for the
-  // detail. Price + Send sit higher because of it.
-  const summary = [
-    showSoldTile && sold != null
-      ? `Sold ${money(sold.average)}`
-      : null,
-    active != null ? `Sellers asking ${money(active.average)}` : null,
-    tcg ? (tcgFlag ? "Market looks off" : `Market ${formatMoney(tcg.market, tcg.currency)}`) : null,
-  ].filter(Boolean) as string[];
 
   return (
     <div className="rounded-xl border border-edge bg-surface-1">
@@ -234,18 +224,9 @@ export default function MarketMetricsPanel({
         aria-expanded={open}
         className={`flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-surface-2/60 rounded-t-xl`}
       >
-        <span className="flex min-w-0 items-baseline gap-2">
-          <span className="text-sm font-semibold text-white">Market value</span>
-          {!open && (
-            <span className="truncate text-xs text-zinc-400">
-              {summary.length > 0
-                ? summary.join(" · ")
-                : activeStatus === "loading"
-                  ? "Checking eBay…"
-                  : "No price data yet"}
-            </span>
-          )}
-        </span>
+        {/* Just the title: the collapsed summary ("Sellers asking $2,072.98 · Market $1…") was cut off on
+            phones and unreadable (Chris 10-08: "you can probably remove that"). The tiles inside say it all. */}
+        <span className="text-sm font-semibold text-white">Market value</span>
         <span className="flex shrink-0 items-center gap-2 text-zinc-500">
           {activeStatus === "loading" && <Spinner className="h-3.5 w-3.5" />}
           <svg
