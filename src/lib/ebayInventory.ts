@@ -612,8 +612,8 @@ export function fulfillmentAttempts(marketplace: Marketplace): { serviceCode: st
 }
 
 /**
- * Account API createFulfillmentPolicy body: a flat domestic rate the buyer
- * pays, handling 1 day. eBay's LSAS validator rejected the first US shape
+ * Account API createFulfillmentPolicy body: free domestic shipping (the price
+ * covers postage), handling 1 day. eBay's LSAS validator rejected the first US shape
  * (08-27, LOGISTICS_INFO_IS_MISSING: buyerResponsibleForShipping is a
  * freight flag, not "buyer pays"); buyer-pays is simply a non-zero flat cost.
  */
@@ -631,8 +631,11 @@ export function fulfillmentPolicyBody(marketplace: Marketplace, serviceCode: str
             sortOrder: 1,
             ...(carrierCode ? { shippingCarrierCode: carrierCode } : {}),
             shippingServiceCode: serviceCode,
-            shippingCost: { value: marketplace.shipping.policyCost, currency: marketplace.currency },
-            freeShipping: false,
+            // Free shipping (Chris 10-08): the asking price already carries the postage
+            // (lib/fees.ts), so the buyer pays nothing on top. policyCost stays as the
+            // site's reference cost; it is not charged.
+            shippingCost: { value: "0.00", currency: marketplace.currency },
+            freeShipping: true,
           },
         ],
       },

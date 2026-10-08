@@ -255,6 +255,31 @@ async function createDefaultPolicies(token: string, missing: { f: boolean; p: bo
     }
   }
 }
+/**
+ * A "CardFlip shipping" policy made before 10-08 charged the buyer a flat rate
+ * ($4.99 on US). Chris 10-08: the asking price already carries the postage, so
+ * shipping is free for the buyer. Policies we created are rewritten to free the
+ * first time they are used after this; a seller's own policy is never touched.
+ * One GET per publish, a PUT only when it still charges. Failures are logged,
+ * never fatal: the listing goes out on the policy as it is.
+ */
+async function ensureFreeShipping(token: string, fulfillmentPolicyId: string, mp: Marketplace = US_MARKETPLACE): Promise<void> {
+  try {
+    const path = `/sell/account/v1/fulfillment_policy/${encodeURIComponent(fulfillmentPolicyId)}`;
+    const pol = (await ebayFetch(token, "GET", path, undefined, undefined, mp)) as {
+      name?: string;
+      shippingOptions?: { shippingServices?: { shippingServiceCode?: string; shippingCarrierCode?: string; freeShipping?: boolean }[] }[];
+    } | null;
+    if (!pol || typeof pol.name !== "string" || !pol.name.startsWith("CardFlip shipping")) return;
+    const svc = pol.shippingOptions?.[0]?.shippingServices?.[0];
+    if (!svc || svc.freeShipping === true) return;
+    const body = fulfillmentPolicyBody(mp, svc.shippingServiceCode || mp.shipping.serviceCode, svc.shippingCarrierCode ?? mp.shipping.carrierCode);
+    await ebayFetch(token, "PUT", path, body, undefined, mp);
+  } catch (err) {
+    console.warn("eBay free-shipping policy update failed:", err instanceof Error ? err.message : err);
+  }
+}
+
 async function policyIds(token: string, mp: Marketplace = US_MARKETPLACE): Promise<ListingPolicies | typeof NOT_OPTED_IN> {
   const q = `marketplace_id=${mp.marketplaceId}`;
   const [f, p, r] = await Promise.all([
@@ -860,6 +885,7 @@ async function publishDraftLocked(
     defaults = await sellerDefaults(token, mp);
     ({ fulfillmentPolicyId, paymentPolicyId, returnPolicyId } = defaults.policies);
   }
+  if (fulfillmentPolicyId) await ensureFreeShipping(token, fulfillmentPolicyId, mp);
   if (!fulfillmentPolicyId || !paymentPolicyId || !returnPolicyId) {
     throw new EbayPublishNeedsError(
       "policies",

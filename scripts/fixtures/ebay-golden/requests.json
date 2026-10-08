@@ -219,10 +219,10 @@
               "shippingCarrierCode": "USPS",
               "shippingServiceCode": "USPSGroundAdvantage",
               "shippingCost": {
-                "value": "4.99",
+                "value": "0.00",
                 "currency": "USD"
               },
-              "freeShipping": false
+              "freeShipping": true
             }
           ]
         }
@@ -319,6 +319,18 @@
     "method": "GET",
     "host": "https://api.ebay.com",
     "path": "/sell/inventory/v1/location?limit=1",
+    "headers": {
+      "Authorization": "Bearer tok-1",
+      "Accept": "application/json",
+      "Content-Language": "en-US",
+      "Accept-Language": "en-US",
+      "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
+    }
+  },
+  {
+    "method": "GET",
+    "host": "https://api.ebay.com",
+    "path": "/sell/account/v1/fulfillment_policy/fulfillment-1",
     "headers": {
       "Authorization": "Bearer tok-1",
       "Accept": "application/json",

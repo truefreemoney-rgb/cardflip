@@ -203,9 +203,10 @@ console.log("Payloads per site");
     const attempts = inv.fulfillmentAttempts(mp);
     const f = inv.fulfillmentPolicyBody(mp, attempts[0].serviceCode, attempts[0].carrierCode);
     const svc = f.shippingOptions[0].shippingServices[0];
-    check(`${k}: fulfillment policy = site letter code, flat cost in local currency, handling 1 day, site suffix`, [
+    // Free shipping on every site (Chris 10-08): the asking price already carries the postage.
+    check(`${k}: fulfillment policy = site letter code, FREE shipping in local currency, handling 1 day, site suffix`, [
       f.name, f.marketplaceId, svc.shippingServiceCode, svc.shippingCost, f.handlingTime, f.shippingOptions[0].costType, svc.freeShipping,
-    ], [w.name, w.id, w.code, { value: w.cost, currency: w.cur }, { value: 1, unit: "DAY" }, "FLAT_RATE", false]);
+    ], [w.name, w.id, w.code, { value: "0.00", currency: w.cur }, { value: 1, unit: "DAY" }, "FLAT_RATE", true]);
     check(
       k === "IE" ? `${k}: no carrier code on this site, one attempt` : `${k}: the letter code is tried with the carrier, then without it`,
       k === "IE" ? attempts.map((a) => a.carrierCode) : [attempts[0].carrierCode !== null, attempts[1].carrierCode, attempts[1].serviceCode],
@@ -409,7 +410,7 @@ for (const [cc, account] of Object.entries(SITES)) {
   const polR = calls2.find((e) => e.method === "POST" && e.path === "/sell/account/v1/return_policy");
   const polP = calls2.find((e) => e.method === "POST" && e.path === "/sell/account/v1/payment_policy");
   check(`${cc}: default policies created for the site with its suffix`, [polF.body.name, polP.body.name, polR.body.name, polF.body.marketplaceId], [`CardFlip shipping ${cc}`, `CardFlip payments ${cc}`, `CardFlip returns ${cc}`, mp.marketplaceId]);
-  check(`${cc}: fulfillment = the site's letter code, cost in ${mp.currency}, 1 day`, [polF.body.shippingOptions[0].shippingServices[0].shippingServiceCode, polF.body.shippingOptions[0].shippingServices[0].shippingCost, polF.body.handlingTime], [mp.shipping.serviceCode, { value: mp.shipping.policyCost, currency: mp.currency }, { value: 1, unit: "DAY" }]);
+  check(`${cc}: fulfillment = the site's letter code, free shipping in ${mp.currency}, 1 day`, [polF.body.shippingOptions[0].shippingServices[0].shippingServiceCode, polF.body.shippingOptions[0].shippingServices[0].shippingCost, polF.body.shippingOptions[0].shippingServices[0].freeShipping, polF.body.handlingTime], [mp.shipping.serviceCode, { value: "0.00", currency: mp.currency }, true, { value: 1, unit: "DAY" }]);
   check(`${cc}: returns 30 days buyer pays, no returnMethods`, [polR.body.returnPeriod.value, polR.body.returnShippingCostPayer, "returnMethods" in polR.body], [30, "BUYER", false]);
   const loc = calls2.find((e) => e.method === "POST" && e.path.startsWith("/sell/inventory/v1/location/"));
   check(`${cc}: location ${merchantLocationKeyFor(mp)} in ${mp.locationCountry}, not the client's US`, [loc.path.split("/").pop(), loc.body.location.address.country, loc.body.location.address.postalCode], [merchantLocationKeyFor(mp), mp.locationCountry, "AB1 2CD"]);

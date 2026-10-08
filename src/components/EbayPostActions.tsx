@@ -90,8 +90,6 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
   }, [modal, local, item.serverId, item.strategy]);
   // The seller's own eBay site (US unless a local market applies) and the default policy CardFlip makes on first publish.
   const siteMp = local?.mp ?? US_MARKETPLACE;
-  const policyCost = siteMp.shipping.policyCost;
-  const defaultShipping = policyCost ? formatLocalAmount(siteMp, Number(policyCost)) : null;
   const canPost = ebayConnected && Boolean(item.serverId) && Boolean(item.card);
   const pushed = Boolean(item.ebayOfferId);
   // Locked until the seller has verified the match (the server refuses too).
@@ -451,7 +449,7 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
                   eBay&apos;s selling fees apply. You can end it later on eBay.
                 </p>
                 <p className="mt-2 text-xs leading-relaxed text-zinc-500">
-                  {defaultShipping ? `Buyer pays ${defaultShipping} flat shipping. ` : ""}
+                  Free shipping for the buyer (postage is already in your price). 
                   Returns: 30 days, buyer pays return postage. If your eBay account has no policies yet, we set these up for you.
                 </p>
                 <div className="mt-5 flex gap-2">
