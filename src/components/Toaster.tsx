@@ -55,7 +55,7 @@ export default function Toaster() {
     <>
     <ConfirmHost />
     {items.length > 0 && <div
-      className="pointer-events-none fixed inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom))] z-[60] flex flex-col items-center gap-2 px-4"
+      className="pointer-events-none fixed inset-x-0 bottom-[calc(max(1rem,env(safe-area-inset-bottom))+var(--bottom-nav-h,0px))] z-[60] flex flex-col items-center gap-2 px-4"
       aria-live="polite"
       role="status"
     >
@@ -82,7 +82,8 @@ export default function Toaster() {
                 t.action!.onClick();
                 setItems((prev) => prev.filter((x) => x.id !== t.id));
               }}
-              className="shrink-0 rounded-full bg-white/10 px-2.5 py-0.5 text-xs font-semibold text-white transition hover:bg-white/20"
+              // A toast with an action (Undo) sits above the phone tab bar and the button is a real primary pill (Chris 10-08: "really hard to see down there").
+              className="shrink-0 rounded-full bg-brand-500 px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-brand-400"
             >
               {t.action.label}
             </button>

@@ -2781,10 +2781,12 @@ export default function CollectionPage() {
                     : "ring-white/10 shadow-black/40";
             const art = (
               <>
+                {/* Makeover 10-08 (Chris: "looks really bad and sloppy"): the art is just the art — object-cover,
+                    nothing written over it but one status pill. Name, set and price live in a block under it. */}
                 <CardImage
                   src={img}
                   alt={card.cardName}
-                  className={`h-full w-full ${sold ? "opacity-70 saturate-50" : ""}`}
+                  className={`h-full w-full object-cover ${sold ? "opacity-70 saturate-50" : ""}`}
                 />
                 {sold && (
                   <span
@@ -2794,20 +2796,14 @@ export default function CollectionPage() {
                     Sold
                   </span>
                 )}
-                {/* Price sticker — the one number a seller scans a binder for. */}
-                <span className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between bg-gradient-to-t from-black/85 via-black/40 to-transparent px-2.5 pb-2 pt-8">
-                  <span className="min-w-0 pr-2 text-left">
-                    <span className="block truncate text-xs font-semibold text-white">{card.cardName}</span>
-                    <span className="block truncate text-[10px] text-zinc-400">{card.setName}</span>
-                  </span>
-                  <span className={`shrink-0 font-display text-base font-bold tracking-tight ${sold ? "text-emerald-400" : "text-white"}`}>
-                    {sold && card.soldPrice != null
-                      ? formatMoney(card.soldByHand ? card.soldPrice : netAfterFees(card.soldPrice, card.soldFees))
-                      : headlineOf(card)}
-                  </span>
-                </span>
               </>
             );
+            const priceText =
+              sold && card.soldPrice != null
+                ? formatMoney(card.soldByHand ? card.soldPrice : netAfterFees(card.soldPrice, card.soldFees))
+                : headlineOf(card);
+            const firstEd = card.firstEdition || card.setName.endsWith(" (1st Edition)");
+            const setLine = firstEd ? card.setName.replace(/ \(1st Edition\)$/, "") : card.setName;
             return (
               <li
                 key={card.id}
@@ -2824,18 +2820,10 @@ export default function CollectionPage() {
                   className="relative block aspect-[5/7] w-full bg-black/40 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-400"
                 >
                   {art}
-                  {/* Always-visible affordance (Chris, 09-04: nothing said the
-                      art was tappable). Right edge, above the name/price sticker; brightens on hover, and the button is the hit area. */}
-                  <span className="pointer-events-none absolute bottom-16 right-2 inline-flex items-center gap-1 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-semibold text-zinc-100 shadow backdrop-blur transition group-hover:bg-brand-500/90 group-hover:text-white">
-                    {live ? "View listing" : "View card"}
-                    <svg viewBox="0 0 16 16" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 3h7v7M13 3 7 9" /></svg>
-                  </span>
-                </button>
-
-                {/* Status, top-left, on the art. */}
-                <div className="pointer-events-none absolute left-2 top-2 flex flex-col items-start gap-1.5">
+                {/* ONE status pill, bottom-left on the art (10-08: the stack of pills was the mess; top-left collided with the select/delete circles on a 2-column phone grid). */}
+                <span className="pointer-events-none absolute bottom-2 left-2 block">
                   {live ? (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-black/70 px-2.5 py-1 text-xs font-semibold text-emerald-300 backdrop-blur">
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-black/70 px-2.5 py-1 text-[11px] font-semibold text-emerald-300 backdrop-blur">
                       <span className="relative flex h-2 w-2">
                         <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
                         <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
@@ -2843,57 +2831,92 @@ export default function CollectionPage() {
                       Live
                     </span>
                   ) : ended ? (
-                    <span className="rounded-full bg-black/70 px-2.5 py-1 text-xs font-semibold text-amber-300 backdrop-blur">Auction ended</span>
+                    <span className="rounded-full border border-white/10 bg-black/70 px-2.5 py-1 text-[11px] font-semibold text-amber-300 backdrop-blur">Auction ended</span>
                   ) : draft && !card.verifiedAt ? (
-                    <span className="rounded-full bg-amber-400/90 px-2.5 py-1 text-xs font-semibold text-black shadow">Verify match</span>
-                  ) : draft ? (
-                    <span className="rounded-full bg-black/70 px-2.5 py-1 text-xs font-semibold text-emerald-300 backdrop-blur">Active</span>
-                  ) : null}
-                  {(card.firstEdition || card.setName.endsWith(" (1st Edition)")) && (
-                    <span className="rounded-full bg-black/70 px-2.5 py-1 text-xs font-semibold text-brand-300 backdrop-blur">1st Edition</span>
-                  )}
-                  {card.matchDoubt && (
-                    <span className="rounded-full bg-black/70 px-2.5 py-1 text-xs font-medium text-amber-300/90 backdrop-blur" title={card.matchDoubt}>
-                      ⚠ check
+                    <span className="rounded-full bg-amber-400/90 px-2.5 py-1 text-[11px] font-semibold text-black shadow">Verify match</span>
+                  ) : card.matchDoubt ? (
+                    <span className="rounded-full border border-white/10 bg-black/70 px-2.5 py-1 text-[11px] font-semibold text-amber-300/90 backdrop-blur" title={card.matchDoubt}>
+                      Check match
                     </span>
-                  )}
-                  {(card.quantity || 1) > 1 && (
-                    <span className="rounded-full bg-black/70 px-2.5 py-1 text-xs font-semibold text-zinc-200 backdrop-blur">×{card.quantity}</span>
-                  )}
-                </div>
+                  ) : draft ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-black/70 px-2.5 py-1 text-[11px] font-semibold text-emerald-300 backdrop-blur">
+                      <span className="inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                      Active
+                    </span>
+                  ) : null}
+                </span>
+                </button>
 
-                {/* Select + Delete, top-right: hover on a mouse, always on touch. */}
+
+                {/* Select + Delete, top-right: two matching 32px circles (the bare checkbox beside a bigger X read as
+                    "sloppy", Chris 10-08). Hover on a mouse, always on touch. */}
                 <div
                   className={`absolute right-2 top-2 flex items-center gap-1.5 transition [@media(hover:hover)]:group-hover:opacity-100 ${
                     isSelected || selected.size > 0 ? "" : "[@media(hover:hover)]:opacity-0"
                   }`}
                 >
                   {!live && !sold && (
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
+                    <button
+                      type="button"
+                      role="checkbox"
+                      aria-checked={isSelected}
                       onClick={(e) => toggleSelected(card.id, e.shiftKey)}
-                      onChange={() => {}}
                       aria-label={`Select ${card.cardName}`}
-                      className="h-5 w-5 cursor-pointer rounded border-zinc-500 bg-black/60 accent-brand-500"
-                    />
+                      className={`flex h-8 w-8 items-center justify-center rounded-full border backdrop-blur transition ${
+                        isSelected
+                          ? "border-brand-400 bg-brand-500 text-white"
+                          : "border-white/40 bg-black/40 text-transparent hover:border-white/70 hover:text-zinc-300"
+                      }`}
+                    >
+                      <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M4 10.5l4 4 8-9" />
+                      </svg>
+                    </button>
                   )}
                   {/* Sold rows are the record — no delete (Chris, 09-08). */}
                   {(card.status !== "listed" || ended) && !sold && (
                     <button
                       onClick={() => remove(card)}
                       aria-label={`Delete ${card.cardName}`}
-                      className="flex h-9 w-9 items-center justify-center rounded-full bg-black/70 text-zinc-300 backdrop-blur transition hover:bg-black/90 hover:text-white"
+                      className="flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-black/60 text-zinc-300 backdrop-blur transition hover:border-white/40 hover:bg-black/80 hover:text-white"
                     >
-                      <svg viewBox="0 0 20 20" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="1.8">
-                        <path d="M5 5l10 10M15 5l-10 10" strokeLinecap="round" />
+                      <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                        <path d="M5 5l10 10M15 5l-10 10" />
                       </svg>
                     </button>
                   )}
                 </div>
 
-                {/* One action under the art — the thing this card needs next. */}
-                <div className="flex items-center justify-between gap-2 px-2.5 py-2">
+                {/* Name, set, price — under the art, where a binder label goes. Tapping it opens the card too. */}
+                <button
+                  type="button"
+                  onClick={() => void openDetail(card)}
+                  className="flex w-full items-start justify-between gap-2 border-t border-white/5 px-2.5 pb-1 pt-2 text-left"
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-[13px] font-semibold leading-tight text-white">{card.cardName}</span>
+                    <span className="mt-0.5 flex min-w-0 items-center gap-1 text-[11px] leading-tight text-zinc-400">
+                      <span className="truncate">{setLine}</span>
+                      {card.cardNumber ? <span className="shrink-0 text-zinc-500">· #{card.cardNumber}</span> : null}
+                    </span>
+                    {(firstEd || (card.quantity || 1) > 1) && (
+                      <span className="mt-1 flex flex-wrap gap-1">
+                        {firstEd && (
+                          <span className="rounded-full border border-brand-400/30 bg-brand-500/10 px-1.5 py-px text-[10px] font-semibold text-brand-300">1st Edition</span>
+                        )}
+                        {(card.quantity || 1) > 1 && (
+                          <span className="rounded-full border border-white/10 bg-white/5 px-1.5 py-px text-[10px] font-semibold text-zinc-300">×{card.quantity}</span>
+                        )}
+                      </span>
+                    )}
+                  </span>
+                  <span className={`shrink-0 font-display text-[15px] font-bold leading-tight tracking-tight ${sold ? "text-emerald-400" : "text-white"}`}>
+                    {priceText}
+                  </span>
+                </button>
+
+                {/* One action under the label — the thing this card needs next. */}
+                <div className="flex items-center justify-between gap-2 px-2.5 pb-2 pt-1">
                   <span className="truncate text-[11px] text-zinc-500">
                     {sold && card.soldPrice != null
                       ? `sold ${formatMoney(card.soldByHand ? card.soldPrice : netAfterFees(card.soldPrice, card.soldFees))} · net`
@@ -2901,23 +2924,21 @@ export default function CollectionPage() {
                         ? "Awaiting sale"
                         : ended
                           ? formatDate(card.ebayEndedAt!)
-                          : card.cardNumber
-                            ? `#${card.cardNumber}`
-                            : ""}
+                          : ""}
                   </span>
                   {draft && card.kind !== "sealed" && !card.verifiedAt ? (
-                    // Verifying happens in the card sheet (Chris, 10-01).
+                    // Verifying happens in the card sheet (Chris, 10-01). Full width: it is the only thing in the row.
                     <button
                       type="button"
                       onClick={() => void openDetail(card)}
-                      className="shrink-0 rounded-full bg-amber-400/15 px-2.5 py-1 text-[11px] font-semibold text-amber-300 transition hover:bg-amber-400/25"
+                      className="flex-1 rounded-full bg-amber-400/15 px-2.5 py-1.5 text-center text-[11px] font-semibold text-amber-300 transition hover:bg-amber-400/25"
                     >
-                      Verify
+                      Verify Match
                     </button>
                   ) : draft && card.kind !== "sealed" ? (
                     <Link
                       href={resumeHref}
-                      className="shrink-0 rounded-full bg-white/5 px-2.5 py-1 text-[11px] font-semibold text-zinc-200 transition hover:bg-white/10"
+                      className="flex-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-1.5 text-center text-[11px] font-semibold text-zinc-200 transition hover:bg-white/10"
                     >
                       {pricingOnly ? "Edit" : "Build Listing"}
                     </Link>
