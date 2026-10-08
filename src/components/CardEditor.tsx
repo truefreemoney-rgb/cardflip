@@ -874,13 +874,16 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
                   </>
                 ),
               });
-              // "eBay asking" is OUR number (Chris 10-08): the market price through condition, fees and shipping
-              // (quote.suggested), never the average of other sellers' live listings. Those stay as the small link.
+              // "eBay asking" is OUR number (Chris 10-08): the market price through condition, fees and shipping,
+              // never the average of other sellers' live listings (those stay as the small link). Always the
+              // FULL-value quote: with Quick sale picked, quote.suggested is the 12%-off number ($1,151.75 on
+              // a $1,134.85 Lugia, which read as "fees missing" to Chris); the Quick tile below shows that one.
+              const askingQuote = marketQuote ?? quote;
               cells.push({
                 label: "eBay asking",
                 value: (
                   <>
-                    <span className="font-display text-white">{formatMoney(quote.suggested, quote.price.currency)}</span>
+                    <span className="font-display text-white">{formatMoney(askingQuote.suggested, askingQuote.price.currency)}</span>
                     {ebayBasis ? <span className="block truncate text-xs text-zinc-500">{quote.price.label}</span> : null}
                     {listingsLink}
                   </>
