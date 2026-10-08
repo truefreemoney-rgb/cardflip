@@ -6,8 +6,6 @@ import { syncEbayFees } from "@/lib/server/ebayFinances";
 import { sendPushToUser } from "@/lib/server/push";
 import { soldPush } from "@/lib/pushMessages";
 import { sweepWishlistAlerts } from "@/lib/server/wishlistAlerts";
-import { sweepWeeklyDigest } from "@/lib/server/digest";
-import { sweepCampaigns } from "@/lib/server/campaigns";
 import { sweepCardAlerts } from "@/lib/server/cardAlerts";
 import { sweepAutoOffers } from "@/lib/server/ebayNegotiation";
 import { refreshMtgPricesFromBulk } from "@/lib/server/mtgPriceRefresh";
@@ -205,20 +203,8 @@ export async function runPokemonSteps(
     result.cardAlerts = { error: err instanceof Error ? err.message : String(err) };
     console.error("daily: card alert sweep failed:", err);
   }
-  // Sunday collection digest, same reasoning: mail before the slow steps.
-  try {
-    result.weeklyDigest = await sweepWeeklyDigest(now);
-  } catch (err) {
-    result.weeklyDigest = { error: err instanceof Error ? err.message : String(err) };
-    console.error("daily: weekly digest failed:", err);
-  }
-  // Admin email campaigns (campaigns.ts): off until Chris flips it on /admin/emails.
-  try {
-    result.emailCampaigns = await sweepCampaigns(now);
-  } catch (err) {
-    result.emailCampaigns = { error: err instanceof Error ? err.message : String(err) };
-    console.error("daily: email campaigns failed:", err);
-  }
+  // Mail campaigns (campaigns.ts) and the old Sunday digest no longer run here (10-08):
+  // /api/cron/emails sends Tue/Thu 10am + Sun 6:30pm ET so mail lands when people read it.
   try {
     // Stop re-pricing held cards ~200s after the step started so the eBay
     // sync and the result write still fit inside the 300s function limit.

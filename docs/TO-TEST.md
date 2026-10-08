@@ -8,11 +8,13 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 - [ ] Prod, a one-day custom range (both dates today) draws 24 hourly points, not one bar.
 - [ ] The faint dotted "before" line matches the "N before" number under each tile.
 
-## 10-07 admin email campaigns (/admin/emails), SHIPPED SWITCHED OFF
-- [ ] Prod /admin/emails: both "Send Test To Me" buttons land a [TEST] mail at truefreemoney@gmail.com; check it on the phone (button, prices, Stop link).
-- [x] Chris approved both mails' wording 10-07 ("fine for now"). Switch stays OFF until he says to turn it on.
-- [ ] After switching on: the first Tue/Fri morning run shows in the Send Log, and "Stop these emails" shows the "No more update emails" page and stops digest + campaigns.
-
+## 10-08 weekly emails rebuilt (/admin/emails), SHIPPED SWITCHED OFF, nothing to users until Chris approves
+- [ ] Prod /admin/emails loads: three sections (Scans · Tuesday 10am, Your cards · Thursday 10am, This week in cards · Sunday 6:30pm), every version has a preview + "Send Test To Me"; the Scans versions show how many people are due.
+- [ ] Each "Send Test To Me" lands a [TEST] mail at truefreemoney@gmail.com; check on the phone: pictures load, prices read right, buttons open the right page, Stop link works.
+- [ ] Thursday previews come from live data: "No cards: binder list" shows three Pokémon or Magic cards $15-$200; "Never scanned" shows one card per game.
+- [ ] Sunday preview: a line per game, biggest jump, set to watch, sleeper, scans this week (prices tracked since 09-30 note on the three young games is expected).
+- [ ] Vercel cron list shows /api/cron/emails at 14:00 + 15:00 UTC Tue/Thu and 22:30 + 23:30 UTC Sun; a cron hit while OFF logs nothing and sends nothing.
+- [ ] The old Sunday digest no longer sends from the daily job (Sunday 10-11: only the owner-copy of the week mail, if ON).
 ## 10-07 signup email typo hint (an ad signup typed @iclod.org and had to sign up twice)
 - [ ] Real phone: type name@gmial.com, tap Password → yellow "Did you mean name@gmail.com?"; tap it → box fixed, hint gone.
 - [ ] A correct gmail/icloud address and a @hotmail.co.uk address show no hint.
