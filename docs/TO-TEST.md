@@ -8,6 +8,12 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 - [ ] Prod, a one-day custom range (both dates today) draws 24 hourly points, not one bar.
 - [ ] The faint dotted "before" line matches the "N before" number under each tile.
 
+## 10-08 scanner + inventory fixes from the test day
+- [ ] Trial account on its LAST scan: scan it, close the camera → the out-of-scans wall shows right away, no page reload (867a4b69).
+- [ ] Inventory with a card open: the round X next to Subscribe Now closes the card and shows the plain list; the Share button sits inside the card panel, not on the footer note (2fe6a947).
+- [ ] Scanner result: no "Check the art … Switch" banner on a card with a pricier twin (b23829db).
+- [ ] Marketing nav on desktop: the search icon sits left of How It Works (abe7e70c). Phone: first in the second row (Chris 10-08: leave it there for now).
+
 ## 10-08 weekly emails rebuilt (/admin/emails), SHIPPED SWITCHED OFF, nothing to users until Chris approves
 - [ ] Prod /admin/emails loads: three sections (Scans · Tuesday 10am, Your cards · Thursday 10am, This week in cards · Sunday 6:30pm), every version has a preview + "Send Test To Me"; the Scans versions show how many people are due.
 - [ ] Each "Send Test To Me" lands a [TEST] mail at truefreemoney@gmail.com; check on the phone: pictures load, prices read right, buttons open the right page, Stop link works.
@@ -21,7 +27,7 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 - [ ] Fewer "Undelivered Mail Returned to Sender" bounces at support@ from signup welcome emails.
 
 ## 10-07 out-of-scans wall: quick-buy box at the top (first ad signup ran out of free scans in an hour)
-- [ ] Real phone, trial account with 0 scans left: "Your N cards are saved." + "Buy 100 Scans · $4.99" + "Subscribe · $9.99/mo" all on the first screen, nothing behind the tab bar.
+- [x] (10-08 Chris, phone: "Your 14 cards are saved." + both buttons on the first screen) Real phone, trial account with 0 scans left: "Your N cards are saved." + "Buy 100 Scans · $4.99" + "Subscribe · $9.99/mo" all on the first screen, nothing behind the tab bar.
 - [ ] Booster button opens LIVE Stripe checkout for $4.99 (local can't: local Stripe price ids don't match; passed at 375 px in pane otherwise).
 - [ ] Subscribe button opens LIVE Stripe checkout for $9.99/mo.
 - [ ] /admin: first Booster or plan purchase from an ad signup.
