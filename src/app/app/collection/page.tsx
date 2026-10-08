@@ -715,14 +715,13 @@ export default function CollectionPage() {
         <div className="px-4 pb-4 pt-4">
           {!sold && (
             <dl className={`mb-1 grid gap-px overflow-hidden rounded-xl border border-edge bg-edge ${pricingOnly ? "grid-cols-1" : "grid-cols-2"}`}>
-              <div className="flex items-start justify-between gap-2 bg-black/25 px-3 py-2.5">
-                <div className="min-w-0">
-                  <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Market Price</dt>
-                  <dd className="mt-0.5 font-display text-2xl font-bold tracking-tight text-white">
-                    {market != null ? formatMoney(market) : !liveLoaded && card.catalogCardId ? "…" : "—"}
-                  </dd>
-                </div>
-                <div className="flex shrink-0 flex-col items-end gap-1">{chips}</div>
+              {/* Chips under the price, not beside it (Chris 10-08: a $10,000.00 price ran under "Active" + "1st Edition"). */}
+              <div className="min-w-0 bg-black/25 px-3 py-2.5">
+                <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Market Price</dt>
+                <dd className="mt-0.5 font-display text-2xl font-bold tracking-tight text-white">
+                  {market != null ? formatMoney(market) : !liveLoaded && card.catalogCardId ? "…" : "—"}
+                </dd>
+                <div className="mt-1.5 flex flex-wrap items-center gap-1">{chips}</div>
               </div>
               {!pricingOnly && <div className="bg-black/25 px-3 py-2.5">
                 <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">{priceLabel}</dt>
