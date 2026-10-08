@@ -141,7 +141,8 @@ export async function createCheckoutSession(
     // A fresh subscriber lands on one screen with one job (scan), not on
     // the Profile page (Chris, 09-25).
     success_url: `${SITE_URL}/app/account/welcome?billing=success`,
-    cancel_url: `${SITE_URL}/app/account?billing=canceled`,
+    // Backing out of Checkout lands in Inventory (Chris 10-08), not the account page.
+    cancel_url: `${SITE_URL}/app/collection`,
   }, currency);
   return s.url;
 }
@@ -165,7 +166,8 @@ export async function createPackCheckoutSession(customerId: string, userId: stri
     "metadata[pack]": "1",
     "metadata[packScans]": String(PRICING.pack.scans),
     success_url: `${SITE_URL}/app/account/welcome?billing=pack`,
-    cancel_url: `${SITE_URL}/app/account?billing=canceled`,
+    // Backing out of Checkout lands in Inventory (Chris 10-08), not the account page.
+    cancel_url: `${SITE_URL}/app/collection`,
   }, currency);
   return s.url;
 }
