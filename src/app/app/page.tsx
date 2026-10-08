@@ -1634,7 +1634,7 @@ export default function AppPage() {
               ))}
             </aside>
 
-            <section className="min-w-0 min-h-[24rem] rounded-2xl border border-edge bg-surface-1">
+            <section className={`min-w-0 rounded-2xl border border-edge bg-surface-1 ${selected ? "min-h-[24rem]" : "min-h-[24rem] max-sm:min-h-0"}`}>
               {selected ? (
                 selected.kind === "sealed" ? (
                   <SealedEditor
@@ -1684,7 +1684,7 @@ export default function AppPage() {
                   />
                 )
               ) : (
-                <div className="flex h-full items-center justify-center p-8 text-sm text-zinc-500">
+                <div className="flex h-full items-center justify-center p-6 sm:p-8 text-sm text-zinc-500">
                   {user.pricingOnly ? "Select a card to see its price." : "Select a card to review its listing."}
                 </div>
               )}
