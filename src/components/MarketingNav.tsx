@@ -54,9 +54,8 @@ export default function MarketingNav() {
     <header className="sticky top-0 z-50 bg-background/85 backdrop-blur-md after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-holo-violet/25 after:to-transparent">
       <nav className="mx-auto flex w-full max-w-6xl flex-col items-center gap-1 px-4 py-2 sm:h-14 sm:flex-row sm:justify-between sm:gap-0 sm:px-6 sm:py-0">
         <Logo />
+        <div className="flex items-center justify-center gap-1 sm:gap-2">
           {/* Search first (Chris 10-08: left of How It Works, not in the middle of the links). */}
-            Card Prices
-          </Link>
           <button
             type="button"
             onClick={() => setSearching((v) => !v)}
@@ -67,7 +66,7 @@ export default function MarketingNav() {
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
               {searching ? <path d="M6 6l12 12M18 6L6 18" /> : <><circle cx="11" cy="11" r="7" /><path d="M20 20l-4-4" /></>}
             </svg>
-        <div className="flex items-center justify-center gap-1 sm:gap-2">
+          </button>
           <Link href="/#how-it-works" className={`${link} hidden sm:inline-block`}>
             How It Works
           </Link>
@@ -76,7 +75,8 @@ export default function MarketingNav() {
           </Link>
           {/* Phones keep the short row (Pricing / Log In / Get Started); Card Prices is in the footer there. */}
           <Link href="/cards" className={`${link} hidden sm:inline-block`}>
-          </button>
+            Card Prices
+          </Link>
           <Link href="/pricing" className={link}>
             Pricing
           </Link>
