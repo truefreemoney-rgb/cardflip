@@ -1,4 +1,4 @@
-import { TCGCSV_HEADERS, TCGCSV_PAUSE_MS } from "@/lib/server/tcgcsv";
+import { TCGCSV_HEADERS, TCGCSV_PAUSE_MS, tcgcsvFetch } from "@/lib/server/tcgcsv";
 import { POKEMON_BACKUP_NEEDED_KEY, pokemonBackupFromPokemontcgIo } from "@/lib/server/priceBackups";
 import { db } from "@/lib/db";
 import { decodePrices, encodePrices, setDay, todayUtc } from "@/lib/priceSeries";
@@ -62,7 +62,7 @@ export async function hasTcgplayerMap(): Promise<boolean> {
  * Best-effort: a failure here never stops the price run.
  */
 export async function mapNewPokemonGroups(max = 40): Promise<{ groups: number; products: number }> {
-  const res = await fetch("https://tcgcsv.com/tcgplayer/3/groups", { headers: HEADERS });
+  const res = await tcgcsvFetch("https://tcgcsv.com/tcgplayer/3/groups");
   if (!res.ok) throw new Error(`groups HTTP ${res.status}`);
   const groups = ((await res.json()) as { results?: TcgGroup[] }).results ?? [];
   const sets = (await db
@@ -115,7 +115,7 @@ export async function mapNewPokemonGroups(max = 40): Promise<{ groups: number; p
   let products = 0;
   let done = 0;
   for (const { gid, halves } of [...todo, ...recheck].slice(0, max)) {
-    const pres = await fetch(`https://tcgcsv.com/tcgplayer/3/${gid}/products`, { headers: HEADERS });
+    const pres = await tcgcsvFetch(`https://tcgcsv.com/tcgplayer/3/${gid}/products`);
     if (!pres.ok) continue;
     const list = ((await pres.json()) as { results?: TcgProduct[] }).results ?? [];
     const decks = await Promise.all(
@@ -351,7 +351,7 @@ export async function refreshPokemonPricesFromTcgcsv(day = todayUtc()): Promise<
     const patternOf = new Map<number, PatternVariant>();
     try {
       if (patternGroups.has(gid)) {
-        const pres = await fetch(`https://tcgcsv.com/tcgplayer/3/${gid}/products`, { headers: HEADERS });
+        const pres = await tcgcsvFetch(`https://tcgcsv.com/tcgplayer/3/${gid}/products`);
         if (!pres.ok) throw new Error(`products HTTP ${pres.status}`);
         const products = ((await pres.json()) as { results?: { productId: number; name?: string }[] }).results ?? [];
         for (const p of products) {
@@ -360,7 +360,7 @@ export async function refreshPokemonPricesFromTcgcsv(day = todayUtc()): Promise<
         }
         await new Promise((r) => setTimeout(r, PAUSE_MS));
       }
-      const res = await fetch(`https://tcgcsv.com/tcgplayer/3/${gid}/prices`, { headers: HEADERS });
+      const res = await tcgcsvFetch(`https://tcgcsv.com/tcgplayer/3/${gid}/prices`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       results = ((await res.json()) as { results?: typeof results }).results ?? [];
     } catch (err) {

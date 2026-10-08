@@ -1,4 +1,4 @@
-import { TCGCSV_HEADERS } from "@/lib/server/tcgcsv";
+import { TCGCSV_HEADERS, tcgcsvFetch } from "@/lib/server/tcgcsv";
 import { db } from "@/lib/db";
 
 /**
@@ -144,7 +144,7 @@ export function matchMtgProducts(rows: MtgGapRow[], products: TcgProduct[]): Mtg
 
 const listOf = <T>(j: unknown): T[] => ((j as { results?: T[] })?.results ?? []) as T[];
 const getJson = async (url: string) => {
-  const r = await fetch(url, { headers: UA });
+  const r = await tcgcsvFetch(url, { headers: UA });
   if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`);
   return r.json();
 };

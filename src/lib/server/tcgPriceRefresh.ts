@@ -1,4 +1,4 @@
-import { TCGCSV_HEADERS, TCGCSV_PAUSE_MS } from "@/lib/server/tcgcsv";
+import { TCGCSV_HEADERS, TCGCSV_PAUSE_MS, tcgcsvFetch } from "@/lib/server/tcgcsv";
 import { yugiohBackupFromYgoprodeck } from "@/lib/server/priceBackups";
 import { db } from "@/lib/db";
 import { decodePrices, encodePrices, setDay, todayUtc } from "@/lib/priceSeries";
@@ -112,8 +112,9 @@ const num = (v: unknown): number | null => {
 };
 
 async function getJson<T>(url: string, attempt = 1): Promise<T> {
-  const res = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(60_000) });
-  if ((res.status === 429 || res.status >= 500) && attempt < 4) {
+  // tcgcsv goes through the one-at-a-time gate (its own retry rule, never 4 tries); the other feeds keep theirs.
+  const res = url.includes("tcgcsv.com") ? await tcgcsvFetch(url) : await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(60_000) });
+  if (!url.includes("tcgcsv.com") && (res.status === 429 || res.status >= 500) && attempt < 4) {
     await sleep(1500 * attempt);
     return getJson<T>(url, attempt + 1);
   }

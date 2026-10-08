@@ -1,5 +1,5 @@
 import "server-only";
-import { TCGCSV_HEADERS, TCGCSV_PAUSE_MS } from "@/lib/server/tcgcsv";
+import { TCGCSV_PAUSE_MS, tcgcsvFetch } from "@/lib/server/tcgcsv";
 import { db } from "@/lib/db";
 import { decodePrices, encodePrices, setDay, todayUtc, addDays } from "@/lib/priceSeries";
 import type { SeriesKeyed, SeriesUpsert } from "@/lib/server/priceBulkWrite";
@@ -22,7 +22,6 @@ import type { GameId } from "@/lib/types";
  * the median when a set has several of a kind (three tins, two blisters).
  */
 
-const HEADERS = TCGCSV_HEADERS;
 const PAUSE_MS = TCGCSV_PAUSE_MS;
 export const SEALED_RESCAN_DAYS = 30;
 /** Groups read per daily run: ~0.3s each, so the whole catalog lands within a week. */
@@ -145,7 +144,7 @@ export async function scanSealedProducts(
 }
 
 async function fetchGroupProducts(groupId: number): Promise<TcgProduct[]> {
-  const res = await fetch(`https://tcgcsv.com/tcgplayer/3/${groupId}/products`, { headers: HEADERS });
+  const res = await tcgcsvFetch(`https://tcgcsv.com/tcgplayer/3/${groupId}/products`);
   if (!res.ok) throw new Error(`products HTTP ${res.status}`);
   return ((await res.json()) as { results?: TcgProduct[] }).results ?? [];
 }
