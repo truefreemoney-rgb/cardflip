@@ -294,7 +294,7 @@ export function renderCards(f: CardsFacts, firstName: string, unsubUrl: string):
 }
 
 export function renderWeek(f: WeekFacts, firstName: string, unsubUrl: string): RenderedMail {
-  const fmt = (p: number | null) => (p == null ? "new" : `${p > 0 ? "up" : p < 0 ? "down" : "flat"} ${Math.abs(p).toFixed(1)}%`);
+
   const best = f.games.filter((g) => g.movePct != null).sort((a, b) => (b.movePct ?? 0) - (a.movePct ?? 0));
   const subject =
     best.length >= 2 && (best[0].movePct ?? 0) > 0 && (best[best.length - 1].movePct ?? 0) < 0
@@ -303,10 +303,10 @@ export function renderWeek(f: WeekFacts, firstName: string, unsubUrl: string): R
         ? `This week in cards: ${f.jump.name} ${pct(f.jump.pct)}`
         : "This week in cards";
   const blocks: Block[] = [
-    { title: "The week", lines: f.games.map((g) => `${g.label}: ${fmt(g.movePct)} · ${g.note}`) },
-    ...(f.jump ? [{ title: "Biggest jump", lines: [`${f.jump.name} (${f.jump.set} ${f.jump.number}): ${f.jump.before != null ? `${money(f.jump.before)} → ` : ""}${money(f.jump.price)}, ${pct(f.jump.pct)}`] }] : []),
+    // Card rows with pictures (Chris 10-08: "this style looked better"): the biggest move in each game, biggest first.
+    { title: "Biggest move in each game", cards: f.moves },
     ...(f.set ? [{ title: "Set to watch", lines: [`${f.set.name} (${GAMES[f.set.game].label}): ${f.set.risers} of the top 20 risers came from this set.`] }] : []),
-    ...(f.sleeper ? [{ title: "Sleeper under $5", lines: [`${f.sleeper.name} (${GAMES[f.sleeper.game].label}, ${f.sleeper.set}): ${money(f.sleeper.price)}, ${pct(f.sleeper.pct)} this week.`] }] : []),
+    ...(f.sleeper ? [{ title: "Sleeper under $5", cards: [f.sleeper] }] : []),
     { title: "On CardFlip this week", lines: [`${f.scans.toLocaleString("en-US")} card${f.scans === 1 ? "" : "s"} scanned.${f.mostScanned ? ` Most scanned: ${f.mostScanned}.` : ""}`] },
   ];
   return layout({ subject, firstName, headline: "This week in cards.", blocks, buttons: [{ href: `${SITE_URL}/app/collection`, label: "Check Your Cards" }], unsubUrl });

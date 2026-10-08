@@ -434,8 +434,17 @@ export async function cardsFacts(user: User, now = Date.now(), shared: { five?: 
 /* ------------------------------------------------------------------ */
 
 export interface WeekFacts {
-  games: Array<{ game: GameId; label: string; movePct: number | null; note: string }>;
+  games: Array<{
+    game: GameId;
+    label: string;
+    /** Trimmed-mean 7-day move of the game's top cards; null = not enough history. */
+    movePct: number | null;
+    /** The game's biggest weekly jump, with its set and number; null = no guard-passed jump this week. */
+    jump: { name: string; set: string; number: string; from: number; to: number; pct: number } | null;
+  }>;
   jump: (MailCard & { pct: number }) | null;
+  /** One card row per game: its biggest guard-passed jump this week (games with none are left out). */
+  moves: Array<MailCard & { pct: number }>;
   set: { name: string; game: GameId; risers: number } | null;
   sleeper: (MailCard & { pct: number }) | null;
   scans: number;
@@ -517,25 +526,16 @@ async function buildWeekFacts(now: number): Promise<WeekFacts> {
     } catch (err) {
       console.warn(`week mail: ${g} index failed`, err);
     }
-    const note =
-      lead?.pct != null && lead.from != null
-        ? `${lead.name} ${money(lead.from)} → ${money(lead.price)}`
-        : movePct == null
-          ? "not enough history yet"
-          : Math.abs(movePct) < 0.5
-            ? "quiet week"
-            : movePct > 0
-              ? "more up than down"
-              : "more down than up";
-    games.push({ game: g, label: GAMES[g].label, movePct, note });
+    const jumpLine = lead?.pct != null && lead.from != null ? { name: lead.name, set: lead.setName, number: lead.number, from: lead.from, to: lead.price, pct: lead.pct } : null;
+    games.push({ game: g, label: GAMES[g].label, movePct, jump: jumpLine });
   }
 
-  const top = jumps.find((j) => j.pct != null && j.from != null);
-  let jump: WeekFacts["jump"] = null;
-  if (top) {
-    const links = await linksFor([{ cardId: top.cardId ?? null, game: top.game }]);
-    jump = { name: top.name, set: top.setName, number: top.number, game: top.game, image: top.imageUrl || null, url: (top.cardId && links.get(top.cardId)?.url) || `${SITE_URL}${gamePath(top.game)}`, price: top.price, before: top.from ?? null, pct: top.pct ?? 0 };
-  }
+  const jumped = jumps.filter((j) => j.pct != null && j.from != null);
+  const links = await linksFor(jumped.map((j) => ({ cardId: j.cardId ?? null, game: j.game })));
+  const moves: Array<MailCard & { pct: number }> = jumped
+    .map((j) => ({ name: j.name, set: j.setName, number: j.number, game: j.game, image: j.imageUrl || null, url: (j.cardId && links.get(j.cardId)?.url) || `${SITE_URL}${gamePath(j.game)}`, price: j.price, before: j.from ?? null, pct: j.pct ?? 0 }))
+    .sort((a, b) => b.pct - a.pct);
+  const jump: WeekFacts["jump"] = moves[0] ?? null;
 
   let set: WeekFacts["set"] = null;
   for (const g of GAME_IDS) {
@@ -556,7 +556,7 @@ async function buildWeekFacts(now: number): Promise<WeekFacts> {
   }
 
   const { scans, mostScanned } = await scansThisWeek(now);
-  return { games, jump, set, sleeper, scans, mostScanned };
+  return { games, jump, moves, set, sleeper, scans, mostScanned };
 }
 
 export const escapeHtml = esc;

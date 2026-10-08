@@ -108,7 +108,7 @@ mails.length = 0;
 const sun = await sweepCampaigns(SUN, {}, deps());
 check("Sunday: everyone due gets the week mail (fresh account is a day old by now)", [sun.campaign, mails.map((m) => m.to).filter((t) => t !== OWNER).sort()], ["week", ["fresh@example.com", "left@example.com", "low@example.com", "out@example.com"]]);
 const mSun = mails.find((m) => m.to === "left@example.com");
-check("week mail: five game lines + scans count", [mSun.text.includes("THE WEEK"), mSun.text.includes("Pokémon:"), mSun.text.includes("Yu-Gi-Oh!:"), mSun.text.includes("0 cards scanned")], [true, true, true, true]);
+check("week mail: biggest-move block + scans count", [mSun.text.includes("BIGGEST MOVE IN EACH GAME"), mSun.text.includes("0 cards scanned")], [true, true]);
 
 mails.length = 0;
 const tueAgain = await sweepCampaigns(TUE + 7 * DAY, {}, deps());
@@ -128,8 +128,9 @@ const one = renderScans({ variant: "trial_left", left: 1, included: 5, nextCredi
 check("singular + no-name greeting + no tip block", [one.subject, one.text.startsWith("Hi,"), one.text.includes("ONE TIP")], ["You still have 1 free scan", true, false]);
 const proLow = renderScans({ variant: "sub_low", left: 5, included: 750, nextCreditAt: null, plan: "pro", tip: null }, "Chris", "u");
 check("pro plan running low: Booster only, no Move to Pro", [proLow.text.includes(PLAN_NAME.pack), proLow.text.includes("Move to")], [true, false]);
-const week = renderWeek({ games: [{ game: "pokemon", label: "Pokémon", movePct: 2.1, note: "x" }, { game: "lorcana", label: "Lorcana", movePct: -1.9, note: "y" }], jump: null, set: null, sleeper: null, scans: 4120, mostScanned: "Pikachu ex" }, "Chris", "u");
+const week = renderWeek({ games: [{ game: "pokemon", label: "Pokémon", movePct: 2.1, jump: { name: "Charizard ex", set: "Obsidian Flames", number: "125", from: 34.1, to: 48.2, pct: 41.3 } }, { game: "lorcana", label: "Lorcana", movePct: -0.3, jump: null }], jump: null, moves: [{ name: "Charizard ex", set: "Obsidian Flames", number: "125", game: "pokemon", image: null, url: "u", price: 48.2, before: 34.1 }], set: null, sleeper: null, scans: 4120, mostScanned: "Pikachu ex" }, "Chris", "u");
 check("week subject names the top and bottom game", [week.subject, week.text.includes("4,120 cards scanned. Most scanned: Pikachu ex.")], ["This week in cards: Pokémon up, Lorcana down", true]);
+check("week card row carries set, number, price and move", week.text.includes("· Charizard ex · Obsidian Flames 125 — $48.20 (was $34.10, +41%)"));
 
 console.log(failures ? `\n${failures} FAILED` : "\nall passed");
 process.exit(failures ? 1 : 0);
