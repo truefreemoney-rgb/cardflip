@@ -97,6 +97,9 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 - [ ] First Stripe purchase shows under Goals > Purchase (page-load rule on /app/account/welcome?billing=success, fixed 10-07 from the wrong /app/account?billing=success).
 - [ ] /admin attribution shows the sign-up as "Google Ads" (utm_source=googleads suffix).
 
+## 10-08 game row
+- [ ] Game row on Inventory, Set Completion, Packs and /scan (Chris 10-08 "hate the look of the bar"): one line of small chips, no box, scrolls sideways on the phone, a 0 count not printed. Check it on the iPhone in Inventory and on /scan.
+
 ## 10-06 new features (audit section G)
 - [ ] Phone: Share on a found card opens the share sheet with the picture (iPhone + Android); falls back to a download elsewhere.
 - [x] (10-08 pane prod 375px: $111.90, ▼ $0.67 over 7 days, three movers, Share button present = Market Value $111.90; the picture itself is a phone check) Collector mode Inventory: value header shows total, 7-day change, top movers; Share makes the collection picture.
