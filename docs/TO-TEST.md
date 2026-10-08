@@ -128,7 +128,8 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 ## 10-06 look and feel (audit section E)
 - [x] 10-08 PASS from Chris iPhone screenshots (Inventory, scanner, /scan: tab bar clear of the home bar; sticky price bar on card pages not checked) Real iPhone: bottom tab bar sits above the home bar, nothing hidden under it.
 - [x] (10-08 local pane 375px: End listing confirm is a bottom sheet pinned to the bottom edge with Cancel / End listing; Cancel closes it. Back gesture = real phone only) Confirm pop-up (e.g. bulk delete) slides up as a bottom sheet on phone, Cancel/Confirm both work, Back gesture cancels.
-- [ ] Swipe the sheet handle down closes the card peek on the home page.
+- [x] 10-08 PASS iPhone (Chris: swipe closes it) Swipe the sheet handle down closes the card peek on the home page.
+- [ ] Home page card peek: closing it (X or swipe) leaves the page where it was, not at the bottom (Chris 10-08 iPhone: "shoots me to the bottom of the page"; the sheet's history pop let Safari restore a scroll position saved while the body was pinned; useBackToClose now re-applies the real offset on that popstate).
 - [ ] Loading skeletons show on slow 4G for Inventory, card pages, set pages.
 - [ ] Grey text is readable in sunlight (contrast lift on zinc-500/600).
 - [ ] Google shows the new home title "Pokémon & Yu-Gi-Oh! Card Scanner and Prices | CardFlip".

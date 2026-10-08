@@ -71,7 +71,19 @@ export function useBackToClose(id: string, onClose: () => void, open = true): vo
       if (popped || !isMarker(marker)) return;
       const timer = window.setTimeout(() => {
         pendingPop = null;
-        if (isMarker(marker)) window.history.back();
+        if (!isMarker(marker)) return;
+        // The pop is a history traversal, and Safari restores the scroll
+        // position it saved for the earlier entry on it. That entry was left
+        // while the body was pinned for the sheet (useBodyScrollLock), so the
+        // saved position is wrong: the home page jumped to the bottom on X
+        // (Chris 10-08). Put the page back where the unlock left it.
+        const y = window.scrollY;
+        const keep = () => {
+          window.scrollTo(0, y);
+          window.requestAnimationFrame(() => window.scrollTo(0, y));
+        };
+        window.addEventListener("popstate", keep, { once: true });
+        window.history.back();
       }, 0);
       pendingPop = { marker, timer };
     };
