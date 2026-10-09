@@ -1378,7 +1378,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
             })}
           </div>
           <p className="text-[11px] text-zinc-500">
-            Postage goes into your price, the buyer sees free shipping. Envelope is for sale prices under ${ENVELOPE_MAX_USD}.
+            Postage goes into your price, the buyer sees free shipping. Envelope is for sale prices of ${ENVELOPE_MAX_USD} or less.
           </p>
         </fieldset>
       )}

@@ -30,33 +30,43 @@ export function estimatedEbayFees(gross: number): number {
  *
  * gross − (gross·rate + flat) − postage ≥ net  ⇒  gross ≥ (net + flat + postage) / (1 − rate)
  */
-export const POSTAGE_USD = 0.75;
+// 10-08 evening (Chris: "something tells me it's not a flat $5"): real rates checked. eBay Standard
+// Envelope is $0.82 / $1.11 / $1.40 at 1 / 2 / 3 oz; a sleeved card in a toploader is 2 oz every time,
+// so $1.11 flat. USPS Ground Advantage under a pound is one price per ZONE ($6.93 near to $8.40 coast
+// to coast, published commercial, July 2026) and weight never moves it, so a slab costs the same as a
+// raw card; $7 flat covers zones 1-5 with room. Both numbers are the seller's cost, never the buyer's.
+export const POSTAGE_USD = 1.11;
 /**
  * The seller PICKS how a card ships (Chris 10-08: "we shouldn't let the user
  * post to eBay unless they pick a shipping option"): an eBay Standard Envelope
- * ($0.75, tracked, Chris caps it at a $100 sale price (10-08)) or a bubble
- * mailer by USPS Ground Advantage (~$5). The buyer pays nothing either way,
- * the postage sits inside the asking price. Nothing is picked by default; the
- * suggested pick (defaultShipMethod) is the envelope while it is allowed.
+ * ($1.11, tracked, eBay only sells that label for items sold at $20 or less)
+ * or a bubble mailer by USPS Ground Advantage ($7 flat, see above). The buyer
+ * pays nothing either way, the postage sits inside the asking price. Nothing
+ * is picked by default; the suggested pick (defaultShipMethod) is the
+ * envelope while it is allowed.
  */
 export type ShipMethod = "envelope" | "tracked";
 export const SHIP_METHODS: readonly ShipMethod[] = ["envelope", "tracked"];
-export const TRACKED_POSTAGE_USD = 5;
-/** eBay Standard Envelope: the sale price must be under this. */
-export const ENVELOPE_MAX_USD = 100;
+export const TRACKED_POSTAGE_USD = 7;
+/**
+ * eBay Standard Envelope: the sale price must be under this. eBay's own rule
+ * (items sold for $20 or less), not ours: the $100 cap Chris set at noon 10-08
+ * would have left sellers unable to buy the label; back to $20 that evening.
+ */
+export const ENVELOPE_MAX_USD = 20;
 export function postageFor(method: ShipMethod | null | undefined): number {
   return method === "tracked" ? TRACKED_POSTAGE_USD : POSTAGE_USD;
 }
-/** "$0.75" / "$5.00" for the pick tiles. */
+/** "$1.11" / "$7.00" for the pick tiles. */
 export function formatMoneyPostage(n: number): string {
   return `${n.toFixed(2)}`;
 }
 export function isShipMethod(v: unknown): v is ShipMethod {
   return v === "envelope" || v === "tracked";
 }
-/** Whether the envelope is allowed at this sale price (under the $100 cap). */
+/** Whether the envelope is allowed at this sale price (eBay: $20 or less). */
 export function envelopeAllowed(gross: number): boolean {
-  return gross < ENVELOPE_MAX_USD;
+  return gross <= ENVELOPE_MAX_USD;
 }
 /** The pick to suggest for a card worth `net`: the envelope while its price stays under the cap. */
 export function defaultShipMethod(net: number): ShipMethod {

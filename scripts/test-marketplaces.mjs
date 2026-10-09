@@ -73,7 +73,7 @@ console.log("Table");
   check("policy cost set on every non-NZ local row", ["GB", "IE", "AU", "CA"].every((k) => /^\d+\.\d{2}$/.test(MARKETPLACES[k].shipping.policyCost)), true);
   check("US row reproduces today's literals", [US_MARKETPLACE.shipping, US_MARKETPLACE.postage, US_MARKETPLACE.fees.business], [
     { carrierCode: "USPS", serviceCode: "USPSGroundAdvantage", fallbackServiceCode: "USPSPriority", policyCost: "4.99", envelopeServiceCode: "US_eBayStandardEnvelope" },
-    0.75,
+    1.11,
     { rate: fees.EBAY_FEE_RATE, flat: fees.EBAY_FLAT_FEE, flatOver: fees.EBAY_FLAT_FEE_OVER_10, flatStep: fees.EBAY_FLAT_FEE_STEP_USD },
   ]);
   check("UK and AU private sellers pay no fee; business pays", [
@@ -111,7 +111,7 @@ console.log("fee variants: For(US) === the existing US exports");
   const sweep = [];
   for (let c = 0; c <= 3000; c += 1) sweep.push(c / 100); // $0.00 – $30.00 every cent
   for (let c = 3000; c <= 5_000_000; c += 4999) sweep.push(c / 100); // out to $50,000
-  sweep.push(4.999, 5, 5.001, 9.995, 10, 10.004, 10.01, 0.005, 1.22, 1.5);
+  sweep.push(4.999, 5, 5.001, 9.995, 10, 10.004, 10.01, 0.005, 1.63, 1.92);
   const diffs = { flat: 0, est: 0, cover: 0, covers: 0, coversAll: 0, taper: 0, net: 0, netActual: 0, below: 0 };
   for (const v of sweep) {
     if (fees.ebayFlatFeeFor(mp, v) !== fees.ebayFlatFee(v)) diffs.flat++;
@@ -129,8 +129,8 @@ console.log("fee variants: For(US) === the existing US exports");
   check("listingFloor", fees.listingFloorFor(mp), fees.listingFloor());
   check("floorRefusal text", fees.floorRefusalFor(mp), fees.floorRefusal());
   check("account type changes nothing on US (private = business)", [fees.listingFloorFor(mp, "INDIVIDUAL"), fees.costTaperedPriceFor(mp, 3.33, "INDIVIDUAL")], [fees.listingFloor(), fees.costTaperedPrice(3.33)]);
-  // Chris 10-08: fees + postage on every card (COSTS_ON_EVERY_CARD) - the old taper ($7.50 → $8.68, $10 → $10) is gone; $7.50 → $9.86, $10 → $12.86.
-  check("US known values: floor $1.22, $5 → $6.98, $7.50 → $9.86, $10 → $12.86", [fees.listingFloorFor(mp), fees.costTaperedPriceFor(mp, 5), fees.costTaperedPriceFor(mp, 7.5), fees.costTaperedPriceFor(mp, 10)], [1.22, 6.98, 9.86, 12.86]);
+  // Chris 10-08: fees + postage on every card (COSTS_ON_EVERY_CARD) - the old taper ($7.50 → $8.68, $10 → $10) is gone; $7.50 → $10.39, $10 → $13.27 (postage $1.11).
+  check("US known values: floor $1.63, $5 → $7.39, $7.50 → $10.39, $10 → $13.27", [fees.listingFloorFor(mp), fees.costTaperedPriceFor(mp, 5), fees.costTaperedPriceFor(mp, 7.5), fees.costTaperedPriceFor(mp, 10)], [1.63, 7.39, 10.39, 13.27]);
 }
 
 console.log("fee variants: other markets behave");

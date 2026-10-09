@@ -347,9 +347,9 @@ console.log("card story");
 const cs = await import(at("lib/cardStory.ts"));
 const fees = await import(at("lib/fees.ts"));
 const quarter = cs.sellMath(0.25);
-check("sell math: a $0.25 card lists at $1.50 (Chris 09-30) and the seller keeps its value", [quarter.ask, quarter.covers, quarter.net >= 0.25], [1.5, "all", true]);
-// Chris 10-08: fees + postage on every card (COSTS_ON_EVERY_CARD) - no taper, $7.50 lists at $9.86 and covers all of the costs.
-check("sell math: $7.50 lists at $9.86 (every card carries the costs)", [cs.sellMath(7.5).ask, cs.sellMath(7.5).covers], [9.86, "all"]);
+check("sell math: a $0.25 card lists at $1.92 (Chris 09-30) and the seller keeps its value", [quarter.ask, quarter.covers, quarter.net >= 0.25], [1.92, "all", true]);
+// Chris 10-08: fees + postage on every card (COSTS_ON_EVERY_CARD) - no taper, $7.50 lists at $10.39 and covers all of the costs.
+check("sell math: $7.50 lists at $10.39 (every card carries the costs)", [cs.sellMath(7.5).ask, cs.sellMath(7.5).covers], [10.39, "all"]);
 const twentyFive = cs.sellMath(25);
 // Chris 10-08: fees + postage on every card (COSTS_ON_EVERY_CARD)
 check("sell math: from $10 up the costs are on top too and the net is ask − fees − postage", [twentyFive.covers, twentyFive.net], ["all", Math.round((twentyFive.ask - fees.estimatedEbayFees(twentyFive.ask) - fees.POSTAGE_USD) * 100) / 100]);

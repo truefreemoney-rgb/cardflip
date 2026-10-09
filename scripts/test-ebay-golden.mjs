@@ -160,7 +160,7 @@ const inputs = {
     card: { ...card, name: "Lightning Bolt", setName: "Alpha", number: "161", rarity: "Common", typeLine: "Instant" },
     listing: { ...base.listing, price: 3.49 },
   },
-  twoCopies: { ...base, quantity: 2, listing: { ...base.listing, price: 1.5 } },
+  twoCopies: { ...base, quantity: 2, listing: { ...base.listing, price: 1.99 } },
   noPhoto: { ...base, hasPhoto: false },
 };
 const policies = { fulfillmentPolicyId: "f-1", paymentPolicyId: "p-1", returnPolicyId: "r-1" };

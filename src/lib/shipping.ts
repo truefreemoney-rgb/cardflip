@@ -20,7 +20,7 @@ export interface ShipOption {
 }
 
 export const SHIP_OPTIONS: readonly ShipOption[] = [
-  { id: "envelope", label: "Envelope", sub: `eBay Standard Envelope, tracked, under $${ENVELOPE_MAX_USD}`, postage: POSTAGE_USD },
+  { id: "envelope", label: "Envelope", sub: `eBay Standard Envelope, tracked, $${ENVELOPE_MAX_USD} or less`, postage: POSTAGE_USD },
   { id: "tracked", label: "Tracked mailer", sub: "Bubble mailer, USPS Ground Advantage", postage: TRACKED_POSTAGE_USD },
 ];
 

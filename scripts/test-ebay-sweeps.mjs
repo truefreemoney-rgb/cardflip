@@ -235,27 +235,28 @@ await recordPoint("cat-up", "pokemon", "normal", "tcgplayer", "USD", 20);
 await recordPoint("cat-down", "pokemon", "normal", "tcgplayer", "USD", 16);
 await recordPoint("cat-flat", "pokemon", "normal", "tcgplayer", "USD", 10.5);
 const up = await listedCard({ price: 10, catalogId: "cat-up", listedAt: NOW - 8 * DAY });
-const down = await listedCard({ price: 30, catalogId: "cat-down", listedAt: NOW - 8 * DAY });
+// $16 + costs is over the $20 envelope cap, so both targets below are USPS tracked; down is listed at $35 so the drop is still 15%+.
+const down = await listedCard({ price: 35, catalogId: "cat-down", listedAt: NOW - 8 * DAY });
 await listedCard({ price: costCoveredPrice(10.5), catalogId: "cat-flat", listedAt: NOW - 8 * DAY }); // already right: no drift
 await listedCard({ price: 10, catalogId: "cat-up", listedAt: NOW - 2 * DAY });
 await listedCard({ price: 10, catalogId: null, listedAt: NOW - 8 * DAY });
 await listedCard({ price: 10, catalogId: "cat-none", listedAt: NOW - 8 * DAY });
 const nudges = (await getRepriceNudges(uid, NOW)).sort((x, y) => x.drift - y.drift);
 check("nudges: only 15%+ drift after 7 days with a series", nudges.map((x) => [x.cardId, x.market, x.target, x.listedPrice, x.drift]), [
-  [down.id, 16, costCoveredPrice(16), 30, (costCoveredPrice(16) - 30) / 30],
-  [up.id, 20, costCoveredPrice(20), 10, (costCoveredPrice(20) - 10) / 10],
+  [down.id, 16, costCoveredPrice(16, "tracked"), 35, (costCoveredPrice(16, "tracked") - 35) / 35],
+  [up.id, 20, costCoveredPrice(20, "tracked"), 10, (costCoveredPrice(20, "tracked") - 10) / 10],
 ]);
 // 09-30: the nudge offers the scanner's price, not raw market. Under $5 that
-// is value + fees + postage — a $1.30 card listed at $2.71 is already right
+// is value + fees + postage — a $1.30 card listed at $3.13 is already right
 // (raw market nudged it to $1.30 = 8¢ net), and a $0.25 Spidops listed at
-// the old $1.79 minimum is nudged down to $1.50, not to $0.25 (refused).
+// $2.50 (the $1.79 minimum is only 7% off the new $1.92 target, under the 15% bar) is nudged down to $1.92, not to $0.25 (refused).
 await recordPoint("cat-cheap", "pokemon", "normal", "tcgplayer", "USD", 1.3);
 await recordPoint("cat-spidops", "pokemon", "normal", "tcgplayer", "USD", 0.25);
-const cheapRight = await listedCard({ price: 2.71, catalogId: "cat-cheap", listedAt: NOW - 8 * DAY });
-const oldFloor = await listedCard({ price: 1.79, catalogId: "cat-spidops", listedAt: NOW - 8 * DAY });
+const cheapRight = await listedCard({ price: costCoveredPrice(1.3), catalogId: "cat-cheap", listedAt: NOW - 8 * DAY });
+const oldFloor = await listedCard({ price: 2.5, catalogId: "cat-spidops", listedAt: NOW - 8 * DAY });
 const cheapNudges = (await getRepriceNudges(uid, NOW)).filter((x) => [cheapRight.id, oldFloor.id].includes(x.cardId));
 check("nudges: cheap cards target value + costs, not raw market", cheapNudges.map((x) => [x.cardId, x.market, x.target]), [
-  [oldFloor.id, 0.25, 1.5],
+  [oldFloor.id, 0.25, 1.92],
 ]);
 
 // --- the price guard (priceTrustSite): a flagged market never nudges, dips or becomes a baseline ---------

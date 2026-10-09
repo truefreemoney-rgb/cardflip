@@ -100,8 +100,8 @@ export const US_MARKETPLACE: Marketplace = {
   contentLanguage: "en-US",
   domain: "ebay.com",
   locationCountry: "US",
-  postage: 0.75,
-  tracked: { postage: 5 },
+  postage: 1.11, // = POSTAGE_USD in fees.ts (literal: fees.ts imports this file)
+  tracked: { postage: 7 }, // = TRACKED_POSTAGE_USD
   fees: same({ rate: 0.1325, flat: 0.3, flatOver: 0.4, flatStep: 10 }),
   taper: { coveredMax: 5, end: 10 },
   shipping: {
