@@ -387,7 +387,9 @@ assert.match(panel, /showCodeForm = canResend && !linkOnly/, "the code box is th
 assert.match(panel, /We sent a link to[\s\S]*Open it and tap Confirm\./, "the link-only line");
 assert.match(panel, /Send a new link/, "resend is Send a new link");
 assert.match(linkPage, /Confirm and open CardFlip/, "the page button");
-assert.match(linkPage, /out\.signedIn[\s\S]*router\.replace\("\/app\?scan=1"\)/, "a signed-in confirmation goes straight to the open scanner");
+// (10-08) a parked WATCH lands on the watchlist with the card added; otherwise the scanner, as before.
+assert.match(linkPage, /out\.signedIn[\s\S]*watch && !scan \? \("\/app\/wishlist\?watched=1" as const\) : \("\/app\?scan=1" as const\)[\s\S]*router\.replace\(to\)/, "a signed-in confirmation goes straight to the open scanner, or the watchlist when a watch (not a scan) is waiting");
+assert.match(linkPage, /if \(to === "\/app\/wishlist\?watched=1"\) await claimPendingWatch\(\)/, "the parked watch is claimed before the watchlist opens");
 assert.match(linkPage, /peek\.state === "valid" \|\| peek\.state === "confirmed"\) void confirm\(\)/, "the link confirms as the page opens, no tap");
 assert.match(panel, /pushPendingScan/, "the waiting scan is parked on the server when the screen comes up");
 
