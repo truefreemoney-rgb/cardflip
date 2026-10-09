@@ -260,6 +260,8 @@ export async function xLikeOwn(tweetId: string): Promise<void> {
 export const x: SocialSite = {
   id: "x",
   label: "X",
+  // Reach trial 10-09 (one week): sign-off closes the post instead of opening it.
+  signOffLast: true,
   maxChars: X_MAX_CHARS,
   // Chris 10-07: 5 to 7 tags on every post (was 2); fitText drops caption words before tags.
   maxTags: 7,

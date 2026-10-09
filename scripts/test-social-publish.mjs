@@ -583,3 +583,16 @@ console.log("the 7pm jumps are filed for the no-repeat rule once they land (thei
 
 if (failures) { console.log(`\n${failures} failing`); process.exit(1); }
 console.log("\nall green");
+
+// Reach trial 10-09: Instagram, Threads and X close with the sign-off instead of opening with it.
+{
+  const { trailSignOff } = await import(at("lib/server/socialPublish.ts"));
+  const S = "Scan a card, see what it's worth. cardflip.io";
+  check("trailSignOff: the leading sign-off moves to just before the tags", trailSignOff(`${S}\n\nA\n\nB\n\n#X #Y`), `A\n\nB\n\n${S}\n\n#X #Y`);
+  check("trailSignOff: no tags = sign-off last", trailSignOff(`${S}\n\nA`), `A\n\n${S}`);
+  check("trailSignOff: a bare leading address moves too", trailSignOff(`cardflip.io\n\nA\n\n#X`), `A\n\ncardflip.io\n\n#X`);
+  check("trailSignOff: nothing to move = unchanged", trailSignOff(`A\n\nB cardflip.io\n\n#X`), `A\n\nB cardflip.io\n\n#X`);
+  const post = { caption: `Hi\n\n${S}`, shortCaption: `Hi\n\n${S}`, hashtags: ["A", "B"] };
+  check("fitText signOffLast: body first, sign-off, then tags", fitText(post, 300, 7, true), `Hi\n\n${S}\n\n#A #B`);
+  check("fitText default still leads", fitText(post, 300, 7), `${S}\n\nHi\n\n#A #B`);
+}

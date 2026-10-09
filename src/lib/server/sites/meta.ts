@@ -316,6 +316,8 @@ export function instagramCaption(text: string): string {
 export const instagram: SocialSite = {
   id: "instagram",
   label: "Instagram",
+  // Reach trial 10-09 (one week): sign-off closes the post instead of opening it.
+  signOffLast: true,
   maxChars: INSTAGRAM_MAX_CHARS,
   // Instagram accepts at most five hashtags a post.
   maxTags: 5,
@@ -391,6 +393,8 @@ export async function metaReadCreds(): Promise<{
 export const threads: SocialSite = {
   id: "threads",
   label: "Threads",
+  // Reach trial 10-09 (one week): sign-off closes the post instead of opening it.
+  signOffLast: true,
   maxChars: THREADS_MAX_CHARS,
   // Threads turns only the first tag into the post's topic; the rest show as plain text.
   maxTags: 1,

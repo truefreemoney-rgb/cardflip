@@ -233,6 +233,8 @@ export interface SocialSite {
   /** Most hashtags the site accepts (Instagram: 5); the tag list is cut from the end to it. */
   maxTags?: number;
   maxImageBytes: number;
+  /** Reach trial 10-09: the sign-off closes the body instead of opening it (Instagram, Threads, X). */
+  signOffLast?: boolean;
   /** True when post() knows what to do with p.video; the publisher only fetches the MP4 for these. */
   postsVideo?: boolean;
   /** Env vars exist (Chris pasted the app or token). */
@@ -295,8 +297,25 @@ export function leadSignOff(text: string): string {
   return `${SIGN_OFF_LINE}\n\n${body}`;
 }
 
-export function fitText(post: SocialPost, maxChars: number, maxTags = Infinity): string {
-  return leadSignOff(fitTextRaw(post, maxChars, maxTags));
+export function fitText(post: SocialPost, maxChars: number, maxTags = Infinity, signOffLast = false): string {
+  const raw = fitTextRaw(post, maxChars, maxTags);
+  return signOffLast ? trailSignOff(raw) : leadSignOff(raw);
+}
+
+/**
+ * Reach trial (Chris 10-09, "try it for a week and review"): on Instagram,
+ * Threads and X the first line is the hook the reader and the ranking judge,
+ * and a promo line with a link in it was ours on every post. Those sites get
+ * the sign-off (or the bare address fitTextRaw led with) moved to the END of
+ * the body, just before the hashtags. TikTok, Facebook and Bluesky are unchanged.
+ */
+export function trailSignOff(text: string): string {
+  const paras = text.split("\n\n");
+  if (paras.length < 2 || (paras[0] !== SIGN_OFF_LINE && paras[0] !== "cardflip.io")) return text;
+  const [lead, ...rest] = paras;
+  const tagsAt = rest.length && rest[rest.length - 1].startsWith("#") ? rest.length - 1 : rest.length;
+  rest.splice(tagsAt, 0, lead);
+  return rest.join("\n\n");
 }
 
 function fitTextRaw(post: SocialPost, maxChars: number, maxTags = Infinity): string {
@@ -697,7 +716,7 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
       const landed: Array<{ uri: string; game: string; format: "video" | "picture" }> = [];
       for (const d of drafts) {
         // Filled to seven tags like TikTok (Chris 10-07: 5 to 7 on every post), then cut to the site's maxTags.
-        const text = fitText({ ...d, hashtags: fillTags(d.hashtags, d.mixed ? "mixed" : d.game) }, site.maxChars, site.maxTags);
+        const text = fitText({ ...d, hashtags: fillTags(d.hashtags, d.mixed ? "mixed" : d.game) }, site.maxChars, site.maxTags, site.signOffLast);
         if (opts.dry) {
           entry.posts.push({ id: d.id, title: d.title, video: site.postsVideo && slotFormat(p.slot, day) === "video" && (await currentVideoFor(d)) ? "yes" : undefined });
           continue;
