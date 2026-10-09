@@ -37,3 +37,58 @@ Ranked by likely effect on reach:
 8. INSTAGRAM STATS: insights metric "views" then "reach"; 9 zero-view posts are likely real (fresh account, promo opener), not a reader bug.
 9. Alt text = "title. first caption line" on every site: fine for IG SEO but the first caption line is the builder's intro, OK.
 Not a reach lever but noted: 60-day token refresh, media_publish retry, PNG→JPEG, blob parking all correct.
+
+## 3. Research (Sonnet, 10-09 evening)
+### Threads
+- Replies first: end with a specific card question, answer every comment in the first hour (vendor guides, not Meta data).
+- Caption as a plain search sentence: card name, set, price, "card price scanner"; Threads search indexes the words.
+- Video or image, never text-only; video vs image order unsettled.
+- One mid-breadth topic tag ("Pokemon Cards" / "Trading Cards"), sent via the API `topic_tag` parameter (developers.facebook.com); first "#" in text also works.
+- Link placement unsettled for 2026 (some say links fine now, others 30-50% less reach): test link-in-body vs link-in-first-reply for a week.
+- Weekday mornings (Buffer: Thu 9am), weak effect. Profile must be public. No follower threshold for For You. No API penalty found.
+- Stagger Instagram cross-posts by 2-4 hours, make the Threads caption its own question.
+### Facebook Page
+- Page Reels (/{page}/video_reels: start → rupload → finish video_state=PUBLISHED) reach non-followers more per most sources, but one head-to-head test found plain videos got 2x overall reach: unproven, check non-follower share in Insights.
+- Watch time / retention + a 2-3 s hook are the ranking signals (vendor blogs).
+- Keep the link OUT of the caption, first comment instead (Meta reportedly testing 2 link posts/month cap for Pages without Meta Verified).
+- 1-3 hashtags at most; one 40-post test: no-tag posts reached more. Short captions, one hook line.
+- No Page country/age restrictions. Category irrelevant to reach. Page must be published. Professional mode = profiles only.
+- Groups: API posting gone since 2024-04-22, manual only. Page self-like: no source says it helps; probably noise.
+### Instagram Reels (mostly blogs relaying Mosseri; numbers unverified)
+- Watch time + sends (DM shares) are the non-follower signals: hook in the first second, end with something a collector forwards.
+- Caption keywords beat hashtags: "Pokemon card price checker", "how much is my Lorcana card worth" in caption, on-screen text, alt text.
+- ACCOUNT STATUS CHECK (pane): Settings > Account Status > "eligible to be recommended to non-followers". If not, nothing else matters. Account must be public.
+- Original only, no watermarks; near-identical templates may read as repetitive.
+- Trial Reels: post to non-followers first, promote winners; each needs a different hook/visual.
+- On-screen text indexed; keep it in the upper two-thirds.
+- Hashtags: cap is 5 now, 3-5 specific tags, they only categorise.
+- Audio: no measured difference original vs trending. Keep our track.
+- Custom cover (grid crops to square) helps profile conversion, not feed reach. Business vs Creator: no reach difference. Posting time weak; judge at 72 h.
+- Link line: not clickable; hook first, URL last (no official source for ad-suppression).
+- Collabs reach the partner's followers; only with a different-audience partner. Location tag / share-to-feed: neutral.
+- Zero views: recommendation flag, private account, watermark/bot-like automated posting, cold start test pools, or processing/music mute. Check each zero post in the app.
+### X
+- Link in a REPLY, not the post (blogs: 30-90% reach cut for URL posts, worse on free accounts). Our sign-off has cardflip.io in every post.
+- Premium ~10x median reach (Buffer, 18.8M posts; 600 vs <100 impressions). Money question for Chris.
+- Replies in the first 30-60 min set the ceiling; be present. 0-2 hashtags (3+ reported -17 to -40%); caption text carries the weight.
+- Vary captions; repetition and bot-like behaviour get penalised. Shadow-limit check: logged out, search `from:handle` on Latest.
+- No API penalty found. Video vs image unresolved. Communities status unclear. Self-like: no source.
+### Bluesky
+- Discovery = custom feeds (keyed off hashtags/keywords) + starter packs; get into niche starter packs (ask curators).
+- Reply to 6-12 posts a day; reposts/replies carry reach. 1-3 niche tags; search is chronological, so posts sink fast.
+- Facets already built. Evening 4-10pm per Metricool (general data). Set the automation self-label? (docs.bsky.app recommends for bots; voluntary.) Labelers can tag accounts spam/bot: avoid mass-follow (our 25/day outreach follows are a risk).
+
+## 4. Ranked changes (draft, pending the account audit)
+**Code, in the publisher**
+1. DONE 10-09: sign-off last on IG/Threads/X (trial to 10-16).
+2. X: drop the link from the post, put the sign-off with the link in a first reply (every source agrees).
+3. Threads: send `topic_tag` via the API param; caption = one plain search sentence + a question (not a copy of the IG caption).
+4. Instagram: caption keywords ("Pokemon card price checker" style) in the caption + alt text; cut tags to 3-5 niche, niche FIRST in the 7-tag list so the end-cut keeps them; thumb_offset cover.
+5. Facebook: 1-3 tags, link in first comment, Reels endpoint (unproven, test).
+6. Vary captions per site (same text everywhere today) and per day.
+**Chris does once in the app (account audit, pane)**
+- Instagram: Settings > Account Status (recommendable?), public, Insights non-follower share, each zero-view post in the app.
+- X: shadow-limit check logged out; decide on Premium.
+- Facebook: Page published, no country/age restriction.
+- Bluesky: ask 2-3 TCG starter-pack curators to add us; reconsider 25/day follows.
+**Stop doing**: self-likes (no source says they help).
