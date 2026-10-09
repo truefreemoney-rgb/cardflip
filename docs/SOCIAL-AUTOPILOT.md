@@ -389,3 +389,12 @@ the token/app password as a reply on the row. Nothing else, ever.
 - No hand-written posts, no scheduling tool subscription, no engagement
   farming (replies/DMs stay human or not at all).
 - No posting from the helper login; the publisher is a routine.
+
+## TikTok results log (by hand, read from the pane)
+
+| Posted | Post | Sound | Views | Likes | Saves | Note |
+|---|---|---|---|---|---|---|
+| 10-07 | Lorcana "Scan a card, see what it's worth" (7694066139168607501) | Funk it up (library) | 233 | 7 | 1 | 6 of 7 likes are outside accounts, all different; best like rate so far (3%) |
+| 10-08 7:23pm | Pokémon Most Valuable repost (first upload died, reposted ~30 min later) | Pokemon Theme Song (library) + Chris's cover | views after ~40 min | | | pinned on the profile; the first upload likely never got its For You test batch |
+
+Reads: both top posts used library sounds (10-09 = new sound every post, a real test); Lorcana beat Pokémon on likes on one sample. The optimizer's `gameFor` already weights games by score, but TikTok numbers only reach it through `socialPulse` when the stats token exists; until then this table is the record.
