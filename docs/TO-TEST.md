@@ -242,3 +242,5 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 
 - 10-07 admin: /admin/analytics second funnel now follows the date range ('Everyone, last 7 days': had an account / scanned / listed / sold in range). /admin/social opens fast from the last saved build and rebuilds stale drafts in the background (check 'Drafts built N min ago' drops on the next visit).
 - [ ] (10-10 evening, me) TikTok question-format test: read views/likes of the three 10-09 posts (7am Guess Pokémon, 1pm Movers control, 7pm Head to Head Pokémon) into docs/SOCIAL-AUTOPILOT.md results log; decide the 7pm weighting from that.
+
+- [ ] 10-16 evening: REACH TRIAL REVIEW (2c23d2a4, 10-09). Instagram/Threads/X avg views per post 10-10..10-16 vs the 14-day baseline in docs/SOCIAL-REACH-DEEPDIVE.md (IG 5.7, Threads 18, X 12). First 10-10 7am run: open one IG/Threads/X post, confirm the sign-off is at the bottom above the tags, TikTok/Facebook/Bluesky unchanged. If no lift, revert signOffLast on the three sites.
