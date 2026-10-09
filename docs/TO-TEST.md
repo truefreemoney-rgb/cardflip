@@ -241,3 +241,4 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 - [ ] Packs (G8), real phone at 375px: scanner "Open a Pack" > pick game, name, price > scan 3 cards > banner shows pulls and value > Done opens the pack page (cost, value, profit, ROI, best pull, list with art). Share makes a 1080x1920 "My Pack" picture. Inventory > Packs shows past packs and the all-packs ROI. Delete a pack: its cards stay in Inventory.
 
 - 10-07 admin: /admin/analytics second funnel now follows the date range ('Everyone, last 7 days': had an account / scanned / listed / sold in range). /admin/social opens fast from the last saved build and rebuilds stale drafts in the background (check 'Drafts built N min ago' drops on the next visit).
+- [ ] (10-10 evening, me) TikTok question-format test: read views/likes of the three 10-09 posts (7am Guess One Piece, 1pm Movers control, 7pm Head to Head Lorcana) into docs/SOCIAL-AUTOPILOT.md results log; decide the 7pm weighting from that.
