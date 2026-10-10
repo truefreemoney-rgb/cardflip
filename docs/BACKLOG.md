@@ -314,3 +314,5 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 - → §0 (backburner): PriceCharting API if deeper history wanted later
 
 - (10-08) TikTok 7pm Most Valuable re-run on Sun 10-11 7pm: fresh render with that day's prices, rotated opener, NEW library sound (the 10-08 one died twice and is pinned on the profile instead). Not a repost of the 10-08 file.
+
+- Sign in with X (Chris asked 10-10): our X app can do OAuth 2.0 login, but X returns no email, so we would still ask for one. Build only if X signups become steady.
