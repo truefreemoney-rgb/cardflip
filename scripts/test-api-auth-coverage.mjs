@@ -36,6 +36,7 @@ const ALLOWLIST = {
   "/auth/confirm-email": "emailed one-time link token is the credential; IP rate limited",
   "/auth/forgot": "password-reset request: public by design, IP and account rate limited",
   "/auth/logout": "ends the caller's own session cookie",
+  "/auth/x/finish": "signed x_pending cookie from the X callback is the credential (no session yet); IP rate limited",
   "/auth/reset": "emailed one-time reset token is the credential; IP rate limited",
   "/vision/trial": "ad-landing free scan: public by design, gated by device/IP limits and a daily budget",
   "/visit": "anonymous visitor ping: public by design, IP rate limited, path shape validated",

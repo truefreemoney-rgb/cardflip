@@ -12,6 +12,7 @@ import ConfirmEmailPanel from "@/components/ConfirmEmailPanel";
 import DevLoginButton from "@/components/DevLoginButton";
 import GoogleButton, { googleErrorFromUrl } from "@/components/GoogleButton";
 import { xErrorFromUrl } from "@/components/XButton";
+import { isValidEmail } from "@/lib/emailAddress";
 import { pixelTrack } from "@/lib/client/pixel";
 import { fetchCurrentUser, signup, type SessionUser } from "@/lib/client/auth";
 import { updateProfile } from "@/lib/client/accountApi";
@@ -72,7 +73,7 @@ export default function SignupPage() {
   async function handleXFinish(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (!/^S+@S+.S+$/.test(xEmail)) return setError("Enter a valid email address.");
+    if (!isValidEmail(xEmail.trim())) return setError("Enter a valid email address.");
     setSubmitting(true);
     try {
       const res = await fetch("/api/auth/x/finish", {
