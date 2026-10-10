@@ -112,3 +112,5 @@ Not a reach lever but noted: 60-day token refresh, media_publish retry, PNG→JP
 5. Instagram: keyword caption ("Pokemon card price checker" style) + 3-5 niche tags, niche first in the tag order.
 6. Drop the self-likes (no evidence they help). Vary captions per site.
 **Not needed**: Facebook Reels endpoint (already reels), Instagram cover (grid is fine), account type change.
+
+- 10-10: first signup from X (10:30am ET, t.co → /, US), the morning after the sign-off-last trial started. 12 "search" visitors the same morning hit 7 different nav pages (likely crawler/tool, verify in Search Console).
