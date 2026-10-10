@@ -92,3 +92,23 @@ Not a reach lever but noted: 60-day token refresh, media_publish retry, PNG→JP
 - Facebook: Page published, no country/age restriction.
 - Bluesky: ask 2-3 TCG starter-pack curators to add us; reconsider 25/day follows.
 **Stop doing**: self-likes (no source says they help).
+
+## 2. Account audit (pane, 10-09 ~9:15pm ET)
+- 7pm trial posts verified: Threads and X carry the sign-off/link at the bottom above the tags. Instagram reel DeSpgrdlt_1 at 0 views after ~1 h, Threads 16, X 7.
+- **Every Meta account has ZERO followers and follows nobody**: Instagram 0/0 (45 posts), Facebook Page 0/0, Threads 0. X: 6 followers / 30 following. Every post rides cold recommendation only; this is the single biggest fact.
+- Instagram: public, Business account (category Product/service), Account Status → "You don't have limits to your account reach". Grid covers are card frames (fine). **No website link in the bio** (links are mobile-only to edit); a street address (6800 Wisconsin Ave, Chevy Chase) shows on the public profile. Threads badge on.
+- Facebook: Page is published and visible; our /videos uploads already land as **Reels** (url facebook.com/reel/…, Reels tab), so the video_reels endpoint change is NOT needed. Each reel ~1 view. Page category "App page".
+- Threads: profile public; 762 views / 649 viewers / 1 interaction in 30 days per Insights; 0 followers.
+- X: free account, 7 tags per post; shadow-limit check not done (needs a logged-out window).
+- Bluesky: not audited in the pane (API posts verified by code).
+
+## 4. Ranked changes (final)
+**Chris, once, from the phone (2 min each)**
+1. Instagram → Edit profile → add website cardflip.io (and consider removing the street address from the public profile).
+2. From each account, follow ~20 real TCG accounts/shops (IG, Threads, Facebook as the Page, X) so the accounts stop looking brand-new; a follow-back or two is the first non-zero audience.
+**Code (me, one at a time, after the 10-16 trial read)**
+3. X: post without the link; sign-off + link in a first reply.
+4. Threads: topic_tag via the API param + its own one-sentence caption with a question.
+5. Instagram: keyword caption ("Pokemon card price checker" style) + 3-5 niche tags, niche first in the tag order.
+6. Drop the self-likes (no evidence they help). Vary captions per site.
+**Not needed**: Facebook Reels endpoint (already reels), Instagram cover (grid is fine), account type change.
