@@ -104,7 +104,7 @@ Not a reach lever but noted: 60-day token refresh, media_publish retry, PNG→JP
 
 ## 4. Ranked changes (final)
 **Chris, once, from the phone (2 min each)**
-1. Instagram → Edit profile → add website cardflip.io (and consider removing the street address from the public profile).
+1. ~~Instagram → Edit profile → add website cardflip.io~~ DONE 10-10 7:05pm ET (link added; Chris keeps the street address on purpose, it is paid for).
 2. From each account, follow ~20 real TCG accounts/shops (IG, Threads, Facebook as the Page, X) so the accounts stop looking brand-new; a follow-back or two is the first non-zero audience.
 **Code (me, one at a time, after the 10-16 trial read)**
 3. X: post without the link; sign-off + link in a first reply.
