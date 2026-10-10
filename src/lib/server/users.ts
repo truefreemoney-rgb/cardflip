@@ -83,6 +83,8 @@ export interface User {
   homeCountry: string | null;
   /** Google account id (id_token sub) when the account signs in with Google; null = never. */
   googleSub: string | null;
+  /** X account id when the account signs in with X; null = never. */
+  xSub: string | null;
 }
 
 export interface UserRow {
@@ -130,6 +132,7 @@ export interface UserRow {
   email_verified_at: number | null;
   home_country: string | null;
   google_sub: string | null;
+  x_sub: string | null;
 }
 
 function parseBackupCodes(raw: string | null): string[] {
@@ -191,6 +194,7 @@ export function fromRow(row: UserRow): User {
     emailVerifiedAt: row.email_verified_at ?? null,
     homeCountry: row.home_country ?? null,
     googleSub: row.google_sub ?? null,
+    xSub: row.x_sub ?? null,
   };
 }
 
@@ -620,6 +624,22 @@ export async function linkGoogleSub(userId: string, sub: string, wipePassword = 
   return Number(res.changes) === 1;
 }
 
+export async function findUserByXSub(sub: string): Promise<User | null> {
+  const row = (await db.prepare("SELECT * FROM users WHERE x_sub = ?").get(sub)) as UserRow | undefined;
+  return row ? fromRow(row) : null;
+}
+
+/** Same as linkGoogleSub, for "Continue with X" (X handed over an email it confirmed). True when it wrote. */
+export async function linkXSub(userId: string, sub: string, wipePassword = false): Promise<boolean> {
+  const res = await db
+    .prepare(
+      `UPDATE users SET x_sub = ?, email_verified_at = COALESCE(email_verified_at, ?)${wipePassword ? ", password_hash = ?" : ""}
+        WHERE id = ? AND x_sub IS NULL`,
+    )
+    .run(sub, Date.now(), ...(wipePassword ? [NO_PASSWORD] : []), userId);
+  return Number(res.changes) === 1;
+}
+
 export async function createUser(
   name: string,
   email: string,
@@ -629,23 +649,26 @@ export async function createUser(
    * emailPending: only the public signup route passes true, and only while email confirmation is on.
    * homeCountry: the signup route's x-vercel-ip-country; null off Vercel / admin-made accounts.
    */
-  opts: { emailPending?: boolean; homeCountry?: string | null; googleSub?: string } = {},
+  opts: { emailPending?: boolean; homeCountry?: string | null; googleSub?: string; xSub?: string; emailVerified?: boolean } = {},
 ): Promise<User> {
   const id = randomUUID();
   const createdAt = Date.now();
   // Made through Google: no password to type, and Google already proved the inbox.
   const googleSub = opts.googleSub ?? null;
-  const passwordHash = googleSub ? NO_PASSWORD : hashPassword(password);
+  // Made through X: no password either. emailVerified is true only when X handed over an email it confirmed.
+  const xSub = opts.xSub ?? null;
+  const verified = Boolean(googleSub) || opts.emailVerified === true;
+  const passwordHash = googleSub || xSub ? NO_PASSWORD : hashPassword(password);
   const normalizedEmail = email.trim().toLowerCase();
   const emailPending = opts.emailPending === true;
   const homeCountry = opts.homeCountry ?? null;
 
   await db
     .prepare(
-      `INSERT INTO users (id, name, email, password_hash, role, ebay_connected, created_at, email_pending, home_country, google_sub, email_verified_at)
-       VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)`,
+      `INSERT INTO users (id, name, email, password_hash, role, ebay_connected, created_at, email_pending, home_country, google_sub, x_sub, email_verified_at)
+       VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(id, name.trim(), normalizedEmail, passwordHash, role, createdAt, emailPending ? 1 : 0, homeCountry, googleSub, googleSub ? createdAt : null);
+    .run(id, name.trim(), normalizedEmail, passwordHash, role, createdAt, emailPending ? 1 : 0, homeCountry, googleSub, xSub, verified ? createdAt : null);
 
   return {
     id,
@@ -689,9 +712,10 @@ export async function createUser(
     pricingOnly: false,
     lastSeenAt: null,
     emailPending,
-    emailVerifiedAt: googleSub ? createdAt : null,
+    emailVerifiedAt: verified ? createdAt : null,
     homeCountry,
     googleSub,
+    xSub,
   };
 }
 

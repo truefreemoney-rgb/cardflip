@@ -8,6 +8,7 @@ import Logo from "@/components/Logo";
 import Spinner from "@/components/Spinner";
 import DevLoginButton from "@/components/DevLoginButton";
 import GoogleButton, { googleErrorFromUrl } from "@/components/GoogleButton";
+import { xErrorFromUrl } from "@/components/XButton";
 import { TotpRequiredError, afterLoginPath, fetchCurrentUser, login } from "@/lib/client/auth";
 
 const FIELD =
@@ -29,7 +30,7 @@ export default function LoginPage() {
   }, [error]);
   // Sent back from Google without finishing (/api/auth/google/callback): say so in the same error slot.
   useEffect(() => {
-    const fromGoogle = googleErrorFromUrl();
+    const fromGoogle = googleErrorFromUrl() ?? xErrorFromUrl();
     // eslint-disable-next-line react-hooks/set-state-in-effect -- the URL is browser-only, read once after hydration
     if (fromGoogle) setError(fromGoogle);
   }, []);

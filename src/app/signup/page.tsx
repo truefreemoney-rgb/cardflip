@@ -11,6 +11,7 @@ import OnboardingSteps, { CONFIRM_STEPS } from "@/components/OnboardingSteps";
 import ConfirmEmailPanel from "@/components/ConfirmEmailPanel";
 import DevLoginButton from "@/components/DevLoginButton";
 import GoogleButton, { googleErrorFromUrl } from "@/components/GoogleButton";
+import { xErrorFromUrl } from "@/components/XButton";
 import { pixelTrack } from "@/lib/client/pixel";
 import { fetchCurrentUser, signup, type SessionUser } from "@/lib/client/auth";
 import { updateProfile } from "@/lib/client/accountApi";
@@ -50,15 +51,49 @@ export default function SignupPage() {
   }, [error]);
   // Sent back from Google without finishing (/api/auth/google/callback): say so in the same error slot.
   useEffect(() => {
-    const fromGoogle = googleErrorFromUrl();
+    const fromGoogle = googleErrorFromUrl() ?? xErrorFromUrl();
     // eslint-disable-next-line react-hooks/set-state-in-effect -- the URL is browser-only, read once after hydration
     if (fromGoogle) setError(fromGoogle);
   }, []);
   // /signup?step=welcome&google=new: the Google callback just made this account. The server's
   // free-scan count is the truth (a repeat device starts spent), and the registration event fires once.
-  const [googleNew] = useState(
-    () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("google") === "new",
+  const [googleNew] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const q = new URLSearchParams(window.location.search);
+    return q.get("google") === "new" || q.get("x") === "new"; // x=new: the same, from Continue with X
+  });
+  // /signup?x=email: X did not share an email, so this is the one-field step (POST /api/auth/x/finish).
+  const [xEmailStep] = useState(
+    () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("x") === "email",
   );
+  const [xEmail, setXEmail] = useState("");
+  const [xEmailLeft, setXEmailLeft] = useState(false);
+
+  async function handleXFinish(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (!/^S+@S+.S+$/.test(xEmail)) return setError("Enter a valid email address.");
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/auth/x/finish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: xEmail.trim() }),
+      });
+      const data = (await res.json().catch(() => null)) as { next?: unknown; error?: unknown } | null;
+      if (!res.ok || typeof data?.next !== "string") {
+        setError(typeof data?.error === "string" ? data.error : "Sign up failed.");
+        setSubmitting(false);
+        return;
+      }
+      pixelTrack("CompleteRegistration");
+      // A full load: the page resumes on the code step from the live session.
+      window.location.assign(data.next);
+    } catch {
+      setError("Sign up failed.");
+      setSubmitting(false);
+    }
+  }
 
   const [firstName, setFirstName] = useState("");
   // Ad-page signups (/scan -> /signup?from=scan): no mode question, straight to the scanner.
@@ -193,7 +228,66 @@ export default function SignupPage() {
         <OnboardingSteps current={phase === "account" ? 0 : 1} />
       )}
 
-      {phase === "account" ? (
+      {phase === "account" && xEmailStep ? (
+        <div className="foil-edge relative w-full max-w-sm rounded-2xl p-8 shadow-xl shadow-black/40 [--foil-fill:#0b0d13]">
+          <h1 className="text-xl font-semibold text-white">One more thing</h1>
+          <p className="mt-1 text-sm text-zinc-400">X didn&apos;t share your email. Where should we send your card alerts?</p>
+
+          <form onSubmit={handleXFinish} noValidate className="mt-5 flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="x-email" className="text-sm font-medium text-zinc-300">
+                Email
+              </label>
+              <input
+                id="x-email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                inputMode="email"
+                enterKeyHint="go"
+                autoFocus
+                value={xEmail}
+                onChange={(e) => setXEmail(e.target.value)}
+                onBlur={() => setXEmailLeft(true)}
+                className={FIELD}
+                placeholder="you@example.com"
+              />
+              {(() => {
+                const fix = xEmailLeft ? suggestEmail(xEmail) : null;
+                return fix ? (
+                  <button type="button" onClick={() => setXEmail(fix)} className="text-left text-sm text-amber-300">
+                    Did you mean <span className="font-semibold underline underline-offset-2">{fix}</span>?
+                  </button>
+                ) : null;
+              })()}
+            </div>
+
+            <p ref={alertRef} tabIndex={-1} role="alert" aria-live="polite" className="min-h-0 outline-none">
+              {error && (
+                <span className="block rounded-lg bg-red-500/10 px-3 py-2 text-xs font-medium text-red-400">
+                  {error}
+                </span>
+              )}
+            </p>
+
+            <button
+              type="submit"
+              disabled={submitting}
+              className="mt-1 flex items-center justify-center gap-2 rounded-full bg-brand-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-500/25 transition hover:bg-brand-400 disabled:opacity-60"
+            >
+              {submitting && <Spinner className="h-4 w-4" />}
+              {submitting ? "Finishing…" : "Finish signup"}
+            </button>
+          </form>
+
+          <p className="mt-5 text-center text-sm text-zinc-400">
+            Already have an account?{" "}
+            <Link href="/login" className="font-medium text-brand-300 transition hover:text-brand-200">
+              Log In
+            </Link>
+          </p>
+        </div>
+      ) : phase === "account" ? (
         <div className="foil-edge relative w-full max-w-sm rounded-2xl p-8 shadow-xl shadow-black/40 [--foil-fill:#0b0d13]">
           <h1 className="text-xl font-semibold text-white">Create your account</h1>
           <p className="mt-1 text-sm text-zinc-400">

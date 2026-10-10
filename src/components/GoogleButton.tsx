@@ -3,6 +3,7 @@
 import { createContext, useContext, useState } from "react";
 import Spinner from "@/components/Spinner";
 import { readReferralCode, readTouch } from "@/components/AttributionCapture";
+import XButton, { XEnabledContext } from "@/components/XButton";
 import { GOOGLE_FAIL_MESSAGE } from "@/lib/googleAuth";
 
 /**
@@ -37,8 +38,10 @@ function GoogleG() {
 
 export default function GoogleButton({ mode }: { mode: "signup" | "login" }) {
   const enabled = useContext(EnabledContext);
+  // "Continue with X" sits directly under this button and shares the "or" divider under both.
+  const xEnabled = useContext(XEnabledContext);
   const [busy, setBusy] = useState(false);
-  if (!enabled) return null;
+  if (!enabled && !xEnabled) return null;
 
   function go() {
     setBusy(true);
@@ -57,15 +60,18 @@ export default function GoogleButton({ mode }: { mode: "signup" | "login" }) {
 
   return (
     <div className="mt-5">
-      <button
-        type="button"
-        onClick={go}
-        disabled={busy}
-        className="flex w-full items-center justify-center gap-2.5 rounded-full bg-white px-5 py-3 text-sm font-semibold text-zinc-800 shadow-lg shadow-black/30 transition hover:bg-zinc-100 disabled:opacity-70"
-      >
-        {busy ? <Spinner className="h-4 w-4" /> : <GoogleG />}
-        Continue with Google
-      </button>
+      {enabled && (
+        <button
+          type="button"
+          onClick={go}
+          disabled={busy}
+          className="flex w-full items-center justify-center gap-2.5 rounded-full bg-white px-5 py-3 text-sm font-semibold text-zinc-800 shadow-lg shadow-black/30 transition hover:bg-zinc-100 disabled:opacity-70"
+        >
+          {busy ? <Spinner className="h-4 w-4" /> : <GoogleG />}
+          Continue with Google
+        </button>
+      )}
+      <XButton mode={mode} />
       <div className="mt-4 flex items-center gap-3" aria-hidden>
         <span className="h-px flex-1 bg-edge" />
         <span className="text-[11px] uppercase tracking-widest text-zinc-600">or</span>

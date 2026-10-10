@@ -24,7 +24,7 @@ export function hasPassword(passwordHash: string): boolean {
 }
 
 /** Wrong-password answer for an account that has no password (login route). */
-export const GOOGLE_ONLY_MESSAGE = "This account signs in with Google. Tap Continue with Google, or use Forgot Password to set a password.";
+export const GOOGLE_ONLY_MESSAGE = "This account signs in with Google or X. Tap that button, or use Forgot Password to set a password.";
 
 export type GoogleMode = "signup" | "login";
 
