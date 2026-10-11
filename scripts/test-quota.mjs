@@ -478,6 +478,41 @@ check("wrong Bearer → 403", cronAuthError(cronReq("/api/cron/daily", { authori
 check("empty secret env still refuses", (() => { process.env.CRON_SECRET = ""; return cronAuthError(cronReq("/api/cron/daily?key="))?.status; })(), 503);
 delete process.env.CRON_SECRET;
 
+// --- no-match give-back (10-11, Chris: "if a card can't be found, it doesn't count as a scan") ---
+// The browser names the scan; the server re-checks the stored read against the catalog (empty in this
+// throwaway db, so every read is a miss), pays out once per row, inside the window, own rows only.
+{
+  const { giveBackNoMatchScan, GIVEBACK_WINDOW_MS, catalogHasMatch } = await import(at("lib/server/scanGiveback.ts"));
+  const { recordScanUsage } = await import(at("lib/server/scanUsage.ts"));
+  const zero = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
+  const gid = (await createUser("G", "giveback@example.com", "hunter22")).id;
+  const other = (await createUser("H", "giveback2@example.com", "hunter22")).id;
+  const res = await reserveScan(await get(gid));
+  const scanId = await recordScanUsage(gid, "claude-sonnet-5", zero, { game: "pokemon", name: "Nosuchmon", number: "999" }, res.draw);
+  check("give-back: the scan was taken before the read", [res.taken, (await get(gid)).trialScansUsed], [1, 1]);
+  check("give-back: an empty read matches nothing", await catalogHasMatch({ game: "pokemon", name: "", number: null }), false);
+  check("give-back: another account cannot claim the row", (await giveBackNoMatchScan(await get(other), scanId)).reason, "unknown");
+  const first = await giveBackNoMatchScan(await get(gid), scanId);
+  check("give-back: a no-match scan comes back (trial counter, header usage)",
+    [first.refunded, first.reason, first.usage.remaining, (await get(gid)).trialScansUsed], [true, "refunded", TRIAL_SCANS, 0]);
+  const again = await giveBackNoMatchScan(await get(gid), scanId);
+  check("give-back: only once per scan", [again.refunded, again.reason, (await get(gid)).trialScansUsed], [false, "already", 0]);
+  check("give-back: an unknown scan id pays nothing", (await giveBackNoMatchScan(await get(gid), "nope")).reason, "unknown");
+  const res2 = await reserveScan(await get(gid));
+  const late = await recordScanUsage(gid, "claude-sonnet-5", zero, { game: "pokemon", name: "Nosuchmon" }, res2.draw);
+  await db.prepare("UPDATE scan_usage SET at = ? WHERE id = ?").run(Date.now() - GIVEBACK_WINDOW_MS - 1000, late);
+  check("give-back: too late pays nothing", [(await giveBackNoMatchScan(await get(gid), late)).reason, (await get(gid)).trialScansUsed], ["late", 1]);
+  const res3 = await reserveScan(await get(gid));
+  const noDraw = await recordScanUsage(gid, "claude-sonnet-5", zero, { game: "pokemon", name: "Nosuchmon" }, null);
+  check("give-back: a row without a draw (older scans) pays nothing", (await giveBackNoMatchScan(await get(gid), noDraw)).reason, "no-draw");
+  const subId = await mkSub({ plan_scans: 3 });
+  const subRes = await reserveScan(await get(subId));
+  const subScan = await recordScanUsage(subId, "claude-sonnet-5", zero, { game: "mtg", name: "Nosuchspell" }, subRes.draw);
+  const subBack = await giveBackNoMatchScan(await get(subId), subScan);
+  check("give-back: a subscriber's miss returns to the plan balance", [subBack.refunded, (await get(subId)).planScans, subBack.usage.remaining], [true, 3, 3]);
+  void res3;
+}
+
 console.log(failures === 0 ? "\nAll quota checks passed" : `\n${failures} quota check(s) failed`);
 // No process.exit(): it would skip the beforeExit hook that closes the libsql
 // client, and on Windows that open handle asserts at exit (see lib/db.ts).

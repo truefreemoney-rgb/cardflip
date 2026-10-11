@@ -3,6 +3,17 @@
 Things that shipped but were never exercised on a real phone or with real
 traffic. Tick when tested; note what you saw. Newest batch first.
 
+## 10-11 No-match scans given back (COMMITTED NOT PUSHED with the header commit; test after the next push)
+- [ ] Trial account: scan something that is not a card (a book cover, a receipt) so the queue says "No match found — search by name": the header scan counter does NOT go up (or goes up and comes back within a second), and /app/account shows the same trial count as before.
+- [ ] Scan a real card right after: it still counts (the counter rises by one and stays).
+- [ ] A token or an art card (Magic) says "not accepted" and DOES still count (that is a refusal, not a miss).
+- [ ] /admin > the user's row after a no-match scan: trial scans used did not rise; scan_usage keeps the row with refunded_at set (the vision bill is still real money).
+
+## 10-11 Scanner post-scan header (9665f726, COMMITTED NOT PUSHED, Chris saving Vercel builds; test after the next push)
+- [ ] Phone, after a scan: the header card has no Seller · Collector switch; Add Cards and Inventory → are two equal-width pills on one row; Inventory → opens Inventory.
+- [ ] Phone: "1 card · $0.85" and "1 ready · 0 live · 0 pending" sit on one line each, Connect eBay (or Send to eBay) and the X beside them, nothing cut off.
+- [ ] Pre-scan screen, Account and Inventory still show Seller · Collector; the tour "Your switch" step still lands on it.
+
 ## 10-08 Pokémon hand map (dc9c0337, built by the first cloud session): 10 unpriced cards get a TCGplayer product
 - [ ] After the 10-09 5:25am ET Pokémon run: /admin price job result shows no error, and these have a USD series: Mewtwo Star ex13-103, Registeel Star ex12-92, Mudkip Star ex7-107, Deoxys ex pop4-17, Espeon Star pop5-16, Skyridge Gengar H09, Tropical Wind DP05/DP25/DP48, Tropical Tidal Wave np-27. Check /pokemon/mewtwo-card-value shows the Star with a price.
 

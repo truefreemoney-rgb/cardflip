@@ -119,7 +119,7 @@ export async function POST(req: Request) {
     if (visionMs > 6_000) console.warn(`scan: slow read ${visionMs} ms`, card.secondLook ? `second look: ${card.secondLook}` : "");
     // The token bill is written alongside; a ledger failure must never fail
     // a scan the seller already paid for.
-    const [usage] = await Promise.all([
+    const [usage, , scanId] = await Promise.all([
       Promise.resolve(reservation.usage),
       // Today's good reads: the tiebreak and binder-locate routes are rationed against this.
       dayBump(readsKey(user.id)).catch((err) => console.error("reads counter failed:", err instanceof Error ? err.message : err)),
@@ -138,11 +138,13 @@ export async function POST(req: Request) {
         // ms spent in the gates before the vision call, and in the call itself.
         pre: visionAt - startedAt,
         ms: visionMs,
-      }).catch((err) =>
-        console.error("scan_usage write failed:", err instanceof Error ? err.message : err),
-      ),
+      }, reservation.draw).catch((err) => {
+        console.error("scan_usage write failed:", err instanceof Error ? err.message : err);
+        return null;
+      }),
     ]);
-    return NextResponse.json({ status: "done", card, usage });
+    // scanId: the row a "No match found" give-back names (POST /api/vision/scan/giveback, 10-11).
+    return NextResponse.json({ status: "done", card, usage, scanId });
   } catch (err) {
     if (err instanceof AuthError) {
       return NextResponse.json({ error: err.message }, { status: 401 });

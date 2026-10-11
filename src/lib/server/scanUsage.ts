@@ -38,14 +38,17 @@ export async function recordScanUsage(
   u: VisionUsage,
   /** The read itself (compact), so a no-match scan can still be replayed. */
   read?: Record<string, unknown> | null,
-): Promise<void> {
+  /** The buckets the scan was taken from (scanQuota ScanDraw), so a no-match give-back can return it (10-11). */
+  draw?: object | null,
+): Promise<string> {
+  const id = randomUUID();
   await db
     .prepare(
-      `INSERT INTO scan_usage (id, user_id, at, model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cost_micros, read)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO scan_usage (id, user_id, at, model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cost_micros, read, draw)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
-      randomUUID(),
+      id,
       userId,
       Date.now(),
       model,
@@ -55,7 +58,9 @@ export async function recordScanUsage(
       u.cacheWriteTokens,
       scanCostMicros(model, u),
       read ? JSON.stringify(read).slice(0, 2000) : null,
+      draw ? JSON.stringify(draw) : null,
     );
+  return id;
 }
 
 /** Recent reads for one user, newest first — replay material for misses. */

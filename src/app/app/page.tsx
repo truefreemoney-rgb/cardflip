@@ -42,7 +42,7 @@ import { toast } from "@/components/Toaster";
 import { apiPath } from "@/lib/client/basePath";
 import { EBAY_DRAFTS_URL, fetchEbayComps, sendEbayDraft } from "@/lib/client/ebayApi";
 import { uploadCardPhoto } from "@/lib/client/cardPhotoApi";
-import { rateLimitMessage, scanCardWithVision, tiebreakCard, type ScanUsage } from "@/lib/client/visionApi";
+import { giveBackScan, rateLimitMessage, scanCardWithVision, tiebreakCard, type ScanUsage } from "@/lib/client/visionApi";
 import { tiebreakIds } from "@/lib/tiebreak";
 import { claimPendingScan } from "@/lib/client/trialScan";
 import { foilChoices } from "@/lib/yugioh";
@@ -636,12 +636,25 @@ export default function AppPage() {
               card: null,
               error: searchLimited ? "Too many lookups at once — wait a few seconds, then tap Scan again" : "Card lookup is down right now — search by name to retry",
             });
+            // The seller got nothing here either: same give-back as a miss (10-11).
+            if (vision.scanId && !readError) void giveBackScan(vision.scanId).then((usage) => {
+              if (!usage) return;
+              setScanUsage(usage);
+              patchUser({ scans: usage });
+            });
           } else if (matches.length === 0) {
             patchItem(next.id, {
               status: "review",
               candidates: [],
               card: null,
               error: readError ?? artMiss ?? "No match found — search by name",
+            });
+            // Nothing found = not a scan (Chris, 10-11): ask for the scan back. The server re-checks the read
+            // against the catalog and answers with the balance; a token / locked art card is a refusal, not a miss.
+            if (vision.scanId && !readError) void giveBackScan(vision.scanId).then((usage) => {
+              if (!usage) return;
+              setScanUsage(usage);
+              patchUser({ scans: usage });
             });
           } else {
             const card = matches[0];

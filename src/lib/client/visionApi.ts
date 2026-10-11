@@ -18,6 +18,27 @@ export interface VisionScanOutcome {
   timedOut?: boolean;
   /** A 429: the burst limiter or the daily budget. Seconds is the server's Retry-After when it sent one. */
   rateLimited?: { seconds: number | null; daily: boolean };
+  /** The scan_usage row id: names the scan when "No match found" asks for it back (giveBackScan). */
+  scanId?: string | null;
+}
+
+/**
+ * A scan that found no card is given back (Chris, 10-11). The server
+ * re-checks the read against the catalog, so this is a request, not a
+ * decision. Never throws; null when nothing changed.
+ */
+export async function giveBackScan(scanId: string): Promise<ScanUsage | null> {
+  try {
+    const res = await fetch(apiPath("/api/vision/scan/giveback"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scanId }),
+    });
+    const data = await res.json().catch(() => null);
+    return res.ok && data?.refunded === true && data.usage ? (data.usage as ScanUsage) : null;
+  } catch {
+    return null;
+  }
 }
 
 /** The plain-words line for a 429 (burst limit, daily budget). */
@@ -177,6 +198,7 @@ export async function scanCardWithVision(
       read: data?.card ?? null,
       usage: data?.usage ?? null,
       error: null,
+      scanId: typeof data?.scanId === "string" ? data.scanId : null,
     };
   } catch {
     return { status: "error", read: null, usage: null, error: null };
