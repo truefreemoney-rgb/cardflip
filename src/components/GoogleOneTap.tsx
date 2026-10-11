@@ -103,6 +103,15 @@ export default function GoogleOneTap({ clientId }: { clientId: string | null }) 
 
   useEffect(() => {
     if (!clientId || !isOneTapPage(pathname)) return;
+    // ?onetap=1 forgets this device's flag so the prompt can be seen again (testing on a phone
+    // where clearing site data is a chore). Not linked anywhere.
+    if (new URLSearchParams(window.location.search).get("onetap") === "1") {
+      try {
+        localStorage.removeItem(FLAG_KEY);
+      } catch {
+        /* ignore */
+      }
+    }
     const flag = readFlag();
     if (flag === "done" || (flag && Date.now() < flag.retryAfter)) return;
 
@@ -147,16 +156,15 @@ export default function GoogleOneTap({ clientId }: { clientId: string | null }) 
     }
 
     (async () => {
-      // Signed in here already? Then this device has an account: never prompt it.
+      // Signed in here already? Then not now, and no flag: the prompt is still owed to this
+      // device the first time it is signed out on a public page (10-11: Chris logged out to test
+      // and a flag written while signed in had already silenced it).
       try {
         const me = await fetch("/api/auth/me", { credentials: "same-origin" });
         if (cancelled) return;
         if (me.ok) {
           const data = (await me.json().catch(() => null)) as { user?: unknown } | null;
-          if (data?.user) {
-            writeFlag("done");
-            return;
-          }
+          if (data?.user) return;
         } else if (me.status >= 500) {
           return; // not now; try another day
         }
