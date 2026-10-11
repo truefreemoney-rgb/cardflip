@@ -135,6 +135,9 @@ export async function POST(req: Request) {
         art: card.artStyle,
         kind: card.kind ?? null,
         conf: card.confidence,
+        // The give-back reads these (10-11): a slab or another game's card is an empty outcome for the seller.
+        ...(card.slab ? { slab: true } : {}),
+        ...(card.detectedGame ? { seen: card.detectedGame } : {}),
         // ms spent in the gates before the vision call, and in the call itself.
         pre: visionAt - startedAt,
         ms: visionMs,

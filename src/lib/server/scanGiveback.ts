@@ -7,6 +7,7 @@ import { searchMtgCardsLocal } from "@/lib/server/mtgCards";
 import { isTcgGame, searchTcgCardsLocal } from "@/lib/server/tcgCards";
 import { parseGame } from "@/lib/games";
 import type { PrintedNumber } from "@/lib/cardNumber";
+import { UNREADABLE_CONFIDENCE } from "@/lib/types";
 
 /**
  * A scan that found no card is not a scan (Chris, 10-11: "if a card can't be
@@ -36,6 +37,25 @@ interface StoredRead {
   number?: string | null;
   total?: number | null;
   code?: string | null;
+  conf?: number | null;
+  kind?: string | null;
+  slab?: boolean;
+  /** The game the model saw on the card, when it was not the one being scanned. */
+  seen?: string | null;
+}
+
+/**
+ * The model's own verdict that the seller got nothing (10-11, Chris: "forgiving
+ * of bad scans, it doesn't deliver a product"): an unreadable photo, a token or
+ * art card (refused), a slab (refused), or a card from a game CardFlip does not
+ * scan. None of these depend on anything the browser says.
+ */
+export function readIsEmpty(read: StoredRead): boolean {
+  if (typeof read.conf === "number" && read.conf < UNREADABLE_CONFIDENCE) return true;
+  if (read.kind === "token" || read.kind === "art") return true;
+  if (read.slab === true) return true;
+  if (read.seen && read.seen !== "other" && read.game && read.seen !== read.game) return true;
+  return false;
 }
 
 /** Any catalog card for the read's name/number in its game? Errors count as "nothing found": the seller got nothing. */
@@ -82,7 +102,7 @@ export async function giveBackNoMatchScan(user: User, scanId: string): Promise<{
   } catch {
     read = {};
   }
-  if (await catalogHasMatch(read)) return { refunded: false, reason: "found", usage };
+  if (!readIsEmpty(read) && (await catalogHasMatch(read))) return { refunded: false, reason: "found", usage };
   // Claim the row first: two give-backs for one scan must not both pay out.
   const claimed = await db.prepare("UPDATE scan_usage SET refunded_at = ? WHERE id = ? AND refunded_at IS NULL").run(Date.now(), scanId);
   if (Number(claimed.changes ?? 0) < 1) return { refunded: false, reason: "already", usage };

@@ -680,7 +680,7 @@ export default function AppPage() {
               error: searchLimited ? "Too many lookups at once — wait a few seconds, then tap Scan again" : "Card lookup is down right now — search by name to retry",
             });
             // The seller got nothing here either: same give-back as a miss (10-11).
-            if (vision.scanId && !readError) void giveBackScan(vision.scanId).then((usage) => {
+            if (vision.scanId) void giveBackScan(vision.scanId).then((usage) => {
               if (!usage) return;
               setScanUsage(usage);
               patchUser({ scans: usage });
@@ -692,9 +692,10 @@ export default function AppPage() {
               card: null,
               error: readError ?? artMiss ?? "No match found — search by name",
             });
-            // Nothing found = not a scan (Chris, 10-11): ask for the scan back. The server re-checks the read
-            // against the catalog and answers with the balance; a token / locked art card is a refusal, not a miss.
-            if (vision.scanId && !readError) void giveBackScan(vision.scanId).then((usage) => {
+            // Nothing found = not a scan (Chris, 10-11: "forgiving of bad scans, it doesn't deliver a product").
+            // Every empty outcome asks: no match, couldn't read, another game, token, art card, slab. The server
+            // decides from the stored read (lib/server/scanGiveback.ts) and answers with the balance.
+            if (vision.scanId) void giveBackScan(vision.scanId).then((usage) => {
               if (!usage) return;
               setScanUsage(usage);
               patchUser({ scans: usage });
@@ -1162,7 +1163,10 @@ export default function AppPage() {
   const closeCamera = useCallback(() => {
     setCameraOpen(false);
     // A pack scan is filed under its pack, so no "which category?" over it.
-    if (sessionItemIdsRef.current.length > 0 && !categoryAskedRef.current && !readActivePackId(userIdRef.current)) {
+    // Only when something was actually identified (10-11, Chris: a floss box that "couldn't be read" still got
+    // asked "Which category?" and then had nothing to file).
+    const scannedACard = sessionItemIdsRef.current.some((id) => itemsRef.current.find((i) => i.id === id)?.card);
+    if (scannedACard && !categoryAskedRef.current && !readActivePackId(userIdRef.current)) {
       categoryAskedRef.current = true;
       setCategoryPrompt({ existing: [] });
       void fetchCategories().then((list) => {

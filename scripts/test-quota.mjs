@@ -482,7 +482,13 @@ delete process.env.CRON_SECRET;
 // The browser names the scan; the server re-checks the stored read against the catalog (empty in this
 // throwaway db, so every read is a miss), pays out once per row, inside the window, own rows only.
 {
-  const { giveBackNoMatchScan, GIVEBACK_WINDOW_MS, catalogHasMatch } = await import(at("lib/server/scanGiveback.ts"));
+  const { giveBackNoMatchScan, GIVEBACK_WINDOW_MS, catalogHasMatch, readIsEmpty } = await import(at("lib/server/scanGiveback.ts"));
+  check("give-back: the model's own empty verdicts (0% read, token, art, slab, another game) count as nothing delivered",
+    [{ conf: 0, name: "Oral-B Threader Floss" }, { conf: 0.9, kind: "token" }, { conf: 0.9, kind: "art" }, { conf: 0.9, slab: true }, { game: "pokemon", seen: "mtg", conf: 0.9 }].map(readIsEmpty),
+    [true, true, true, true, true]);
+  check("give-back: a confident real read is NOT empty (the catalog decides)",
+    [{ conf: 0.9, name: "Pikachu", kind: "card" }, { game: "pokemon", seen: "pokemon", conf: 0.8 }, { game: "pokemon", seen: "other", conf: 0.8 }].map(readIsEmpty),
+    [false, false, false]);
   const { recordScanUsage } = await import(at("lib/server/scanUsage.ts"));
   const zero = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
   const gid = (await createUser("G", "giveback@example.com", "hunter22")).id;
