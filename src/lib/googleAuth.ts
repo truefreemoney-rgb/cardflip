@@ -9,6 +9,8 @@ export const GOOGLE_STATE_COOKIE = "cf_gstate";
 export const GOOGLE_STATE_MAX_AGE_S = 10 * 60;
 export const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 export const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
+/** Google checks an id_token's signature for us (One Tap hands the browser a token, not a code). */
+export const GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo";
 
 /** Shown on /login and /signup (?google_error=1) when anything in the round trip fails. */
 export const GOOGLE_FAIL_MESSAGE = "Google sign-in didn't finish. Try again or use email.";

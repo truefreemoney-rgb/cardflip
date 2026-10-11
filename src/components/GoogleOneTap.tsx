@@ -1,0 +1,199 @@
+"use client";
+
+import { useEffect } from "react";
+import { usePathname } from "next/navigation";
+import { readReferralCode, readTouch } from "@/components/AttributionCapture";
+
+/**
+ * Google One Tap on the PUBLIC pages (Chris 10-11): Google's own small "Continue as <name>"
+ * prompt for a visitor who is signed in to Google in this browser. One tap = account made (or
+ * opened) through api/auth/google/onetap, no form. Rules:
+ *  - public marketing pages only (allowlist below); never /app, /admin, /login, /signup;
+ *  - never for someone already signed in here (one /api/auth/me check first);
+ *  - shown ONCE per device, ever: a localStorage flag is set when the prompt is asked for, so a
+ *    closed (X) or ignored prompt never comes back; leaving the page closes it (cancel on unmount);
+ *  - nothing is loaded at all once the flag is set: no Google script, no request.
+ * The root layout mounts it with the client id (public anyway: it is in the sign-in URL) or null
+ * when Google sign-in is not configured, in which case this renders nothing and does nothing.
+ */
+const FLAG_KEY = "cardflip.onetap";
+const GSI_SRC = "https://accounts.google.com/gsi/client";
+/** Pages the prompt may appear on. Exact "/" plus these prefixes. */
+const PUBLIC_PREFIXES = ["/pricing", "/features", "/help", "/pokemon", "/cards", "/scan", "/u/"];
+
+type PromptMoment = {
+  isNotDisplayed?: () => boolean;
+  getNotDisplayedReason?: () => string;
+};
+type Gsi = {
+  accounts: {
+    id: {
+      initialize: (o: Record<string, unknown>) => void;
+      prompt: (cb?: (n: PromptMoment) => void) => void;
+      cancel: () => void;
+    };
+  };
+};
+declare global {
+  interface Window {
+    google?: Gsi;
+  }
+}
+
+export function isOneTapPage(pathname: string | null): boolean {
+  if (!pathname) return false;
+  if (pathname === "/") return true;
+  return PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(p.endsWith("/") ? p : `${p}/`));
+}
+
+type Flag = "done" | { retryAfter: number; tries: number };
+
+/** "done" = never again on this device; otherwise the earliest next try and how many were made. */
+function readFlag(): Flag | null {
+  try {
+    const raw = localStorage.getItem(FLAG_KEY);
+    if (!raw) return null;
+    if (raw === "done") return "done";
+    const [ts, tries] = raw.split(":").map(Number);
+    return Number.isFinite(ts) ? { retryAfter: ts, tries: Number.isFinite(tries) ? tries : 1 } : "done";
+  } catch {
+    return "done"; // no storage = no way to keep the once-only promise, so never prompt
+  }
+}
+
+function writeFlag(v: Flag) {
+  try {
+    localStorage.setItem(FLAG_KEY, v === "done" ? "done" : `${v.retryAfter}:${v.tries}`);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** A prompt Google reports it did not show: one more try tomorrow, three tries in all. */
+export function nextFlagAfterNotShown(prev: Flag | null, now: number): Flag {
+  const tries = (prev && prev !== "done" ? prev.tries : 0) + 1;
+  return tries >= 3 ? "done" : { retryAfter: now + 24 * 60 * 60 * 1000, tries };
+}
+
+function randomNonce(): string {
+  const bytes = new Uint8Array(24);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function loadGsi(): Promise<Gsi | null> {
+  return new Promise((resolve) => {
+    if (window.google?.accounts?.id) return resolve(window.google);
+    const existing = document.querySelector<HTMLScriptElement>(`script[src="${GSI_SRC}"]`);
+    const s = existing ?? document.createElement("script");
+    const done = () => resolve(window.google?.accounts?.id ? window.google : null);
+    s.addEventListener("load", done, { once: true });
+    s.addEventListener("error", () => resolve(null), { once: true });
+    if (!existing) {
+      s.src = GSI_SRC;
+      s.async = true;
+      s.defer = true;
+      document.head.appendChild(s);
+    }
+  });
+}
+
+export default function GoogleOneTap({ clientId }: { clientId: string | null }) {
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (!clientId || !isOneTapPage(pathname)) return;
+    const flag = readFlag();
+    if (flag === "done" || (flag && Date.now() < flag.retryAfter)) return;
+
+    let cancelled = false;
+    let gsi: Gsi | null = null;
+    const nonce = randomNonce();
+
+    async function onCredential(resp: { credential?: string }) {
+      if (!resp?.credential) return;
+      writeFlag("done");
+      let res: Response | null = null;
+      try {
+        res = await fetch("/api/auth/google/onetap", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            credential: resp.credential,
+            nonce,
+            next: window.location.pathname + window.location.search,
+            ref: readReferralCode(),
+            touch: readTouch(),
+            fromScan: window.location.pathname.startsWith("/scan"),
+          }),
+        });
+      } catch {
+        res = null;
+      }
+      if (res?.ok) {
+        const data = (await res.json().catch(() => null)) as { next?: string } | null;
+        window.location.assign(data?.next && data.next.startsWith("/") ? data.next : "/app");
+        return;
+      }
+      if (res?.status === 409) {
+        window.location.reload(); // already signed in after all
+        return;
+      }
+      // Same plain-words messages the Google button shows (?google_error=1|2 on /login). Full
+      // navigations on purpose throughout: the server just set (or refused) the session cookie.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+      window.location.assign(`/login?google_error=${res?.status === 403 ? 2 : 1}`);
+    }
+
+    (async () => {
+      // Signed in here already? Then this device has an account: never prompt it.
+      try {
+        const me = await fetch("/api/auth/me", { credentials: "same-origin" });
+        if (cancelled) return;
+        if (me.ok) {
+          const data = (await me.json().catch(() => null)) as { user?: unknown } | null;
+          if (data?.user) {
+            writeFlag("done");
+            return;
+          }
+        } else if (me.status >= 500) {
+          return; // not now; try another day
+        }
+      } catch {
+        return;
+      }
+      gsi = await loadGsi();
+      if (cancelled || !gsi) return;
+      gsi.accounts.id.initialize({
+        client_id: clientId,
+        callback: onCredential,
+        nonce,
+        auto_select: false,
+        cancel_on_tap_outside: false,
+        itp_support: true,
+        context: "signin",
+        use_fedcm_for_prompt: true,
+      });
+      // Once per device: the flag goes down the moment we ask, so an X or an ignored prompt
+      // never brings it back. Only a prompt Google says it did NOT show (older, non-FedCM
+      // browsers report that) is allowed one more try, a day later.
+      writeFlag("done");
+      gsi.accounts.id.prompt((n) => {
+        if (n?.isNotDisplayed?.()) writeFlag(nextFlagAfterNotShown(flag, Date.now()));
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+      // Leaving the page = prompt gone.
+      try {
+        gsi?.accounts.id.cancel();
+      } catch {
+        /* ignore */
+      }
+    };
+  }, [clientId, pathname]);
+
+  return null;
+}

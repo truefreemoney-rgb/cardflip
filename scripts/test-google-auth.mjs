@@ -120,7 +120,18 @@ const ipHeader = () => ({ "fly-client-ip": `10.9.${++ipN >> 8}.${ipN & 255}` });
 let tokenReply = null;
 const realFetch = globalThis.fetch;
 let tokenCalls = 0;
+let tokeninfoCalls = 0;
 globalThis.fetch = async (url, init) => {
+  if (String(url).startsWith("https://oauth2.googleapis.com/tokeninfo")) {
+    // Google's signature check, stubbed: a token whose signature part is "forged" is refused,
+    // anything else is echoed back the way tokeninfo does (strings for numbers).
+    tokeninfoCalls++;
+    const tok = new URL(String(url)).searchParams.get("id_token") ?? "";
+    const parts = tok.split(".");
+    if (parts.length !== 3 || parts[2] === "forged") return new Response(JSON.stringify({ error: "invalid_token" }), { status: 400 });
+    const p = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
+    return new Response(JSON.stringify({ ...p, exp: String(p.exp), email_verified: String(p.email_verified) }), { status: 200 });
+  }
   if (String(url).startsWith("https://oauth2.googleapis.com/token")) {
     tokenCalls++;
     const body = String(init?.body ?? "");
@@ -248,8 +259,66 @@ const r7 = await roundTrip({ mode: "signup", claims: { sub: "sub-rep", email: "s
 const rep = await findUserByEmail("second.person@example.com");
 check("callback: repeat device → account made, free scans already spent", [r7.to.search, rep?.trialScansUsed], ["?step=welcome&google=new", 5]);
 
+// --- One Tap (POST /api/auth/google/onetap) ------------------------------------------------
+const onetap = await import(at("app/api/auth/google/onetap/route.ts"));
+const NONCE = "one-tap-nonce-0123456789abcdef";
+async function tap(body, { cookie = "", sig = "s" } = {}) {
+  testCookies.clear();
+  if (cookie) testCookies.set(SESSION_COOKIE, cookie);
+  const payload = body.claims ? `h.${Buffer.from(JSON.stringify(goodClaims({ nonce: NONCE, exp: Math.floor(Date.now() / 1000) + 3600, ...body.claims }))).toString("base64url")}.${sig}` : body.credential;
+  const res = await onetap.POST(new Request("https://cardflip.io/api/auth/google/onetap", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...ipHeader() },
+    body: JSON.stringify({ credential: payload, nonce: NONCE, ...body.extra }),
+  }));
+  return { res, json: await res.json().catch(() => null) };
+}
+
+const before = tokeninfoCalls;
+const t1 = await tap({ claims: { sub: "tap-new", email: "Tap.New@Gmail.com" }, extra: { touch, ref: "abcd1234", next: "/pricing" } });
+const tu = await findUserByEmail("tap.new@gmail.com");
+check("onetap: new account → 200, welcome step, isNew", [t1.res.status, t1.json?.next, t1.json?.isNew], [200, "/signup?step=welcome&google=new", true]);
+check("onetap: Google's tokeninfo was asked once", tokeninfoCalls - before, 1);
+check("onetap: account made like the callback does (first name, Google id, no password, confirmed)", [tu?.name, tu?.googleSub, g.hasPassword(tu.passwordHash), Boolean(tu.emailVerifiedAt), tu.emailPending], ["Pat", "tap-new", false, true, false]);
+check("onetap: session + device cookies on the JSON response", [(await getSessionUserId(t1.res.cookies.get(SESSION_COOKIE)?.value)) === tu.id, Boolean(t1.res.cookies.get("cf_dev")?.value)], [true, true]);
+const tlog = await db.prepare("SELECT src, campaign FROM signup_log WHERE user_id = ?").get(tu.id);
+check("onetap: attribution recorded", [tlog?.src, tlog?.campaign], ["tiktok", "post1"]);
+check("onetap: from the /scan page → welcome step carries from=scan", (await tap({ claims: { sub: "tap-scan", email: "tap.scan@example.com" }, extra: { fromScan: true } })).json?.next, "/signup?step=welcome&google=new&from=scan");
+
+const t2 = await tap({ claims: { sub: "tap-new", email: "tap.new@gmail.com" }, extra: { next: "/pricing?x=1" } });
+check("onetap: returning account stays on its page", [t2.res.status, t2.json?.next, t2.json?.isNew], [200, "/pricing?x=1", false]);
+check("onetap: ...same account, one signup row", [(await findUserByGoogleSub("tap-new"))?.id === tu.id, (await db.prepare("SELECT COUNT(*) AS n FROM signup_log WHERE user_id = ?").get(tu.id)).n], [true, 1]);
+check("onetap: unsafe or missing next → /app", [(await tap({ claims: { sub: "tap-new" }, extra: { next: "//evil.com" } })).json?.next, (await tap({ claims: { sub: "tap-new" } })).json?.next, (await tap({ claims: { sub: "tap-new" }, extra: { next: "/login" } })).json?.next], ["/app", "/app", "/app"]);
+
+// Link onto an existing password account, same rules as the callback.
+const tOld = await createUser("TapOld", "tapold@example.com", "oldpass99");
+await db.prepare("UPDATE users SET email_verified_at = ? WHERE id = ?").run(NOW, tOld.id);
+const t3 = await tap({ claims: { sub: "tap-link", email: "TapOld@Example.com" }, extra: { next: "/" } });
+const tOld2 = await findUserByEmail("tapold@example.com");
+check("onetap: existing email linked, password kept, lands on the home page", [t3.res.status, t3.json?.next, tOld2.googleSub, verifyPassword("oldpass99", tOld2.passwordHash)], [200, "/", "tap-link", true]);
+
+// Refusals: nothing made, no session.
+const forged = await tap({ claims: { sub: "tap-forged", email: "forged@example.com" } }, { sig: "forged" });
+check("onetap: a token Google will not vouch for → 401", [forged.res.status, forged.res.cookies.get(SESSION_COOKIE)?.value ?? null], [401, null]);
+const nonceBad = await tap({ claims: { sub: "tap-nonce", email: "nonce@example.com", nonce: "some-other-nonce-1234567890" } });
+check("onetap: nonce not the page's → 401", nonceBad.res.status, 401);
+check("onetap: wrong audience → 401", (await tap({ claims: { sub: "tap-aud", email: "aud@example.com", aud: "someone-else" } })).res.status, 401);
+check("onetap: unverified email → 401", (await tap({ claims: { sub: "tap-unv", email: "unv@example.com", email_verified: false } })).res.status, 401);
+check("onetap: expired → 401", (await tap({ claims: { sub: "tap-exp", email: "exp@example.com", exp: 1 } })).res.status, 401);
+check("onetap: none of those made an account", await Promise.all(["forged", "nonce", "aud", "unv", "exp"].map((n) => findUserByEmail(`${n}@example.com`))), [null, null, null, null, null]);
+const tAdmin = await tap({ claims: { sub: "tap-boss", email: "boss@example.com" } });
+check("onetap: admin account → 403 with the extra-security message, not linked", [tAdmin.res.status, /extra security/.test(tAdmin.json?.error ?? ""), (await findUserByEmail("boss@example.com")).googleSub], [403, true, null]);
+const tSigned = await tap({ claims: { sub: "tap-new" } }, { cookie: "some-live-session" });
+check("onetap: with a session cookie → 409, no account switch", [tSigned.res.status, tSigned.res.cookies.get(SESSION_COOKIE)?.value ?? null], [409, null]);
+for (const [label, body] of [["no credential", { credential: "" }], ["not a jwt", { credential: "abc" }], ["short nonce", { credential: "a.b.c", extra: { nonce: "short" } }]]) {
+  check(`onetap: ${label} → 400`, (await tap(body)).res.status, 400);
+}
+const notJson = await onetap.POST(new Request("https://cardflip.io/api/auth/google/onetap", { method: "POST", headers: ipHeader(), body: "not json" }));
+check("onetap: body not JSON → 400", notJson.status, 400);
+
 // Not configured: the routes refuse politely.
 delete process.env.GOOGLE_CLIENT_ID;
+check("no keys: one tap → 503", (await tap({ claims: { sub: "tap-off", email: "off@example.com" } })).res.status, 503);
 const off = await start.GET(new Request("https://cardflip.io/api/auth/google/start?mode=signup", { headers: ipHeader() }));
 check("no keys: start sends the visitor back with the error flag", new URL(off.headers.get("location")).pathname + new URL(off.headers.get("location")).search, "/signup?google_error=1");
 
