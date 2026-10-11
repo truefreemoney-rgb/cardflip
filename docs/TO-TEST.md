@@ -3,19 +3,19 @@
 Things that shipped but were never exercised on a real phone or with real
 traffic. Tick when tested; note what you saw. Newest batch first.
 
-## 10-11 Faster scans: tiebreak off the critical path, price wait 2.5 s → 1.2 s (COMMITTED NOT PUSHED; test after the next push)
+## 10-11 Faster scans: tiebreak off the critical path, price wait 2.5 s → 1.2 s (PUSHED to main 10-11 ~9:10pm ET as a40dddb4, build ~2 min)
 - [ ] Scan a card with two near-identical printings (a Trainer Gallery card like Eevee TG11, or any card with a 1st Edition twin): the card shows within ~3 s instead of waiting on the picture check; if the tiebreak later disagrees, the card swaps and a Check-match line says "the photo looks more like this printing than <set>".
 - [ ] Verify a card quickly after it shows: a late tiebreak must NOT change it afterwards (verified wins).
 - [ ] Scan 5 cards in a row and time it against yesterday: the "Reading the card" wait feels shorter; prices still appear on the card (held price first, live price fills in).
 - [ ] /admin log: no new "scan: slow read" warnings beyond what was there before.
 
-## 10-11 No-match scans given back (COMMITTED NOT PUSHED with the header commit; test after the next push)
+## 10-11 No-match scans given back (PUSHED to main 10-11 ~9:10pm ET in a40dddb4)
 - [ ] Trial account: scan something that is not a card (a book cover, a receipt) so the queue says "No match found — search by name": the header scan counter does NOT go up (or goes up and comes back within a second), and /app/account shows the same trial count as before.
 - [ ] Scan a real card right after: it still counts (the counter rises by one and stays).
 - [ ] A token or an art card (Magic) says "not accepted" and DOES still count (that is a refusal, not a miss).
 - [ ] /admin > the user's row after a no-match scan: trial scans used did not rise; scan_usage keeps the row with refunded_at set (the vision bill is still real money).
 
-## 10-11 Scanner post-scan header (9665f726, COMMITTED NOT PUSHED, Chris saving Vercel builds; test after the next push)
+## 10-11 Scanner post-scan header (9665f726, PUSHED to main 10-11 ~9:10pm ET in a40dddb4)
 - [ ] Phone, after a scan: the header card has no Seller · Collector switch; Add Cards and Inventory → are two equal-width pills on one row; Inventory → opens Inventory.
 - [ ] Phone: "1 card · $0.85" and "1 ready · 0 live · 0 pending" sit on one line each, Connect eBay (or Send to eBay) and the X beside them, nothing cut off.
 - [ ] Pre-scan screen, Account and Inventory still show Seller · Collector; the tour "Your switch" step still lands on it.
