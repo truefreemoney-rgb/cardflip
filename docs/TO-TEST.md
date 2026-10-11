@@ -12,7 +12,7 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 - [ ] A real eBay Standard Envelope label at $1.11 or less buys for a card sold at $20 or under; Ground Advantage label through eBay for a 3 oz mailer lands near $7 (zones 1-5).
 
 ## 10-08 Mark as Sold asks once more (c35b831c; Chris: a sold record can't be undone)
-- [ ] Inventory, a draft or ended card > Mark as Sold > price > Mark as Sold: the sheet turns into "Are you sure? This marks it sold for $X. It can't be undone." with Cancel (back to the price) and Yes, Mark as Sold. Yes records the sale.
+- [x] (10-11 Chris, phone, new One Tap account: worked on the second scan; the first card had been deleted by an X tap before the save, which the old banner blamed on the connection, fixed bf433106) Inventory, a draft or ended card > Mark as Sold > price > Mark as Sold: the sheet turns into "Are you sure? This marks it sold for $X. It can't be undone." with Cancel (back to the price) and Yes, Mark as Sold. Yes records the sale.
 - [ ] Inventory bulk: select live cards > Mark sold (N): the same Are you sure sheet with the count; Cancel leaves them live; Yes marks them sold at asking price.
 
 ## 10-08 TikTok caption opener rotation (10b680b3; Chris: no more exact copies of previous posts' text)
