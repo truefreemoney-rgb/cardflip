@@ -1503,15 +1503,17 @@ export default function AppPage() {
               second — and one row on desktop (the phone wrappers dissolve
               with sm:contents). Display type for the values. */}
           <div className="flex flex-col gap-3 rounded-2xl border border-edge bg-surface-1 px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:px-5 sm:py-4">
-            <div className="flex items-center justify-between gap-3 sm:contents">
+            {/* Phone (10-11, Chris: the headline wrapped into four ragged lines beside the eBay
+                button): headline and sub-line never wrap, the button and the X are a notch smaller. */}
+            <div className="flex flex-wrap items-center justify-between gap-2 sm:contents">
             <div className="flex min-w-0 items-end gap-x-6 gap-y-1 sm:flex-wrap">
               <div className="min-w-0">
-                <p className="font-display text-xl font-semibold leading-none text-white">
+                <p className="whitespace-nowrap font-display text-lg font-semibold leading-none text-white sm:text-xl">
                   {items.length} card{items.length === 1 ? "" : "s"}
                   {/* Phones fold the value into the headline; desktop has its own stat. */}
                   <span className="sm:hidden"> · {formatMoney(pendingValue)}</span>
                 </p>
-                <p className="mt-1 truncate text-[11px] text-zinc-500" aria-live="polite">
+                <p className="mt-1 truncate whitespace-nowrap text-[11px] text-zinc-500" aria-live="polite">
                   {readyCount} ready · {listedItems.length} live · {items.length - identified.length} pending
                 </p>
               </div>
@@ -1539,12 +1541,15 @@ export default function AppPage() {
                 </div>
               )}
             </div>
+              {/* Phone: the button and the X move as a pair, dropping under a wide headline
+                  ("12 cards · $1,234.56") instead of squeezing it. Desktop: dissolved. */}
+              <div className="ml-auto flex shrink-0 items-center gap-2 sm:contents">
               {user.role !== "admin" && user.tier === "trial" && !user.ebayConnected ? (
                 // Trial: selling is paid, so the one action here is Subscribe
                 // (Chris, 09-06) — the plans page, not the eBay consent screen.
                 <Link
                   href="/pricing"
-                  className="shrink-0 whitespace-nowrap rounded-full bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-400 sm:order-last"
+                  className="shrink-0 whitespace-nowrap rounded-full bg-brand-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-brand-400 sm:order-last sm:px-4 sm:py-2 sm:text-sm"
                 >
                   Subscribe Now
                 </Link>
@@ -1554,7 +1559,7 @@ export default function AppPage() {
                   onClick={() => void sendAllToEbay()}
                   disabled={bulkBusy || identified.length === 0}
                   title={user.ebayConnected ? "Send every verified card to your eBay account" : "Connect your eBay account first"}
-                  className="shrink-0 whitespace-nowrap rounded-full bg-ebay px-4 py-2 text-sm font-semibold text-white transition hover:bg-ebay-hover disabled:cursor-not-allowed disabled:opacity-40 sm:order-last"
+                  className="shrink-0 whitespace-nowrap rounded-full bg-ebay px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-ebay-hover disabled:cursor-not-allowed disabled:opacity-40 sm:order-last sm:px-4 sm:py-2 sm:text-sm"
                 >
                   {bulkBusy ? "Sending…" : user.ebayConnected ? "Send to eBay" : "Connect eBay"}
                 </button>
@@ -1569,13 +1574,14 @@ export default function AppPage() {
                   }}
                   aria-label="Close card"
                   title="Close card"
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-edge text-zinc-300 transition hover:border-brand-400 hover:text-white sm:order-last"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-edge text-zinc-300 transition hover:border-brand-400 hover:text-white sm:order-last sm:h-9 sm:w-9"
                 >
                   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
                     <path d="M6 6l12 12M18 6L6 18" />
                   </svg>
                 </button>
               )}
+              </div>
             </div>
 
             {/* Phones: five game pills no longer share a row with the two Add
@@ -1584,12 +1590,19 @@ export default function AppPage() {
                 line, the buttons under them. Desktop: unchanged (contents). */}
             <div className="flex flex-col gap-2 sm:contents">
               <GameToggle game={game} onChange={setGame} compact />
-              <Uploader onOpenCamera={openCamera} variant="compact" />
+              {/* Add Cards + Inventory on one row (10-11, Chris: the three-item row was crowded
+                  and cut off, and Seller · Collector does not belong up here; it still lives on
+                  the pre-scan screen, Account and Inventory). */}
+              <div className="grid grid-cols-2 gap-2 sm:contents">
+                <Uploader onOpenCamera={openCamera} variant="compact" />
+                <Link
+                  href="/app/collection"
+                  className="whitespace-nowrap rounded-full border border-edge bg-surface-1 px-4 py-2 text-center text-sm font-medium text-zinc-200 transition hover:border-brand-400 hover:text-white"
+                >
+                  Inventory →
+                </Link>
+              </div>
             </div>
-          </div>
-          {/* Seller · Collector beside the queue too (Chris, 10-05): this is where the eBay buttons live. */}
-          <div className="-mt-1" data-tour="mode-switch">
-            <PricingModeToggle />
           </div>
           {bulkNote && (
             <p role="status" className="-mt-2 px-1 text-xs text-zinc-400">
