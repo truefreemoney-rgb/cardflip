@@ -275,15 +275,29 @@ export async function updateServerCard(
 ): Promise<boolean> {
   // Resolves false (never throws) so callers can keep the optimistic update
   // and only roll back / warn when the write actually didn't land.
+  return (await updateServerCardResult(id, patch)).ok;
+}
+
+/**
+ * Same write, but says WHY it failed: the server's own error text and status when it answered,
+ * or null for a dropped/timed-out request (10-11: a refused Mark as Sold on prod read as
+ * "check your connection", hiding the real reason).
+ */
+export async function updateServerCardResult(
+  id: string,
+  patch: UpdateCardInput,
+): Promise<{ ok: true } | { ok: false; status: number | null; error: string | null }> {
   try {
     const res = await apiFetch(`/api/cards/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(patch),
     });
-    return res.ok;
+    if (res.ok) return { ok: true };
+    const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
+    return { ok: false, status: res.status, error: typeof data?.error === "string" ? data.error : null };
   } catch {
-    return false;
+    return { ok: false, status: null, error: null };
   }
 }
 

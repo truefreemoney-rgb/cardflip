@@ -31,6 +31,7 @@ import {
   fetchServerCards,
   repriceCard,
   updateServerCard,
+  updateServerCardResult,
   type LivePrice,
   type RepriceNudge,
   type ServerCard,
@@ -1363,12 +1364,14 @@ export default function CollectionPage() {
     }
     setSyncError(null);
     patchCard(card.id, patch);
-    const ok = await updateServerCard(card.id, patch);
-    if (!ok) {
+    const result = await updateServerCardResult(card.id, patch);
+    if (!result.ok) {
       patchCard(card.id, before);
-      setSyncError(`Couldn't save the change to ${card.cardName} — check your connection and try again.`);
+      // The server's own reason when it gave one (a refusal is not a connection problem).
+      const why = result.error ?? (result.status === 401 ? "you're signed out — log in again." : "check your connection and try again.");
+      setSyncError(`Couldn't save the change to ${card.cardName} — ${why}`);
       // The banner lives at the top of a long page — repeat it where the eye is.
-      toast(`Couldn't save the change to ${card.cardName}`, "err");
+      toast(`Couldn't save the change to ${card.cardName}${result.status ? ` (${result.status})` : ""}`, "err");
     }
   }
 
