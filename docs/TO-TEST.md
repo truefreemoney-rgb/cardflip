@@ -3,6 +3,12 @@
 Things that shipped but were never exercised on a real phone or with real
 traffic. Tick when tested; note what you saw. Newest batch first.
 
+## 10-11 Faster scans: tiebreak off the critical path, price wait 2.5 s → 1.2 s (COMMITTED NOT PUSHED; test after the next push)
+- [ ] Scan a card with two near-identical printings (a Trainer Gallery card like Eevee TG11, or any card with a 1st Edition twin): the card shows within ~3 s instead of waiting on the picture check; if the tiebreak later disagrees, the card swaps and a Check-match line says "the photo looks more like this printing than <set>".
+- [ ] Verify a card quickly after it shows: a late tiebreak must NOT change it afterwards (verified wins).
+- [ ] Scan 5 cards in a row and time it against yesterday: the "Reading the card" wait feels shorter; prices still appear on the card (held price first, live price fills in).
+- [ ] /admin log: no new "scan: slow read" warnings beyond what was there before.
+
 ## 10-11 No-match scans given back (COMMITTED NOT PUSHED with the header commit; test after the next push)
 - [ ] Trial account: scan something that is not a card (a book cover, a receipt) so the queue says "No match found — search by name": the header scan counter does NOT go up (or goes up and comes back within a second), and /app/account shows the same trial count as before.
 - [ ] Scan a real card right after: it still counts (the counter rises by one and stays).

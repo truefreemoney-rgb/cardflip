@@ -43,7 +43,10 @@ const DEFAULT_LIMIT = 24;
  * to eBay comps / the last recorded point) and pricing completes in the
  * background to warm the cache for the next lookup.
  */
-const PRICING_BUDGET_MS = 2500;
+// 10-11 (Chris: "scanning was kinda slow"): 2500 → 1200 ms. The held-price
+// fallback below ships our own series on the first answer, so the extra
+// 1.3 s of waiting bought little; pricing still completes in the background.
+const PRICING_BUDGET_MS = 1200;
 
 /**
  * The price guard (lib/server/priceTrustSite.ts) on the way out: every answer

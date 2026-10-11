@@ -354,6 +354,50 @@ export default function AppPage() {
     [commit],
   );
 
+  /**
+   * Swap an item's identity for another catalog card: the editor's "Not your
+   * card?" pick, and (10-11) the picture tiebreak when it lands after the
+   * card is already on screen. `doubt` is the Check-match line the seller
+   * sees; a swap wipes verification, the price override and the eBay
+   * lookups, and renames the ledger row when one exists.
+   */
+  const swapCard = useCallback(
+    (id: string, card: PokemonCard, candidates: PokemonCard[], doubt?: string) => {
+      const cur = itemsRef.current.find((i) => i.id === id);
+      if (!cur?.card || cur.card.id === card.id) return;
+      abandoned.current.delete(id);
+      patchItem(id, {
+        card,
+        candidates: [card, ...candidates.filter((c) => c.id !== card.id)],
+        status: "ready",
+        verifiedAt: null,
+        matchDoubt: (doubt ?? `corrected from ${cur.card.englishName || cur.card.name} (${cur.card.setName})`).slice(0, 80),
+        priceOverride: null,
+        variant: null,
+        firstEdition: isFirstEditionCard(card),
+        grading: null,
+        error: null,
+        currentPoint: undefined,
+        ebay: null,
+        ebayStatus: "idle",
+        ebaySold: null,
+        ebaySoldStatus: "unavailable",
+      });
+      if (cur.serverId) {
+        void updateServerCard(cur.serverId, {
+          cardName: card.englishName || card.name,
+          setName: card.setName,
+          cardNumber: card.number,
+          imageUrl: card.imageSmall,
+          catalogCardId: card.id || null,
+          rarity: card.rarity ?? null,
+          firstEdition: isFirstEditionCard(card),
+        });
+      }
+    },
+    [patchItem],
+  );
+
   // OCR is the fallback behind vision, so its worker + model (several MB of
   // WASM and traineddata) load on first use, not on every scanner mount —
   // eagerly warming it competed with the resume/scan requests for a phone's
@@ -613,12 +657,11 @@ export default function AppPage() {
           // Two printings within a point of each other: the printed key has
           // run out, so the picture decides (09-10, the 99% push). One call
           // to the stronger model on ties only; on null the order stands.
-          const tieIds = tiebreakIds(matches, next.game, !printed?.number);
-          if (tieIds.length >= 2 && vision.status === "done") {
-            const winner = await tiebreakCard(next.file, next.game, tieIds);
-            const at = winner && winner !== matches[0].id ? matches.findIndex((m) => m.id === winner) : -1;
-            if (at > 0) matches = [matches[at], ...matches.filter((_, i) => i !== at)];
-          }
+          // Two printings too close to call: the picture tiebreak (Opus) used to be awaited HERE, holding the
+          // card off the screen for up to 5 s (10-11, Chris: "scanning was kinda slow"). Now the top match
+          // shows at once and the tiebreak runs after the ledger row exists (below); if it picks the other
+          // printing and the seller has not verified yet, the card swaps with a Check-match line.
+          const tieIds = vision.status === "done" ? tiebreakIds(matches, next.game, !printed?.number) : [];
 
           // >= rather than ==: the number-only fallback above can add an error
           // of its own, and a scan that produced no name candidates at all
@@ -769,6 +812,22 @@ export default function AppPage() {
                   ...(cur.firstEdition ? { firstEdition: true } : {}),
                 });
               }
+              // The picture tiebreak, off the critical path (10-11): the row exists, so a late pick renames it
+              // through swapCard. Dropped when the seller already verified, listed or removed the card, or
+              // when the pick is the card already showing. Not awaited: the pump moves on to the next scan.
+              if (tieIds.length >= 2 && next.file) {
+                const file = next.file;
+                const picked = card;
+                const shown = matches;
+                void tiebreakCard(file, next.game, tieIds).then((winner) => {
+                  if (!winner || winner === picked.id) return;
+                  const now = itemsRef.current.find((i) => i.id === next.id);
+                  if (!now?.card || now.card.id !== picked.id || now.verifiedAt || now.status === "listed" || now.status === "sold") return;
+                  const other = shown.find((m) => m.id === winner);
+                  if (!other) return;
+                  swapCard(next.id, other, shown, `the photo looks more like this printing than ${picked.setName}`);
+                });
+              }
               // Persist the seller's own photo now, not at eBay-push time.
               // It is the only image a listing is ever sent (picture policy:
               // the actual item, never catalogue art), and until it reaches
@@ -809,7 +868,7 @@ export default function AppPage() {
     } finally {
       pumpingRef.current--;
     }
-  }, [patchItem, patchUser, refresh, setGame]);
+  }, [patchItem, patchUser, refresh, setGame, swapCard]);
 
   /**
    * Price the card against what it's actually going for on eBay. Deliberately
@@ -1323,39 +1382,7 @@ export default function AppPage() {
       queue={items.filter((item) => item.card && item.status !== "listed" && item.status !== "sold")}
       onRemove={removeItem}
       quotaNote={quotaNote}
-      onSwap={(id, card, candidates) => {
-        const cur = itemsRef.current.find((i) => i.id === id);
-        if (!cur?.card || cur.card.id === card.id) return;
-        abandoned.current.delete(id);
-        patchItem(id, {
-          card,
-          candidates: [card, ...candidates.filter((c) => c.id !== card.id)],
-          status: "ready",
-          verifiedAt: null,
-          matchDoubt: `corrected from ${cur.card.englishName || cur.card.name} (${cur.card.setName})`.slice(0, 80),
-          priceOverride: null,
-          variant: null,
-          firstEdition: isFirstEditionCard(card),
-          grading: null,
-          error: null,
-          currentPoint: undefined,
-          ebay: null,
-          ebayStatus: "idle",
-          ebaySold: null,
-          ebaySoldStatus: "unavailable",
-        });
-        if (cur.serverId) {
-          void updateServerCard(cur.serverId, {
-            cardName: card.englishName || card.name,
-            setName: card.setName,
-            cardNumber: card.number,
-            imageUrl: card.imageSmall,
-            catalogCardId: card.id || null,
-            rarity: card.rarity ?? null,
-            firstEdition: isFirstEditionCard(card),
-          });
-        }
-      }}
+      onSwap={swapCard}
       onVerifyMany={(ids) => {
         const at = Date.now();
         for (const id of ids) patchItem(id, { verifiedAt: at, status: "ready", error: null, matchDoubt: null });
