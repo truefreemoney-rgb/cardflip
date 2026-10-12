@@ -1698,7 +1698,11 @@ export default function AppPage() {
               ))}
             </aside>
 
-            <section className={`min-w-0 rounded-2xl border border-edge bg-surface-1 ${selected ? "min-h-[24rem]" : "min-h-[24rem] max-sm:min-h-0"}`}>
+            {/* A flex column so the Share row below the editor stays inside the box: the Listed panel is h-full, and
+                with the section stretched to its grid row that pushed Share past the border onto the footer text
+                (Chris 10-12, iPhone). The editor fills the flex-1 wrapper instead. */}
+            <section className={`flex min-w-0 flex-col rounded-2xl border border-edge bg-surface-1 ${selected ? "min-h-[24rem]" : "min-h-[24rem] max-sm:min-h-0"}`}>
+              <div className="min-h-0 flex-1">
               {selected ? (
                 selected.kind === "sealed" ? (
                   <SealedEditor
@@ -1752,8 +1756,9 @@ export default function AppPage() {
                   {user.pricingOnly ? "Select a card to see its price." : "Select a card to review its listing."}
                 </div>
               )}
+              </div>
               {selected && selected.kind !== "sealed" && selected.card?.id && !selected.grading && (
-                <div className="flex justify-end border-t border-edge px-4 py-2.5">
+                <div className="flex shrink-0 justify-end border-t border-edge px-4 py-2.5">
                   <ShareImageButton
                     path={`/api/share/card?game=${selected.card.game ?? "pokemon"}&id=${encodeURIComponent(cardKey(selected.card.game ?? "pokemon", { id: selected.card.id, setCode: selected.card.setCode, number: selected.card.number }))}`}
                     fileName="cardflip-card"
