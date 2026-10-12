@@ -35,7 +35,7 @@ Was 97. Claude closed 18 tonight (15 passed on prod, 2 out of date, 1 turned int
 17. Double tap on Capture = one photo, one scan charged.
 18. Trial account using its last free scan mid-session keeps its queue (wall only on the next visit).
 19. Out of scans: red note shows inside the camera.
-20. ✅ 10-12 (Chris, tunnel: Magic empty → Scanner → Inventory opened on Pokémon) Opens on a game that has cards when the last-used game has none.
+20. SUPERSEDED 10-12 (Chris: scanner and Inventory game rows must mirror) Inventory always opens on the scanner's game, even an empty one ("No Magic cards yet"); picking a game in Inventory carries back to Scanner. Pane-verified both ways; phone check pending.
 21. "Not this card?" on the camera chip: other picks + search by name; picking one updates name and price, no extra scan charged.
 22. Verify-all sheet after a stack of scans: doubtful ones first; Confirm marks the rest verified.
 23. At phone width, "Not this card?" and Verify fit side by side.

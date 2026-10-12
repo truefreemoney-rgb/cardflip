@@ -1588,19 +1588,8 @@ export default function CollectionPage() {
     for (const c of cards) counts[c.game ?? "pokemon"] = (counts[c.game ?? "pokemon"] ?? 0) + 1;
     return counts;
   }, [cards]);
-  // The remembered game can be empty while another has cards (Lorcana 0,
-  // Magic 25): open the fullest game once, after the first load.
-  const [openedGame, setOpenedGame] = useState(false);
-  if (!loading && !openedGame) {
-    setOpenedGame(true);
-    if ((gameCounts[gameView] ?? 0) === 0) {
-      let best: GameId | null = null;
-      for (const g of GAME_IDS) {
-        if ((gameCounts[g] ?? 0) > (best ? (gameCounts[best] ?? 0) : 0)) best = g;
-      }
-      if (best) setGameView(best);
-    }
-  }
+  // Always the scanner's game, even when it has no cards: the two game rows
+  // mirror each other (Chris 10-12; replaces the jump-to-fullest-game rule).
   // Categories = the ones cards carry + the empty ones the seller created
   // (server table, 09-08 "add category"); both lists merge here.
   const [createdCategories, setCreatedCategories] = useState<string[]>([]);
