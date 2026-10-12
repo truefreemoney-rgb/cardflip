@@ -38,9 +38,9 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 - [x] /admin > the user's row after a no-match scan: trial scans used did not rise; scan_usage keeps the row with refunded_at set (the vision bill is still real money). (closed 10-11 ~10pm ET by Claude: PASSED, prod scan_usage keeps both 10-11 7:50pm no-match rows with refunded_at set, draw trial:1)
 
 ## 10-11 Scanner post-scan header (9665f726, PUSHED to main 10-11 ~9:10pm ET in a40dddb4)
-- [ ] Phone, after a scan: the header card has no Seller · Collector switch; Add Cards and Inventory → are two equal-width pills on one row; Inventory → opens Inventory.
-- [ ] Phone: "1 card · $0.85" and "1 ready · 0 live · 0 pending" sit on one line each, Connect eBay (or Send to eBay) and the X beside them, nothing cut off.
-- [ ] Pre-scan screen, Account and Inventory still show Seller · Collector; the tour "Your switch" step still lands on it.
+- [x] (10-12 ~2:45pm ET Chris on the tunnel: "fine") Phone, after a scan: the header card has no Seller · Collector switch; Add Cards and Inventory → are two equal-width pills on one row; Inventory → opens Inventory.
+- [x] (10-12 ~2:45pm ET Chris on the tunnel: "fine") Phone: "1 card · $0.85" and "1 ready · 0 live · 0 pending" sit on one line each, Connect eBay (or Send to eBay) and the X beside them, nothing cut off.
+- [x] (10-12 ~2:45pm ET Chris on the tunnel: "fine") Pre-scan screen, Account and Inventory still show Seller · Collector; the tour "Your switch" step still lands on it.
 
 ## 10-08 Pokémon hand map (dc9c0337, built by the first cloud session): 10 unpriced cards get a TCGplayer product
 - [x] After the 10-09 5:25am ET Pokémon run: /admin price job result shows no error, and these have a USD series: Mewtwo Star ex13-103, Registeel Star ex12-92, Mudkip Star ex7-107, Deoxys ex pop4-17, Espeon Star pop5-16, Skyridge Gengar H09, Tropical Wind DP05/DP25/DP48, Tropical Tidal Wave np-27. Check /pokemon/mewtwo-card-value shows the Star with a price. (closed 10-11 ~10pm ET by Claude: DONE, Mewtwo Star ex13-103 and Lotad pl3-SH9 have USD series; the other 9 products are mapped but TCGplayer itself has no price for them (tcgcsv checked), nothing to fix our side)

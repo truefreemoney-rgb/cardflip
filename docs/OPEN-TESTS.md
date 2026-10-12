@@ -21,9 +21,9 @@ Was 97. Claude closed 18 tonight (15 passed on prod, 2 out of date, 1 turned int
 
 **Scanner header after a scan (10-11)**
 
-9. No Seller/Collector switch; Add Cards + Inventory → are two equal pills; Inventory → opens Inventory.
-10. "1 card · $0.85" and "1 ready · 0 live · 0 pending" each on one line, eBay button and X beside them, nothing cut off.
-11. Before scanning, and on Account and Inventory: Seller/Collector switch still there; the tour's "Your switch" step lands on it.
+9. ✅ 10-12 No Seller/Collector switch; Add Cards + Inventory → are two equal pills; Inventory → opens Inventory.
+10. ✅ 10-12 "1 card · $0.85" and "1 ready · 0 live · 0 pending" each on one line, eBay button and X beside them, nothing cut off.
+11. ✅ 10-12 Before scanning, and on Account and Inventory: Seller/Collector switch still there; the tour's "Your switch" step lands on it.
 
 **Scanner older fixes (10-06 / 10-08)**
 
