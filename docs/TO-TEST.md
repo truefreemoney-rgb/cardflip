@@ -153,7 +153,7 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 - [x] /admin attribution shows the sign-up as "Google Ads" (utm_source=googleads suffix). (closed 10-11 ~10pm ET by Claude: PASSED, signup_log has googleads signups on 10-07, 10-08, 10-09, 10-11)
 
 ## 10-08 game row
-- [ ] Collector mode Inventory: no "Collection value" box above the Market Value line (parked 10-08, Chris). The collection Share picture went with it; Insights page still has its own Share.
+- [x] (10-12 ~2:40pm ET Chris on the tunnel, screenshot: no Collection value box) Collector mode Inventory: no "Collection value" box above the Market Value line (parked 10-08, Chris). The collection Share picture went with it; Insights page still has its own Share.
 - [x] (10-12 ~2:50pm ET Chris on the tunnel: fine on Inventory + Set Completion; Packs ran 4px past its box border, fixed with GameToggle inCard, measured in the pane at 375px) Game row on Inventory, Set Completion, Packs and /scan (Chris 10-08 "hate the look of the bar"): one line of small chips, no box, scrolls sideways on the phone, a 0 count not printed. Check it on the iPhone in Inventory and on /scan.
 - [x] (10-12 ~2:55pm ET Chris on the tunnel: "looks fine now") Packs page on the phone: the game chips row stops at the box border (Yu-Gi-Oh! no longer pokes past it); still scrolls sideways.
 
