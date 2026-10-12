@@ -115,19 +115,13 @@ export default function CategorySheet({
           </div>
         )}
 
-        <div className="mt-5 flex gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="inline-flex flex-1 items-center justify-center rounded-full border border-edge px-4 py-2.5 text-sm font-medium text-zinc-300 transition hover:border-edge-strong hover:text-white"
-          >
-            Cancel
-          </button>
+        {/* One centered button; the X closes (Chris 10-12: "take out the cancel button"). */}
+        <div className="mt-5 flex justify-center">
           <button
             type="button"
             disabled={!canConfirm}
             onClick={() => onPick(result)}
-            className="inline-flex flex-1 items-center justify-center rounded-full bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-400 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex w-full max-w-[16rem] items-center justify-center rounded-full bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-400 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {busy ? "Saving…" : confirmLabel}
           </button>
