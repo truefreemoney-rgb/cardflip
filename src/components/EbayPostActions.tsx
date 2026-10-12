@@ -489,19 +489,6 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
           </div>
         </div>
       )}
-
-      <p className="-mt-1 border-t border-white/5 pt-4 text-center text-[11px] text-zinc-600">
-        Listed this on eBay yourself?{" "}
-        <button
-          onClick={() =>
-            onChange({ status: "listed", listedPrice: price, listedAt: Date.now() })
-          }
-          className="underline underline-offset-4 transition hover:text-zinc-300"
-        >
-          Mark it as listed
-        </button>{" "}
-        so the ledger tracks it.
-      </p>
     </>
   );
 }
