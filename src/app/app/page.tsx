@@ -165,6 +165,12 @@ const RESUME_STAGE_MS = [900, 2000] as const;
 export default function AppPage() {
   const router = useRouter();
   const { user, refresh, patchUser } = useSession();
+  // Out of scans blocks Capture and says so the moment the camera opens (Chris 10-12; no OCR fallback).
+  const outOfScans = Boolean(user?.scans && user.scans.remaining != null && user.scans.remaining <= 0);
+  const outOfScansRef = useRef(outOfScans);
+  useEffect(() => {
+    outOfScansRef.current = outOfScans;
+  }, [outOfScans]);
 
   // The card scanned on the ad landing page before signup (/scan, 10-05) lands in Inventory now.
   const userId = user?.id;
@@ -470,6 +476,11 @@ export default function AppPage() {
           if (vision.status === "quota" && !quotaNoteDismissed.current) {
             // The server's 402 names the next credit date, a Booster or the paused scans.
             setQuotaNote(vision.error ?? "You're out of scans.");
+          }
+          // Out of scans = no scan (Chris 10-12): the on-device OCR fallback read a bedsheet as an Espeon and saved it.
+          if (vision.status === "quota") {
+            patchItem(next.id, { visionStatus: vision.status, status: "error", error: vision.error ?? "You're out of scans." });
+            continue;
           }
 
           let nameCandidates: string[];
@@ -1155,11 +1166,15 @@ export default function AppPage() {
    *  09-04: the sheet was covering the card the scanner had just found). */
   const onCameraCapture = useCallback(
     (file: File) => {
+      if (outOfScansRef.current) {
+        router.push("/pricing");
+        return;
+      }
       const id = addFiles([file])[0] ?? null;
       setCameraItemId(id);
       if (id) sessionItemIdsRef.current.push(id);
     },
-    [addFiles],
+    [addFiles, router],
   );
 
   // Binder page (tier 1 #4, 09-27) was removed 10-03 with every upload path:
@@ -1393,7 +1408,7 @@ export default function AppPage() {
       // Verified cards are not waiting (Chris 10-12: one verified + one new scan said "2 Scans To Verify").
       queue={items.filter((item) => item.card && !item.verifiedAt && item.status !== "listed" && item.status !== "sold")}
       onRemove={removeItem}
-      quotaNote={quotaNote}
+      quotaNote={quotaNote ?? (outOfScans ? "You're out of scans. Tap Capture to get more." : null)}
       onSwap={swapCard}
       onCapture={onCameraCapture}
       onClose={closeCamera}
@@ -1457,7 +1472,7 @@ export default function AppPage() {
           className="mx-auto mt-4 flex w-full max-w-7xl items-center justify-between gap-3 rounded-2xl border border-red-400/20 bg-red-400/10 px-5 py-3 text-sm text-red-200 sm:px-6"
         >
           <span>
-            <span className="font-semibold text-red-300">{quotaNote}</span> Cards still scan by OCR, which reads less of the card.{" "}
+            <span className="font-semibold text-red-300">{quotaNote}</span>{" "}
             <Link
               href="/app/account"
               className="font-medium text-white underline underline-offset-4 transition hover:text-red-100"

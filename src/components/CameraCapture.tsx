@@ -969,7 +969,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
             the card. Until the first scan the slot carries the how-to. */}
         {quotaNote && (
           <p role="alert" className="shrink-0 px-3 pb-2 text-center text-xs font-semibold text-red-300 sm:px-0">
-            {quotaNote} Cards now scan by on-device OCR.
+            {quotaNote}
           </p>
         )}
         <div className="flex min-h-[4.25rem] shrink-0 items-center px-3 sm:px-0">
