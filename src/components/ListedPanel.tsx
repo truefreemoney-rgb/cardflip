@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import HoloCard from "@/components/HoloCard";
-import { netAfterFees, POSTAGE_USD } from "@/lib/fees";
+import { netAfterFees, salePostage } from "@/lib/fees";
 import { displayCardNumber } from "@/lib/games";
 import { formatMoney } from "@/lib/listing";
 import type { ScanItem } from "@/lib/types";
@@ -24,7 +24,8 @@ interface Props {
 export default function ListedPanel({ item, onNext }: Props) {
   const card = item.card!;
   const listedPrice = item.listedPrice ?? 0;
-  const net = listedPrice > 0 ? Math.max(0, netAfterFees(listedPrice) - POSTAGE_USD) : 0;
+  // Postage = the shipping pick at the listed price (10-12), not a flat $0.78.
+  const net = listedPrice > 0 ? Math.max(0, netAfterFees(listedPrice) - salePostage(item.shipping, listedPrice)) : 0;
 
   return (
     <div className="flex h-full flex-col items-center justify-center gap-7 p-6 text-center sm:p-8">

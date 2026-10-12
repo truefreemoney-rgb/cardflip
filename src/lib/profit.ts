@@ -1,11 +1,12 @@
-import { netAfterFees, POSTAGE_USD } from "@/lib/fees";
+import { netAfterFees, salePostage, type ShipMethod } from "@/lib/fees";
 
 /**
  * Profit per card and the year-end sales report (09-27). Pure math shared
  * by the Inventory page, the report page, the CSV route and the test.
  *
  * profit = sold price − eBay fees (actual when recorded, else estimated)
- *          − postage − what the seller paid (cost basis).
+ *          − postage (the row's shipping pick at the sold price, salePostage;
+ *            was a flat $0.78 until 10-12) − what the seller paid (cost basis).
  * A card with no cost entered is still counted, at cost $0, and flagged so
  * the report can say "N sales have no purchase price".
  */
@@ -17,6 +18,8 @@ export interface SaleLike {
   costBasis: number | null;
   /** Marked sold by hand = a sale made off eBay: no eBay fee, no postage (Chris, 10-01). */
   soldByHand?: boolean | null;
+  /** The seller's shipping pick on the row; with the sold price it sets the postage. */
+  shippingMethod?: ShipMethod | null;
 }
 
 export interface SaleBreakdown {
@@ -32,9 +35,9 @@ export interface SaleBreakdown {
 }
 
 /** What a sale puts in the seller's pocket before cost: the sold price, less the eBay fee and postage unless it was marked by hand. */
-export function saleNet(c: Pick<SaleLike, "soldPrice" | "soldFees" | "soldByHand">): number {
+export function saleNet(c: Pick<SaleLike, "soldPrice" | "soldFees" | "soldByHand" | "shippingMethod">): number {
   if (c.soldPrice == null) return 0;
-  return c.soldByHand ? c.soldPrice : netAfterFees(c.soldPrice, c.soldFees) - POSTAGE_USD;
+  return c.soldByHand ? c.soldPrice : netAfterFees(c.soldPrice, c.soldFees) - salePostage(c.shippingMethod, c.soldPrice);
 }
 
 export function saleBreakdown(c: SaleLike): SaleBreakdown | null {
@@ -42,7 +45,7 @@ export function saleBreakdown(c: SaleLike): SaleBreakdown | null {
   const gross = c.soldPrice;
   const byHand = Boolean(c.soldByHand);
   const fees = byHand ? 0 : gross - netAfterFees(gross, c.soldFees);
-  const postage = byHand ? 0 : POSTAGE_USD;
+  const postage = byHand ? 0 : salePostage(c.shippingMethod, gross);
   const cost = c.costBasis ?? 0;
   return {
     gross,

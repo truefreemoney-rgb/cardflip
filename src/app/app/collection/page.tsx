@@ -39,7 +39,7 @@ import {
 import { endEbayListing, fetchWatcherEligible, saveAutoOffer, sendWatcherOffer, syncEbaySales } from "@/lib/client/ebayApi";
 import { confirmAction } from "@/components/ConfirmDialog";
 import { apiPath } from "@/lib/client/basePath";
-import { netAfterFees, netAfterFeesFor, POSTAGE_USD } from "@/lib/fees";
+import { netAfterFees, netAfterFeesFor, salePostage, salePostageOn } from "@/lib/fees";
 import LocalListingLine from "@/components/LocalListingLine";
 import { priceFloorFor, useLocalMarket } from "@/lib/client/localMarket";
 import { toLocal } from "@/lib/localPricing";
@@ -154,6 +154,17 @@ function formatDate(ts: number): string {
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** The one postage rate every copy shares, or null when they ship at different rates (or there are none). */
+function oneRate(rates: number[]): number | null {
+  if (rates.length === 0) return null;
+  return rates.every((r) => Math.abs(r - rates[0]) < 0.005) ? rates[0] : null;
+}
+
+/** "Postage · 3 × $6.07" when the copies share one rate, else just "Postage" (the row's number is the sum). */
+function postageRowLabel(copies: number, rate: number | null): string {
+  return rate != null && copies > 0 ? `Postage · ${copies} × ${formatMoney(rate)}` : "Postage";
+}
 
 // Net comes from lib/fees.ts: the Finances-API actual fee once the sync has
 // recorded one (card.soldFees), the 13.25%+$0.30 estimate until then.
@@ -343,10 +354,11 @@ function RepriceSheet({
   const siteInfo = useLocalMarket();
   const local = card.ebayMarketplace ? siteInfo : null;
   const changed = Math.abs(price - card.price) >= 0.005;
-  const net = price > 0 ? Math.max(0, netAfterFees(price) - POSTAGE_USD) : 0;
+  // Postage = the row's shipping pick at THIS price (10-12), not a flat $0.78.
+  const net = price > 0 ? Math.max(0, netAfterFees(price) - salePostage(card.shippingMethod, price)) : 0;
   const localNet =
     local?.rate && price > 0
-      ? Math.max(0, netAfterFeesFor(local.mp, toLocal(price, local.rate), null, local.account) - local.mp.postage)
+      ? Math.max(0, netAfterFeesFor(local.mp, toLocal(price, local.rate), null, local.account) - salePostageOn(local.mp, card.shippingMethod, toLocal(price, local.rate)))
       : null;
   // Never under the fee floor (Chris, 09-08): the quick steps clamp to it and
   // a typed price under it can't be sent — the server refuses it anyway.
@@ -1734,8 +1746,10 @@ export default function CollectionPage() {
     const net = sold.reduce((sum, c) => sum + saleNet(c), 0);
     // Every sale has its real fee recorded → the fee figure drops its "≈".
     const feesExact = sold.every((c) => c.soldPrice == null || c.soldFees != null || c.soldByHand);
-    // Postage only comes off eBay sales.
-    const postedCopies = sold.filter((c) => c.soldPrice != null && !c.soldByHand).length;
+    // Postage only comes off eBay sales, at each row's shipping pick and sold price (10-12).
+    const posted = sold.filter((c) => c.soldPrice != null && !c.soldByHand);
+    const postedCopies = posted.length;
+    const soldPostage = posted.reduce((sum, c) => sum + salePostage(c.shippingMethod, c.soldPrice!), 0);
     const handSold = sold.filter((c) => c.soldPrice != null && c.soldByHand);
     const handCount = handSold.length;
     const handEarned = handSold.reduce((sum, c) => sum + (c.soldPrice ?? 0), 0);
@@ -1748,11 +1762,16 @@ export default function CollectionPage() {
     // price, or the row's own price where there is no market (same fallback as headlineOf).
     const inPlayMarket = counted.reduce((sum, c) => sum + (marketById[c.id] ?? c.price) * (c.quantity || 1), 0);
     // What those listings would actually put in the seller's pocket: each
-    // copy after the fee estimate and postage.
+    // copy after the fee estimate and ITS postage (the row's shipping pick at
+    // its price, 10-12: a $1,178 card was charged the $0.78 envelope).
     const inPlay = counted.reduce(
-      (sum, c) => sum + (c.price > 0 ? Math.max(0, netAfterFees(c.price) - POSTAGE_USD) : 0) * (c.quantity || 1),
+      (sum, c) => sum + (c.price > 0 ? Math.max(0, netAfterFees(c.price) - salePostage(c.shippingMethod, c.price)) : 0) * (c.quantity || 1),
       0,
     );
+    const inPlayPostage = counted.reduce((sum, c) => sum + (c.price > 0 ? salePostage(c.shippingMethod, c.price) : 0) * (c.quantity || 1), 0);
+    // "N × $6.07" only when every copy ships at one rate; mixed rates show the sum alone.
+    const inPlayPostageRate = oneRate(counted.filter((c) => c.price > 0).map((c) => salePostage(c.shippingMethod, c.price)));
+    const soldPostageRate = oneRate(posted.map((c) => salePostage(c.shippingMethod, c.soldPrice!)));
 
     // Listed→sold gap, only over cards that carry both timestamps.
     const gaps = sold
@@ -1770,7 +1789,7 @@ export default function CollectionPage() {
     const cost = sold.reduce((sum, c) => sum + (c.soldPrice != null ? c.costBasis ?? 0 : 0), 0);
     const costKnown = sold.filter((c) => c.soldPrice != null && c.costBasis != null).length;
     const profit = net - cost;
-    return { drafts, listed, ended, sold, earned, net, feesExact, inPlay, inPlayGross, inPlayMarket, inPlayCopies, leftOut: leftOut.length, soldCopies, postedCopies, handCount, handEarned, avgDays, cost, costKnown, profit };
+    return { drafts, listed, ended, sold, earned, net, feesExact, inPlay, inPlayGross, inPlayMarket, inPlayCopies, inPlayPostage, inPlayPostageRate, leftOut: leftOut.length, soldCopies, postedCopies, soldPostage, soldPostageRate, handCount, handEarned, avgDays, cost, costKnown, profit };
   }, [scopeCards, leftOutKey, marketById]);
 
 
@@ -2034,8 +2053,8 @@ export default function CollectionPage() {
             )}
             {!pricingOnly && <Breakdown
               rows={[
-                ["eBay fees (est.)", -(stats.inPlayGross - stats.inPlay - stats.inPlayCopies * POSTAGE_USD)],
-                [`Postage · ${stats.inPlayCopies} × ${formatMoney(POSTAGE_USD)}`, -(stats.inPlayCopies * POSTAGE_USD)],
+                ["eBay fees (est.)", -(stats.inPlayGross - stats.inPlay - stats.inPlayPostage)],
+                [postageRowLabel(stats.inPlayCopies, stats.inPlayPostageRate), -stats.inPlayPostage],
                 ["You Keep on eBay", stats.inPlay],
               ]}
             />}
@@ -2097,8 +2116,8 @@ export default function CollectionPage() {
                         [`Sold off eBay · ${stats.handCount}`, stats.handEarned],
                       ] as [string, number][])
                     : ([["Sold for", stats.earned]] as [string, number][])),
-                  [`eBay fees${stats.feesExact ? "" : " (est.)"}`, -(stats.earned - stats.net - stats.postedCopies * POSTAGE_USD)],
-                  [`Postage · ${stats.postedCopies} × ${formatMoney(POSTAGE_USD)}`, -(stats.postedCopies * POSTAGE_USD)],
+                  [`eBay fees${stats.feesExact ? "" : " (est.)"}`, -(stats.earned - stats.net - stats.soldPostage)],
+                  [postageRowLabel(stats.postedCopies, stats.soldPostageRate), -stats.soldPostage],
                   ...(stats.costKnown > 0 ? ([[`What you paid · ${stats.costKnown} of ${stats.soldCopies}`, -stats.cost]] as [string, number][]) : []),
                 ]}
               />

@@ -20,21 +20,38 @@ process.once("exit", () => {
 
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
 const { saleBreakdown, saleNet, yearTotals, saleYears, saleYear, csvCell } = await import(at("lib/profit.ts"));
-const { estimatedEbayFees, POSTAGE_USD } = await import(at("lib/fees.ts"));
+const { estimatedEbayFees, POSTAGE_USD, STAMP_POSTAGE_USD, TRACKED_POSTAGE_USD, salePostage } = await import(at("lib/fees.ts"));
 
 const close = (a, b, msg) => assert.ok(Math.abs(a - b) < 0.005, `${msg}: ${a} vs ${b}`);
 
+// --- salePostage (10-12: the row's pick at the sold price, not a flat $0.78) --
+{
+  close(salePostage(null, 12), POSTAGE_USD, "no pick, $20 or less: the eBay envelope label");
+  close(salePostage("envelope", 20), POSTAGE_USD, "envelope at exactly $20: the label");
+  close(salePostage("envelope", 20.01), STAMP_POSTAGE_USD, "envelope over $20: stamps");
+  close(salePostage("envelope", 100), STAMP_POSTAGE_USD, "envelope at $100: stamps");
+  close(salePostage("tracked", 12), TRACKED_POSTAGE_USD, "tracked pick on a cheap card: the mailer");
+  close(salePostage(null, 60), TRACKED_POSTAGE_USD, "no pick over $20: the mailer, never stamps");
+  close(salePostage("envelope", 1178.52), TRACKED_POSTAGE_USD, "over $100: the mailer whatever was picked");
+  close(salePostage(undefined, 1178.52), TRACKED_POSTAGE_USD, "over $100, no pick: the mailer");
+}
+
 // --- saleBreakdown ---------------------------------------------------------
 {
+  // $100 with no pick on the row ships in the tracked mailer (over the $20 label line).
   const b = saleBreakdown({ soldPrice: 100, soldFees: 12, soldAt: 0, costBasis: 40 });
   close(b.fees, 12, "actual fee wins");
-  close(b.profit, 100 - 12 - POSTAGE_USD - 40, "profit with actual fee");
+  close(b.postage, TRACKED_POSTAGE_USD, "no pick at $100: tracked postage");
+  close(b.profit, 100 - 12 - TRACKED_POSTAGE_USD - 40, "profit with actual fee");
   assert.equal(b.feesActual, true);
   assert.equal(b.costKnown, true);
 
+  const env = saleBreakdown({ soldPrice: 100, soldFees: 12, soldAt: 0, costBasis: 40, shippingMethod: "envelope" });
+  close(env.postage, STAMP_POSTAGE_USD, "envelope pick at $100: stamps");
+
   const e = saleBreakdown({ soldPrice: 100, soldFees: null, soldAt: 0, costBasis: null });
   close(e.fees, estimatedEbayFees(100), "estimate when no actual fee");
-  close(e.profit, 100 - estimatedEbayFees(100) - POSTAGE_USD, "no cost counts as $0");
+  close(e.profit, 100 - estimatedEbayFees(100) - TRACKED_POSTAGE_USD, "no cost counts as $0");
   assert.equal(e.feesActual, false);
   assert.equal(e.costKnown, false);
 
@@ -51,7 +68,8 @@ const close = (a, b, msg) => assert.ok(Math.abs(a - b) < 0.005, `${msg}: ${a} vs
   assert.equal(hand.feesActual, true, "hand-marked: nothing is estimated");
   assert.equal(hand.byHand, true);
   close(saleNet({ soldPrice: 15, soldFees: null, soldByHand: true }), 15, "hand-marked net is the whole price");
-  close(saleNet({ soldPrice: 100, soldFees: 12 }), 100 - 12 - POSTAGE_USD, "eBay sale net");
+  close(saleNet({ soldPrice: 100, soldFees: 12 }), 100 - 12 - TRACKED_POSTAGE_USD, "eBay sale net (no pick at $100 = tracked)");
+  close(saleNet({ soldPrice: 15, soldFees: 2 }), 15 - 2 - POSTAGE_USD, "eBay sale net under $20 = the label");
 }
 
 // --- years (Eastern) ------------------------------------------------------
@@ -70,9 +88,10 @@ const close = (a, b, msg) => assert.ok(Math.abs(a - b) < 0.005, `${msg}: ${a} vs
   assert.equal(t.sales, 2);
   close(t.gross, 100, "gross");
   close(t.fees, 13, "fees");
-  close(t.postage, 2 * POSTAGE_USD, "postage");
+  // $80 with no pick = the tracked mailer; $20 = the envelope label.
+  close(t.postage, TRACKED_POSTAGE_USD + POSTAGE_USD, "postage per sale at its price");
   close(t.cost, 5, "cost only where known");
-  close(t.profit, 100 - 13 - 2 * POSTAGE_USD - 5, "profit");
+  close(t.profit, 100 - 13 - (TRACKED_POSTAGE_USD + POSTAGE_USD) - 5, "profit");
   assert.equal(t.feesEstimated, 0);
   assert.equal(t.costMissing, 1);
   const t25 = yearTotals(cards, 2025);

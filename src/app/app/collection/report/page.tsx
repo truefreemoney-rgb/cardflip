@@ -6,7 +6,7 @@ import PageSkeleton from "@/components/PageSkeleton";
 import { useSession } from "@/components/SessionProvider";
 import { apiPath } from "@/lib/client/basePath";
 import { fetchServerCards, type ServerCard } from "@/lib/client/cardsApi";
-import { POSTAGE_USD } from "@/lib/fees";
+import { ENVELOPE_LABEL_MAX_USD, ENVELOPE_MAX_USD, POSTAGE_USD, STAMP_POSTAGE_USD, TRACKED_POSTAGE_USD } from "@/lib/fees";
 import { formatMoney } from "@/lib/listing";
 import { saleBreakdown, saleYear, saleYears, yearTotals } from "@/lib/profit";
 import { etDate } from "@/lib/time";
@@ -171,7 +171,7 @@ export default function SalesReportPage() {
       </div>
 
       <p className="text-xs text-zinc-600">
-        {!(pricingOnly && totals.fees === 0 && totals.postage === 0) && <>Fees are eBay&rsquo;s actual final value fee where CardFlip has synced it, otherwise 13.25% + $0.30 per order ($0.40 over $10). Postage is a flat {formatMoney(POSTAGE_USD)} allowance per sale. A sale you marked by hand carries no eBay fee and no postage.{" "}</>}
+        {!(pricingOnly && totals.fees === 0 && totals.postage === 0) && <>Fees are eBay&rsquo;s actual final value fee where CardFlip has synced it, otherwise 13.25% + $0.30 per order ($0.40 over $10). Postage is each sale&rsquo;s shipping pick at its sold price: the {formatMoney(POSTAGE_USD)} eBay envelope label up to ${ENVELOPE_LABEL_MAX_USD}, stamps {formatMoney(STAMP_POSTAGE_USD)} up to ${ENVELOPE_MAX_USD}, the tracked mailer {formatMoney(TRACKED_POSTAGE_USD)} otherwise. A sale you marked by hand carries no eBay fee and no postage.{" "}</>}
         Check {pricingOnly && totals.fees === 0 && totals.postage === 0 ? "these" : "both"} against your own records before filing.
       </p>
     </main>

@@ -79,6 +79,19 @@ export function postageFor(method: ShipMethod | null | undefined, gross?: number
   if (method === "tracked") return TRACKED_POSTAGE_USD;
   return gross != null && !envelopeTracked(gross) ? STAMP_POSTAGE_USD : POSTAGE_USD;
 }
+/**
+ * What one copy REALLY costs to post at this sale price, for the Inventory
+ * summary and the sales report (Chris 10-12: a $1,178 card showed
+ * "Postage · 1 × $0.78"). Over $100 the tracked mailer whatever was picked;
+ * otherwise the pick's rate at this price; with no pick on the row, eBay's
+ * label up to $20 and the tracked mailer above it (the stamps are never
+ * assumed: the seller chooses them).
+ */
+export function salePostage(method: ShipMethod | null | undefined, gross: number): number {
+  if (!envelopeAllowed(gross)) return TRACKED_POSTAGE_USD;
+  if (method) return postageFor(method, gross);
+  return envelopeTracked(gross) ? POSTAGE_USD : TRACKED_POSTAGE_USD;
+}
 /** "$0.78" / "$6.07" for the pick tiles. */
 export function formatMoneyPostage(n: number): string {
   // The "$" was lost when this shipped 10-08 (the tiles read "0.78"); found 10-11 night.
@@ -246,6 +259,14 @@ export function costCoveredPriceFor(mp: Marketplace, net: number, account?: Ebay
 export function postageForOn(mp: Marketplace, method: ShipMethod | null | undefined, gross?: number | null): number {
   if (method === "tracked" && mp.tracked) return mp.tracked.postage;
   return gross != null && mp.stamped && gross > mp.stamped.over ? mp.stamped.postage : mp.postage;
+}
+
+/** salePostage for another eBay site: the tracked tier over the US envelope cap when the site has one, else the pick's rate (no pick = tracked over the label line). */
+export function salePostageOn(mp: Marketplace, method: ShipMethod | null | undefined, gross: number): number {
+  if (!mp.tracked) return postageForOn(mp, method, gross);
+  if (gross > ENVELOPE_MAX_USD) return mp.tracked.postage;
+  if (method) return postageForOn(mp, method, gross);
+  return mp.stamped && gross > mp.stamped.over ? mp.tracked.postage : mp.postage;
 }
 
 export function coversCostsFor(mp: Marketplace, value: number): boolean {
