@@ -7,7 +7,7 @@ Was 97. Claude closed 18 tonight (15 passed on prod, 2 out of date, 1 turned int
 ## A. You, on the tunnel (phone camera, nothing goes live) — 34
 
 **Scanner: give-back (10-11)**
-1. Scan a real card, tap Done: the "Which category?" sheet opens.
+1. ✅ 10-12 (Chris, tunnel) Scan a real card, tap Done: the "Which category?" sheet opens.
 2. Magic card with Pokémon selected: says "That looks like a Magic card", scan given back.
 3. Not-a-card (book, receipt): "No match found"; scan counter does not go up; Account shows the same trial count.
 4. Real card right after: it counts (counter goes up and stays).
@@ -28,17 +28,17 @@ Was 97. Claude closed 18 tonight (15 passed on prod, 2 out of date, 1 turned int
 **Scanner older fixes (10-06 / 10-08)**
 
 12. Trial account on its LAST scan: close the camera → out-of-scans wall shows right away, no reload.
-13. Scanner result: no "Check the art … Switch" banner on a card with a pricier twin.
+13. ✅ 10-12 (Chris, Unlimited Base Charizard: no banner, Unlimited price; but picture shows 1st Ed stamp, see E) Scanner result: no "Check the art … Switch" banner on a card with a pricier twin.
 14. A "Took too long" scan can be scanned again, and pick-by-name works on that row.
 15. No ghost card in Inventory after a "Took too long".
 16. A slow scan says "Took too long — tap Capture again" right away (no 14 s wait).
-17. Double tap on Capture = one photo, one scan charged.
+17. ✅ 10-12 (Chris, tunnel) Double tap on Capture = one photo, one scan charged.
 18. Trial account using its last free scan mid-session keeps its queue (wall only on the next visit).
 19. Out of scans: red note shows inside the camera.
-20. SUPERSEDED 10-12 (Chris: scanner and Inventory game rows must mirror) Inventory always opens on the scanner's game, even an empty one ("No Magic cards yet"); picking a game in Inventory carries back to Scanner. Pane-verified both ways; phone check pending.
-21. "Not this card?" on the camera chip: other picks + search by name; picking one updates name and price, no extra scan charged.
+20. SUPERSEDED 10-12 (Chris: scanner and Inventory game rows must mirror) Inventory always opens on the scanner's game, even an empty one ("No Magic cards yet"); picking a game in Inventory carries back to Scanner. ✅ 10-12 Chris passed both ways on the tunnel.
+21. ✅ 10-12 (Chris, tunnel; log: 1 scan, pick = PATCH only) "Not this card?" on the camera chip: other picks + search by name; picking one updates name and price, no extra scan charged.
 22. Verify-all sheet after a stack of scans: doubtful ones first; Confirm marks the rest verified.
-23. At phone width, "Not this card?" and Verify fit side by side.
+23. ✅ 10-12 (Chris screenshot; green button text truncates 'Ver…', fix pending his OK) At phone width, "Not this card?" and Verify fit side by side.
 24. ✅ SUPERSEDED 10-12 (now $0.78 / $1.31 / $6.07, passed) Scan editor: Envelope $0.82 / Tracked mailer $7.00 tiles; Envelope greys out above $20 ($20.00 allowed, $20.01 not); note says "$20 or less".
 
 **Inventory**
@@ -48,10 +48,10 @@ Was 97. Claude closed 18 tonight (15 passed on prod, 2 out of date, 1 turned int
 27. ✅ 10-12 Collector mode: no "Collection value" box above Market Value.
 28. ✅ 10-12 (Packs overflowed the box border by 4px, fixed: re-check Packs) Game chips row (Inventory, Set Completion, Packs, /scan): one line of small chips, no box, scrolls sideways, no "0" printed.
 29. ✅ 10-12 (Chris, tunnel, two drafts: both changed) Bulk Set condition / Set price on a few cards (price skips live/sold ones).
-30. 60+ cards: "Show more" appears; Select all says the full count.
+30. ✅ 10-12 (Chris, tunnel, 63 cards; fixtures deleted) 60+ cards: "Show more" appears; Select all says the full count.
 31. ✅ 10-12 (Chris, tunnel, fixtures: a second Grey Felt Hat with no catalog row) Duplicates and Missing-price chips; Name A–Z and Set sorts work.
 32. ✅ 10-12 (Chris, tunnel, stand-in live Pikachu with the tracked pick) A live or sold card shows "How to ship it · <pick>" with the 4 steps; "Both ways" opens the sheet.
-33. Load failure shows Retry (Sales Report and Set Completion too).
+33. ✅ 10-12 (pane, forced fetch failure: Inventory, Set Completion, Sales Report all show Couldn't load + Retry; Retry recovers) Load failure shows Retry (Sales Report and Set Completion too).
 34. Packs: Open a Pack → pick game, name, price → scan 3 → banner shows pulls and value → Done opens the pack page (cost, value, profit, ROI, best pull). Share makes a "My Pack" picture. Inventory > Packs lists them. Deleting a pack keeps its cards.
 
 ---

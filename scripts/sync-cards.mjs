@@ -96,6 +96,8 @@ const upsert = db.prepare(`
     image_url = CASE WHEN excluded.image_url != ''
                       AND ${table}.image_url != REPLACE(excluded.image_url, '/low.webp', '/high.webp')
                       AND ${table}.image_url NOT LIKE 'https://images.pokemontcg.io/%'
+                      -- Unlimited Base Set photos from sync-first-edition (TCGdex scans the 1st Ed print; 10-12 Charizard).
+                      AND ${table}.image_url NOT LIKE 'https://tcgplayer-cdn.tcgplayer.com/%'
                      THEN excluded.image_url ELSE ${table}.image_url END,
     set_card_count_official = excluded.set_card_count_official,
     set_card_count_total = excluded.set_card_count_total,
