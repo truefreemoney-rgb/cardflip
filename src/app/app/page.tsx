@@ -1633,7 +1633,10 @@ export default function AppPage() {
                 once Lorcana, One Piece and Yu-Gi-Oh joined) — pills on one
                 line, the buttons under them. Desktop: unchanged (contents). */}
             <div className="flex flex-col gap-2 sm:contents">
-              <GameToggle game={game} onChange={setGame} compact />
+              {/* Centred on the phone (10-11, Chris: "center games at the top"). */}
+              <div className="flex justify-center sm:contents">
+                <GameToggle game={game} onChange={setGame} compact />
+              </div>
               {/* Add Cards + Inventory on one row (10-11, Chris: the three-item row was crowded
                   and cut off, and Seller · Collector does not belong up here; it still lives on
                   the pre-scan screen, Account and Inventory). */}
