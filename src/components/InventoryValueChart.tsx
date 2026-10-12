@@ -54,7 +54,9 @@ export default function InventoryValueChart({ game, version = 0, status = "all",
     const c: RangeChoice = from ? { from, to } : { preset: preset as RangePreset };
     // The API counts days back from today (two at least: a line needs two points); picked dates are cut out of that here.
     const days = from ? Math.ceil((Date.now() - parseDay(from)) / DAY_MS) + 1 : Math.max(2, rangeDays(c));
-    apiFetch(`/api/cards/value-history?game=${game}&days=${days}${scope}`)
+    // The basis rides in the request (10-12): right after the Seller/Collector switch the server's saved
+    // setting can still be the old one, which drew asking prices under a "market" caption.
+    apiFetch(`/api/cards/value-history?game=${game}&days=${days}${scope}&basis=${pricingOnly ? "market" : "asking"}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((body: { points?: Point[] } | null) => {
         if (!alive) return;

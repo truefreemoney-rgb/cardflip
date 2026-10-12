@@ -723,6 +723,16 @@ function AccountSettings({
           }
         />}
         {!user.pricingOnly && <ListingTermsRow />}
+        {/* Moved here from the Inventory summary (Chris, 10-12: "only in account"). */}
+        <Row
+          title="Sales report for taxes"
+          status="Every card you sold, with price, fees and profit."
+          action={
+            <Link href="/app/collection/report" className={rowBtn}>
+              Open
+            </Link>
+          }
+        />
         <PlanSection
           user={overview?.user ?? user}
           quota={overview?.quota}

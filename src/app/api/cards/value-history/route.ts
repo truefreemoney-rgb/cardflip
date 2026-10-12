@@ -18,7 +18,10 @@ export async function GET(req: NextRequest) {
       category,
       status: status === "ready" || status === "listed" || status === "ended" || status === "sold" || status === "sealed" ? status : undefined,
     };
-    return NextResponse.json({ game, days, points: await inventoryValueSeries(user.id, game, days, Date.now(), scope, user.pricingOnly ? "market" : "asking") });
+    // ?basis= from the page wins (it knows the switch the viewer sees); the saved setting is the fallback.
+    const b = params.get("basis");
+    const basis = b === "market" || b === "asking" ? b : user.pricingOnly ? "market" : "asking";
+    return NextResponse.json({ game, days, points: await inventoryValueSeries(user.id, game, days, Date.now(), scope, basis) });
   } catch (err) {
     if (err instanceof AuthError) {
       return NextResponse.json({ error: err.message }, { status: 401 });

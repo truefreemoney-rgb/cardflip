@@ -3,6 +3,11 @@
 Things that shipped but were never exercised on a real phone or with real
 traffic. Tick when tested; note what you saw. Newest batch first.
 
+## 10-12 afternoon: Inventory Market Value = chart, Sales Report moved to Account (LOCAL, NOT PUSHED)
+- [ ] Tunnel, Collector mode, Inventory: the big Market Value and the Inventory Value chart's last point are the SAME number (was $1,015.89 vs $1,178.52: the chart drew asking prices when it loaded before the Collector switch had saved; the page now sends ?basis= itself).
+- [ ] Switch Seller -> Collector -> Seller on Account, back to Inventory each time: Collector chart says "market" and matches Market Value; Seller chart says "asking".
+- [ ] Inventory summary has no "Sales Report for Taxes" link; Account > Selling has a "Sales report for taxes" row whose Open goes to the report.
+
 ## 10-11 night Shipping: envelope up to $100, real eBay prices (LOCAL, NOT PUSHED)
 Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notice 123: eBay envelope label $0.78 (1 oz), stamps $0.82 + $0.49 nonmachinable = $1.31, Ground Advantage $6.07 (Miami → Seattle, same at 1 and 3 oz; nearby $5.38). Floor $1.25, a $0.25 card lists at $1.54.
 - [x] (10-12 ~2:40pm ET Chris on the tunnel: "looks fine") Tunnel, scan a card under $20: Envelope tile reads "$0.78 · eBay Standard Envelope, tracked"; Tracked mailer "$6.07". (The "$" was missing on these tiles since 10-08, fixed here.)
