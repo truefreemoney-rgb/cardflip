@@ -304,3 +304,7 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 - [ ] Signed IN to CardFlip: no prompt on any public page. /app, /admin, /login, /signup: never a prompt (the button pages keep their white Continue with Google button).
 - [ ] An admin account's Google identity: tap → lands on /login with "That account has extra security..." and is NOT linked.
 - [ ] Android Chrome: the prompt is the FedCM account chooser (browser-styled), not Google's iframe; same behaviour.
+
+**10-12 (s148, local, Chris passed on tunnel) Base Set unstamped pictures + verify count**
+- AT PUSH: run `node scripts/sync-first-edition.mjs --prod` (re-photographs 101 plain Base Set cards + purges stamped card_cache answers on Turso). Then on cardflip.io: search Charizard Base Set 4/102 → picture has NO 1st Edition stamp.
+- Passed on tunnel: scanner green button counts only unverified scans (4da784ee); category sheet one centered button (eeaa21cf); Inventory/scanner game rows mirror (e50a9198).
