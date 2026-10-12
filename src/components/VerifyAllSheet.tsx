@@ -64,13 +64,12 @@ function Row({ item, onOpen, onRemove }: { item: ScanItem; onOpen?: (id: string)
 
 /**
  * "Verify all" after a stack scan: your photo beside the catalog art for
- * every scan waiting. Doubtful ones come first, apart, and are never
- * auto-confirmed; one button confirms the clear ones.
+ * every scan waiting. Doubtful ones come first, apart; each row opens its
+ * card to verify one by one (the bulk Confirm was removed 10-12).
  */
 export default function VerifyAllSheet({
   items,
   total,
-  onConfirm,
   onOpen,
   onRemove,
   onClose,
@@ -78,7 +77,6 @@ export default function VerifyAllSheet({
 }: {
   items: ScanItem[];
   total: number;
-  onConfirm: (ids: string[]) => void;
   onOpen?: (id: string) => void;
   onRemove?: (id: string) => void;
   onClose: () => void;
@@ -107,23 +105,13 @@ export default function VerifyAllSheet({
       onClose={onClose}
       footer={
         <>
-          {sure.length > 0 && (
-            <button
-              type="button"
-              onClick={() => onConfirm(sure.map((i) => i.id))}
-              className="mt-2 w-full rounded-full bg-emerald-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-400"
-            >
-              {sure.length === open.length ? `Confirm all ${sure.length}` : `Confirm ${sure.length} that look right`}
-            </button>
-          )}
+          {/* No bulk confirm (Chris 10-12: "too much room for user error"): every card is opened and verified on its own. */}
           <button
             type="button"
             onClick={onReview}
-            className={`mt-2 w-full rounded-full px-4 py-3 text-sm font-semibold transition ${
-              sure.length > 0 ? "border border-edge text-zinc-200 hover:border-edge-strong" : "bg-emerald-500 text-white hover:bg-emerald-400"
-            }`}
+            className="mt-2 w-full rounded-full bg-emerald-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-400"
           >
-            {check.length > 0 ? `Check ${check.length === 1 ? "it" : "them"} one by one` : "Done"}
+            {open.length > 0 ? `Check ${open.length === 1 ? "it" : "them"} one by one` : "Done"}
           </button>
         </>
       }

@@ -152,8 +152,6 @@ interface Props {
   onCamera?: (state: string) => void;
   /** "Not this card?": swap the item to a card the seller picked. No new scan is spent. */
   onSwap?: (id: string, card: PokemonCard, candidates: PokemonCard[]) => void;
-  /** "Confirm all" in the session sheet: verify these scans in one go. */
-  onVerifyMany?: (ids: string[]) => void;
 }
 
 export type CaptureMode = "card" | "page";
@@ -256,7 +254,7 @@ const TIPS_MAX_OPENS = 3;
  * a real desk — keyboard, hand, monitor — each costing a paid scan. Chris:
  * "capture button is where it's at for speed". Don't rebuild without asking.
  */
-export default function CameraCapture({ game, onGameChange, lastScan, queue, onRemove, quotaNote, onCapture, onClose, onOpen, onSwap: onPick, onVerifyMany, onCamera }: Props) {
+export default function CameraCapture({ game, onGameChange, lastScan, queue, onRemove, quotaNote, onCapture, onClose, onOpen, onSwap: onPick, onCamera }: Props) {
   const onCameraRef = useRef(onCamera);
   useEffect(() => {
     onCameraRef.current = onCamera;
@@ -1054,9 +1052,6 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
         <VerifyAllSheet
           items={waiting}
           total={verify.value}
-          onConfirm={(ids) => {
-            onVerifyMany?.(ids);
-          }}
           onOpen={onOpen}
           onRemove={onRemove}
           onClose={() => setTrayOpen(false)}

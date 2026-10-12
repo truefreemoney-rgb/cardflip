@@ -1390,10 +1390,6 @@ export default function AppPage() {
       onRemove={removeItem}
       quotaNote={quotaNote}
       onSwap={swapCard}
-      onVerifyMany={(ids) => {
-        const at = Date.now();
-        for (const id of ids) patchItem(id, { verifiedAt: at, status: "ready", error: null, matchDoubt: null });
-      }}
       onCapture={onCameraCapture}
       onClose={closeCamera}
       onOpen={(id) => {

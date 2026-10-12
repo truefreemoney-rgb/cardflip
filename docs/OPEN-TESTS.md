@@ -8,16 +8,16 @@ Was 97. Claude closed 18 tonight (15 passed on prod, 2 out of date, 1 turned int
 
 **Scanner: give-back (10-11)**
 1. ✅ 10-12 (Chris, tunnel) Scan a real card, tap Done: the "Which category?" sheet opens.
-2. Magic card with Pokémon selected: says "That looks like a Magic card", scan given back.
-3. Not-a-card (book, receipt): "No match found"; scan counter does not go up; Account shows the same trial count.
-4. Real card right after: it counts (counter goes up and stays).
-5. Magic token or art card: "not accepted" and it DOES count.
+2. ✅ 10-12 (Chris, tunnel, after 6baaa844: no auto-switch, not saved, count unchanged; message names the switch) Magic card with Pokémon selected: says "That looks like a Magic card", scan given back.
+3. ✅ 10-12 (Chris, tunnel, admin account so header count only) Not-a-card (book, receipt): "No match found"; scan counter does not go up; Account shows the same trial count.
+4. ✅ 10-12 (Chris, tunnel: 17 → 18 used, stayed) Real card right after: it counts (counter goes up and stays).
+5. ✅ 10-12 (Chris, tunnel; corrected: given back per 10-11 rule) Magic token or art card: "not accepted", nothing saved, scan NOT counted.
 
 **Scanner: faster scans (10-11)**
 
-6. Card with a near-twin (Eevee TG11, or a 1st Edition card): shows within ~3 s; if the check later disagrees, the card swaps and says "the photo looks more like this printing".
-7. Verify a card right after it shows: nothing changes it afterwards.
-8. 5 cards in a row: feels faster; prices still fill in.
+6. ✅ 10-12 (Chris, tunnel, 1st Edition card shown fast) Card with a near-twin (Eevee TG11, or a 1st Edition card): shows within ~3 s; if the check later disagrees, the card swaps and says "the photo looks more like this printing".
+7. ✅ 10-12 (Chris, tunnel) Verify a card right after it shows: nothing changes it afterwards.
+8. ✅ 10-12 (Chris, tunnel) 5 cards in a row: feels faster; prices still fill in.
 
 **Scanner header after a scan (10-11)**
 
@@ -37,7 +37,7 @@ Was 97. Claude closed 18 tonight (15 passed on prod, 2 out of date, 1 turned int
 19. Out of scans: red note shows inside the camera.
 20. SUPERSEDED 10-12 (Chris: scanner and Inventory game rows must mirror) Inventory always opens on the scanner's game, even an empty one ("No Magic cards yet"); picking a game in Inventory carries back to Scanner. ✅ 10-12 Chris passed both ways on the tunnel.
 21. ✅ 10-12 (Chris, tunnel; log: 1 scan, pick = PATCH only) "Not this card?" on the camera chip: other picks + search by name; picking one updates name and price, no extra scan charged.
-22. Verify-all sheet after a stack of scans: doubtful ones first; Confirm marks the rest verified.
+22. ✅ 10-12 (Chris, tunnel, 5 cards) Verify-all sheet after a stack of scans: doubtful ones first; Confirm marks the rest verified.
 23. ✅ 10-12 (Chris screenshot; green button text truncates 'Ver…', fix pending his OK) At phone width, "Not this card?" and Verify fit side by side.
 24. ✅ SUPERSEDED 10-12 (now $0.78 / $1.31 / $6.07, passed) Scan editor: Envelope $0.82 / Tracked mailer $7.00 tiles; Envelope greys out above $20 ($20.00 allowed, $20.01 not); note says "$20 or less".
 
