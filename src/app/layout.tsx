@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Bricolage_Grotesque } from "next/font/google";
 import { SITE_URL } from "@/lib/siteUrl";
 import "./globals.css";
-import Prefetch from "@/components/Prefetch";
 import AttributionCapture from "@/components/AttributionCapture";
 import VisitPing from "@/components/VisitPing";
 import DeferredAnalytics from "@/components/DeferredAnalytics";
@@ -81,7 +80,6 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="flex min-h-full flex-col bg-background text-foreground">
         {children}
-        <Prefetch />
         <AttributionCapture />
         <VisitPing />
         <DeferredAnalytics />
