@@ -47,7 +47,7 @@ Was 97. Claude closed 18 tonight (15 passed on prod, 2 out of date, 1 turned int
 26. ✅ 10-12 (Chris, tunnel, after 37c6e6e7: Share pill under Add to watchlist, bigger filled X) With a card open: the round X next to Subscribe Now closes it; Share sits inside the card panel.
 27. ✅ 10-12 Collector mode: no "Collection value" box above Market Value.
 28. ✅ 10-12 (Packs overflowed the box border by 4px, fixed: re-check Packs) Game chips row (Inventory, Set Completion, Packs, /scan): one line of small chips, no box, scrolls sideways, no "0" printed.
-29. Bulk Set condition / Set price on a few cards (price skips live/sold ones).
+29. ✅ 10-12 (Chris, tunnel, two drafts: both changed) Bulk Set condition / Set price on a few cards (price skips live/sold ones).
 30. 60+ cards: "Show more" appears; Select all says the full count.
 31. Duplicates and Missing-price chips; Name A–Z and Set sorts work.
 32. A live or sold card shows "How to ship it · <pick>" with the 4 steps; "Both ways" opens the sheet.

@@ -1612,10 +1612,10 @@ export default function AppPage() {
                 // Close the open card after the action button so it sits at the far right (Chris 10-08: "looks weird in the center"; "a close button … to close the scan out and take you to the inventory page").
                 <button
                   type="button"
-                  onClick={() => {
-                    setSelectedId(null);
-                    router.push("/app/collection"); // the X closes the scan and lands on Inventory (Chris 10-08: "it just blanks out the card below")
-                  }}
+                  // The X closes the scan and lands on Inventory (Chris 10-08: "it just blanks out the card below").
+                  // The card stays on screen until Inventory is up (Chris 10-12: clearing it first made the X vanish
+                  // and the panel blank for a beat before the page changed, which read as lag).
+                  onClick={() => router.push("/app/collection")}
                   aria-label="Close card"
                   title="Close card"
                   className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-edge text-zinc-300 transition hover:border-brand-400 hover:text-white sm:order-last sm:h-9 sm:w-9"
