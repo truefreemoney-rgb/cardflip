@@ -43,7 +43,7 @@ Was 97. Claude closed 18 tonight (15 passed on prod, 2 out of date, 1 turned int
 
 **Inventory**
 
-25. Bulk select live cards → Mark sold (N): Are-you-sure sheet with the count; Cancel leaves them live; Yes marks them sold.
+25. ✅ 10-12 (Chris, tunnel: one sheet with the count 2, Yes marked both sold; Cancel not reported) Bulk select live cards → Mark sold (N): Are-you-sure sheet with the count; Cancel leaves them live; Yes marks them sold.
 26. With a card open: the round X next to Subscribe Now closes it; Share sits inside the card panel.
 27. ✅ 10-12 Collector mode: no "Collection value" box above Market Value.
 28. ✅ 10-12 (Packs overflowed the box border by 4px, fixed: re-check Packs) Game chips row (Inventory, Set Completion, Packs, /scan): one line of small chips, no box, scrolls sideways, no "0" printed.
