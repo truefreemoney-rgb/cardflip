@@ -10,7 +10,20 @@ import { toast } from "@/components/Toaster";
  * cannot be shared (desktop, some in-app browsers) the PNG is saved instead.
  * `path` is the API path with its query, e.g. /api/share/card?game=pokemon&id=base1-4.
  */
-export default function ShareImageButton({ path, fileName, label = "Share", className = "" }: { path: string; fileName: string; label?: string; className?: string }) {
+export default function ShareImageButton({
+  path,
+  fileName,
+  label = "Share",
+  className = "",
+  unstyled = false,
+}: {
+  path: string;
+  fileName: string;
+  label?: string;
+  className?: string;
+  /** Skip the small outlined look and style the button entirely from `className` (the card sheet's pill, 10-12). */
+  unstyled?: boolean;
+}) {
   const [busy, setBusy] = useState(false);
 
   async function share() {
@@ -51,7 +64,11 @@ export default function ShareImageButton({ path, fileName, label = "Share", clas
       type="button"
       onClick={() => void share()}
       disabled={busy}
-      className={`inline-flex items-center justify-center rounded-full border border-edge bg-surface-1 px-3.5 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-brand-400 hover:text-white disabled:opacity-60 ${className}`}
+      className={
+        unstyled
+          ? `disabled:opacity-60 ${className}`
+          : `inline-flex items-center justify-center rounded-full border border-edge bg-surface-1 px-3.5 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-brand-400 hover:text-white disabled:opacity-60 ${className}`
+      }
     >
       {busy ? "Making Picture…" : label}
     </button>

@@ -135,20 +135,13 @@ export default function CardDetailModal({
                 .join(" · ")}
             </p>
           </div>
-          {/* Share (Chris 10-08: "inventory card should have a share also"): the same 1080x1920 card picture the scanner's editor shares. */}
-          {!sealed && card.id && (
-            <ShareImageButton
-              path={`/api/share/card?game=${card.game ?? "pokemon"}&id=${encodeURIComponent(cardKey(card.game ?? "pokemon", { id: card.id, setCode: card.setCode, number: card.number }))}`}
-              fileName="cardflip-card"
-              className="shrink-0"
-            />
-          )}
+          {/* Bigger and visible (Chris 10-12): a filled round button, not a faint glyph. */}
           <button
             onClick={onClose}
             aria-label="Close"
-            className="-mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-400 transition hover:bg-white/5 hover:text-white"
+            className="-mr-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20"
           >
-            <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.2">
               <path d="M5 5l10 10M15 5l-10 10" strokeLinecap="round" />
             </svg>
           </button>
@@ -243,6 +236,16 @@ export default function CardDetailModal({
                   {saving && <Spinner className="h-3.5 w-3.5" />}
                   {saved ? "★ Saved to watchlist" : "☆ Add to watchlist"}
                 </button>
+              )}
+              {/* Share (Chris 10-08: "inventory card should have a share also"; 10-12: a pill under Add to
+                  watchlist, same size and colour): the 1080x1920 card picture the scanner's editor shares. */}
+              {!sealed && card.id && (
+                <ShareImageButton
+                  path={`/api/share/card?game=${card.game ?? "pokemon"}&id=${encodeURIComponent(cardKey(card.game ?? "pokemon", { id: card.id, setCode: card.setCode, number: card.number }))}`}
+                  fileName="cardflip-card"
+                  unstyled
+                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-white/5 px-4 py-2 text-sm font-semibold text-zinc-200 transition hover:bg-white/10 sm:w-auto"
+                />
               )}
             </div>
           </div>
