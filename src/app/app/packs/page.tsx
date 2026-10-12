@@ -58,7 +58,7 @@ export default function PacksPage() {
 
       <section className="flex flex-col gap-3 rounded-xl border border-edge bg-surface-1 p-3">
         <h2 className="text-sm font-semibold text-white">Open a Pack</h2>
-        <GameToggle game={game} onChange={setGame} block />
+        <GameToggle game={game} onChange={setGame} block inCard />
         <label className="flex flex-col gap-1.5 text-sm font-medium text-zinc-300">
           Pack name
           <input

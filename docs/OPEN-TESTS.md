@@ -46,7 +46,7 @@ Was 97. Claude closed 18 tonight (15 passed on prod, 2 out of date, 1 turned int
 25. Bulk select live cards → Mark sold (N): Are-you-sure sheet with the count; Cancel leaves them live; Yes marks them sold.
 26. With a card open: the round X next to Subscribe Now closes it; Share sits inside the card panel.
 27. Collector mode: no "Collection value" box above Market Value.
-28. Game chips row (Inventory, Set Completion, Packs, /scan): one line of small chips, no box, scrolls sideways, no "0" printed.
+28. ✅ 10-12 (Packs overflowed the box border by 4px, fixed: re-check Packs) Game chips row (Inventory, Set Completion, Packs, /scan): one line of small chips, no box, scrolls sideways, no "0" printed.
 29. Bulk Set condition / Set price on a few cards (price skips live/sold ones).
 30. 60+ cards: "Show more" appears; Select all says the full count.
 31. Duplicates and Missing-price chips; Name A–Z and Set sorts work.
