@@ -168,6 +168,10 @@ for (const [setName, opts] of Object.entries(SETS)) {
   console.log(`${setName}: ${base.length} cards → twins${opts.shadowlessGroup ? ` (${withOwnImage} with shadowless photos)` : ""}${opts.unlimitedGroup ? `, ${unlimited.size} unstamped photos for the plain cards` : ""}`);
 }
 
+// card_cache keeps search answers verbatim, so a cached Base Set answer kept the stamped
+// TCGdex scan after the re-photograph (10-12, Chris scanned an Unlimited Charizard). Drop them.
+const PURGE_STAMPED_CACHE = "DELETE FROM card_cache WHERE payload LIKE '%assets.tcgdex.net/en/base/base1/%'";
+
 // Local
 const upsertCard = local.prepare(UPSERT_CARD);
 const upsertProduct = local.prepare(UPSERT_PRODUCT);
@@ -177,6 +181,7 @@ for (const r of productRows) upsertProduct.run(...r);
 const setImage = local.prepare(SET_IMAGE);
 for (const r of imageRows) setImage.run(...r);
 for (const sql of MOVE_SERIES) local.exec(sql);
+local.exec(PURGE_STAMPED_CACHE);
 local.exec("COMMIT");
 console.log(`local: ${cardRows.length} twin rows, ${productRows.length} shadowless products mapped, ${imageRows.length} plain cards re-photographed`);
 
@@ -192,5 +197,6 @@ if (prod) {
     process.stdout.write(`prod ${Math.min(i + 200, stmts.length)}/${stmts.length}\r`);
   }
   for (const sql of MOVE_SERIES) await prod.execute(sql);
+  await prod.execute(PURGE_STAMPED_CACHE);
   console.log(`\nprod: ${cardRows.length} twin rows, ${productRows.length} shadowless products mapped`);
 }
