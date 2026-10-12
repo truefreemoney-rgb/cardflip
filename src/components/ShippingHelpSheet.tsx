@@ -1,17 +1,20 @@
 "use client";
 
 import Sheet from "@/components/Sheet";
-import { SHIP_OPTIONS, shipSteps } from "@/lib/shipping";
-import type { ShipMethod } from "@/lib/fees";
+import { shipOptionsFor, shipSteps } from "@/lib/shipping";
+import { envelopeTracked, type ShipMethod } from "@/lib/fees";
 
 /**
  * "How to ship" pop-up (Chris 10-08: "I want it more apparent what is expected
  * of the seller when shipping"): both methods, step by step, the picked one
  * first and marked. Opened from the ? beside the Shipping heading in the scan
- * editor and from the "How to ship it" line on a live or sold card.
+ * editor and from the "How to ship it" line on a live or sold card. `price`
+ * (the card's asking or sold price) picks the envelope's way: eBay's tracked
+ * label up to $20, stamps with no tracking over (Chris 10-11).
  */
-export default function ShippingHelpSheet({ picked, onClose }: { picked: ShipMethod | null | undefined; onClose: () => void }) {
-  const order = [...SHIP_OPTIONS].sort((a, b) => (a.id === picked ? -1 : b.id === picked ? 1 : 0));
+export default function ShippingHelpSheet({ picked, price, onClose }: { picked: ShipMethod | null | undefined; price?: number | null; onClose: () => void }) {
+  const order = [...shipOptionsFor(price)].sort((a, b) => (a.id === picked ? -1 : b.id === picked ? 1 : 0));
+  const stamps = price != null && !envelopeTracked(price);
   return (
     <Sheet onClose={onClose} title="How to ship a card" hint="Both ways, step by step. The postage is already in your price, so the buyer pays nothing for shipping." backId="ship-help">
       <div className="flex flex-col gap-4">
@@ -26,13 +29,17 @@ export default function ShippingHelpSheet({ picked, onClose }: { picked: ShipMet
             </h3>
             <p className="mt-0.5 text-xs text-zinc-500">{o.sub}</p>
             <ol className="mt-2 flex list-decimal flex-col gap-1.5 pl-5 text-[13px] leading-snug text-zinc-300">
-              {shipSteps(o.id).map((step) => (
+              {shipSteps(o.id, price).map((step) => (
                 <li key={step}>{step}</li>
               ))}
             </ol>
           </section>
         ))}
-        <p className="text-xs text-zinc-500">A sleeve and a toploader every time. eBay prints both labels; you never buy postage somewhere else.</p>
+        <p className="text-xs text-zinc-500">
+          {stamps
+            ? "A sleeve and a toploader every time. eBay prints the mailer's label; the envelope goes with stamps."
+            : "A sleeve and a toploader every time. eBay prints both labels; you never buy postage somewhere else."}
+        </p>
       </div>
     </Sheet>
   );

@@ -310,7 +310,8 @@ export async function sendSoldEmail(to: string, cards: SoldMailCard[]): Promise<
   const line = (c: SoldMailCard) => `${c.name} (${c.set} · ${c.number})${c.soldPrice != null ? ` — sold for ${usd(c.soldPrice)}` : ""}`;
   const blocks = cards.map((c) => {
     const method = c.shippingMethod ?? defaultShipMethod(c.soldPrice ?? 0);
-    return { head: line(c), how: shipLabel(method), steps: shipSteps(method) };
+    // The sold price picks the envelope's steps (Chris 10-11): eBay's tracked label up to $20, stamps over.
+    return { head: line(c), how: shipLabel(method), steps: shipSteps(method, c.soldPrice) };
   });
   const intro = cards.length === 1 ? "Your card sold on eBay. Here is how to mail it." : `${cards.length} of your cards sold on eBay. Here is how to mail each one.`;
   const outro = "Mail within 1 business day so your seller rating stays up. The buyer already paid free shipping; the postage came out of your price.";

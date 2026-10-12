@@ -64,14 +64,14 @@ console.log("digest");
 const d = await buildDigest(u.id, SUNDAY);
 check("held count excludes sold", d.held, 6);
 check("value moved by the net change (Up +10, Down -12, everything else flat)", d.valueNow < d.valueBefore, true);
-check("gainers = Up only", d.gainers.map((c) => [c.name, c.change > 0, c.pct]), [["Up", true, 144.1]]);
-// Chris 10-08: fees + postage on every card (COSTS_ON_EVERY_CARD). Up is judged on asking prices: $10 → $12.94 (envelope), $20 → $31.59 (tracked: its envelope price is over the $20 cap) = +144.1%, not the raw +100%.
+check("gainers = Up only", d.gainers.map((c) => [c.name, c.change > 0, c.pct]), [["Up", true, 136.8]]);
+// Chris 10-08: fees + postage on every card (COSTS_ON_EVERY_CARD). Up is judged on asking prices: $10 → $12.89 (envelope), $20 → $30.52 (tracked: its envelope label price is over $20, and the stamps are never the suggested pick) = +136.8%, not the raw +100%.
 // The digest compares ASKING prices (askingPriceFor), and since Chris 10-08 (COSTS_ON_EVERY_CARD) fees + postage
-// ride on every card, both ends of Down: $20 → $31.59 (tracked), $8 → $10.63 (envelope) = -66.4%, not the raw -60%.
+// ride on every card, both ends of Down: $20 → $30.52 (tracked), $8 → $10.59 (envelope) = -65.3%, not the raw -60%.
 const { askingPriceFor } = await import(at("lib/listing.ts"));
 const downPct = Math.round(((askingPriceFor(8, "NM") - askingPriceFor(20, "NM")) / askingPriceFor(20, "NM")) * 1000) / 10;
 check("losers = Down only, % on the asking prices", d.losers.map((c) => [c.name, c.change < 0, c.pct]), [["Down", true, downPct]]);
-check("the Down card's % is on the cost-covered asking prices (-66.4)", downPct, -66.4);
+check("the Down card's % is on the cost-covered asking prices (-65.3)", downPct, -65.3);
 check("a series younger than a week is flat, not a gainer", d.gainers.concat(d.losers).some((c) => c.name === "New"), false);
 check("sold this week only", d.sold.map((c) => [c.name, c.price]), [["Sold", 30]]);
 check("listed 30+ days only", d.stale.map((c) => [c.name, c.days, c.price]), [["Stale", 40, 12]]);

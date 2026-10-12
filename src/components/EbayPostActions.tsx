@@ -462,7 +462,7 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
                   eBay&apos;s selling fees apply. You can end it later on eBay.
                 </p>
                 <p className="mt-2 text-xs leading-relaxed text-zinc-500">
-                  {shipConfirmLine(item.shipping ?? "tracked")} 
+                  {shipConfirmLine(item.shipping ?? "tracked", local ? null : price)} 
                   Returns: 30 days, buyer pays return postage. If your eBay account has no policies yet, we set these up for you.
                 </p>
                 <div className="mt-5 flex gap-2">

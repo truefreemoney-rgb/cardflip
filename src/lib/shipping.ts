@@ -5,11 +5,14 @@
  *
  * Two picks on the US site. The postage of the pick sits inside the asking
  * price (lib/fees.ts), the buyer sees free shipping, and the eBay listing uses
- * the matching fulfillment policy ("CardFlip envelope" / "CardFlip shipping").
- * The instructions show on the Inventory row and the card sheet once the card
- * is live or sold, so the seller knows what to put it in.
+ * the matching fulfillment policy ("CardFlip envelope" / "CardFlip letter" /
+ * "CardFlip shipping"). The envelope depends on the price (Chris 10-11): up to
+ * $20 it is eBay's tracked Standard Envelope label ($0.78), $20.01-$100 it goes
+ * with stamps and no tracking ($1.31), over $100 only the tracked mailer
+ * ($6.07). The instructions show on the Inventory row and the card sheet once
+ * the card is live or sold, so the seller knows what to put it in.
  */
-import { ENVELOPE_MAX_USD, POSTAGE_USD, TRACKED_POSTAGE_USD, type ShipMethod } from "./fees.ts";
+import { ENVELOPE_MAX_USD, envelopeTracked, postageFor, TRACKED_POSTAGE_USD, type ShipMethod } from "./fees.ts";
 
 export interface ShipOption {
   id: ShipMethod;
@@ -19,38 +22,67 @@ export interface ShipOption {
   postage: number;
 }
 
-export const SHIP_OPTIONS: readonly ShipOption[] = [
-  { id: "envelope", label: "Envelope", sub: `eBay Standard Envelope, tracked, $${ENVELOPE_MAX_USD} or less`, postage: POSTAGE_USD },
-  { id: "tracked", label: "Tracked mailer", sub: "Bubble mailer, USPS Ground Advantage", postage: TRACKED_POSTAGE_USD },
-];
+/** Whether an envelope at this price goes with stamps (over eBay's $20 label line). No price = the label. */
+function stamped(method: ShipMethod | null | undefined, price?: number | null): boolean {
+  return method === "envelope" && price != null && !envelopeTracked(price);
+}
+
+/** The two pick tiles at this sale price (no price = the $20-or-less view): the envelope's postage and line follow the price. */
+export function shipOptionsFor(price?: number | null): readonly ShipOption[] {
+  const stamps = stamped("envelope", price);
+  return [
+    {
+      id: "envelope",
+      label: "Envelope",
+      sub: stamps ? "Stamps, no tracking: if it's lost, you cover it" : "eBay Standard Envelope, tracked",
+      postage: postageFor("envelope", price),
+    },
+    { id: "tracked", label: "Tracked mailer", sub: "Bubble mailer, USPS Ground Advantage", postage: TRACKED_POSTAGE_USD },
+  ];
+}
+
+/** The $20-or-less view, for callers without a price. */
+export const SHIP_OPTIONS: readonly ShipOption[] = shipOptionsFor();
 
 export function shipLabel(method: ShipMethod | null | undefined): string {
   return method === "tracked" ? "Tracked mailer" : method === "envelope" ? "Envelope" : "Not picked";
 }
 
 /** Why the envelope tile is off at this price. */
-export const ENVELOPE_OVER_CAP = `Over $${ENVELOPE_MAX_USD}, eBay needs a tracked mailer`;
+export const ENVELOPE_OVER_CAP = `Over $${ENVELOPE_MAX_USD}, use a tracked mailer`;
 
-/** The sentence the publish confirm shows for the pick. */
-export function shipConfirmLine(method: ShipMethod): string {
-  return method === "tracked"
-    ? "Ships in a bubble mailer by USPS Ground Advantage. Free shipping for the buyer, the postage is already in your price."
+/** The sentence the publish confirm shows for the pick (`price` = the listing price; over $20 an envelope goes with stamps). */
+export function shipConfirmLine(method: ShipMethod, price?: number | null): string {
+  if (method === "tracked") return "Ships in a bubble mailer by USPS Ground Advantage. Free shipping for the buyer, the postage is already in your price.";
+  return stamped(method, price)
+    ? "Ships in a stamped envelope, no tracking. Free shipping for the buyer, the postage is already in your price. If it's lost, you cover it."
     : "Ships as an eBay Standard Envelope (tracked). Free shipping for the buyer, the postage is already in your price.";
 }
 
-/** Step-by-step mailing instructions, shown once the card is live or sold. */
-export function shipSteps(method: ShipMethod): string[] {
-  return method === "tracked"
-    ? [
-        "Penny sleeve, then a toploader. Tape the top of the toploader shut.",
-        "Put the toploader in a bubble mailer and tape it flat so it can't slide.",
-        "Buy the USPS Ground Advantage label on eBay (Seller Hub → Orders → Print shipping label). Add insurance on a card over $100.",
-        "Mail it within 1 business day. eBay adds the tracking to the order for you.",
-      ]
-    : [
-        "Penny sleeve, then a toploader. Tape the top of the toploader shut.",
-        "Put it in a plain white envelope with a stiff piece of cardboard, nothing thicker than a quarter inch.",
-        "Buy the eBay Standard Envelope label on eBay (Seller Hub → Orders → Print shipping label), print it and tape it on.",
-        "Drop it in any USPS mailbox within 1 business day. It is tracked, so eBay sees it on its way.",
-      ];
+/** Step-by-step mailing instructions, shown once the card is live or sold (`price` = listing or sold price). */
+export function shipSteps(method: ShipMethod, price?: number | null): string[] {
+  if (method === "tracked") {
+    return [
+      "Penny sleeve, then a toploader. Tape the top of the toploader shut.",
+      "Put the toploader in a bubble mailer and tape it flat so it can't slide.",
+      "Buy the USPS Ground Advantage label on eBay (Seller Hub → Orders → Print shipping label). Add insurance on a card over $100.",
+      "Mail it within 1 business day. eBay adds the tracking to the order for you.",
+    ];
+  }
+  if (stamped(method, price)) {
+    // Chris 10-11: $20.01-$100 in an envelope = stamps, no eBay label (eBay sells it only to $20). USPS Notice 123
+    // (2026-10-04): Forever $0.82 + $0.49 nonmachinable, which a rigid toploader is.
+    return [
+      "Penny sleeve, then a toploader. Tape the top of the toploader shut.",
+      "Put it in a plain white envelope with a stiff piece of cardboard, nothing thicker than a quarter inch.",
+      "Put on one Forever stamp plus 49¢ more postage (a stiff toploader counts as nonmachinable), or pay at the post office counter.",
+      "Mail it within 1 business day, then mark it shipped on eBay (Seller Hub → Orders → Mark as shipped). It has no tracking.",
+    ];
+  }
+  return [
+    "Penny sleeve, then a toploader. Tape the top of the toploader shut.",
+    "Put it in a plain white envelope with a stiff piece of cardboard, nothing thicker than a quarter inch.",
+    "Buy the eBay Standard Envelope label on eBay (Seller Hub → Orders → Print shipping label), print it and tape it on.",
+    "Drop it in any USPS mailbox within 1 business day. It is tracked, so eBay sees it on its way.",
+  ];
 }

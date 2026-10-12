@@ -511,7 +511,7 @@ console.log("Floors on the ledger routes' helper (per site)");
   check("GB business: $3.00 = £2.34 passes", await ledgerFloorProblem(u.id, 3.0), null);
   check("$0 means unpriced and passes", await ledgerFloorProblem(u.id, 0), null);
   const us = await seller("US", "BUSINESS", "EBAY_US");
-  check("a US seller keeps the original sentence and floor ($1.30)", [await ledgerFloorProblem(us.id, 1.0), await ledgerFloorProblem(us.id, 1.7)], [fees.floorRefusal(), null]);
+  check("a US seller keeps the original sentence and floor ($1.25)", [await ledgerFloorProblem(us.id, 1.0), await ledgerFloorProblem(us.id, 1.7)], [fees.floorRefusal(), null]);
   check("a card whose offer is on GB is held to the GB floor even for a US-routed seller", (await listedFloorProblem(us.id, { ebayMarketplace: "EBAY_GB" }, 2.0)) !== null, true);
   check("a legacy US offer keeps the US floor", await listedFloorProblem(u.id, { ebayMarketplace: null }, 1.7), null);
   world.fxDown = true;

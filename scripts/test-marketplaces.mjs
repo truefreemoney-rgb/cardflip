@@ -73,7 +73,7 @@ console.log("Table");
   check("policy cost set on every non-NZ local row", ["GB", "IE", "AU", "CA"].every((k) => /^\d+\.\d{2}$/.test(MARKETPLACES[k].shipping.policyCost)), true);
   check("US row reproduces today's literals", [US_MARKETPLACE.shipping, US_MARKETPLACE.postage, US_MARKETPLACE.fees.business], [
     { carrierCode: "USPS", serviceCode: "USPSGroundAdvantage", fallbackServiceCode: "USPSPriority", policyCost: "4.99", envelopeServiceCode: "US_eBayStandardEnvelope" },
-    0.82,
+    0.78,
     { rate: fees.EBAY_FEE_RATE, flat: fees.EBAY_FLAT_FEE, flatOver: fees.EBAY_FLAT_FEE_OVER_10, flatStep: fees.EBAY_FLAT_FEE_STEP_USD },
   ]);
   check("UK and AU private sellers pay no fee; business pays", [
@@ -111,7 +111,7 @@ console.log("fee variants: For(US) === the existing US exports");
   const sweep = [];
   for (let c = 0; c <= 3000; c += 1) sweep.push(c / 100); // $0.00 – $30.00 every cent
   for (let c = 3000; c <= 5_000_000; c += 4999) sweep.push(c / 100); // out to $50,000
-  sweep.push(4.999, 5, 5.001, 9.995, 10, 10.004, 10.01, 0.005, 1.3, 1.58);
+  sweep.push(4.999, 5, 5.001, 9.995, 10, 10.004, 10.01, 0.005, 1.25, 1.54, 16.16, 16.17, 16.5, 20, 20.01);
   const diffs = { flat: 0, est: 0, cover: 0, covers: 0, coversAll: 0, taper: 0, net: 0, netActual: 0, below: 0 };
   for (const v of sweep) {
     if (fees.ebayFlatFeeFor(mp, v) !== fees.ebayFlatFee(v)) diffs.flat++;
@@ -129,8 +129,21 @@ console.log("fee variants: For(US) === the existing US exports");
   check("listingFloor", fees.listingFloorFor(mp), fees.listingFloor());
   check("floorRefusal text", fees.floorRefusalFor(mp), fees.floorRefusal());
   check("account type changes nothing on US (private = business)", [fees.listingFloorFor(mp, "INDIVIDUAL"), fees.costTaperedPriceFor(mp, 3.33, "INDIVIDUAL")], [fees.listingFloor(), fees.costTaperedPrice(3.33)]);
-  // Chris 10-08: fees + postage on every card (COSTS_ON_EVERY_CARD) - the old taper ($7.50 → $8.68, $10 → $10) is gone; $7.50 → $9.94, $10 → $12.94 (postage $0.82).
-  check("US known values: floor $1.30, $5 → $7.06, $7.50 → $9.94, $10 → $12.94", [fees.listingFloorFor(mp), fees.costTaperedPriceFor(mp, 5), fees.costTaperedPriceFor(mp, 7.5), fees.costTaperedPriceFor(mp, 10)], [1.3, 7.06, 9.94, 12.94]);
+  // Chris 10-08: fees + postage on every card (COSTS_ON_EVERY_CARD) - the old taper ($7.50 → $8.68, $10 → $10) is gone; $7.50 → $9.90, $10 → $12.89 (postage $0.78, 10-11).
+  check("US known values: floor $1.25, $5 → $7.01, $7.50 → $9.90, $10 → $12.89", [fees.listingFloorFor(mp), fees.costTaperedPriceFor(mp, 5), fees.costTaperedPriceFor(mp, 7.5), fees.costTaperedPriceFor(mp, 10)], [1.25, 7.01, 9.9, 12.89]);
+  // Chris 10-11: the US row carries the stamp tier and the $6.07 tracked rate, and its For twins agree with the US exports on both picks.
+  check("US row: tracked $6.07, stamps $1.31 over $20 (= the fees.ts constants)", [US_MARKETPLACE.tracked, US_MARKETPLACE.stamped], [
+    { postage: fees.TRACKED_POSTAGE_USD }, { postage: fees.STAMP_POSTAGE_USD, over: fees.ENVELOPE_LABEL_MAX_USD },
+  ]);
+  let shipDiffs = 0;
+  for (const v of sweep) {
+    for (const m of ["envelope", "tracked"]) {
+      if (fees.costCoveredPriceFor(mp, v, null, m) !== fees.costCoveredPrice(v, m)) shipDiffs++;
+      if (fees.postageForOn(mp, m, v) !== fees.postageFor(m, v)) shipDiffs++;
+    }
+  }
+  check("costCoveredPriceFor / postageForOn (US) === the US exports for both picks across the sweep", shipDiffs, 0);
+  check("a site without the stamp tier keeps one letter rate at every price", fees.postageForOn(MARKETPLACES.GB, "envelope", 50), MARKETPLACES.GB.postage);
 }
 
 console.log("fee variants: other markets behave");

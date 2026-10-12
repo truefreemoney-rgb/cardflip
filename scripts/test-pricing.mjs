@@ -487,13 +487,13 @@ console.log("\nThe chart's current-day point rebases the quote:");
   );
   // 09-30 cheap cards (Chris: "start with the total cost of fees and postage
   // then attach the tcg price of the card on top"): under $5 the suggested
-  // price is the card's value + 13.25% + $0.30 + $0.82 envelope postage, so the seller
-  // keeps the full value. (1.03 + 0.30 + 0.82) / 0.8675 = 2.48.
+  // price is the card's value + 13.25% + $0.30 + $0.78 envelope postage, so the seller
+  // keeps the full value. (1.03 + 0.30 + 0.78) / 0.8675 = 2.4323 → 2.44.
   const cheapCard = { name: "Test", setName: "Test", prices: [usd(1.03)] };
   check(
     "cheap card: quick sale is priced to cover fees and postage",
     quotePrice(cheapCard, "Near Mint", "quick").suggested,
-    2.48,
+    2.44,
   );
   check(
     "cheap card: the cover-up is flagged",
@@ -502,9 +502,9 @@ console.log("\nThe chart's current-day point rebases the quote:");
   );
   check("cheap card: the note says what the seller keeps", quotePrice(cheapCard, "Near Mint", "quick").covers, 1.03);
   check(
-    "Chris's example: a $1.50 card lists at $3.03 and nets $1.50",
+    "Chris's example: a $1.50 card lists at $2.98 and nets $1.50",
     quotePrice({ name: "Test", setName: "Test", prices: [usd(1.5)] }, "Near Mint", "market").suggested,
-    3.03,
+    2.98,
   );
   check(
     "condition first: a $1.50 card in Lightly Played covers its $1.27 LP value",
@@ -513,19 +513,19 @@ console.log("\nThe chart's current-day point rebases the quote:");
   );
   // Worth less than $0.50: same rule, no $1.79 minimum any more (Chris 09-30,
   // Team Rocket's Spidops $0.25: "its the ebay fee plus postage, then the tcg
-  // amount on top"). (0.25 + 0.30 + 0.82) / 0.8675 = 1.5792 → $1.58.
+  // amount on top"). (0.25 + 0.30 + 0.78) / 0.8675 = 1.5331 → $1.54.
   const spidops = { name: "Test", setName: "Test", prices: [usd(0.25)] };
-  check("$0.25 Spidops lists at $1.58, not the old $1.79", quotePrice(spidops, "Near Mint", "market").suggested, 1.58);
+  check("$0.25 Spidops lists at $1.54, not the old $1.79", quotePrice(spidops, "Near Mint", "market").suggested, 1.54);
   check("$0.25 Spidops: the seller keeps the $0.25 value", quotePrice(spidops, "Near Mint", "market").covers, 0.25);
   check("$0.25 Spidops: the note names the value", floorNote(quotePrice(spidops, "Near Mint", "market")),
-    "Card value $0.25 plus eBay fees and $0.82 envelope postage, so you keep the full value");
+    "Card value $0.25 plus eBay fees and $0.78 envelope postage, so you keep the full value");
   const pennyCard = { name: "Test", setName: "Test", prices: [usd(0.02)] };
-  check("2¢ card: value + costs, still above break-even", quotePrice(pennyCard, "Near Mint", "market").suggested, 1.32);
-  check("askingPriceFor agrees with quotePrice for cheap cards", askingPriceFor(1.5, "Near Mint"), 3.03);
+  check("2¢ card: value + costs, still above break-even", quotePrice(pennyCard, "Near Mint", "market").suggested, 1.27);
+  check("askingPriceFor agrees with quotePrice for cheap cards", askingPriceFor(1.5, "Near Mint"), 2.98);
   // $5–$10 taper (Chris 09-30, over a flat $10 line): the added costs fade
   // from all of them at $5 to none at $10 — no cliff at either end.
-  check("taper: $4.99 full cover", askingPriceFor(4.99, "Near Mint"), 7.05);
-  check("taper: $5.00 full cover, a cent above $4.99", askingPriceFor(5, "Near Mint"), 7.06);
+  check("taper: $4.99 full cover", askingPriceFor(4.99, "Near Mint"), 7.0);
+  check("taper: $5.00 full cover, a cent above $4.99", askingPriceFor(5, "Near Mint"), 7.01);
   // Chris 10-08: fees + postage on every card (COSTS_ON_EVERY_CARD) - no taper any more, every value carries the full costs.
   check("every value carries the full costs: $7.50", askingPriceFor(7.5, "Near Mint"), costCoveredPrice(7.5));
   check("every value carries the full costs: $9.99", askingPriceFor(9.99, "Near Mint"), costCoveredPrice(9.99));
@@ -533,15 +533,15 @@ console.log("\nThe chart's current-day point rebases the quote:");
   {
     const { askingNoteFor } = await import(new URL("../src/lib/listing.ts", import.meta.url).href);
     check("Inventory note: $0.25 Spidops names the value", askingNoteFor(0.25, "Near Mint"),
-      "Card value $0.25 plus eBay fees and $0.82 envelope postage, so you keep the full value");
+      "Card value $0.25 plus eBay fees and $0.78 envelope postage, so you keep the full value");
     // Chris 10-08: fees + postage on every card (COSTS_ON_EVERY_CARD)
-    check("Inventory note: $7.50 names the full costs", askingNoteFor(7.5, "Near Mint"), "Card value $7.50 plus eBay fees and $0.82 envelope postage, so you keep the full value");
-    check("Inventory note: a $12 card names them too", askingNoteFor(12, "Near Mint"), "Card value $12.00 plus eBay fees and $0.82 envelope postage, so you keep the full value");
+    check("Inventory note: $7.50 names the full costs", askingNoteFor(7.5, "Near Mint"), "Card value $7.50 plus eBay fees and $0.78 envelope postage, so you keep the full value");
+    check("Inventory note: a $12 card names them too", askingNoteFor(12, "Near Mint"), "Card value $12.00 plus eBay fees and $0.78 envelope postage, so you keep the full value");
   }
   // Chris 10-08: fees + postage on every card (COSTS_ON_EVERY_CARD)
   check("$7.50 note says all of the costs",
     floorNote(quotePrice({ name: "Test", setName: "Test", prices: [usd(7.5)] }, "Near Mint", "market")),
-    "Card value $7.50 plus eBay fees and $0.82 envelope postage, so you keep the full value");
+    "Card value $7.50 plus eBay fees and $0.78 envelope postage, so you keep the full value");
   {
     // Every cent $0.01–$15: the price never drops as the value rises, never
     // loses money, and quick sale is never above full value.
@@ -614,13 +614,66 @@ console.log("\nThe chart's current-day point rebases the quote:");
 {
   const { belowFloor, listingFloor, floorRefusal } = await import(new URL("../src/lib/fees.ts", import.meta.url).href);
   console.log("break-even rule (Chris, 09-08: never lose money; the $1.79 minimum went 09-30)");
-  // (0.30 + 0.82) / 0.8675 = 1.2911 → rounded up to the cent.
-  check("break-even is $1.30 at 13.25% + $0.30 + $0.82 postage", listingFloor(), 1.30);
+  // (0.30 + 0.78) / 0.8675 = 1.2450 → rounded up to the cent (Chris 10-11: the $0.78 eBay envelope label).
+  check("break-even is $1.25 at 13.25% + $0.30 + $0.78 postage", listingFloor(), 1.25);
   check("$1.15 loses money", belowFloor(1.15), true);
-  check("$1.29 loses money", belowFloor(1.29), true);;
+  check("$1.24 loses money", belowFloor(1.24), true);
   check("$1.92 (the Spidops price) saves", belowFloor(1.92), false);
   check("$0 (unpriced) passes", belowFloor(0), false);
-  check("refusal names break-even", floorRefusal().includes("$1.30"), true);
+  check("refusal names break-even", floorRefusal().includes("$1.25"), true);
+}
+
+// Shipping picks (Chris 10-11 night, eBay's calculator + USPS Notice 123 of 2026-10-04): envelope = eBay's
+// tracked label $0.78 up to $20, stamps with no tracking $1.31 from $20.01 to $100, never over $100;
+// tracked mailer $6.07 at any price. The postage sits inside the price.
+{
+  const fees = await import(new URL("../src/lib/fees.ts", import.meta.url).href);
+  const { floorNote, askingPriceFor } = await import(new URL("../src/lib/listing.ts", import.meta.url).href);
+  const ship = await import(new URL("../src/lib/shipping.ts", import.meta.url).href);
+  console.log("shipping tiers (Chris 10-11)");
+  check("postage: envelope at $20.00 = $0.78 label, $20.01 = $1.31 stamps, no price = $0.78, tracked = $6.07", [
+    fees.postageFor("envelope", 20), fees.postageFor("envelope", 20.01), fees.postageFor("envelope"), fees.postageFor("tracked"), fees.postageFor("tracked", 500),
+  ], [0.78, 1.31, 0.78, 6.07, 6.07]);
+  check("envelope allowed to $100, not $100.01; tracked label to $20 only", [
+    fees.envelopeAllowed(100), fees.envelopeAllowed(100.01), fees.envelopeTracked(20), fees.envelopeTracked(20.01),
+  ], [true, false, true, false]);
+  check("floor is $1.25 (the $0.78 label)", fees.listingFloor(), 1.25);
+  // $16: (16 + 0.40 + 0.78) / 0.8675 = 19.81, under the label line. $16.50: 20.38 with the label is over $20, so it is
+  // priced with stamps: (16.50 + 0.40 + 1.31) / 0.8675 = 20.991 → $21.00 (never $20.38 on a stamped envelope).
+  check("envelope under the line keeps the label price ($16 → $19.81)", fees.costCoveredPrice(16, "envelope"), 19.81);
+  check("an envelope price that lands just over $20 is priced with the $1.31 stamps ($16.50 → $21.00)", fees.costCoveredPrice(16.5, "envelope"), 21.0);
+  check("the stamped price still nets the value after fees + $1.31", fees.costCoveredPrice(16.5) - fees.estimatedEbayFees(fees.costCoveredPrice(16.5)) - fees.STAMP_POSTAGE_USD >= 16.5, true);
+  check("$25 card: envelope $30.79 (stamps) vs tracked $36.28", [fees.costCoveredPrice(25, "envelope"), fees.costCoveredPrice(25, "tracked")], [30.79, 36.28]);
+  check("$60 card: envelope $71.14 (stamps) vs tracked $76.63", [fees.costCoveredPrice(60, "envelope"), fees.costCoveredPrice(60, "tracked")], [71.14, 76.63]);
+  check("$15 card on the envelope: $18.66 (label)", fees.costCoveredPrice(15, "envelope"), 18.66);
+  check("suggested pick: envelope while the label price is $20 or less, tracked above (never the stamps)", [
+    fees.defaultShipMethod(16), fees.defaultShipMethod(16.5), fees.defaultShipMethod(25), fees.defaultShipMethod(60),
+  ], ["envelope", "tracked", "tracked", "tracked"]);
+  check("no pick: a $25 card is priced as the tracked mailer", askingPriceFor(25, "Near Mint"), fees.costCoveredPrice(25, "tracked"));
+  check("picked envelope: a $25 card is priced with the stamps", askingPriceFor(25, "Near Mint", "envelope"), 30.79);
+  {
+    // Every cent $15–$30 on the envelope: the price never drops as the value rises and never loses money at its own postage.
+    let ok = true;
+    let prev = 0;
+    for (let c = 1500; c <= 3000; c++) {
+      const p = fees.costCoveredPrice(c / 100, "envelope");
+      if (p < prev || p - fees.estimatedEbayFees(p) - fees.postageFor("envelope", p) < c / 100 - 1e-9) ok = false;
+      prev = p;
+    }
+    check("envelope sweep $15-$30: rises with value, always nets the value at the right postage", ok, true);
+  }
+  check("note names the stamp postage on a stamped envelope", floorNote({ covers: 25, shipping: "envelope", suggested: 30.79 }),
+    "Card value $25.00 plus eBay fees and $1.31 envelope postage, so you keep the full value");
+  check("tiles at $15: label envelope $0.78 + tracked $6.07", ship.shipOptionsFor(15).map((o) => [o.id, o.postage, o.sub]), [
+    ["envelope", 0.78, "eBay Standard Envelope, tracked"], ["tracked", 6.07, "Bubble mailer, USPS Ground Advantage"],
+  ]);
+  check("tiles at $30.79: stamps $1.31, no tracking", ship.shipOptionsFor(30.79)[0], { id: "envelope", label: "Envelope", sub: "Stamps, no tracking: if it's lost, you cover it", postage: 1.31 });
+  check("over-cap line", ship.ENVELOPE_OVER_CAP, "Over $100, use a tracked mailer");
+  check("confirm line: stamped envelope over $20", ship.shipConfirmLine("envelope", 25),
+    "Ships in a stamped envelope, no tracking. Free shipping for the buyer, the postage is already in your price. If it's lost, you cover it.");
+  check("confirm line: label envelope at $20 and with no price", [ship.shipConfirmLine("envelope", 20), ship.shipConfirmLine("envelope")].every((s) => s.startsWith("Ships as an eBay Standard Envelope (tracked).")), true);
+  check("steps: stamped envelope says stamps, 49¢ more, and no tracking", [ship.shipSteps("envelope", 25).length, /Forever stamp plus 49¢/.test(ship.shipSteps("envelope", 25)[2]), /Mark as shipped.*no tracking/.test(ship.shipSteps("envelope", 25)[3])], [4, true, true]);
+  check("steps: label envelope up to $20 buys the eBay label", /eBay Standard Envelope label/.test(ship.shipSteps("envelope", 20)[2]), true);
 }
 
 // The price guard (lib/server/priceTrustSite.ts): a card whose market the rule flags gets no suggested price.

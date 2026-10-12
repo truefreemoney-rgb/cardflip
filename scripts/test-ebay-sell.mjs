@@ -17,7 +17,9 @@
  * flips to listed; warnings pass through; a 25713 on the offer GET clears
  * the offer id and asks for a re-push. Reprice: PUT carries only the new
  * pricingSummary over the current offer. Withdraw: POSTs withdraw; a gone
- * listing counts as ended.
+ * listing counts as ended. Shipping picks (Chris 10-11): envelope up to $20
+ * lists on "CardFlip envelope", $20.01-$100 on "CardFlip letter" (stamps, no
+ * carrier), tracked when eBay refuses the letter; envelope over $100 is refused.
  */
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -38,6 +40,9 @@ process.once("exit", () => {
 // state = what eBay "has"; log = every call (method, path, body).
 const state = {
   policies: { f: null, p: null, r: null },
+  // Our named fulfillment policies ("CardFlip envelope" / "CardFlip letter" / "CardFlip shipping"), listed after the plain one.
+  named: [],
+  refuseNamed: new Set(), // policy names eBay refuses to create
   optedIn: true,
   location: null,
   offers: new Map(), // offerId → offer object
@@ -66,8 +71,15 @@ globalThis.fetch = async (input, init) => {
   if (pol) {
     const k = pol[1][0];
     if (!state.optedIn) return json({ errors: [{ errorId: 20403 }] }, 400);
+    if (method === "POST" && k === "f" && /^CardFlip (envelope|letter)/.test(body?.name ?? "")) {
+      if (state.refuseNamed.has(body.name)) return json({ errors: [{ errorId: 20200 }] }, 400);
+      const id = `${body.name.split(" ")[1]}-${state.named.length + 1}`;
+      state.named.push({ fulfillmentPolicyId: id, name: body.name });
+      return json({ fulfillmentPolicyId: id }, 201);
+    }
     if (method === "POST") { state.policies[k] = `${pol[1]}-1`; return json({ [`${pol[1]}PolicyId`]: state.policies[k] }, 201); }
     const list = state.policies[k] ? [{ [`${pol[1]}PolicyId`]: state.policies[k] }] : [];
+    if (k === "f") list.push(...state.named);
     return json({ [`${pol[1]}Policies`]: list });
   }
   if (p.includes("/sell/account/v1/program/opt_in")) { state.optedIn = true; return json({}); }
@@ -137,8 +149,8 @@ const user = await createUser("Seller", "seller@example.com", "hunter22", "user"
 const uid = user.id;
 const JPEG = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(64, 1), Buffer.from([0xff, 0xd9])]);
 
-async function readyCard({ verified = true, photo = true } = {}) {
-  const c = await createCard(uid, { cardName: "Charizard", setName: "Base Set", cardNumber: "4", imageUrl: "https://img/4.png", condition: "Near Mint", price: 818, shippingMethod: "tracked" });
+async function readyCard({ verified = true, photo = true, price = 818, shippingMethod = "tracked" } = {}) {
+  const c = await createCard(uid, { cardName: "Charizard", setName: "Base Set", cardNumber: "4", imageUrl: "https://img/4.png", condition: "Near Mint", price, shippingMethod });
   if (verified) await updateCard(c.id, uid, { verifiedAt: Date.now() });
   if (photo) {
     const r = await storeCardPhoto(c.id, uid, JPEG);
@@ -275,6 +287,51 @@ state.offers.delete("OF-2");
 check("withdraw: a listing eBay already ended counts as ended", await thrown(withdrawOffer(uid, c1)), null);
 err = await thrown(withdrawOffer(uid, c4));
 check("withdraw: no offer → 409", err?.status, 409);
+
+// --- shipping picks (Chris 10-11): envelope label to $20, stamped letter $20.01-$100, tracked over ----------
+{
+  const listed = async (price) => {
+    const id = await readyCard({ price, shippingMethod: "envelope" });
+    await pushDraft(uid, draftFor(id, { listing: { ...draftFor(id).listing, price } }));
+    log.length = 0;
+    await publishDraft(uid, id);
+    const offerId = (await getCardForUser(id, uid)).ebayOfferId;
+    return { id, put: calls("PUT", `/sell/inventory/v1/offer/${offerId}`)[0]?.body, posts: calls("POST", "/sell/account/v1/fulfillment_policy").map((c) => c.body) };
+  };
+  const at15 = await listed(15);
+  check("envelope at $15: lists on a new \"CardFlip envelope\" policy (eBay Standard Envelope)", [
+    at15.put?.listingPolicies?.fulfillmentPolicyId, at15.posts.map((b) => [b.name, b.shippingOptions[0].shippingServices[0].shippingServiceCode]),
+  ], ["envelope-1", [["CardFlip envelope", "US_eBayStandardEnvelope"]]]);
+  const at25 = await listed(25);
+  const svc = at25.posts[0]?.shippingOptions?.[0]?.shippingServices?.[0];
+  check("envelope at $25: lists on a new \"CardFlip letter\" policy (Standard Shipping, no carrier, free)", [
+    at25.put?.listingPolicies?.fulfillmentPolicyId, at25.posts.map((b) => b.name), svc?.shippingServiceCode, "shippingCarrierCode" in (svc ?? {}), svc?.freeShipping, at25.posts[0]?.handlingTime,
+  ], ["letter-2", ["CardFlip letter"], "ShippingMethodStandard", false, true, { value: 1, unit: "DAY" }]);
+  const again = await listed(60);
+  check("envelope at $60: the existing letter policy is reused, nothing created", [again.put?.listingPolicies?.fulfillmentPolicyId, again.posts.length], ["letter-2", 0]);
+  const at20 = await listed(20);
+  check("envelope at exactly $20 stays on the tracked envelope label", at20.put?.listingPolicies?.fulfillmentPolicyId, "envelope-1");
+
+  // No letter policy and eBay refuses both tries (Standard, then Economy): the card lists on the tracked policy.
+  state.named = state.named.filter((p) => !p.name.startsWith("CardFlip letter"));
+  state.named.push({ fulfillmentPolicyId: "tracked-9", name: "CardFlip shipping" });
+  state.refuseNamed.add("CardFlip letter");
+  const refused = await listed(25);
+  check("envelope at $25 with no letter policy (eBay refused it): falls back to the tracked policy", [
+    refused.put?.listingPolicies?.fulfillmentPolicyId, refused.posts.map((b) => b.shippingOptions[0].shippingServices[0].shippingServiceCode),
+  ], ["tracked-9", ["ShippingMethodStandard", "Other"]]);
+  state.refuseNamed.clear();
+
+  // The $100 cap: an envelope over it is refused before anything goes to eBay; $100 itself is fine.
+  const over = await readyCard({ price: 100.01, shippingMethod: "envelope" });
+  log.length = 0;
+  err = await thrown(pushDraft(uid, draftFor(over, { listing: { ...draftFor(over).listing, price: 100.01 } })));
+  check("envelope at $100.01 is refused (409, pick Tracked mailer), nothing sent", [err instanceof EbaySellError, err?.status, err?.message, log.length], [
+    true, 409, "Over $100 eBay needs a tracked mailer — pick Tracked mailer under Shipping", 0,
+  ]);
+  const cap = await listed(100);
+  check("envelope at exactly $100 lists, on a fresh letter policy", [Boolean(cap.put), cap.posts.map((b) => b.name), cap.put?.listingPolicies?.fulfillmentPolicyId === state.named.find((p) => p.name === "CardFlip letter")?.fulfillmentPolicyId, (await getCardForUser(cap.id, uid)).status], [true, ["CardFlip letter"], true, "listed"]);
+}
 
 Object.assign(console, quiet);
 globalThis.fetch = realFetch;

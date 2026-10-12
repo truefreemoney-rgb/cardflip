@@ -31,8 +31,8 @@ import { foilChoices, foilLabel } from "@/lib/yugioh";
 import { printingChoices, printingLabel } from "@/lib/onepiece";
 import { useLastRecordedPrice } from "@/lib/client/priceHistoryData";
 import { saveCondition, saveStrategy } from "@/lib/client/scanPrefs";
-import { ENVELOPE_MAX_USD, envelopeAllowed, formatMoneyPostage } from "@/lib/fees";
-import { ENVELOPE_OVER_CAP, SHIP_OPTIONS } from "@/lib/shipping";
+import { ENVELOPE_LABEL_MAX_USD, ENVELOPE_MAX_USD, envelopeAllowed, formatMoneyPostage } from "@/lib/fees";
+import { ENVELOPE_OVER_CAP, shipOptionsFor } from "@/lib/shipping";
 import ShippingHelpSheet from "@/components/ShippingHelpSheet";
 import type {
   Condition,
@@ -377,10 +377,12 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
   const hookPoint = useLastRecordedPrice(card?.id ?? "", effectiveVariant(item) ?? null);
   const currentPoint = hookPoint ?? item.currentPoint ?? null;
   // Shipping pick (10-08), hooks above the early returns: the envelope tile is off once the price it
-  // would give is $100 or more (the envelope cap); a card that grew past the cap after an
-  // envelope pick flips to tracked.
+  // would give is over $100 (the envelope cap, Chris 10-11); a card that grew past the cap after an
+  // envelope pick flips to tracked. The tile's postage and line follow that price ($0.78 tracked
+  // label up to $20, $1.31 in stamps over).
   const envelopeQuote = card ? quotePrice(card, item.condition, item.strategy, effectiveVariant(item), currentPoint, "envelope") : null;
-  const envelopeOk = envelopeQuote ? envelopeAllowed(item.priceOverride ?? envelopeQuote.suggested) : true;
+  const envelopePrice = envelopeQuote ? (item.priceOverride ?? envelopeQuote.suggested) : null;
+  const envelopeOk = envelopePrice != null ? envelopeAllowed(envelopePrice) : true;
   const { shipping: shippingPick } = item;
   const [shipHelp, setShipHelp] = useState(false);
   useEffect(() => {
@@ -1348,9 +1350,9 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
               How to ship
             </button>
           </legend>
-          {shipHelp && <ShippingHelpSheet picked={item.shipping} onClose={() => setShipHelp(false)} />}
+          {shipHelp && <ShippingHelpSheet picked={item.shipping} price={envelopePrice} onClose={() => setShipHelp(false)} />}
           <div className="grid grid-cols-2 gap-2">
-            {SHIP_OPTIONS.map((o) => {
+            {shipOptionsFor(envelopePrice).map((o) => {
               const allowed = o.id !== "envelope" || envelopeOk;
               const on = item.shipping === o.id;
               return (
@@ -1378,7 +1380,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
             })}
           </div>
           <p className="text-[11px] text-zinc-500">
-            Postage goes into your price, the buyer sees free shipping. Envelope is for sale prices of ${ENVELOPE_MAX_USD} or less.
+            Postage goes into your price, the buyer sees free shipping. Envelope is tracked up to ${ENVELOPE_LABEL_MAX_USD}, stamps with no tracking up to ${ENVELOPE_MAX_USD}.
           </p>
         </fieldset>
       )}

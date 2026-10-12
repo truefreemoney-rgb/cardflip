@@ -609,6 +609,16 @@ export function envelopeAttempts(marketplace: Marketplace): { serviceCode: strin
   return [{ serviceCode: code, carrierCode: marketplace.shipping.carrierCode }, { serviceCode: code, carrierCode: null }];
 }
 
+/**
+ * The letter policy's service tries (US only, Chris 10-11): a stamped envelope
+ * for $20.01-$100, no eBay label and no tracking, so no carrier code. eBay
+ * "Standard Shipping" first, then "Economy Shipping" (the account may refuse one).
+ */
+export function letterAttempts(marketplace: Marketplace): { serviceCode: string; carrierCode: string | null }[] {
+  if (marketplace.key !== "US") return [];
+  return [{ serviceCode: "ShippingMethodStandard", carrierCode: null }, { serviceCode: "Other", carrierCode: null }];
+}
+
 export function fulfillmentAttempts(marketplace: Marketplace): { serviceCode: string; carrierCode: string | null }[] {
   const s = marketplace.shipping;
   const out: { serviceCode: string; carrierCode: string | null }[] = [{ serviceCode: s.serviceCode, carrierCode: s.carrierCode }];
@@ -627,12 +637,14 @@ export function fulfillmentAttempts(marketplace: Marketplace): { serviceCode: st
  * (08-27, LOGISTICS_INFO_IS_MISSING: buyerResponsibleForShipping is a
  * freight flag, not "buyer pays"); buyer-pays is simply a non-zero flat cost.
  */
-export function fulfillmentPolicyBody(marketplace: Marketplace, serviceCode: string, carrierCode: string | null, kind: "tracked" | "envelope" = "tracked") {
+export type FulfillmentPolicyKind = "tracked" | "envelope" | "letter";
+export function fulfillmentPolicyBody(marketplace: Marketplace, serviceCode: string, carrierCode: string | null, kind: FulfillmentPolicyKind = "tracked") {
   return {
     ...policyBase(marketplace),
     // "CardFlip shipping" = the tracked mailer policy (its pre-10-08 name, kept so existing accounts match);
-    // "CardFlip envelope" = eBay Standard Envelope for cards under $20.
-    name: policyNameFor(marketplace, kind === "envelope" ? "CardFlip envelope" : "CardFlip shipping"),
+    // "CardFlip envelope" = eBay Standard Envelope for cards at $20 or less;
+    // "CardFlip letter" = stamped envelope, no tracking, $20.01-$100 (Chris 10-11).
+    name: policyNameFor(marketplace, kind === "envelope" ? "CardFlip envelope" : kind === "letter" ? "CardFlip letter" : "CardFlip shipping"),
     handlingTime: { value: 1, unit: "DAY" },
     shippingOptions: [
       {

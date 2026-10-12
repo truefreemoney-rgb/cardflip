@@ -30,48 +30,74 @@ export function estimatedEbayFees(gross: number): number {
  *
  * gross − (gross·rate + flat) − postage ≥ net  ⇒  gross ≥ (net + flat + postage) / (1 − rate)
  */
-// 10-08 evening (Chris: "something tells me it's not a flat $5"): real rates checked. eBay Standard
-// Envelope is $0.82 / $1.11 / $1.40 at 1 / 2 / 3 oz. 10-11 night (Chris: "why are we using $1.11, seems
-// dumb"): the 2 oz guess was never weighed; a card + penny sleeve + toploader is ~0.35 oz and a #10
-// envelope ~0.2 oz, so one card is the 1 oz rate, $0.82 flat (competitive on cheap cards). USPS Ground Advantage under a pound is one price per ZONE ($6.93 near to $8.40 coast
-// to coast, published commercial, July 2026) and weight never moves it, so a slab costs the same as a
-// raw card; $7 flat covers zones 1-5 with room. Both numbers are the seller's cost, never the buyer's.
-export const POSTAGE_USD = 0.82;
+// 10-08 evening (Chris: "something tells me it's not a flat $5"): real rates checked. 10-11 night (Chris: "why
+// are we using $1.11, seems dumb"): the 2 oz guess was never weighed; a card + penny sleeve + toploader is
+// ~0.35 oz and a #10 envelope ~0.2 oz, so one card is the 1 oz rate. Later that night every number was re-read
+// off eBay's own shipping calculator (ebay.com/shp/calc/rates) and USPS Notice 123 (effective 2026-10-04):
+//   - eBay Standard Envelope label, 1 oz, tracked: $0.78. eBay only sells it for items sold at $20 or less.
+//   - Stamped envelope (no label, no tracking): Forever stamp $0.82 + $0.49 nonmachinable surcharge (a rigid
+//     toploader can't go through the letter machines) = $1.31.
+//   - Tracked mailer: eBay label, USPS Ground Advantage, 3 oz 7x4x1 bubble mailer, Columbus OH -> Los Angeles
+//     = $6.07 (cross-country on purpose so the seller never loses money; nearby is $5.38). Under a pound the
+//     weight never moves it, so a slab costs the same as a raw card.
+// All three are the seller's cost, never the buyer's (free shipping: the postage sits inside the price).
+/** The eBay Standard Envelope label: the cheapest postage, and the flat per-sale allowance everywhere else. */
+export const POSTAGE_USD = 0.78;
+/** Stamps on a plain envelope, no tracking: Forever $0.82 + $0.49 nonmachinable (USPS Notice 123, 2026-10-04). */
+export const STAMP_POSTAGE_USD = 1.31;
 /**
  * The seller PICKS how a card ships (Chris 10-08: "we shouldn't let the user
- * post to eBay unless they pick a shipping option"): an eBay Standard Envelope
- * ($0.82, tracked, eBay only sells that label for items sold at $20 or less)
- * or a bubble mailer by USPS Ground Advantage ($7 flat, see above). The buyer
- * pays nothing either way, the postage sits inside the asking price. Nothing
- * is picked by default; the suggested pick (defaultShipMethod) is the
- * envelope while it is allowed.
+ * post to eBay unless they pick a shipping option"); the pick's postage sits
+ * inside the asking price and the buyer sees free shipping. Chris 10-11 night
+ * (sellers must stay competitive):
+ *   sale price      "Envelope"                                   "Tracked mailer"
+ *   $20 or less     eBay Standard Envelope label, tracked, $0.78  $6.07
+ *   $20.01-$100     stamps, NO tracking, $1.31                    $6.07
+ *   over $100       not allowed                                  $6.07 (required)
+ * Nothing is picked by default; the suggested pick (defaultShipMethod) is the
+ * tracked envelope while its price stays at $20 or less, else the tracked
+ * mailer. The untracked stamp envelope is never suggested: the seller chooses it.
  */
 export type ShipMethod = "envelope" | "tracked";
 export const SHIP_METHODS: readonly ShipMethod[] = ["envelope", "tracked"];
-export const TRACKED_POSTAGE_USD = 7;
+export const TRACKED_POSTAGE_USD = 6.07;
 /**
- * eBay Standard Envelope: the sale price must be under this. eBay's own rule
- * (items sold for $20 or less), not ours: the $100 cap Chris set at noon 10-08
- * would have left sellers unable to buy the label; back to $20 that evening.
+ * eBay Standard Envelope: eBay only sells the label for items sold at $20 or
+ * less (eBay's rule, not ours). Over it the envelope pick goes out with stamps
+ * and no tracking (Chris 10-11).
  */
-export const ENVELOPE_MAX_USD = 20;
-export function postageFor(method: ShipMethod | null | undefined): number {
-  return method === "tracked" ? TRACKED_POSTAGE_USD : POSTAGE_USD;
+export const ENVELOPE_LABEL_MAX_USD = 20;
+/**
+ * The envelope pick's cap (Chris 10-11 night): up to $100 a card may go in a
+ * stamped envelope; over it the tracked mailer is required. (The noon 10-08 $100
+ * cap was dropped that evening because eBay's label stops at $20; the stamp
+ * tier is what makes $20.01-$100 possible.)
+ */
+export const ENVELOPE_MAX_USD = 100;
+/** Postage for the pick at this sale price (no price = the label rate): tracked $6.07; envelope $0.78 up to $20, $1.31 over. */
+export function postageFor(method: ShipMethod | null | undefined, gross?: number | null): number {
+  if (method === "tracked") return TRACKED_POSTAGE_USD;
+  return gross != null && !envelopeTracked(gross) ? STAMP_POSTAGE_USD : POSTAGE_USD;
 }
-/** "$0.82" / "$7.00" for the pick tiles. */
+/** "$0.78" / "$6.07" for the pick tiles. */
 export function formatMoneyPostage(n: number): string {
-  return `${n.toFixed(2)}`;
+  // The "$" was lost when this shipped 10-08 (the tiles read "0.78"); found 10-11 night.
+  return `$${n.toFixed(2)}`;
 }
 export function isShipMethod(v: unknown): v is ShipMethod {
   return v === "envelope" || v === "tracked";
 }
-/** Whether the envelope is allowed at this sale price (eBay: $20 or less). */
+/** Whether the envelope pick is allowed at this sale price ($100 or less, Chris 10-11). */
 export function envelopeAllowed(gross: number): boolean {
   return gross <= ENVELOPE_MAX_USD;
 }
-/** The pick to suggest for a card worth `net`: the envelope while its price stays under the cap. */
+/** Whether an envelope at this sale price gets eBay's tracked Standard Envelope label ($20 or less) rather than stamps. */
+export function envelopeTracked(gross: number): boolean {
+  return gross <= ENVELOPE_LABEL_MAX_USD;
+}
+/** The pick to suggest for a card worth `net`: the tracked envelope while its price stays at $20 or less, never the stamps. */
 export function defaultShipMethod(net: number): ShipMethod {
-  return envelopeAllowed(costCoveredPrice(net, "envelope")) ? "envelope" : "tracked";
+  return envelopeTracked(costCoveredPrice(net, "envelope")) ? "envelope" : "tracked";
 }
 
 /**
@@ -81,11 +107,16 @@ export function defaultShipMethod(net: number): ShipMethod {
  * the cent.
  */
 export function costCoveredPrice(net: number, method: ShipMethod = "envelope"): number {
-  const postage = postageFor(method);
-  const at = (flat: number) => Math.ceil(((net + flat + postage) / (1 - EBAY_FEE_RATE)) * 100) / 100;
-  const low = at(EBAY_FLAT_FEE);
-  // Over $10 the order fee is $0.40, so a price past the step must cover that instead.
-  return low > EBAY_FLAT_FEE_STEP_USD ? at(EBAY_FLAT_FEE_OVER_10) : low;
+  const priced = (postage: number) => {
+    const at = (flat: number) => Math.ceil(((net + flat + postage) / (1 - EBAY_FEE_RATE)) * 100) / 100;
+    const low = at(EBAY_FLAT_FEE);
+    // Over $10 the order fee is $0.40, so a price past the step must cover that instead.
+    return low > EBAY_FLAT_FEE_STEP_USD ? at(EBAY_FLAT_FEE_OVER_10) : low;
+  };
+  const first = priced(postageFor(method));
+  // An envelope priced past eBay's $20 label line ships with stamps (Chris 10-11): price it again with the
+  // stamp postage. More postage only raises the price, so the result is over $20 too and never disagrees.
+  return method === "envelope" && !envelopeTracked(first) ? priced(STAMP_POSTAGE_USD) : first;
 }
 
 /**
@@ -136,8 +167,8 @@ export function costTaperedPrice(value: number, method: ShipMethod = "envelope")
 }
 
 /**
- * The break-even price: eBay's cut + postage and nothing else ($1.22 at
- * 13.25% + $0.30 + $0.75). The old $1.79 minimum (clear $0.50 on every
+ * The break-even price: eBay's cut + postage and nothing else ($1.25 at
+ * 13.25% + $0.30 + the $0.78 envelope label, 10-11). The old $1.79 minimum (clear $0.50 on every
  * sale, 09-03) is gone — Chris 09-30: "if you follow these rules, you
  * shouldnt need to have the minimum listing price any more"; a $0.25
  * Spidops lists at $1.50, not $1.79. Suggested prices never come near this
@@ -198,14 +229,23 @@ function ceilCentsFor(mp: Marketplace, x: number): number {
 
 export function costCoveredPriceFor(mp: Marketplace, net: number, account?: EbayAccountType | null, method: ShipMethod = "envelope"): number {
   const m = feeModelFor(mp, account);
-  const postage = postageForOn(mp, method);
-  const at = (flat: number) => ceilCentsFor(mp, ((net + flat + postage) / (1 - m.rate)) * 100) / 100;
-  const low = at(m.flat);
-  return low > m.flatStep ? at(m.flatOver) : low;
+  const priced = (postage: number) => {
+    const at = (flat: number) => ceilCentsFor(mp, ((net + flat + postage) / (1 - m.rate)) * 100) / 100;
+    const low = at(m.flat);
+    return low > m.flatStep ? at(m.flatOver) : low;
+  };
+  const first = priced(postageForOn(mp, method));
+  // US (Chris 10-11): an envelope priced past the label line ships with stamps, priced again at the stamp rate.
+  return method !== "tracked" && mp.stamped && first > mp.stamped.over ? priced(mp.stamped.postage) : first;
 }
-/** What the seller pays to post a card on this site by the chosen method (sites without a tracked tier: the letter rate). */
-export function postageForOn(mp: Marketplace, method: ShipMethod | null | undefined): number {
-  return method === "tracked" && mp.tracked ? mp.tracked.postage : mp.postage;
+/**
+ * What the seller pays to post a card on this site by the chosen method at this
+ * sale price (sites without a tracked tier: the letter rate; US envelope over
+ * $20: the stamp rate, see postageFor).
+ */
+export function postageForOn(mp: Marketplace, method: ShipMethod | null | undefined, gross?: number | null): number {
+  if (method === "tracked" && mp.tracked) return mp.tracked.postage;
+  return gross != null && mp.stamped && gross > mp.stamped.over ? mp.stamped.postage : mp.postage;
 }
 
 export function coversCostsFor(mp: Marketplace, value: number): boolean {

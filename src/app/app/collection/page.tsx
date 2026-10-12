@@ -812,11 +812,11 @@ export default function CollectionPage() {
                 </button>
               </p>
               <ol className="mt-1.5 flex list-decimal flex-col gap-1 pl-4 text-[12px] leading-snug text-zinc-300">
-                {shipSteps(card.shippingMethod ?? "tracked").map((s) => (
+                {shipSteps(card.shippingMethod ?? "tracked", priceValue).map((s) => (
                   <li key={s}>{s}</li>
                 ))}
               </ol>
-              {shipHelpFor === card.id && <ShippingHelpSheet picked={card.shippingMethod} onClose={() => setShipHelpFor(null)} />}
+              {shipHelpFor === card.id && <ShippingHelpSheet picked={card.shippingMethod} price={priceValue} onClose={() => setShipHelpFor(null)} />}
             </div>
           )}
           {/* Added → now (Chris, 09-08): the price when the card was added,

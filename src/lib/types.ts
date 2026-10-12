@@ -303,7 +303,7 @@ export interface PriceQuote {
    * `coverPartial` marks the $5–$10 taper, where only part of it is.
    */
   floored?: boolean;
-  /** The shipping the cover price assumes: the seller's pick, or the suggested one (envelope under $20) while nothing is picked. */
+  /** The shipping the cover price assumes: the seller's pick, or the suggested one (the tracked envelope label, $20 or less) while nothing is picked. */
   shipping?: ShipMethod;
   covers?: number;
   coverPartial?: boolean;
@@ -395,8 +395,9 @@ export interface ScanItem {
   /** Manual price entry, or null to use the computed quote. */
   priceOverride: number | null;
   /**
-   * How the seller will mail it (10-08): "envelope" (eBay Standard Envelope,
-   * $0.75, under $20) or "tracked" (bubble mailer, ~$5). Required before a
+   * How the seller will mail it (10-08): "envelope" (eBay Standard Envelope
+   * $0.78 up to $20, stamps with no tracking $1.31 to $100, Chris 10-11) or
+   * "tracked" (bubble mailer, $6.07). Required before a
    * card can be posted to eBay; the postage sits inside the asking price.
    * null = not picked yet (prices assume the suggested pick meanwhile).
    */

@@ -23,10 +23,11 @@ import type { PriceFlag, PriceStale } from "./priceFlag.ts";
 import { costTaperedPrice, coversAllCosts, coversCosts, defaultShipMethod, postageFor, type ShipMethod } from "./fees.ts";
 
 /** The one-line reason a cost-covered price shows beside the tile. */
-export function floorNote(quote?: { covers?: number; coverPartial?: boolean; shipping?: ShipMethod } | null): string {
+export function floorNote(quote?: { covers?: number; coverPartial?: boolean; shipping?: ShipMethod; suggested?: number } | null): string {
   const keep = quote?.covers ?? 0;
   const method = quote?.shipping ?? defaultShipMethod(keep);
-  const postage = postageFor(method);
+  // The envelope's postage follows the price (Chris 10-11): $0.78 label up to $20, $1.31 in stamps over.
+  const postage = postageFor(method, quote?.suggested);
   return quote?.coverPartial
     ? `Card value $${keep.toFixed(2)} plus part of the eBay fees and postage`
     : `Card value $${keep.toFixed(2)} plus eBay fees and $${postage.toFixed(2)} ${method === "tracked" ? "tracked-mailer" : "envelope"} postage, so you keep the full value`;
@@ -413,7 +414,7 @@ export function askingNoteFor(market: number, condition: string, shipping?: Ship
   if (!(market > 0)) return null;
   const mult = CONDITION_MULTIPLIER[condition as Condition] ?? 1;
   const covered = coveredAsk(roundPrice(market * mult, "market"), shipping);
-  return covered ? floorNote({ covers: covered.covers, coverPartial: covered.partial, shipping: covered.method }) : null;
+  return covered ? floorNote({ covers: covered.covers, coverPartial: covered.partial, shipping: covered.method, suggested: covered.price }) : null;
 }
 
 /**

@@ -54,6 +54,12 @@ export interface Marketplace {
   postage: number;
   /** Tracked mailer tier (US, 10-08): postage when the seller picks "tracked". Absent = letters only on this site. */
   tracked?: { postage: number };
+  /**
+   * US (Chris 10-11): an envelope sold over `over` can't have eBay's tracked
+   * envelope label, so it goes out with stamps at `postage`. Absent = one
+   * letter rate at every price.
+   */
+  stamped?: { postage: number; over: number };
   /** Fee models by account type; UK and AU private sellers pay no final value fee. */
   fees: { private: FeeModel; business: FeeModel };
   /**
@@ -70,7 +76,7 @@ export interface Marketplace {
     fallbackServiceCode: string | null;
     /** Flat cost the default fulfillment policy charges the buyer, as eBay's decimal string; null = not decided yet. */
     policyCost: string | null;
-    /** Service for the envelope policy (US: eBay Standard Envelope, sale price under $20). */
+    /** Service for the envelope policy (US: eBay Standard Envelope, sale price $20 or less; over it the "CardFlip letter" stamped policy). */
     envelopeServiceCode?: string;
   };
   /** Postal code label in prompts. */
@@ -100,8 +106,9 @@ export const US_MARKETPLACE: Marketplace = {
   contentLanguage: "en-US",
   domain: "ebay.com",
   locationCountry: "US",
-  postage: 0.82, // = POSTAGE_USD in fees.ts (literal: fees.ts imports this file)
-  tracked: { postage: 7 }, // = TRACKED_POSTAGE_USD
+  postage: 0.78, // = POSTAGE_USD in fees.ts (literal: fees.ts imports this file)
+  tracked: { postage: 6.07 }, // = TRACKED_POSTAGE_USD
+  stamped: { postage: 1.31, over: 20 }, // = STAMP_POSTAGE_USD over ENVELOPE_LABEL_MAX_USD
   fees: same({ rate: 0.1325, flat: 0.3, flatOver: 0.4, flatStep: 10 }),
   taper: { coveredMax: 5, end: 10 },
   shipping: {
