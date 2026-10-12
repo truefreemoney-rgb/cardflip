@@ -31,15 +31,16 @@ export function estimatedEbayFees(gross: number): number {
  * gross − (gross·rate + flat) − postage ≥ net  ⇒  gross ≥ (net + flat + postage) / (1 − rate)
  */
 // 10-08 evening (Chris: "something tells me it's not a flat $5"): real rates checked. eBay Standard
-// Envelope is $0.82 / $1.11 / $1.40 at 1 / 2 / 3 oz; a sleeved card in a toploader is 2 oz every time,
-// so $1.11 flat. USPS Ground Advantage under a pound is one price per ZONE ($6.93 near to $8.40 coast
+// Envelope is $0.82 / $1.11 / $1.40 at 1 / 2 / 3 oz. 10-11 night (Chris: "why are we using $1.11, seems
+// dumb"): the 2 oz guess was never weighed; a card + penny sleeve + toploader is ~0.35 oz and a #10
+// envelope ~0.2 oz, so one card is the 1 oz rate, $0.82 flat (competitive on cheap cards). USPS Ground Advantage under a pound is one price per ZONE ($6.93 near to $8.40 coast
 // to coast, published commercial, July 2026) and weight never moves it, so a slab costs the same as a
 // raw card; $7 flat covers zones 1-5 with room. Both numbers are the seller's cost, never the buyer's.
-export const POSTAGE_USD = 1.11;
+export const POSTAGE_USD = 0.82;
 /**
  * The seller PICKS how a card ships (Chris 10-08: "we shouldn't let the user
  * post to eBay unless they pick a shipping option"): an eBay Standard Envelope
- * ($1.11, tracked, eBay only sells that label for items sold at $20 or less)
+ * ($0.82, tracked, eBay only sells that label for items sold at $20 or less)
  * or a bubble mailer by USPS Ground Advantage ($7 flat, see above). The buyer
  * pays nothing either way, the postage sits inside the asking price. Nothing
  * is picked by default; the suggested pick (defaultShipMethod) is the
@@ -57,7 +58,7 @@ export const ENVELOPE_MAX_USD = 20;
 export function postageFor(method: ShipMethod | null | undefined): number {
   return method === "tracked" ? TRACKED_POSTAGE_USD : POSTAGE_USD;
 }
-/** "$1.11" / "$7.00" for the pick tiles. */
+/** "$0.82" / "$7.00" for the pick tiles. */
 export function formatMoneyPostage(n: number): string {
   return `${n.toFixed(2)}`;
 }
