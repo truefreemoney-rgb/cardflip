@@ -1498,7 +1498,8 @@ export default function AppPage() {
         </div>
       )}
 
-      <ActivePackBar userId={user?.id} refreshKey={items.length} onGame={setGame} />
+      {/* Saved cards, not captures: items.length moved before the server row existed, so the bar said 2 pulls for 3 (Chris 10-12). */}
+      <ActivePackBar userId={user?.id} refreshKey={items.filter((i) => i.serverId).length} onGame={setGame} />
 
       {resuming && items.length === 0 ? (
         // Reopening from My cards: a quiet loader instead of flashing the
