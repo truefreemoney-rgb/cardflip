@@ -783,6 +783,11 @@ export default function AppPage() {
               price: quote?.suggested ?? 0,
               // "Added at" compares against the market ask Inventory refreshes to, not the quick-sale price.
               scanPrice: quotePrice(card, condition, "market")?.suggested ?? null,
+              // The market the chip SHOWS: packs add these up (Chris 10-12: 3 × $10,000 read as $23,069).
+              scanMarket: (() => {
+                const shown = itemsRef.current.find((i) => i.id === next.id);
+                return shown ? headlinePrice({ ...shown, card }) || null : null;
+              })(),
               game: next.game,
               catalogCardId: card.id || null,
               rarity: card.rarity ?? null,

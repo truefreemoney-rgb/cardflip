@@ -36,12 +36,13 @@ interface PullDbRow {
   status: string;
   price: number;
   scan_price: number | null;
+  scan_market: number | null;
   sold_price: number | null;
   quantity: number | null;
 }
 
 const PACK_COLS = "id, game, name, cost, created_at";
-const PULL_COLS = "id, pack_id, card_name, set_name, image_url, status, price, scan_price, sold_price, quantity";
+const PULL_COLS = "id, pack_id, card_name, set_name, image_url, status, price, scan_price, scan_market, sold_price, quantity";
 
 const toPack = (r: PackRow): Pack => ({ id: r.id, game: parseGame(r.game), name: r.name, cost: r.cost, createdAt: r.created_at });
 
@@ -53,6 +54,7 @@ const toPullRow = (r: PullDbRow): PullRow => ({
   status: r.status,
   price: r.price,
   scanPrice: r.scan_price,
+  scanMarket: r.scan_market,
   soldPrice: r.sold_price,
   quantity: r.quantity ?? 1,
 });

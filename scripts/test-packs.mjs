@@ -37,6 +37,9 @@ function check(label, actual, expected = true) {
 // --- pull value ------------------------------------------------------------
 const row = (o) => ({ id: "x", cardName: "C", setName: "S", imageUrl: "", status: "ready", price: 1, scanPrice: null, soldPrice: null, quantity: 1, ...o });
 check("market (scan) price wins over the quick-sale price", pullValue(row({ price: 8.8, scanPrice: 10 })), 10);
+// 10-12 Chris: three $10,000 Charizards read as $23,069 (scan_price is asking-level, $11,534.84 each).
+check("the market the scanner showed wins over the asking-level scan price", pullValue(row({ price: 10151.54, scanPrice: 11534.84, scanMarket: 10000 })), 10000);
+check("a sold pull still counts at its sale, not the scan market", pullValue(row({ status: "sold", soldPrice: 9000, scanMarket: 10000 })), 9000);
 check("no scan price: the row price", pullValue(row({ price: 3.5 })), 3.5);
 check("a sold pull counts at what it sold for", pullValue(row({ status: "sold", soldPrice: 12, scanPrice: 10 })), 12);
 check("quantity multiplies", pullValue(row({ scanPrice: 2.5, quantity: 3 })), 7.5);

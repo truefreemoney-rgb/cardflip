@@ -245,6 +245,8 @@ export interface NewCard {
   firstEdition?: boolean;
   /** Variant the scan read (Magic finish) — the seller can change it in the editor. */
   variant?: string | null;
+  /** The headline market the scanner showed (packs sum it). */
+  scanMarket?: number | null;
 }
 
 export async function createCard(userId: string, card: NewCard): Promise<CardRecord> {
@@ -258,8 +260,8 @@ export async function createCard(userId: string, card: NewCard): Promise<CardRec
   await db
     .prepare(
       `INSERT INTO cards
-         (id, user_id, kind, game, card_name, set_name, card_number, image_url, condition, product_type, status, price, scan_price, catalog_card_id, rarity, category, pack_id, verified_at, match_doubt, cost_basis, shipping_method, first_edition, variant, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ready', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (id, user_id, kind, game, card_name, set_name, card_number, image_url, condition, product_type, status, price, scan_price, catalog_card_id, rarity, category, pack_id, verified_at, match_doubt, cost_basis, shipping_method, first_edition, variant, scan_market, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ready', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -287,6 +289,7 @@ export async function createCard(userId: string, card: NewCard): Promise<CardRec
       card.shippingMethod ?? null,
       card.firstEdition ? 1 : 0,
       card.variant ?? null,
+      card.scanMarket != null && card.scanMarket > 0 ? card.scanMarket : null,
       now,
       now,
     );

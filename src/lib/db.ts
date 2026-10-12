@@ -963,6 +963,10 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
       // SALE DATE's rate in sold_price / sold_fees. NULL = a USD sale.
       "sold_price_local REAL",
       "sold_currency TEXT",
+      // The market price the scanner SHOWED (TCGplayer market, the headline), stored at scan (10-12):
+      // packs add these up so a pack's value matches its cards on screen. scan_price stays the asking-level
+      // figure Inventory's "added at" compares against. NULL = rows from before; packs fall back to scan_price.
+      "scan_market REAL",
     ],
   ],
   // alert_price = "email me when it dips to this"; alerted_at = sent once,

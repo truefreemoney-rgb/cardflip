@@ -90,6 +90,8 @@ export interface CreateCardInput {
   price: number;
   /** The plain-market asking price today, when `price` is the quick-sale one (see NewCard.scanPrice). */
   scanPrice?: number | null;
+  /** The headline market the scanner showed (packs sum it). */
+  scanMarket?: number | null;
   catalogCardId?: string | null;
   rarity?: string | null;
   category?: string | null;

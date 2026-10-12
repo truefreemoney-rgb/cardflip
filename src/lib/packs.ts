@@ -2,9 +2,10 @@
  * Pack-opening tracker math (audit G8). Pure, so the server, the pages and the
  * share picture all read the same numbers (scripts/test-packs.mjs).
  *
- * A pull is worth its market price: scan_price (the plain-market figure the scanner stored when
- * the card was added, from quotePrice(..., "market") in lib/listing.ts) when there is one, else the
- * row's price. A pull that has since SOLD counts at what it sold for.
+ * A pull is worth its market price: scan_market (the headline market the scanner SHOWED, 10-12 Chris:
+ * "3 × $10,000" must add up to $30,000), else scan_price (the asking-level figure from
+ * quotePrice(..., "market"), rows from before), else the row's price. A pull that has since SOLD
+ * counts at what it sold for.
  */
 
 export const PACK_NAME_MAX = 60;
@@ -19,6 +20,7 @@ export interface PullRow {
   status: string;
   price: number;
   scanPrice: number | null;
+  scanMarket?: number | null;
   soldPrice: number | null;
   quantity: number;
 }
@@ -45,11 +47,13 @@ export interface PackTotals {
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
-export function pullValue(row: Pick<PullRow, "status" | "price" | "scanPrice" | "soldPrice" | "quantity">): number {
+export function pullValue(row: Pick<PullRow, "status" | "price" | "scanPrice" | "scanMarket" | "soldPrice" | "quantity">): number {
   const each =
     row.status === "sold" && row.soldPrice != null && row.soldPrice > 0
       ? row.soldPrice
-      : row.scanPrice != null && row.scanPrice > 0
+      : row.scanMarket != null && row.scanMarket > 0
+        ? row.scanMarket
+        : row.scanPrice != null && row.scanPrice > 0
         ? row.scanPrice
         : row.price;
   const qty = Math.max(1, row.quantity || 1);
