@@ -308,3 +308,5 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 **10-12 (s148, local, Chris passed on tunnel) Base Set unstamped pictures + verify count**
 - AT PUSH: run `node scripts/sync-first-edition.mjs --prod` (re-photographs 101 plain Base Set cards + purges stamped card_cache answers on Turso). Then on cardflip.io: search Charizard Base Set 4/102 → picture has NO 1st Edition stamp.
 - Passed on tunnel: scanner green button counts only unverified scans (4da784ee); category sheet one centered button (eeaa21cf); Inventory/scanner game rows mirror (e50a9198).
+- Passed on tunnel 10-12: pack bar counts saved pulls (ebaef239); pack value = market the scanner showed, new cards.scan_market column (97c60b14). AT PUSH: confirm Turso got the scan_market column (app adds it at startup) and a new pack pull on cardflip.io stores it.
+- Passed on tunnel 10-12: Magic card under Pokémon = bad scan, not saved, given back (6baaa844); any 504 = Took too long (6eb614a6); bulk verify Confirm removed (d2a3e96c).

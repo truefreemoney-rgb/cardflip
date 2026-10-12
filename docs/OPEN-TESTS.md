@@ -29,9 +29,9 @@ Was 97. Claude closed 18 tonight (15 passed on prod, 2 out of date, 1 turned int
 
 12. Trial account on its LAST scan: close the camera → out-of-scans wall shows right away, no reload.
 13. ✅ 10-12 (Chris, Unlimited Base Charizard: no banner, Unlimited price; but picture shows 1st Ed stamp, see E) Scanner result: no "Check the art … Switch" banner on a card with a pricier twin.
-14. A "Took too long" scan can be scanned again, and pick-by-name works on that row.
-15. No ghost card in Inventory after a "Took too long".
-16. A slow scan says "Took too long — tap Capture again" right away (no 14 s wait).
+14. ✅ 10-12 (Chris, forced 0.3 s budget: re-scan works; pick-by-name N/A, timed-out rows do not stay in the list) A "Took too long" scan can be scanned again, and pick-by-name works on that row.
+15. ✅ 10-12 (DB check after forced timeout: nothing saved) No ghost card in Inventory after a "Took too long".
+16. ✅ 10-12 (Chris, after 6eb614a6: any 504 = Took too long; tunnel had dropped the JSON reason) A slow scan says "Took too long — tap Capture again" right away (no 14 s wait).
 17. ✅ 10-12 (Chris, tunnel) Double tap on Capture = one photo, one scan charged.
 18. Trial account using its last free scan mid-session keeps its queue (wall only on the next visit).
 19. Out of scans: red note shows inside the camera.
@@ -52,7 +52,7 @@ Was 97. Claude closed 18 tonight (15 passed on prod, 2 out of date, 1 turned int
 31. ✅ 10-12 (Chris, tunnel, fixtures: a second Grey Felt Hat with no catalog row) Duplicates and Missing-price chips; Name A–Z and Set sorts work.
 32. ✅ 10-12 (Chris, tunnel, stand-in live Pikachu with the tracked pick) A live or sold card shows "How to ship it · <pick>" with the 4 steps; "Both ways" opens the sheet.
 33. ✅ 10-12 (pane, forced fetch failure: Inventory, Set Completion, Sales Report all show Couldn't load + Retry; Retry recovers) Load failure shows Retry (Sales Report and Set Completion too).
-34. Packs: Open a Pack → pick game, name, price → scan 3 → banner shows pulls and value → Done opens the pack page (cost, value, profit, ROI, best pull). Share makes a "My Pack" picture. Inventory > Packs lists them. Deleting a pack keeps its cards.
+34. ✅ 10-12 (Chris, tunnel; after ebaef239 pull count + 97c60b14 pack value = scanner market) Packs: Open a Pack → pick game, name, price → scan 3 → banner shows pulls and value → Done opens the pack page (cost, value, profit, ROI, best pull). Share makes a "My Pack" picture. Inventory > Packs lists them. Deleting a pack keeps its cards.
 
 ---
 
