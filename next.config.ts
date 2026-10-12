@@ -28,7 +28,9 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   // Dev only: 127.0.0.1 is a second cookie jar beside localhost, for seeing a
   // signed-out page (the /scan landing) while the pane stays signed in.
-  allowedDevOrigins: ["127.0.0.1"],
+  // *.trycloudflare.com (10-11): Chris's phone reaches the dev server through a Cloudflare quick tunnel
+  // (cloudflared tunnel --url http://localhost:3000) so changes get tested BEFORE a push, not with one.
+  allowedDevOrigins: ["127.0.0.1", "*.trycloudflare.com"],
   // The admin console reads docs/BOARD.md at request time (lib/server/board.ts);
   // make sure the file ships with the serverless function.
   // The social pictures read their fonts the same way (lib/server/ogFonts.ts).
