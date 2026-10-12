@@ -3,6 +3,9 @@
 Things that shipped but were never exercised on a real phone or with real
 traffic. Tick when tested; note what you saw. Newest batch first.
 
+## 10-11 Sign-in code "Send a New Code" link after the code expires (prod /login, admin account)
+- [ ] On cardflip.io/login as truefreemoney, let the 6-digit code expire (or type a wrong one) so the red "didn't match or has expired" box shows, then tap the blue "Send a New Code" link under the code box: a new email arrives and that newest code logs in. Chris 10-11 ~8:30pm ET didn't see a button at first (the link sits small at the end of the "works for 10 minutes" line); if it does nothing on tap, that's a bug. Open question for Chris: make it a full-size button under the red box (visible change, screenshot + yes first).
+
 ## 10-11 Every empty scan given back + no category sheet with nothing scanned (9fc403ff, pushed 10-11 night as 5e4d662b)
 - [x] 10-11 8:35pm ET, local dev with the real reader, driven from the pane: a drawn floss box read at 10% ("Couldn't read"), scans used went 0 → 1 → 0 after the give-back (POST /api/vision/scan/giveback answered refunded). Same path on prod after the push.
 - [x] Tap Done on the camera after only that bad scan: NO "Which category?" sheet. Inventory has no new row. PASSED 10-11 ~8:45pm ET, Chris's phone on the tunnel: floss box = no match, counter stayed 0, Done opened no sheet.
