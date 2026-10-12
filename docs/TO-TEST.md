@@ -5,9 +5,9 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 
 ## 10-11 night Shipping: envelope up to $100, real eBay prices (LOCAL, NOT PUSHED)
 Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notice 123: eBay envelope label $0.78 (1 oz), stamps $0.82 + $0.49 nonmachinable = $1.31, Ground Advantage $6.07 (Miami → Seattle, same at 1 and 3 oz; nearby $5.38). Floor $1.25, a $0.25 card lists at $1.54.
-- [ ] Tunnel, scan a card under $20: Envelope tile reads "$0.78 · eBay Standard Envelope, tracked"; Tracked mailer "$6.07". (The "$" was missing on these tiles since 10-08, fixed here.)
-- [ ] Card between $20 and $100 (or type a price in that range): Envelope tile reads "$1.31 · Plain envelope with stamps" (no warning line, Chris 10-11); both tiles clickable.
-- [ ] Type a price over $100: Envelope greyed out, "Over $100, use a tracked mailer".
+- [x] (10-12 ~2:40pm ET Chris on the tunnel: "looks fine") Tunnel, scan a card under $20: Envelope tile reads "$0.78 · eBay Standard Envelope, tracked"; Tracked mailer "$6.07". (The "$" was missing on these tiles since 10-08, fixed here.)
+- [x] (10-12 ~2:40pm ET Chris on the tunnel: "looks fine") Card between $20 and $100 (or type a price in that range): Envelope tile reads "$1.31 · Plain envelope with stamps" (no warning line, Chris 10-11); both tiles clickable.
+- [x] (10-12 ~2:40pm ET Chris on the tunnel: "looks fine") Type a price over $100: Envelope greyed out, "Over $100, use a tracked mailer".
 - [ ] "How to ship" sheet on a $20-$100 card: stamp steps (Forever stamp plus 49¢, mark shipped in eBay).
 - [ ] Before any pick, a card priced over $20 is suggested as Tracked mailer (the no-tracking envelope is never the default).
 - [ ] PROD, first real $20.01-$100 envelope publish: eBay accepts the new "CardFlip letter" policy (Standard Shipping, free) — only tested against a fake eBay so far; if eBay refuses it the card lists on the tracked policy.
@@ -46,7 +46,7 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 - [x] After the 10-09 5:25am ET Pokémon run: /admin price job result shows no error, and these have a USD series: Mewtwo Star ex13-103, Registeel Star ex12-92, Mudkip Star ex7-107, Deoxys ex pop4-17, Espeon Star pop5-16, Skyridge Gengar H09, Tropical Wind DP05/DP25/DP48, Tropical Tidal Wave np-27. Check /pokemon/mewtwo-card-value shows the Star with a price. (closed 10-11 ~10pm ET by Claude: DONE, Mewtwo Star ex13-103 and Lotad pl3-SH9 have USD series; the other 9 products are mapped but TCGplayer itself has no price for them (tcgcsv checked), nothing to fix our side)
 
 ## 10-08 real postage (Chris: "something tells me it's not a flat $5"): Envelope $1.11, Tracked $7.00, envelope only at $20 or less (eBay's rule)
-- [ ] Scan editor tiles read Envelope $1.11 / Tracked mailer $7.00; Envelope greys out above $20 (a $20.00 card still allows it, $20.01 does not); the note says "$20 or less".
+- [x] (SUPERSEDED 10-12: replaced by the 10-11 night block, $0.78 / $1.31 / $6.07, envelope up to $100) Scan editor tiles read Envelope $1.11 / Tracked mailer $7.00; Envelope greys out above $20 (a $20.00 card still allows it, $20.01 does not); the note says "$20 or less".
 - [x] Home page and /pricing fee math say $1.11 postage, not $0.75; a $0.25 card's suggested price is about $1.92 (floor $1.63). (closed 10-11 ~10pm ET by Claude: PASSED, prod home x6 and /pricing x4 say $1.11 postage, no $0.75 anywhere; $0.25 -> $1.92 is a CI check in test-card-pages)
 - [ ] A real eBay Standard Envelope label at $1.11 or less buys for a card sold at $20 or under; Ground Advantage label through eBay for a 3 oz mailer lands near $7 (zones 1-5).
 
