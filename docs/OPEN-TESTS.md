@@ -81,7 +81,7 @@ Was 97. Claude closed 18 tonight (15 passed on prod, 2 out of date, 1 turned int
 
 **Pages and phone app**
 
-47. /pokemon/<name>-card-value: "Start Your Free Trial" button under "Scan Your X Card Free", lands on /signup.
+47. ✅ 10-12 (curl prod charizard-card-value: button present, href=/signup) /pokemon/<name>-card-value: "Start Your Free Trial" button under "Scan Your X Card Free", lands on /signup.
 48. Scan Lugia ex Unseen Forces 105: "looks off, check sold listings" note, not $2,500.
 49. Home page card peek: close with X AND by dragging the handle — page stays where it was (third fix shipped, not retested).
 50. Loading skeletons show on slow 4G for Inventory, card pages, set pages.
