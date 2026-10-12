@@ -1383,7 +1383,8 @@ export default function AppPage() {
       game={game}
       onGameChange={setGame}
       lastScan={items.find((item) => item.id === cameraItemId) ?? null}
-      queue={items.filter((item) => item.card && item.status !== "listed" && item.status !== "sold")}
+      // Verified cards are not waiting (Chris 10-12: one verified + one new scan said "2 Scans To Verify").
+      queue={items.filter((item) => item.card && !item.verifiedAt && item.status !== "listed" && item.status !== "sold")}
       onRemove={removeItem}
       quotaNote={quotaNote}
       onSwap={swapCard}
