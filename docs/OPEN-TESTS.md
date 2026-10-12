@@ -50,7 +50,7 @@ Was 97. Claude closed 18 tonight (15 passed on prod, 2 out of date, 1 turned int
 29. ✅ 10-12 (Chris, tunnel, two drafts: both changed) Bulk Set condition / Set price on a few cards (price skips live/sold ones).
 30. 60+ cards: "Show more" appears; Select all says the full count.
 31. Duplicates and Missing-price chips; Name A–Z and Set sorts work.
-32. A live or sold card shows "How to ship it · <pick>" with the 4 steps; "Both ways" opens the sheet.
+32. ✅ 10-12 (Chris, tunnel, stand-in live Pikachu with the tracked pick) A live or sold card shows "How to ship it · <pick>" with the 4 steps; "Both ways" opens the sheet.
 33. Load failure shows Retry (Sales Report and Set Completion too).
 34. Packs: Open a Pack → pick game, name, price → scan 3 → banner shows pulls and value → Done opens the pack page (cost, value, profit, ROI, best pull). Share makes a "My Pack" picture. Inventory > Packs lists them. Deleting a pack keeps its cards.
 
