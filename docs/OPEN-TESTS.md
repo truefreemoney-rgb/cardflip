@@ -39,7 +39,7 @@ Was 97. Claude closed 18 tonight (15 passed on prod, 2 out of date, 1 turned int
 21. "Not this card?" on the camera chip: other picks + search by name; picking one updates name and price, no extra scan charged.
 22. Verify-all sheet after a stack of scans: doubtful ones first; Confirm marks the rest verified.
 23. At phone width, "Not this card?" and Verify fit side by side.
-24. Scan editor: Envelope $0.82 / Tracked mailer $7.00 tiles; Envelope greys out above $20 ($20.00 allowed, $20.01 not); note says "$20 or less".
+24. ✅ SUPERSEDED 10-12 (now $0.78 / $1.31 / $6.07, passed) Scan editor: Envelope $0.82 / Tracked mailer $7.00 tiles; Envelope greys out above $20 ($20.00 allowed, $20.01 not); note says "$20 or less".
 
 **Inventory**
 
