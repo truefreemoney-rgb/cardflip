@@ -190,7 +190,9 @@ export async function scanCardWithVision(
         read: null,
         usage: null,
         error: null,
-        ...(res.status === 504 && data?.reason === "timeout" ? { timedOut: true } : {}),
+        // Any 504 is a timeout: a proxy (Cloudflare tunnel, Vercel's own function limit) swaps our JSON body for
+        // its error page, and without the reason the scan fell back to OCR and guessed wrong cards (Chris 10-12).
+        ...(res.status === 504 ? { timedOut: true } : {}),
       };
     }
     return {
