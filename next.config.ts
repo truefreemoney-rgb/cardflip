@@ -26,6 +26,8 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_BUILD_TIME: new Date().toISOString(),
   },
   poweredByHeader: false,
+  // Dev only (10-11): Next's floating "N" button sat on the Inventory tab on the phone (tunnel tests) and ate the tap.
+  devIndicators: false,
   // Dev only: 127.0.0.1 is a second cookie jar beside localhost, for seeing a
   // signed-out page (the /scan landing) while the pane stays signed in.
   // *.trycloudflare.com (10-11): Chris's phone reaches the dev server through a Cloudflare quick tunnel
