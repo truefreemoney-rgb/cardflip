@@ -1380,7 +1380,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
             })}
           </div>
           <p className="text-[11px] text-zinc-500">
-            Postage goes into your price, the buyer sees free shipping. Envelope is tracked up to ${ENVELOPE_LABEL_MAX_USD}, stamps with no tracking up to ${ENVELOPE_MAX_USD}.
+            Postage goes into your price, the buyer sees free shipping. Envelope is an eBay label up to ${ENVELOPE_LABEL_MAX_USD}, stamps up to ${ENVELOPE_MAX_USD}.
           </p>
         </fieldset>
       )}

@@ -34,7 +34,7 @@ export function shipOptionsFor(price?: number | null): readonly ShipOption[] {
     {
       id: "envelope",
       label: "Envelope",
-      sub: stamps ? "Stamps, no tracking: if it's lost, you cover it" : "eBay Standard Envelope, tracked",
+      sub: stamps ? "Plain envelope with stamps" : "eBay Standard Envelope, tracked",
       postage: postageFor("envelope", price),
     },
     { id: "tracked", label: "Tracked mailer", sub: "Bubble mailer, USPS Ground Advantage", postage: TRACKED_POSTAGE_USD },
@@ -55,7 +55,7 @@ export const ENVELOPE_OVER_CAP = `Over $${ENVELOPE_MAX_USD}, use a tracked maile
 export function shipConfirmLine(method: ShipMethod, price?: number | null): string {
   if (method === "tracked") return "Ships in a bubble mailer by USPS Ground Advantage. Free shipping for the buyer, the postage is already in your price.";
   return stamped(method, price)
-    ? "Ships in a stamped envelope, no tracking. Free shipping for the buyer, the postage is already in your price. If it's lost, you cover it."
+    ? "Ships in a stamped envelope. Free shipping for the buyer, the postage is already in your price."
     : "Ships as an eBay Standard Envelope (tracked). Free shipping for the buyer, the postage is already in your price.";
 }
 
@@ -76,7 +76,7 @@ export function shipSteps(method: ShipMethod, price?: number | null): string[] {
       "Penny sleeve, then a toploader. Tape the top of the toploader shut.",
       "Put it in a plain white envelope with a stiff piece of cardboard, nothing thicker than a quarter inch.",
       "Put on one Forever stamp plus 49¢ more postage (a stiff toploader counts as nonmachinable), or pay at the post office counter.",
-      "Mail it within 1 business day, then mark it shipped on eBay (Seller Hub → Orders → Mark as shipped). It has no tracking.",
+      "Mail it within 1 business day, then mark it shipped on eBay (Seller Hub → Orders → Mark as shipped).",
     ];
   }
   return [

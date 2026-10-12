@@ -667,12 +667,12 @@ console.log("\nThe chart's current-day point rebases the quote:");
   check("tiles at $15: label envelope $0.78 + tracked $6.07", ship.shipOptionsFor(15).map((o) => [o.id, o.postage, o.sub]), [
     ["envelope", 0.78, "eBay Standard Envelope, tracked"], ["tracked", 6.07, "Bubble mailer, USPS Ground Advantage"],
   ]);
-  check("tiles at $30.79: stamps $1.31, no tracking", ship.shipOptionsFor(30.79)[0], { id: "envelope", label: "Envelope", sub: "Stamps, no tracking: if it's lost, you cover it", postage: 1.31 });
+  check("tiles at $30.79: stamps $1.31, no warning line (Chris 10-11)", ship.shipOptionsFor(30.79)[0], { id: "envelope", label: "Envelope", sub: "Plain envelope with stamps", postage: 1.31 });
   check("over-cap line", ship.ENVELOPE_OVER_CAP, "Over $100, use a tracked mailer");
   check("confirm line: stamped envelope over $20", ship.shipConfirmLine("envelope", 25),
-    "Ships in a stamped envelope, no tracking. Free shipping for the buyer, the postage is already in your price. If it's lost, you cover it.");
+    "Ships in a stamped envelope. Free shipping for the buyer, the postage is already in your price.");
   check("confirm line: label envelope at $20 and with no price", [ship.shipConfirmLine("envelope", 20), ship.shipConfirmLine("envelope")].every((s) => s.startsWith("Ships as an eBay Standard Envelope (tracked).")), true);
-  check("steps: stamped envelope says stamps, 49¢ more, and no tracking", [ship.shipSteps("envelope", 25).length, /Forever stamp plus 49¢/.test(ship.shipSteps("envelope", 25)[2]), /Mark as shipped.*no tracking/.test(ship.shipSteps("envelope", 25)[3])], [4, true, true]);
+  check("steps: stamped envelope says stamps, 49¢ more, mark shipped, no warning", [ship.shipSteps("envelope", 25).length, /Forever stamp plus 49¢/.test(ship.shipSteps("envelope", 25)[2]), /Mark as shipped/.test(ship.shipSteps("envelope", 25)[3]), /tracking|lost/i.test(ship.shipSteps("envelope", 25).join(" "))], [4, true, true, false]);
   check("steps: label envelope up to $20 buys the eBay label", /eBay Standard Envelope label/.test(ship.shipSteps("envelope", 20)[2]), true);
 }
 

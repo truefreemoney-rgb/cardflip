@@ -6,9 +6,9 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 ## 10-11 night Shipping: envelope up to $100, real eBay prices (LOCAL, NOT PUSHED)
 Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notice 123: eBay envelope label $0.78 (1 oz), stamps $0.82 + $0.49 nonmachinable = $1.31, Ground Advantage $6.07 (Miami → Seattle, same at 1 and 3 oz; nearby $5.38). Floor $1.25, a $0.25 card lists at $1.54.
 - [ ] Tunnel, scan a card under $20: Envelope tile reads "$0.78 · eBay Standard Envelope, tracked"; Tracked mailer "$6.07". (The "$" was missing on these tiles since 10-08, fixed here.)
-- [ ] Card between $20 and $100 (or type a price in that range): Envelope tile reads "$1.31 · Stamps, no tracking: if it's lost, you cover it"; both tiles clickable.
+- [ ] Card between $20 and $100 (or type a price in that range): Envelope tile reads "$1.31 · Plain envelope with stamps" (no warning line, Chris 10-11); both tiles clickable.
 - [ ] Type a price over $100: Envelope greyed out, "Over $100, use a tracked mailer".
-- [ ] "How to ship" sheet on a $20-$100 card: stamp steps (Forever stamp plus 49¢, mark shipped in eBay, no tracking).
+- [ ] "How to ship" sheet on a $20-$100 card: stamp steps (Forever stamp plus 49¢, mark shipped in eBay).
 - [ ] Before any pick, a card priced over $20 is suggested as Tracked mailer (the no-tracking envelope is never the default).
 - [ ] PROD, first real $20.01-$100 envelope publish: eBay accepts the new "CardFlip letter" policy (Standard Shipping, free) — only tested against a fake eBay so far; if eBay refuses it the card lists on the tracked policy.
 - Known, not fixed: repricing a live envelope card across $20 keeps its original eBay policy (policy is picked at publish only; true before tonight too).
