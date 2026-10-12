@@ -3,14 +3,14 @@
 Things that shipped but were never exercised on a real phone or with real
 traffic. Tick when tested; note what you saw. Newest batch first.
 
-## 10-11 Every empty scan given back + no category sheet with nothing scanned (9fc403ff, LOCAL, NOT PUSHED)
+## 10-11 Every empty scan given back + no category sheet with nothing scanned (9fc403ff, pushed 10-11 night as 5e4d662b)
 - [x] 10-11 8:35pm ET, local dev with the real reader, driven from the pane: a drawn floss box read at 10% ("Couldn't read"), scans used went 0 → 1 → 0 after the give-back (POST /api/vision/scan/giveback answered refunded). Same path on prod after the push.
-- [ ] Tap Done on the camera after only that bad scan: NO "Which category?" sheet. Inventory has no new row.
+- [x] Tap Done on the camera after only that bad scan: NO "Which category?" sheet. Inventory has no new row. PASSED 10-11 ~8:45pm ET, Chris's phone on the tunnel: floss box = no match, counter stayed 0, Done opened no sheet.
 - [ ] Scan a real card, then tap Done: the "Which category?" sheet DOES open as before.
 - [ ] Scan a Magic card with Pokémon selected: "That looks like a Magic card" and the scan is given back too.
 
-## 10-11 Game pills centred in the phone header (26e22043, LOCAL, NOT PUSHED)
-- [ ] After a scan, on the phone: the Pokémon / Magic / Lorcana / One Piece / Yu-Gi-Oh! row sits centred in the header card, not hugging the left edge; all five still fit on one line on your iPhone.
+## 10-11 Game pills centred in the phone header (26e22043, pushed 10-11 night as 5e4d662b)
+- [x] PASSED 10-11 ~8:45pm ET (Chris, tunnel). After a scan, on the phone: the Pokémon / Magic / Lorcana / One Piece / Yu-Gi-Oh! row sits centred in the header card, not hugging the left edge; all five still fit on one line on your iPhone.
 
 ## 10-11 Faster scans: tiebreak off the critical path, price wait 2.5 s → 1.2 s (PUSHED to main 10-11 ~9:10pm ET as a40dddb4, build ~2 min)
 - [ ] Scan a card with two near-identical printings (a Trainer Gallery card like Eevee TG11, or any card with a 1st Edition twin): the card shows within ~3 s instead of waiting on the picture check; if the tiebreak later disagrees, the card swaps and a Check-match line says "the photo looks more like this printing than <set>".
