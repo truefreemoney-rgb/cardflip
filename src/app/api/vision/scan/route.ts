@@ -10,7 +10,6 @@ import { recordScanUsage } from "@/lib/server/scanUsage";
 import { SCAN_BUDGET_MS, isBudgetError } from "@/lib/visionBudget";
 import type { ScanLanguage } from "@/lib/types";
 import { parseGame } from "@/lib/games";
-import { gameFeaturesFor } from "@/lib/server/settings";
 import { giveBackScans, outOfScansMessage, reserveScan, scanQuota, scanQuotaExhausted } from "@/lib/server/scanQuota";
 import type { ScanQuota, User } from "@/lib/server/users";
 import { dayBudgetSpent, dayBump, readsKey } from "@/lib/server/dayBudget";
@@ -82,8 +81,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Only games this seller can see may take over a scan (gated games stay admin-only).
-    const features: Record<string, boolean> = { pokemon: true, ...(await gameFeaturesFor(user)) };
     // The scan is taken BEFORE the paid call (an atomic, guarded take: two
     // photos in flight can never spend the same last scan, and none is lost
     // to a stale read) and given back if the read fails: a failed scan
@@ -99,7 +96,9 @@ export async function POST(req: Request) {
         language,
         parseGame(body?.game),
         body?.pocket === true,
-        (g) => features[g] === true,
+        // No auto-switch (Chris 10-12): another game's card is a bad scan, not saved, given back
+        // (scanGiveback readIsEmpty: seen != game). The scanner says which game to switch to.
+        undefined,
         visionAt,
       );
     } catch (err) {

@@ -542,8 +542,10 @@ export default function AppPage() {
             if (otherGame && !read.switchedFrom) {
               // A game we don't scan, or one not open to this seller yet: say
               // so instead of forcing a Pokémon match onto it.
-              const named = isGameId(otherGame) ? GAMES[otherGame].label : otherGame;
-              readError = `That looks like a ${named} card — CardFlip doesn't scan those yet`;
+              // A game we scan: name the switch (Chris 10-12: not saved, not counted).
+              readError = isGameId(otherGame)
+                ? `That looks like a ${GAMES[otherGame].label} card — switch to ${GAMES[otherGame].label} and scan again`
+                : `That looks like a ${otherGame} card — CardFlip doesn't scan those yet`;
               nameCandidates = [];
               printed = null;
             } else if (typeof read.confidence === "number" && read.confidence < UNREADABLE_CONFIDENCE && read.kind !== "art") {
