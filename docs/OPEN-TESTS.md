@@ -27,14 +27,14 @@ Was 97. Claude closed 18 tonight (15 passed on prod, 2 out of date, 1 turned int
 
 **Scanner older fixes (10-06 / 10-08)**
 
-12. Trial account on its LAST scan: close the camera → out-of-scans wall shows right away, no reload.
+12. ✅ 10-12 (Chris, tunnel, trial override: header flips to Get More Scans at once, cards kept) Trial account on its LAST scan: close the camera → out-of-scans wall shows right away, no reload.
 13. ✅ 10-12 (Chris, Unlimited Base Charizard: no banner, Unlimited price; but picture shows 1st Ed stamp, see E) Scanner result: no "Check the art … Switch" banner on a card with a pricier twin.
 14. ✅ 10-12 (Chris, forced 0.3 s budget: re-scan works; pick-by-name N/A, timed-out rows do not stay in the list) A "Took too long" scan can be scanned again, and pick-by-name works on that row.
 15. ✅ 10-12 (DB check after forced timeout: nothing saved) No ghost card in Inventory after a "Took too long".
 16. ✅ 10-12 (Chris, after 6eb614a6: any 504 = Took too long; tunnel had dropped the JSON reason) A slow scan says "Took too long — tap Capture again" right away (no 14 s wait).
 17. ✅ 10-12 (Chris, tunnel) Double tap on Capture = one photo, one scan charged.
-18. Trial account using its last free scan mid-session keeps its queue (wall only on the next visit).
-19. Out of scans: red note shows inside the camera.
+18. ✅ 10-12 (Chris, tunnel) Trial account using its last free scan mid-session keeps its queue (wall only on the next visit).
+19. ✅ 10-12 (Chris, tunnel, after 38937b45: no OCR fallback; note on camera; Capture opens /pricing) Out of scans: red note shows inside the camera.
 20. SUPERSEDED 10-12 (Chris: scanner and Inventory game rows must mirror) Inventory always opens on the scanner's game, even an empty one ("No Magic cards yet"); picking a game in Inventory carries back to Scanner. ✅ 10-12 Chris passed both ways on the tunnel.
 21. ✅ 10-12 (Chris, tunnel; log: 1 scan, pick = PATCH only) "Not this card?" on the camera chip: other picks + search by name; picking one updates name and price, no extra scan charged.
 22. SUPERSEDED 10-12 (Chris: no bulk verify, too much room for user error; Confirm button removed, rows open each card) Verify-all sheet after a stack of scans: doubtful ones first; Confirm marks the rest verified.
