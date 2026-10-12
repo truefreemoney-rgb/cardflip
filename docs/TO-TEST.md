@@ -4,7 +4,7 @@ Things that shipped but were never exercised on a real phone or with real
 traffic. Tick when tested; note what you saw. Newest batch first.
 
 ## 10-11 Every empty scan given back + no category sheet with nothing scanned (9fc403ff, LOCAL, NOT PUSHED)
-- [ ] Scan something that is not a card (the floss box): "Couldn't read this card (0% sure)". The header scan count does not go up (or comes straight back), and /app/account shows the same trial count as before.
+- [x] 10-11 8:35pm ET, local dev with the real reader, driven from the pane: a drawn floss box read at 10% ("Couldn't read"), scans used went 0 → 1 → 0 after the give-back (POST /api/vision/scan/giveback answered refunded). Same path on prod after the push.
 - [ ] Tap Done on the camera after only that bad scan: NO "Which category?" sheet. Inventory has no new row.
 - [ ] Scan a real card, then tap Done: the "Which category?" sheet DOES open as before.
 - [ ] Scan a Magic card with Pokémon selected: "That looks like a Magic card" and the scan is given back too.
