@@ -213,7 +213,7 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 - [x] (Chris 10-08 Inventory 2) Removing a card while it's still saving leaves nothing behind in Inventory.
 
 ### Inventory
-- [ ] Opens on a game that has cards when the last-used game has none.
+- [x] (10-12 Chris on the tunnel) Opens on a game that has cards when the last-used game has none.
 - [x] (Chris 10-08 Inventory 2) Empty game says "No <game> cards yet" (not "Nothing matches").
 - [ ] Load failure shows Retry (Sales Report and Set Completion too).
 - [x] (Chris 10-08 Inventory 2) Set Completion: cards already on the watchlist show "Watching".
