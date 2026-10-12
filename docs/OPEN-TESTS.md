@@ -37,7 +37,7 @@ Was 97. Claude closed 18 tonight (15 passed on prod, 2 out of date, 1 turned int
 19. Out of scans: red note shows inside the camera.
 20. SUPERSEDED 10-12 (Chris: scanner and Inventory game rows must mirror) Inventory always opens on the scanner's game, even an empty one ("No Magic cards yet"); picking a game in Inventory carries back to Scanner. ✅ 10-12 Chris passed both ways on the tunnel.
 21. ✅ 10-12 (Chris, tunnel; log: 1 scan, pick = PATCH only) "Not this card?" on the camera chip: other picks + search by name; picking one updates name and price, no extra scan charged.
-22. ✅ 10-12 (Chris, tunnel, 5 cards) Verify-all sheet after a stack of scans: doubtful ones first; Confirm marks the rest verified.
+22. SUPERSEDED 10-12 (Chris: no bulk verify, too much room for user error; Confirm button removed, rows open each card) Verify-all sheet after a stack of scans: doubtful ones first; Confirm marks the rest verified.
 23. ✅ 10-12 (Chris screenshot; green button text truncates 'Ver…', fix pending his OK) At phone width, "Not this card?" and Verify fit side by side.
 24. ✅ SUPERSEDED 10-12 (now $0.78 / $1.31 / $6.07, passed) Scan editor: Envelope $0.82 / Tracked mailer $7.00 tiles; Envelope greys out above $20 ($20.00 allowed, $20.01 not); note says "$20 or less".
 
