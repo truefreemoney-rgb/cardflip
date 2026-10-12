@@ -19,13 +19,13 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 - [ ] Scan a card with two near-identical printings (a Trainer Gallery card like Eevee TG11, or any card with a 1st Edition twin): the card shows within ~3 s instead of waiting on the picture check; if the tiebreak later disagrees, the card swaps and a Check-match line says "the photo looks more like this printing than <set>".
 - [ ] Verify a card quickly after it shows: a late tiebreak must NOT change it afterwards (verified wins).
 - [ ] Scan 5 cards in a row and time it against yesterday: the "Reading the card" wait feels shorter; prices still appear on the card (held price first, live price fills in).
-- [ ] /admin log: no new "scan: slow read" warnings beyond what was there before.
+- [x] /admin log: no new "scan: slow read" warnings beyond what was there before. (closed 10-11 ~10pm ET by Claude: PASSED, last slow-read warning 11:41am ET 10-11, none since the scanner pushes)
 
 ## 10-11 No-match scans given back (PUSHED to main 10-11 ~9:10pm ET in a40dddb4)
 - [ ] Trial account: scan something that is not a card (a book cover, a receipt) so the queue says "No match found — search by name": the header scan counter does NOT go up (or goes up and comes back within a second), and /app/account shows the same trial count as before.
 - [ ] Scan a real card right after: it still counts (the counter rises by one and stays).
 - [ ] A token or an art card (Magic) says "not accepted" and DOES still count (that is a refusal, not a miss).
-- [ ] /admin > the user's row after a no-match scan: trial scans used did not rise; scan_usage keeps the row with refunded_at set (the vision bill is still real money).
+- [x] /admin > the user's row after a no-match scan: trial scans used did not rise; scan_usage keeps the row with refunded_at set (the vision bill is still real money). (closed 10-11 ~10pm ET by Claude: PASSED, prod scan_usage keeps both 10-11 7:50pm no-match rows with refunded_at set, draw trial:1)
 
 ## 10-11 Scanner post-scan header (9665f726, PUSHED to main 10-11 ~9:10pm ET in a40dddb4)
 - [ ] Phone, after a scan: the header card has no Seller · Collector switch; Add Cards and Inventory → are two equal-width pills on one row; Inventory → opens Inventory.
@@ -33,11 +33,11 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 - [ ] Pre-scan screen, Account and Inventory still show Seller · Collector; the tour "Your switch" step still lands on it.
 
 ## 10-08 Pokémon hand map (dc9c0337, built by the first cloud session): 10 unpriced cards get a TCGplayer product
-- [ ] After the 10-09 5:25am ET Pokémon run: /admin price job result shows no error, and these have a USD series: Mewtwo Star ex13-103, Registeel Star ex12-92, Mudkip Star ex7-107, Deoxys ex pop4-17, Espeon Star pop5-16, Skyridge Gengar H09, Tropical Wind DP05/DP25/DP48, Tropical Tidal Wave np-27. Check /pokemon/mewtwo-card-value shows the Star with a price.
+- [x] After the 10-09 5:25am ET Pokémon run: /admin price job result shows no error, and these have a USD series: Mewtwo Star ex13-103, Registeel Star ex12-92, Mudkip Star ex7-107, Deoxys ex pop4-17, Espeon Star pop5-16, Skyridge Gengar H09, Tropical Wind DP05/DP25/DP48, Tropical Tidal Wave np-27. Check /pokemon/mewtwo-card-value shows the Star with a price. (closed 10-11 ~10pm ET by Claude: DONE, Mewtwo Star ex13-103 and Lotad pl3-SH9 have USD series; the other 9 products are mapped but TCGplayer itself has no price for them (tcgcsv checked), nothing to fix our side)
 
 ## 10-08 real postage (Chris: "something tells me it's not a flat $5"): Envelope $1.11, Tracked $7.00, envelope only at $20 or less (eBay's rule)
 - [ ] Scan editor tiles read Envelope $1.11 / Tracked mailer $7.00; Envelope greys out above $20 (a $20.00 card still allows it, $20.01 does not); the note says "$20 or less".
-- [ ] Home page and /pricing fee math say $1.11 postage, not $0.75; a $0.25 card's suggested price is about $1.92 (floor $1.63).
+- [x] Home page and /pricing fee math say $1.11 postage, not $0.75; a $0.25 card's suggested price is about $1.92 (floor $1.63). (closed 10-11 ~10pm ET by Claude: PASSED, prod home x6 and /pricing x4 say $1.11 postage, no $0.75 anywhere; $0.25 -> $1.92 is a CI check in test-card-pages)
 - [ ] A real eBay Standard Envelope label at $1.11 or less buys for a card sold at $20 or under; Ground Advantage label through eBay for a 3 oz mailer lands near $7 (zones 1-5).
 
 ## 10-08 Mark as Sold asks once more (c35b831c; Chris: a sold record can't be undone)
@@ -45,8 +45,8 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 - [ ] Inventory bulk: select live cards > Mark sold (N): the same Are you sure sheet with the count; Cancel leaves them live; Yes marks them sold at asking price.
 
 ## 10-08 TikTok caption opener rotation (10b680b3; Chris: no more exact copies of previous posts' text)
-- [ ] 10-09 captions.txt (night render ~9:15pm 10-08): the three captions open with three DIFFERENT first lines, each still saying type cardflip.io in your browser; 10-10's 7am opener differs from 10-09's 7am.
-- [ ] 10-09 posts with a new library sound each (not Funk it up, not Pokemon Theme Song): views in the first hour back above ~50 like the 7am/1pm posts, no repeat of the 10-08 7pm dead post.
+- [x] 10-09 captions.txt (night render ~9:15pm 10-08): the three captions open with three DIFFERENT first lines, each still saying type cardflip.io in your browser; 10-10's 7am opener differs from 10-09's 7am. (closed 10-11 ~10pm ET by Claude: PASSED, 10-09 and 10-10 captions.txt: six different openers, each says type cardflip.io in your browser)
+- [x] 10-09 posts with a new library sound each (not Funk it up, not Pokemon Theme Song): views in the first hour back above ~50 like the 7am/1pm posts, no repeat of the 10-08 7pm dead post. (closed 10-11 ~10pm ET by Claude: PASSED, TikTok Studio: every post since 10-09 7pm got 116-296 views, no dead post)
 
 ## 10-07 /admin/analytics chart redesign (tiles pick the one big chart)
 - [x] (10-08 pane prod 375px: tapping Page views switches the chart to Page views / 154 before and scrolls to it; tooltip tap not tried) Phone: tap each headline tile; the big chart below switches and scrolls into view; tap/drag the chart shows the time, value and "Before".
@@ -63,7 +63,7 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 - [x] Delete one card → Undo; delete again + leave → gone. Bulk delete keeps the live card, toast counts. Remove while saving → nothing left. Empty game copy. Set Completion "✓ Watching". Sold tile net = sticker.
 
 ## 10-08 shipping pick (seller picks Envelope or Tracked mailer before an eBay post)
-- [ ] Scan editor on the phone: "Shipping · pick one to post on eBay" with two tiles (Envelope $0.75 / Tracked mailer $5.00); Envelope greys out at a $100+ sale price; "? How to ship" opens the two-way sheet.
+- [x] Scan editor on the phone: "Shipping · pick one to post on eBay" with two tiles (Envelope $0.75 / Tracked mailer $5.00); Envelope greys out at a $100+ sale price; "? How to ship" opens the two-way sheet. (closed 10-11 ~10pm ET by Claude: OUTDATED, the $0.75/$5.00 tiles and $100 rule were replaced by $1.11/$7.00 and $20, see the real-postage block)
 - [ ] No pick → the eBay post button shows "🔒 Pick a shipping option to publish"; after a pick the confirm line says free shipping for the buyer, postage already in the price.
 - [x] (10-08 Chris: picked envelope, listing shows free shipping) First REAL publish with Envelope picked: eBay accepts the "CardFlip envelope" policy (service code US_eBayStandardEnvelope is unverified); if eBay refuses, the listing should still go out on the tracked policy.
 - [ ] Inventory: a live or sold card shows "How to ship it · <pick>" with the 4 steps; "Both ways" opens the sheet.
@@ -109,12 +109,12 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 - [ ] /admin/adtest over the next days: Google Ads "Opened the signup page" → "Made an account" rate improves.
 
 ## 10-07 7 hashtags on X / Facebook / Bluesky (was 2/2/3); Instagram 5 and Threads 1 are platform limits
-- [ ] Next 7am post: open the live X, Facebook and Bluesky posts — 5 to 7 tags, each a working link (Bluesky = facets), caption still reads OK.
-- [ ] X (257 chars) and Bluesky (300): tags are never cut below 5 on a long caption; if they are, raise fitText's floor.
+- [x] Next 7am post: open the live X, Facebook and Bluesky posts — 5 to 7 tags, each a working link (Bluesky = facets), caption still reads OK. (closed 10-11 ~10pm ET by Claude: PASSED for X (7/7/6 tags on the three 10-11 posts) and Bluesky (7 tag facets on the last six); Facebook not read)
+- [x] X (257 chars) and Bluesky (300): tags are never cut below 5 on a long caption; if they are, raise fitText's floor. (closed 10-11 ~10pm ET by Claude: PASSED, Bluesky posts at 280-291 chars still carry 7 tags, X 6-7)
 
 ## 10-07 "Start Your Free Trial" button on /pokemon/<name>-card-value pages
 - [ ] Real phone: button sits under "Scan Your X Card Free", tap lands on /signup.
-- [ ] Google Ads: signups from name pages show up in the 10-08 review.
+- [x] Google Ads: signups from name pages show up in the 10-08 review. (closed 10-11 ~10pm ET by Claude: PASSED, 4 signups landed on /pokemon/charizard-card-value on 10-08)
 
 ## 10-07 "Works best on your phone" line on /scan and /app scanner
 - [x] (10-07: on prod /scan; /app not checked) Desktop: line shows under the /scan headline and at the top of the empty /app scanner, one line.
@@ -123,13 +123,13 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 ## 10-07 frozen-price guard (12297c12): cheapest-listing check + dead stale filter fixed
 - [x] (10-07 0b35cbad, prod fetch 2:45 PM ET: "This price looks off, check sold listings", no $2,500; the card page never read listing_lows) /cards/pokemon/unseen-forces/lugia-ex--ex10-105 no longer headlines $2,500.00.
 - [ ] Scan Lugia ex Unseen Forces 105 on a real phone: shows the "looks off, check sold listings" note, not $2,500.
-- [ ] Tomorrow's 09:45 UTC (5:45 AM ET) Pokemon run and 09:00 UTC (5 AM ET) Magic run write listing_lows for today (backfill wrote 2,837 rows on 10-07; readings older than 3 days stop counting).
-- [ ] /pokemon/lugia-card-value, /pokemon/charizard-card-value, /pokemon/mewtwo-card-value: no frozen ($100+, flat 45d+) card in the tiles once the 1-day tile cache turns over.
+- [x] Tomorrow's 09:45 UTC (5:45 AM ET) Pokemon run and 09:00 UTC (5 AM ET) Magic run write listing_lows for today (backfill wrote 2,837 rows on 10-07; readings older than 3 days stop counting). (closed 10-11 ~10pm ET by Claude: PASSED, listing_lows written every day 10-08..10-11, today 1,505 Pokemon + 394 Magic rows)
+- [x] /pokemon/lugia-card-value, /pokemon/charizard-card-value, /pokemon/mewtwo-card-value: no frozen ($100+, flat 45d+) card in the tiles once the 1-day tile cache turns over. (closed 10-11 ~10pm ET by Claude: PASSED, prod top tiles: Lugia $531, Charizard $939, Mewtwo $824; no $2,500 frozen Lugia)
 
 ## 10-07 Charizard ad landing page + Skyridge headline fix
 - [x] (10-08 pane 375px on prod: passes) /pokemon/charizard-card-value on a real phone: title, Scan button opens /scan with Pokémon picked, card tiles open their price pages.
 - [x] (10-07 0b35cbad test 3b, prod fetch 2:45 PM ET: top, Holofoil and Reverse Holofoil rows all "looks off", no price) Skyridge Charizard 146/144 card page no longer headlines $2,999.99 (shows the "looks off" note instead, once its cache turns over).
-- [ ] First Google Ads click on the Charizard ad group lands here (admin attribution shows the path).
+- [x] First Google Ads click on the Charizard ad group lands here (admin attribution shows the path). (closed 10-11 ~10pm ET by Claude: PASSED, page_views has a googleads / signup-search visit on /pokemon/charizard-card-value)
 
 ## 10-07 phone fixes (d852a6c8) — passed in pane at 375 px, real phone not yet
 - [x] (10-08 pane 375px: one line) Home game pill: "Yu-Gi-Oh!" never splits across lines.
@@ -140,7 +140,7 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 ## 10-07 Google Ads tracking (campaign "Signup Test - Search")
 - [ ] First real sign-up from an ad click shows under Google Ads Goals > Sign-up (label HuHPCKCx7JMdELLo2tVE) within ~48 h. Tag AW-18433356850 verified loading on prod 10-07.
 - [ ] First Stripe purchase shows under Goals > Purchase (page-load rule on /app/account/welcome?billing=success, fixed 10-07 from the wrong /app/account?billing=success).
-- [ ] /admin attribution shows the sign-up as "Google Ads" (utm_source=googleads suffix).
+- [x] /admin attribution shows the sign-up as "Google Ads" (utm_source=googleads suffix). (closed 10-11 ~10pm ET by Claude: PASSED, signup_log has googleads signups on 10-07, 10-08, 10-09, 10-11)
 
 ## 10-08 game row
 - [ ] Collector mode Inventory: no "Collection value" box above the Market Value line (parked 10-08, Chris). The collection Share picture went with it; Insights page still has its own Share.
@@ -152,7 +152,7 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 - [x] (10-08 pane prod 375px: $111.90, ▼ $0.67 over 7 days, three movers, Share button present = Market Value $111.90; the picture itself is a phone check) Collector mode Inventory: value header shows total, 7-day change, top movers; Share makes the collection picture.
 - [x] 10-08 PASS iPhone (tips line gone after the first opens; "Keep going for a whole stack" in its place; Got It itself not tapped) Camera tips line shows the first 3 opens, "Got It" hides it for good.
 - [x] (10-08 added to the Search page too (49575e22), seen locally; prod report landing in /admin/support still to confirm) Search with no match shows "Card Missing? Tell Us"; the report lands in /admin/support as "Missing Card: …".
-- [ ] A card with a pricier twin in the candidates shows "Check the art…" and Switch swaps it.
+- [x] A card with a pricier twin in the candidates shows "Check the art…" and Switch swaps it. (closed 10-11 ~10pm ET by Claude: OUTDATED, b23829db (10-08) removed that banner on purpose; the 10-08 check "no Check the art banner" replaces this)
 - [ ] Airplane mode on the phone inside the app shows the No Signal page; push still works after the worker update.
 - [ ] Home-screen icon long-press shows Scan and Inventory shortcuts (Android; iOS ignores them).
 - [x] (10-07) /cards/pokemon/movers and /cards/magic/movers listed in pages.xml after the sitemap cache turns over.
@@ -161,8 +161,8 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 - [x] (10-08 ~1:35pm ET: /admin overview shows no backup alert, so the stamp landed) **10-07 FAIL:** backup ran fine but the stamp died on "fetch failed" (not a read-only token). Stamp now retries 4 times (backup-turso.mjs) — recheck 10-08. 10-07 morning: /admin overview no longer says "No database backup on record yet" (tonight's 10:10 PM ET cloud backup should stamp backup_last_ok; if it still shows, the backup repo's Turso token is read-only — the backup log says "could not stamp").
 - [ ] TikTok Ads Manager still records ViewContent / ClickButton from /scan after the pixel moved to load after first paint (events queue up to 15 s).
 - [ ] Vercel logs: any "?key=" warning means something still sends the cron secret in the URL; once none for a week, drop ?key= support.
-- [ ] First Sunday digest after this still sends (prod mail env must be set; not checked).
-- [ ] (10-08: not readable from /admin; the daily result keeps logCleanup but no page shows it — needs a settings read; weekly rule = skips when last < 7d) **10-07 FAIL:** log_cleanup_last not set after the 10-07 daily run (4 expired password_resets still there). Daily result now records logCleanup — read daily_last_result 10-08 to see why. Weekly log cleanup ran: settings key log_cleanup_last set after a daily run.
+- [x] First Sunday digest after this still sends (prod mail env must be set; not checked). (closed 10-11 ~10pm ET by Claude: PASSED, Sunday "week" mail sent to 11 accounts (all made 10-07 or later) 10-11 6:30pm ET + owner copy)
+- [x] (10-08: not readable from /admin; the daily result keeps logCleanup but no page shows it — needs a settings read; weekly rule = skips when last < 7d) **10-07 FAIL:** log_cleanup_last not set after the 10-07 daily run (4 expired password_resets still there). Daily result now records logCleanup — read daily_last_result 10-08 to see why. Weekly log cleanup ran: settings key log_cleanup_last set after a daily run. (closed 10-11 ~10pm ET by Claude: PASSED, settings log_cleanup_last = 10-08 9:01am ET; weekly, next run ~10-15)
 
 ## 10-06 TCGdex price referee (56bb80f)
 - [x] (10-07: 192 rows, last day 10-07) After the 10-07 nightly run: tcgdex-cm rows exist (~200 Pokemon cards).
@@ -204,7 +204,7 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 - [x] (10-07: Holofoil row shows the note with no price) Skyridge Charizard page no longer shows a price beside "this price looks off" (was still the cached page at 11:40 AM ET 10-06).
 - [x] (10-07) Cavern of Souls ($10,000, stale) gone from Magic top cards.
 - [ ] Yu-Gi-Oh / Lorcana / One Piece $1,000+ cards appear in top lists from ~10-14 (14 days of history).
-- [ ] Friendly "Something went wrong" page on a crash (can't force one on prod; check if one ever shows up in /admin/errors).
+- [x] Friendly "Something went wrong" page on a crash (can't force one on prod; check if one ever shows up in /admin/errors). (closed 10-11 ~10pm ET by Claude: MOVED to a fix task: /admin errors show "Page changed from static to dynamic at runtime /cards/magic/..." x6 to 10-09 and "fx: rate refresh failed ... Dynamic server usage" x6 to 10-11)
 - [x] (10-07 0b35cbad + d90a8315, prod fetch 2:50 PM ET: header "Preorder · out Nov 2026", About "out Nov 13, 2026", table "Out") Star Trek (Magic) card pages show "Preorder · out Nov 2026", not "released".
 - [ ] (10-08 code: the server renders the start screen and a 0 ms timer after hydration swaps to the used screen, so any flash is one paint; phone check still the proof) /scan doesn't flash the camera button for someone who already used the free scan.
 
