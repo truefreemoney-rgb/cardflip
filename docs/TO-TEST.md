@@ -340,3 +340,8 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 
 ## Magic Art Series prices (10-13, commit after push)
 - [ ] Morning after the push: the 56 Art Series cards from the 10-13 dry run have a price (e.g. Avatar Eternal Art Series 1-12 ~$0.25-0.84, Marvel Thanos 1c-9c ~$3-4, Avatar Yue 41 ~$11). Query: Art Series unpriced count should drop 87 -> ~31.
+
+## Magic cheapest-listing cap + listing beats Cardmarket (10-13)
+- [ ] Morning after the push: daily_last_result mtg.cappedToListing is in the hundreds (not 0, not tens of thousands); mtg step still finishes under the 800 s cap.
+- [ ] Magic "This price looks off" count drops from ~837 toward ~83 (rerun the sweep script pattern, s154 scratchpad).
+- [ ] Spot-check 3 capped foils on the card page (e.g. Cromat Apocalypse foil ~$57, not $155).
