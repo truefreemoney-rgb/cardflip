@@ -42,6 +42,9 @@ export interface TcgProduct {
   lows?: Record<string, number>;
 }
 
+/** A serial-numbered product (a few hundred copies exist): far above its other printings is normal, so the 15x guard skips it. */
+export const isSerial = (productName: string) => /serial(?:ized| numbered)/i.test(productName);
+
 export interface MtgFill {
   id: string;
   usd: number | null;
@@ -49,6 +52,8 @@ export interface MtgFill {
   /** Cheapest live listings beside those prices, when TCGplayer has one. */
   usdLow?: number | null;
   foilLow?: number | null;
+  /** Matched a serial-numbered product (guardFills lets it through). */
+  serial?: boolean;
 }
 
 const fold = (s: string) =>
@@ -167,7 +172,7 @@ export function matchMtgProducts(rows: MtgGapRow[], products: TcgProduct[]): Mtg
     const lows = hits[0].lows ?? {};
     const usdLow = usd == null ? null : (lows["Normal"] ?? null);
     const foilLow = foil == null ? null : (lows["Foil"] ?? (foilOnly ? (lows["Normal"] ?? null) : null));
-    if (usd != null || foil != null) out.push({ id: r.id, usd, foil, ...(usdLow != null ? { usdLow } : {}), ...(foilLow != null ? { foilLow } : {}) });
+    if (usd != null || foil != null) out.push({ id: r.id, usd, foil, ...(usdLow != null ? { usdLow } : {}), ...(foilLow != null ? { foilLow } : {}), ...(isSerial(hits[0].name) ? { serial: true } : {}) });
   }
   return out;
 }
@@ -179,6 +184,17 @@ const getJson = async (url: string) => {
   return r.json();
 };
 const pos = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v > 0 ? v : null);
+/**
+ * No sale (market) price, only sellers' asking prices (mid): fine for a cheap
+ * card, never above ASKING_MAX_USD (10-13, Chris: unusual prices are checked
+ * against eBay). TCGplayer's mid for Alpha Jade Monolith was $1,200 while eBay
+ * sold it at $157-$249; a blank goes to the eBay check list instead.
+ */
+export const ASKING_MAX_USD = 20;
+export const askingPrice = (mid: unknown) => {
+  const v = pos(mid);
+  return v != null && v <= ASKING_MAX_USD ? v : null;
+};
 
 /** One TCGplayer group's products with a price (market, else mid — the Yu-Gi-Oh sync rule). */
 export async function groupProducts(groupId: number): Promise<TcgProduct[]> {
@@ -187,7 +203,7 @@ export async function groupProducts(groupId: number): Promise<TcgProduct[]> {
   const byProduct = new Map<number, Record<string, number>>();
   const lowByProduct = new Map<number, Record<string, number>>();
   for (const p of prices) {
-    const v = pos(p.marketPrice) ?? pos(p.midPrice);
+    const v = pos(p.marketPrice) ?? askingPrice(p.midPrice);
     if (v == null) continue;
     byProduct.set(p.productId, { ...(byProduct.get(p.productId) ?? {}), [p.subTypeName ?? "Normal"]: v });
     const low = pos(p.lowPrice);
@@ -238,6 +254,7 @@ export async function readOracleMaxUsd(oracleIds: string[]): Promise<Map<string,
 export function guardFills(fills: MtgFill[], rows: MtgGapRow[], oracleMax: Map<string, number>): MtgFill[] {
   const oracle = new Map(rows.map((r) => [r.id, r.oracleId ?? ""]));
   return fills.filter((f) => {
+    if (f.serial) return true; // 10-13: serial Bitterbloom Bearer $3,997 vs $31 normal; eBay sold $3,300-$4,239
     const p = Math.max(f.usd ?? 0, f.foil ?? 0);
     const ref = oracleMax.get(oracle.get(f.id) ?? "") ?? 0;
     return !(ref > 0 && p > 20 && p > 15 * ref);

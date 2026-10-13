@@ -1,4 +1,5 @@
 import { TCGCSV_HEADERS, TCGCSV_PAUSE_MS, tcgcsvFetch } from "@/lib/server/tcgcsv";
+import { askingPrice } from "@/lib/server/mtgTcgplayerFill";
 import { yugiohBackupFromYgoprodeck } from "@/lib/server/priceBackups";
 import { db } from "@/lib/db";
 import { decodePrices, encodePrices, setDay, todayUtc } from "@/lib/priceSeries";
@@ -134,6 +135,8 @@ export interface TcgPoint {
   /** One Piece: the feed's set name + printing tag — an image id alone repeats across reprint sets. */
   setName?: string;
   variant?: string;
+  /** Today's source says the held price is wrong (asking-only over $20): blank it instead of keeping the last one. */
+  clear?: boolean;
 }
 
 interface MirrorRow {
@@ -346,9 +349,14 @@ async function yugiohPoints(): Promise<{ points: TcgPoint[]; failed: number; bac
           await getJson(`${API}/${g.groupId}/prices`),
         );
         const byProduct = new Map<number, Record<string, number | null>>();
+        // Subtypes with only an asking price over ASKING_MAX_USD (10-13: 399 such Yu-Gi-Oh prices, Acrobat Monkey
+        // $20.16 against a 44c cheapest listing, a $5,000 Duel Terminal preview): blank, not the old price.
+        const asked = new Map<number, Set<string>>();
         for (const p of prices) {
           const entry = byProduct.get(p.productId) ?? {};
-          entry[p.subTypeName ?? ""] = num(p.marketPrice) ?? num(p.midPrice);
+          const sub = p.subTypeName ?? "";
+          entry[sub] = num(p.marketPrice) ?? askingPrice(p.midPrice);
+          if (entry[sub] == null && num(p.midPrice) != null) asked.set(p.productId, (asked.get(p.productId) ?? new Set()).add(sub));
           byProduct.set(p.productId, entry);
         }
         // Same split as scripts/sync-yugioh.mjs: the unstamped row takes
@@ -357,8 +365,11 @@ async function yugiohPoints(): Promise<{ points: TcgPoint[]; failed: number; bac
           const first = priced["1st Edition"] ?? null;
           const unl = priced["Unlimited"] ?? priced["Limited"] ?? null;
           const other = Object.entries(priced).find(([k]) => !/^(1st Edition|Unlimited|Limited)$/.test(k))?.[1] ?? null;
+          const a = asked.get(pid);
           if (unl != null || other != null) points.push({ id: `ygo-${pid}`, usd: unl ?? other, foil: null });
+          else if (a && [...a].some((s) => s !== "1st Edition")) points.push({ id: `ygo-${pid}`, usd: null, foil: null, clear: true });
           if (first != null) points.push({ id: `ygo-${pid}-1st`, usd: first, foil: null });
+          else if (a?.has("1st Edition")) points.push({ id: `ygo-${pid}-1st`, usd: null, foil: null, clear: true });
         }
       } catch (err) {
         failed++;
@@ -450,6 +461,10 @@ export function planTcgRefresh(
       p = same.find((c) => (c.variant ?? "") === (held.variant ?? "")) ?? same[0];
     } else {
       p = byId.get(id);
+    }
+    if (p?.clear) {
+      if (held.usd != null || held.foil != null) columns.push({ id, usd: null, foil: null });
+      continue;
     }
     // No price today (source hiccup, delisted) → keep the last known price and series.
     if (!p || (p.usd == null && p.foil == null)) continue;

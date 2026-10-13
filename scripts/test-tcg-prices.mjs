@@ -120,4 +120,14 @@ check("Lorcana promo gaps fill from TCGplayer on name + number, never name alone
     ],
   ),
   [{ id: "d23_iago", usd: null, foil: 45.18 }, { id: "cc_tink", usd: 75.16, foil: null }]);
+
+// 10-13: an asking-only price over $20 blanks the held price (Acrobat Monkey $20.16, cheapest listing 44c); no point keeps it.
+const cleared = planTcgRefresh(
+  "yugioh",
+  [{ id: "ygo-1", usd: null, foil: null, clear: true }, { id: "ygo-3", usd: null, foil: null, clear: true }],
+  new Map([["ygo-1", { usd: 20.16, foil: null }], ["ygo-2", { usd: 5, foil: null }], ["ygo-3", { usd: null, foil: null }]]),
+  new Map(),
+  "2026-10-13",
+);
+check("asking-only over $20 clears the held price, nothing else moves", [cleared.columns, cleared.upserts.length], [[{ id: "ygo-1", usd: null, foil: null }], 0]);
 console.log(`\ntcg prices: ${passed} checks pass`);

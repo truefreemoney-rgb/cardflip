@@ -85,6 +85,17 @@ assert.deepEqual(
   { i: 0.41, t1: 0.3, t2: 0.31, k: 0.14 },
   "two products of one name (Aurelia) stay blank",
 );
+// 10-13: asking-only (mid, no market) only up to $20; a serial-numbered fill skips the 15x guard.
+const { askingPrice } = await import("../src/lib/server/mtgTcgplayerFill.ts");
+assert.equal(askingPrice(19.99), 19.99);
+assert.equal(askingPrice(1200), null);
+assert.deepEqual(
+  guardFills([{ id: "s", usd: null, foil: 3997, serial: true }, { id: "n", usd: 1925, foil: null }], [{ id: "s", oracleId: "o" }, { id: "n", oracleId: "o" }], new Map([["o", 31]])).map((f) => f.id),
+  ["s"],
+);
+const serialFill = matchMtgProducts([{ id: "b", name: "Bitterbloom Bearer", setCode: "ecl", setName: "Lorwyn Eclipsed", number: "352", finishes: "foil" }], [{ name: "Bitterbloom Bearer (Borderless) (Serial Numbered)", number: "352", prices: { Foil: 3997 } }]);
+assert.equal(serialFill[0].serial, true);
+
 // Outside Art Series a number miss never falls back to the name (it could be another printing).
 assert.deepEqual(got([{ ...art("s", "Ajani Goldmane // Ajani Goldmane", "745"), setCode: "sld", setName: "Secret Lair Drop" }], [p("Ajani Goldmane", "999", 1657)]), {});
 

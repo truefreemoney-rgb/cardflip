@@ -76,7 +76,8 @@ async function worker(queue) {
       const byProduct = new Map();
       for (const p of prices) {
         if (!byProduct.has(p.productId)) byProduct.set(p.productId, {});
-        byProduct.get(p.productId)[p.subTypeName] = p.marketPrice ?? p.midPrice ?? null;
+        // Asking-only (no market) over $20 is not a price (10-13, same rule as lib/server/mtgTcgplayerFill.ts ASKING_MAX_USD).
+        byProduct.get(p.productId)[p.subTypeName] = p.marketPrice ?? (p.midPrice != null && p.midPrice <= 20 ? p.midPrice : null);
       }
       for (const p of products) {
         const number = ext(p, "Number").trim().toUpperCase();
