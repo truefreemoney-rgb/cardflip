@@ -132,6 +132,18 @@ if (fs.existsSync(deadFile)) {
   db.exec("COMMIT");
   console.log(`  ${standIns.size} dead pictures show another printing`);
 }
+// Exact printings TCGplayer has no scan of, by row id -> Yugipedia scan (10-13: new sets whose
+// stand-in was itself dead, e.g. LEDD Dark Magician Girl borrowed the JPP card's missing picture).
+// save-pictures.mjs copies the source into our Blob; it is never shown from Yugipedia.
+const exactFile = path.join(process.cwd(), "scripts", "yugioh-exact-pictures.json");
+if (fs.existsSync(exactFile)) {
+  const exact = Object.entries(JSON.parse(fs.readFileSync(exactFile, "utf8")));
+  const repoint = db.prepare("UPDATE tcg_cards SET image_url = ? WHERE id = ?");
+  db.exec("BEGIN");
+  for (const [id, url] of exact) repoint.run(url, id);
+  db.exec("COMMIT");
+  console.log(`  ${exact.length} printings use their exact Yugipedia scan`);
+}
 const n = db.prepare("SELECT COUNT(*) AS n FROM tcg_cards WHERE game = 'yugioh'").get().n;
 const unpriced = db.prepare("SELECT COUNT(*) AS n FROM tcg_cards WHERE game = 'yugioh' AND price_usd IS NULL").get().n;
 const variants = db.prepare("SELECT variant, COUNT(*) AS n FROM tcg_cards WHERE game = 'yugioh' GROUP BY variant ORDER BY n DESC LIMIT 8").all();
