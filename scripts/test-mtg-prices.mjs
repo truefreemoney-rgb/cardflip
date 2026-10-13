@@ -159,4 +159,18 @@ console.warn = warn;
     [r.capped, rows.map((x) => [x.usd, x.foil]), r.lows.map((l) => `${l.cardId}|${l.variant}|${l.lowUsd}`)],
     [1, [[3, 57.3], [null, 60], [9, null], [90, null]], ["cromat|foil|57.3", "drum|foil|41.99"]]);
 }
-console.log(`\nmtg prices: ${passed} checks pass`);
+{
+  // 10-13: blank printings take Scryfall's Cardmarket euro price in dollars under the converted source; series go to that source.
+  const { fillFromEuro } = await import("../src/lib/server/mtgPriceRefresh.ts");
+  const rows = [
+    { id: "lotus", usd: null, foil: null, etched: null, eur: 33768.47, eurFoil: null },
+    { id: "chocobo", usd: null, foil: null, etched: null, eur: null, eurFoil: 50 },
+    { id: "none", usd: null, foil: null, etched: null, eur: null, eurFoil: null },
+  ];
+  const n = fillFromEuro(rows, 1.1);
+  check("euro fill: Lotus EUR 33,768.47 -> $37,145.32, foil-only fills foil, no euro stays blank",
+    [n, rows.map((r) => [r.usd, r.foil, r.source ?? null])],
+    [2, [[37145.32, null, "cardmarket-converted"], [null, 55, "cardmarket-converted"], [null, null, null]]]);
+  const plan = planMtgWrites(rows.slice(0, 1), new Map([["lotus", { id: "lotus", usd: null, foil: null, etched: null, eur: 33768.47, eurFoil: null }]]), new Map(), "2026-10-13");
+  check("euro fill: its series is written under cardmarket-converted", plan.upserts.map((u) => [u.cardId, u.variant, u.source]), [["lotus", "nonfoil", "cardmarket-converted"]]);
+}console.log(`\nmtg prices: ${passed} checks pass`);

@@ -377,3 +377,8 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 
 - [ ] Old Yu-Gi-Oh borrowers retry nightly (sync-yugioh no longer repoints dead links, 10-13): first run already swapped 186 to real TCGplayer scans (99 from the old dead list, sheet checked by eye, all clean BETB scans); 233 still 403 keep their borrowed copy. After tonight /admin/prices Yu-Gi-Oh "borrowing" ~233 and falling over time.
 
+
+## 10-13 ~7pm ET: Magic euro fill + One Piece reprints (after the push)
+- [ ] Next 5am mtg-prices run: cron result shows cardmarketFilled ~400; Black Lotus (Alpha) card page shows a dollar price labeled Cardmarket; /admin/prices eBay check reviews the new $100+ ones over the week.
+- [ ] One Piece ST31-36 reprints (e.g. OP12-090_r1 Belo Betty) show their original's price after the 5:25am tcg-prices run.
+
