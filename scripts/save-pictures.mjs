@@ -54,7 +54,8 @@ const T = game === "pokemon"
     ? { table: "mtg_cards", where: "1 = 1", set: "set_code", num: "collector_number", args: [] }
     : { table: "tcg_cards", where: "game = ?", set: "set_code", num: "collector_number", args: [game] };
 // Magic (10-12): TCGplayer's scan of the same printing when Scryfall names its product (scripts/mtg-tcgplayer-ids.mjs),
-// so ~94k of ~99k pictures skip the Scryfall guard's 3,000/day; a 403/404 there falls back to Scryfall.
+// so ~94k of ~99k pictures skip the Scryfall guard's 3,000/day; a 403/404 there falls back to Scryfall
+// (not under --only tcgplayer: those rows fail and a plain run without --only picks them up later).
 const mtgTcg = game === "mtg" ? JSON.parse(fs.readFileSync(path.join(process.cwd(), "data", "mtg-tcgplayer-ids.json"), "utf8")) : {};
 // TCGdex rows store the small low.webp; the saved copies are made from its high.webp twin. pokemontcg.io's
 // plain PNG is a 245px thumbnail; its _hires twin is the real picture (vision.ts does the same).
@@ -115,7 +116,7 @@ async function worker() {
     const row = rows[next++];
     if (!row) return;
     try {
-      const saved = await savePicture({ game, id: row.id, src: row.image_url, fetchUrl: fetchUrlOf(row.image_url, row.id), dry });
+      const saved = await savePicture({ game, id: row.id, src: row.image_url, fetchUrl: fetchUrlOf(row.image_url, row.id), dry, fallback: only !== "tcgplayer" });
       bytes.source += saved.bytes.source;
       bytes.page += saved.bytes.page;
       bytes.tile += saved.bytes.tile;

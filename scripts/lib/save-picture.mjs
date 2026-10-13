@@ -136,15 +136,16 @@ async function blobClient() {
  * Fetch, resize and store one card's picture. Returns our two URLs plus
  * sizes. `dry` does everything except the upload (URLs come back empty).
  */
-export async function savePicture({ game, id, src, fetchUrl = src, dry = false }) {
+export async function savePicture({ game, id, src, fetchUrl = src, dry = false, fallback = true }) {
   // fetchUrl: a sharper copy of the same picture (Pokémon: TCGdex high.webp for a stored low.webp); src names the paths.
   let buf;
   try {
     buf = await fetchSourcePicture(fetchUrl);
   } catch (err) {
     // The sharper twin is missing for a few cards (TCGdex 404), or TCGplayer has no scan of a Magic
-    // product (403): the stored link itself is still a picture.
-    if (fetchUrl === src || err instanceof StopRun || !/\b40[34]$/.test(String(err?.message))) throw err;
+    // product (403): the stored link itself is still a picture. fallback=false (a TCGplayer-only Magic run,
+    // 10-13): the stored link is Scryfall, whose daily cap would end the whole run, so the row just fails.
+    if (!fallback || fetchUrl === src || err instanceof StopRun || !/\b40[34]$/.test(String(err?.message))) throw err;
     buf = await fetchSourcePicture(src);
   }
   const { page, tile } = await makeCopies(buf);
