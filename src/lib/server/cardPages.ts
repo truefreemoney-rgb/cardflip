@@ -230,7 +230,7 @@ function factsOf(game: GameId, row: CatalogRow, setSlug: string): CardFacts {
     release: row.release ?? "",
     rarity,
     tags: printingTags(game, { id: row.id, rarity: game === "yugioh" ? row.rarity : null, variant: row.variant }),
-    image: game === "mtg" ? largeImage(row.image_url) : game === "pokemon" ? row.own_image_url || row.image_url.replace("/low.webp", "/high.webp") : row.own_image_url || row.image_url,
+    image: game === "mtg" ? row.own_image_url || largeImage(row.image_url) : game === "pokemon" ? row.own_image_url || row.image_url.replace("/low.webp", "/high.webp") : row.own_image_url || row.image_url,
     tile: row.own_tile_url || row.own_image_url || "",
   };
 }
@@ -256,7 +256,7 @@ export async function loadCardRecord(game: GameId, rawKey: string): Promise<Card
     const r = (await db
       .prepare(
         `SELECT c.id, c.name, c.set_code AS set_key, c.set_name, c.set_code, c.collector_number AS number, NULL AS set_total,
-                c.set_release_date AS release, c.image_url, c.rarity, NULL AS variant, c.price_eur, c.price_eur_foil,
+                c.set_release_date AS release, c.image_url, c.own_image_url, c.own_tile_url, c.rarity, NULL AS variant, c.price_eur, c.price_eur_foil,
                 c.lang, s.set_type
            FROM mtg_cards c LEFT JOIN mtg_sets s ON s.code = c.set_code
           WHERE c.set_code = ? AND c.collector_number = ?`,
@@ -426,7 +426,7 @@ const LIST_SELECT = {
   pokemon: `SELECT id, name, set_id AS set_key, set_name, set_code, local_id AS number, set_card_count_official AS set_total,
                    set_release_date AS release, image_url, own_image_url, own_tile_url, NULL AS rarity, NULL AS variant FROM en_cards`,
   mtg: `SELECT id, name, set_code AS set_key, set_name, set_code, collector_number AS number, NULL AS set_total,
-               set_release_date AS release, image_url, rarity, NULL AS variant FROM mtg_cards`,
+               set_release_date AS release, image_url, own_image_url, own_tile_url, rarity, NULL AS variant FROM mtg_cards`,
   tcg: `SELECT id, name, subtitle, set_code || '|' || set_name AS set_key, set_name, set_code, collector_number AS number, set_total,
                set_release_date AS release, rarity, variant, image_url, own_image_url, own_tile_url FROM tcg_cards`,
 } as const;

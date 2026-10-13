@@ -32,6 +32,8 @@ interface MtgCardRow {
   collector_number: string;
   set_release_date: string;
   image_url: string;
+  /** Our stored list tile (10-12, scripts/save-pictures.mjs); '' until saved. */
+  own_tile_url: string;
   rarity: string;
   type_line: string;
   finishes: string;
@@ -57,7 +59,7 @@ interface MtgCardRow {
 }
 
 const CARD_COLUMNS = `id, name, set_code, set_name, collector_number, set_release_date,
-                      image_url, rarity, type_line, finishes,
+                      image_url, own_tile_url, rarity, type_line, finishes,
                       price_usd, price_usd_foil, price_usd_etched, price_eur, price_eur_foil,
                       artist, frame, border_color, frame_effects, promo_types, full_art, textless, flavor_name, attraction_lights`;
 
@@ -131,7 +133,8 @@ function toCard(row: MtgCardRow): PokemonCard {
     setSeries: "",
     number: row.collector_number,
     rarity: row.rarity ? row.rarity[0].toUpperCase() + row.rarity.slice(1) : null,
-    imageSmall: row.image_url,
+    // Thumbnails from our store; imageLarge stays Scryfall's scan, the picture tiebreak (vision.ts catalogPicture) compares against it.
+    imageSmall: row.own_tile_url || row.image_url,
     imageLarge: largeImage(row.image_url),
     prices: pricesOf(row),
     englishName: null,

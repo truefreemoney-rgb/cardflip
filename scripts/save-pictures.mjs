@@ -37,18 +37,33 @@ const dry = args.includes("--dry");
 const sheet = opt("--sheet", "");
 const prodFlag = args.includes("--prod");
 const WORKERS = Number(opt("--workers", "4")) || 4;
-if (!/^(lorcana|onepiece|yugioh|pokemon)$/.test(game)) {
-  console.error("usage: --game lorcana|onepiece|yugioh|pokemon [--limit N] [--dry] [--sheet out.png] [--prod]");
+// --only tcgplayer|scryfall (Magic): one source at a time, so the Scryfall share can run alongside another TCGplayer run.
+const only = opt("--only", "");
+// --resave-host <host>: save again rows already saved from that host (10-12: pokemontcg.io rows got the 245px PNG, not _hires).
+const resaveHost = opt("--resave-host", "");
+if (!/^(lorcana|onepiece|yugioh|pokemon|mtg)$/.test(game)) {
+  console.error("usage: --game lorcana|onepiece|yugioh|pokemon|mtg [--limit N] [--dry] [--sheet out.png] [--prod] [--only tcgplayer|scryfall] [--resave-host host]");
   process.exit(2);
 }
 
-const db = new DatabaseSync(process.env.CARDFLIP_DB_PATH ?? path.join(process.cwd(), "data", "cardflip.db"));
+const db = new DatabaseSync(process.env.CARDFLIP_DB_PATH ?? path.join(process.cwd(), "data", "cardflip.db"), { timeout: 15000 }); // two runs can share the file
 // Pokémon lives in its own table (en_cards, 10-12): same three columns, its own set / number names.
 const T = game === "pokemon"
   ? { table: "en_cards", where: "1 = 1", set: "set_id", num: "local_id", args: [] }
-  : { table: "tcg_cards", where: "game = ?", set: "set_code", num: "collector_number", args: [game] };
-// TCGdex rows store the small low.webp; the saved copies are made from its high.webp twin.
-const fetchUrlOf = (src) => (/^https:\/\/assets\.tcgdex\.net\/.*\/low\.webp$/.test(src) ? src.replace(/\/low\.webp$/, "/high.webp") : src);
+  : game === "mtg"
+    ? { table: "mtg_cards", where: "1 = 1", set: "set_code", num: "collector_number", args: [] }
+    : { table: "tcg_cards", where: "game = ?", set: "set_code", num: "collector_number", args: [game] };
+// Magic (10-12): TCGplayer's scan of the same printing when Scryfall names its product (scripts/mtg-tcgplayer-ids.mjs),
+// so ~94k of ~99k pictures skip the Scryfall guard's 3,000/day; a 403/404 there falls back to Scryfall.
+const mtgTcg = game === "mtg" ? JSON.parse(fs.readFileSync(path.join(process.cwd(), "data", "mtg-tcgplayer-ids.json"), "utf8")) : {};
+// TCGdex rows store the small low.webp; the saved copies are made from its high.webp twin. pokemontcg.io's
+// plain PNG is a 245px thumbnail; its _hires twin is the real picture (vision.ts does the same).
+const fetchUrlOf = (src, id) => {
+  if (mtgTcg[id]) return `https://tcgplayer-cdn.tcgplayer.com/product/${mtgTcg[id]}_in_1000x1000.jpg`;
+  if (/^https:\/\/assets\.tcgdex\.net\/.*\/low\.webp$/.test(src)) return src.replace(/\/low\.webp$/, "/high.webp");
+  if (/^https:\/\/images\.pokemontcg\.io\/.*\.png$/.test(src) && !/_hires\.png$/.test(src)) return src.replace(/\.png$/, "_hires.png");
+  return src;
+};
 const COLUMNS = ["own_image_url TEXT NOT NULL DEFAULT ''", "own_tile_url TEXT NOT NULL DEFAULT ''", "own_image_src TEXT NOT NULL DEFAULT ''"];
 const have = new Set(db.prepare(`PRAGMA table_info(${T.table})`).all().map((c) => c.name));
 for (const col of COLUMNS) if (!have.has(col.split(" ")[0])) db.exec(`ALTER TABLE ${T.table} ADD COLUMN ${col}`);
@@ -70,10 +85,12 @@ if (prodFlag && !dry) {
 const rows = db
   .prepare(
     `SELECT id, name, ${T.set} AS set_code, ${T.num} AS collector_number, image_url, own_image_url, own_tile_url, own_image_src
-       FROM ${T.table} WHERE ${T.where} AND image_url <> '' AND own_image_src <> image_url
-      ORDER BY set_release_date DESC, ${T.set}, ${T.num}${limit ? ` LIMIT ${limit}` : ""}`,
+       FROM ${T.table} WHERE ${T.where} AND image_url <> '' AND (own_image_src <> image_url${resaveHost ? " OR image_url LIKE ?" : ""})
+      ORDER BY set_release_date DESC, ${T.set}, ${T.num}`,
   )
-  .all(...T.args);
+  .all(...T.args, ...(resaveHost ? [`https://${resaveHost}/%`] : []))
+  .filter((r) => !only || (only === "tcgplayer") === Boolean(mtgTcg[r.id]))
+  .slice(0, limit || undefined);
 const total = db.prepare(`SELECT COUNT(*) AS n FROM ${T.table} WHERE ${T.where} AND image_url <> ''`).get(...T.args).n;
 console.log(`${game}: ${rows.length} of ${total} pictures to save${dry ? " (DRY, nothing uploaded or written)" : ""}${prod ? ", prod too" : ""}`);
 
@@ -98,7 +115,7 @@ async function worker() {
     const row = rows[next++];
     if (!row) return;
     try {
-      const saved = await savePicture({ game, id: row.id, src: row.image_url, fetchUrl: fetchUrlOf(row.image_url), dry });
+      const saved = await savePicture({ game, id: row.id, src: row.image_url, fetchUrl: fetchUrlOf(row.image_url, row.id), dry });
       bytes.source += saved.bytes.source;
       bytes.page += saved.bytes.page;
       bytes.tile += saved.bytes.tile;

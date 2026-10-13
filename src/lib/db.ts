@@ -849,6 +849,10 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
       "art_hash TEXT NOT NULL DEFAULT ''",
       // Unfinity Attraction lit numbers, "2,5,6" (219a-f differ only there), 09-29.
       "attraction_lights TEXT NOT NULL DEFAULT ''",
+      // Our own picture copies, as on tcg_cards (10-12); most made from TCGplayer's scan of the printing.
+      "own_image_url TEXT NOT NULL DEFAULT ''",
+      "own_tile_url TEXT NOT NULL DEFAULT ''",
+      "own_image_src TEXT NOT NULL DEFAULT ''",
     ],
   ],
   // One Piece (09-30): Bandai's stamped card-list art for the picture

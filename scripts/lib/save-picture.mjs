@@ -40,13 +40,17 @@ const SOURCE_LIMITS = {
   "optcgapi.com": { gapMs: 1000, daily: 2500 },
   // TCGplayer's CDN publishes no limit either; a 403 there means "no scan of
   // that product", not a block (memory: catalog picture gaps).
-  "tcgplayer-cdn.tcgplayer.com": { gapMs: 300, daily: 5000 },
+  "tcgplayer-cdn.tcgplayer.com": { gapMs: 150, daily: 100000 }, // Chris 10-12: finish tonight; stop on the first 429 still holds
   // TCGdex publishes no limit (checked 10-12): nginx, immutable year-long cache
   // headers, no rate headers. Pokémon's main source, 20k pictures. At 150 ms the
   // 10-12 run got 646 503s in bursts (no 429); 300 ms for reruns.
   "assets.tcgdex.net": { gapMs: 300, daily: 25000 },
   // pokemontcg.io fails ~half its API calls (enCards.ts); its image host gets the cautious default plus a gap.
   "images.pokemontcg.io": { gapMs: 500, daily: 2000 },
+  // Scryfall: these go through scripts/lib/scryfall-guard.mjs too (its own 3,000
+  // images/day cap and stop rules, 10-03 IP block). Magic takes TCGplayer first
+  // (data/mtg-tcgplayer-ids.json), so only ~4,400 printings come from here.
+  "cards.scryfall.io": { gapMs: 200, daily: 3000 },
 };
 const DEFAULT_LIMIT = { gapMs: 500, daily: 2000 };
 
@@ -99,7 +103,8 @@ export async function fetchSourcePicture(url) {
   queueByHost.set(host, turn.catch(() => {}));
   await turn;
   spend(host);
-  const res = await fetch(url, { headers: { "User-Agent": UA, Accept: "image/*" }, signal: AbortSignal.timeout(30_000) });
+  const init = { headers: { "User-Agent": UA, Accept: "image/*" }, signal: AbortSignal.timeout(30_000) };
+  const res = /(^|\.)scryfall\.(io|com)$/.test(host) ? await (await import("./scryfall-guard.mjs")).scryfallFetch(url, init) : await fetch(url, init);
   if (res.status === 429) throw new StopRun(`${host} answered 429 Too Many Requests. Stopping so this PC is not blocked (10-03 Scryfall lesson).`);
   if (!res.ok) throw new Error(`${url} â†’ ${res.status}`);
   const buf = Buffer.from(await res.arrayBuffer());
@@ -137,8 +142,9 @@ export async function savePicture({ game, id, src, fetchUrl = src, dry = false }
   try {
     buf = await fetchSourcePicture(fetchUrl);
   } catch (err) {
-    // The sharper twin is missing for a few cards (TCGdex 404): the stored link itself is still a picture.
-    if (fetchUrl === src || err instanceof StopRun || !/\b404$/.test(String(err?.message))) throw err;
+    // The sharper twin is missing for a few cards (TCGdex 404), or TCGplayer has no scan of a Magic
+    // product (403): the stored link itself is still a picture.
+    if (fetchUrl === src || err instanceof StopRun || !/\b40[34]$/.test(String(err?.message))) throw err;
     buf = await fetchSourcePicture(src);
   }
   const { page, tile } = await makeCopies(buf);
