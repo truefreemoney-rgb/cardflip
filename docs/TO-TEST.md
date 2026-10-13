@@ -20,7 +20,8 @@ Chris: "put in some safeguard so people cant use images hosted on our website". 
 - [ ] PROD after the push: a card page's pictures come from https://cardflip.io/pics/..., and view-source shows no "blob.vercel-storage.com/cards".
 - [ ] PROD: `curl -I -H "Referer: https://example.com/" https://cardflip.io/pics/<a tile path>` → shows in Vercel Firewall as a LOG hit for the rule; `curl -I` with no Referer → 200 and no hit.
 - [ ] After ~1 day of LOG with no false hits (our own pages, Google Images, eBay): switch the hotlink rule to DENY.
-- [ ] Rate-limit rule (600 /pics per minute per IP, deny + timed block) NOT added yet: confirm the WAF rate-limiting price on the Vercel usage/pricing page first (Chris was told ~$1-3/mo estimate), then add it (scratchpad JSON in session s151; recreate: path pre /pics/, fixed_window 60 s, 600, key ip).
+- [x] Rate-limit rule ADDED 10-13 ~8:45am ET (Chris yes after the price check: $0.50 per 1M allowed /pics requests, us ~75k/month = ~$0.04): "Card pictures: bulk download rate limit", path pre /pics/, fixed window 60 s, 600 per IP, deny for 10 min (scripts/_fw-ratelimit.mjs, untracked). Read back active via the API.
+- [ ] 10-14: game hub "most valuable" tiles and card-page "Other printings" strips still showed outside links (lorcast) on 10-13 after the push: they are 24 h DB-cached tile lists (cardPages cachedTiles, TOP_TTL_MS = 1 day) built before the deploy. Confirm they switched to /pics (curl /cards/lorcana and a Lorcana card page, count "lorcast").
 - [ ] Scan a Pokémon card on prod: the picture tiebreak still identifies (it fetches our copy straight from the store via fromPics).
 - [ ] A social/share picture (Share card) renders card art (ogArt fetches via fromPics).
 
