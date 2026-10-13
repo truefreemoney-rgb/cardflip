@@ -201,7 +201,7 @@ for (const r of rows) {
     continue;
   }
   taken.set(k, i + 1);
-  picks.push({ row: r, pick });
+  picks.push({ row: r, pick, exact: pick === pool[i] });
 }
 // Stamp check, a few thumbnails at a time (cached ids cost nothing).
 const queue2 = [...picks];
@@ -214,18 +214,35 @@ await Promise.all(
 fs.writeFileSync(STAMP_CACHE, JSON.stringify(stampCache, null, 0));
 // Chris 09-30: a clean scan wherever TCGplayer has one; otherwise the
 // stamped Bandai card (ref_image_url) — never a blank, never a placeholder.
+// 10-12: when TCGplayer's picture is a proven twin of Bandai's (this row's own
+// printing, not a fallback pick, and near-duplicate: mad < 5) the TCGplayer
+// link wins. Same stamped picture, but optcgapi links are kept off list pages
+// (CardPagesUi showsInLists), so those rows showed empty tiles there.
+// --dry: print what would change, write nothing.
+const DRY = process.argv.includes("--dry");
 const picked = new Map(picks.map((p) => [p.row.id, p]));
 const tally = { clean: 0, stamped: 0, placeholder: 0, unchecked: 0 };
-db.exec("BEGIN");
+let changed = 0;
+const sample = [];
+if (!DRY) db.exec("BEGIN");
 for (const r of rows) {
   const p = picked.get(r.id);
   const v = p ? results.get(r.id) : null;
   if (v) tally[v]++;
-  // Fallback order: Bandai's picture, then TCGplayer's stamped copy, then whatever the row had.
-  const image = v === "clean" ? p.pick.image : r.ref_image_url || (p && v !== "placeholder" ? p.pick.image : "") || r.image_url;
-  if (image !== r.image_url) update.run(image, now, r.id);
+  const mad = p ? stampCache[String(p.pick.id)]?.mad : null;
+  const twin = p && p.exact && v === "stamped" && mad != null && mad < 5;
+  // Fallback order: TCGplayer's twin copy, Bandai's picture, TCGplayer's stamped copy, whatever the row had.
+  const image = v === "clean" || twin ? p.pick.image : r.ref_image_url || (p && v !== "placeholder" ? p.pick.image : "") || r.image_url;
+  if (image !== r.image_url) {
+    changed++;
+    sample.push(`${r.id}: ${r.image_url.split("/").pop()} -> ${image}`);
+    if (DRY && process.env.DRY_OUT) fs.appendFileSync(process.env.DRY_OUT, JSON.stringify({ id: r.id, from: r.image_url, to: image }) + "\n");
+    if (!DRY) update.run(image, now, r.id);
+  }
 }
-db.exec("COMMIT");
+if (!DRY) db.exec("COMMIT");
+console.log(`${DRY ? "[dry] would change" : "changed"} ${changed} rows`);
+for (const s of sample.slice(0, 8)) console.log(`  ${s}`);
 matched = tally.clean;
 stamped = tally.stamped + tally.unchecked;
 console.log(`onepiece images: ${matched}/${rows.length} clean TCGplayer scans; ${stamped} TCGplayer pictures stamped and ${tally.placeholder} placeholders → Bandai's stamped card; ${unmatched.length} not on TCGplayer → Bandai's stamped card`);

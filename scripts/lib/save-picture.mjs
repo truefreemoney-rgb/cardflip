@@ -34,6 +34,13 @@ const SOURCE_LIMITS = {
   // rate headers, the CDN is Cloudflare with a 4h cache). sync-lorcana.mjs has
   // used 150 ms between API calls since 09-21 without a 429; pictures go slower.
   "cards.lorcast.io": { gapMs: 250, daily: 5000 },
+  // optcgapi publishes no number (checked 10-12): one person's Hostinger site,
+  // /about/general says the API "will have some limits on how much data can be
+  // pulled each day". ~170 KB per picture, so 1/s and half its catalog a day.
+  "optcgapi.com": { gapMs: 1000, daily: 2500 },
+  // TCGplayer's CDN publishes no limit either; a 403 there means "no scan of
+  // that product", not a block (memory: catalog picture gaps).
+  "tcgplayer-cdn.tcgplayer.com": { gapMs: 300, daily: 5000 },
 };
 const DEFAULT_LIMIT = { gapMs: 500, daily: 2000 };
 
@@ -42,7 +49,8 @@ export const TILE_WIDTH = 240;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const lastByHost = new Map();
-let queue = Promise.resolve();
+// One pacing line per host, so a slow host (optcgapi 1/s) never holds up a fast one.
+const queueByHost = new Map();
 
 function limitFor(host) {
   return SOURCE_LIMITS[host] ?? DEFAULT_LIMIT;
@@ -77,19 +85,19 @@ export class StopRun extends Error {}
 export async function fetchSourcePicture(url) {
   const host = new URL(url).hostname.toLowerCase();
   const { gapMs } = limitFor(host);
-  const turn = queue.then(async () => {
+  const turn = (queueByHost.get(host) ?? Promise.resolve()).then(async () => {
     const wait = (lastByHost.get(host) ?? 0) + gapMs - Date.now();
     if (wait > 0) await sleep(wait);
     lastByHost.set(host, Date.now());
   });
-  queue = turn.catch(() => {});
+  queueByHost.set(host, turn.catch(() => {}));
   await turn;
   spend(host);
   const res = await fetch(url, { headers: { "User-Agent": UA, Accept: "image/*" }, signal: AbortSignal.timeout(30_000) });
   if (res.status === 429) throw new StopRun(`${host} answered 429 Too Many Requests. Stopping so this PC is not blocked (10-03 Scryfall lesson).`);
-  if (!res.ok) throw new Error(`${url} → ${res.status}`);
+  if (!res.ok) throw new Error(`${url} â†’ ${res.status}`);
   const buf = Buffer.from(await res.arrayBuffer());
-  if (buf.length < 1000) throw new Error(`${url} → ${buf.length} bytes, not a picture`);
+  if (buf.length < 1000) throw new Error(`${url} â†’ ${buf.length} bytes, not a picture`);
   return buf;
 }
 
