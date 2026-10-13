@@ -179,6 +179,12 @@ export interface PriceTrustInput {
   old?: boolean;
   /** TCGplayer's cheapest live listing (USD, any condition) for this printing, when fresh (listing_lows). Read by test 1 (a listing near the price outranks a Cardmarket gap) and test 4. */
   listingLowUsd?: number | null;
+  /**
+   * Test 1 may let a listing near the price outrank a Cardmarket gap (Magic only, 10-13). Off by default: a bogus listing can
+   * equal a bogus price (Yu-Gi-Oh Genex Ally Axel: $213,589 market, $213,589 cheapest listing), so other games need a sanity
+   * guard before they get it.
+   */
+  listingReferee?: boolean;
   /** Pokemon, a non-default printing that is the default's highest sibling: the default's price (test 3b). */
   anchorFor?: number | null;
 }
@@ -357,7 +363,7 @@ export function stepJump({ prices, days, refEur = null, refPrices = null }: Step
 
 
 /** ok = the price may be printed; reason says why not (or, when a second source vouched, that it did). */
-export function priceTrust({ to, prices, siblings = [], refEur = null, refAltEur = null, vintage = false, old = false, listingLowUsd = null, anchorFor = null }: PriceTrustInput): PriceTrust {
+export function priceTrust({ to, prices, siblings = [], refEur = null, refAltEur = null, vintage = false, old = false, listingLowUsd = null, listingReferee = false, anchorFor = null }: PriceTrustInput): PriceTrust {
   const T = PRICE_TRUST;
   if (!(to > 0)) return { ok: false, hard: true, reason: "no price" };
   // Nothing below $10 is worth a second look: the mover and pool floors sit there.
@@ -372,8 +378,8 @@ export function priceTrust({ to, prices, siblings = [], refEur = null, refAltEur
   const ref = primary == null ? null : nearestRef(to, [primary, refAltEur]);
   // 10-13: a copy listed on TCGplayer near the price (within staleOverLow either way) outranks a Cardmarket gap. Same market,
   // live today; Cardmarket is often another printing's figure (Magic promos, foils): 271 hidden Magic foils had a copy listed
-  // at their price. Only the gap goes: the series tests below still run.
-  const listedNear = listingLowUsd != null && listingLowUsd > 0 && to <= T.staleOverLow * listingLowUsd && to * T.staleOverLow >= listingLowUsd;
+  // at their price. Only the gap goes: the series tests below still run. Magic only (listingReferee), see the input.
+  const listedNear = listingReferee && listingLowUsd != null && listingLowUsd > 0 && to <= T.staleOverLow * listingLowUsd && to * T.staleOverLow >= listingLowUsd;
   if (ref != null && !listedNear) {
     refRatio = to / (ref * T.eurToUsd);
     if (refRatio >= T.refExtreme) return wrong(`cardmarket ${x(refRatio)}`);

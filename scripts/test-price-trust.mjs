@@ -227,8 +227,9 @@ check("thresholds are the calibrated ones", [PRICE_TRUST.refExtreme, PRICE_TRUST
 {
   const s = expand([[60, 40]]);
   check("cardmarket 13.6x hides with no listing", priceTrust({ to: 60, prices: s, refEur: 4 }).ok, false);
-  check("a $50 listing beside a $60 price takes the gap away", priceTrust({ to: 60, prices: s, refEur: 4, listingLowUsd: 50 }).ok, true);
-  check("a $20 listing does not", priceTrust({ to: 60, prices: s, refEur: 4, listingLowUsd: 20 }).ok, false);
+  check("a $50 listing beside a $60 price takes the gap away", priceTrust({ to: 60, prices: s, refEur: 4, listingLowUsd: 50, listingReferee: true }).ok, true);
+  check("a $20 listing does not", priceTrust({ to: 60, prices: s, refEur: 4, listingLowUsd: 20, listingReferee: true }).ok, false);
+  check("Magic only: without listingReferee a near listing leaves the gap (a bogus listing can equal a bogus price)", priceTrust({ to: 60, prices: s, refEur: 4, listingLowUsd: 50 }).ok, false);
 }
 
 if (failures) { console.log(`\n${failures} failing`); process.exit(1); }

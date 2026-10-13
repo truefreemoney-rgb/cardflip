@@ -162,7 +162,7 @@ export function judgeFull(data: TrustData, opts: JudgeOpts = {}): { flag: PriceF
     const others = data.series.filter((o) => o !== def && o !== s).map(lastIn);
     if (others.every((v) => v == null || v <= to)) anchorFor = lastIn(def);
   }
-  const verdict = priceTrust({ to, prices, siblings, refEur, refAltEur, vintage: isVintage(data.game === "pokemon" ? variant : "", data.released), old: opts.old != null, listingLowUsd, anchorFor });
+  const verdict = priceTrust({ to, prices, siblings, refEur, refAltEur, vintage: isVintage(data.game === "pokemon" ? variant : "", data.released), old: opts.old != null, listingLowUsd, listingReferee: data.game === "mtg", anchorFor });
   if (verdict.ok) return NONE;
   // Stale (10-02): the number stands, with a note; nothing is hidden or left out.
   if (verdict.stale != null) return { flag: null, stale: { days: verdict.stale } };
