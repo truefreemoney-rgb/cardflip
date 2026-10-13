@@ -425,6 +425,25 @@ const SCHEMA = `
     PRIMARY KEY (card_id, variant, game)
   );
   CREATE INDEX IF NOT EXISTS idx_ebay_asks_verdict ON ebay_asks(verdict, day);
+  -- A seller removed a card (10-13, Chris: "add the log"): a trial user's 4 of 5 scans matched and were
+  -- then gone with no trace of why. What the row was when it went: a wrong match removed seconds after
+  -- the scan reads differently from a tidy-up days later. how = 'one' | 'bulk'.
+  CREATE TABLE IF NOT EXISTS card_removals (
+    card_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    at INTEGER NOT NULL,
+    how TEXT NOT NULL,
+    game TEXT,
+    card_name TEXT,
+    set_name TEXT,
+    card_number TEXT,
+    catalog_card_id TEXT,
+    status TEXT,
+    match_doubt TEXT,
+    verified_at INTEGER,
+    created_at INTEGER
+  );
+  CREATE INDEX IF NOT EXISTS idx_card_removals_at ON card_removals(at);
   -- Our card id -> Cardmarket idProduct (10-13), rebuilt nightly by the PC's
   -- catalog run (scripts/build-cardmarket-map.mjs --prod --write-db) so new
   -- cards get a Cardmarket price without a deploy. Overrides src/data/cardmarket-<game>.json.

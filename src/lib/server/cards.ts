@@ -730,7 +730,22 @@ export async function updateCard(
   return fromRow(merged);
 }
 
+/** Snapshot rows into card_removals before they go (10-13). A failed log never blocks the delete. */
+async function logRemovals(where: string, args: string[], how: "one" | "bulk"): Promise<void> {
+  try {
+    await db
+      .prepare(
+        `INSERT INTO card_removals (card_id, user_id, at, how, game, card_name, set_name, card_number, catalog_card_id, status, match_doubt, verified_at, created_at)
+         SELECT id, user_id, ?, ?, game, card_name, set_name, card_number, catalog_card_id, status, match_doubt, verified_at, created_at FROM cards WHERE ${where}`,
+      )
+      .run(Date.now(), how, ...args);
+  } catch (err) {
+    console.warn("card_removals: log failed", err instanceof Error ? err.message : err);
+  }
+}
+
 export async function deleteCard(id: string, userId: string): Promise<void> {
+  await logRemovals("id = ? AND user_id = ?", [id, userId], "one");
   await db.prepare("DELETE FROM cards WHERE id = ? AND user_id = ?").run(id, userId);
 }
 
@@ -756,6 +771,7 @@ export async function deleteCards(ids: string[], userId: string): Promise<number
     } catch {
       // Nothing stored.
     }
+    await logRemovals(`user_id = ? AND status != 'sold' AND id IN (${marks})`, [userId, ...chunk], "bulk");
     const r = await db
       .prepare(`DELETE FROM cards WHERE user_id = ? AND status != 'sold' AND id IN (${marks})`)
       .run(userId, ...chunk);

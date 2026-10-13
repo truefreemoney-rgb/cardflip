@@ -45,8 +45,8 @@ export default async function AdminAnalyticsPage({ searchParams }: { searchParam
   const usd = (v: number) => money(v);
   const cents4 = (v: number) => `$${v.toFixed(4)}`;
   const costPerScan = m.visionCalls.total ? m.visionCostUsd.total / m.visionCalls.total : 0;
-  const matchRate = m.visionCalls.total ? Math.round((m.scans.total / m.visionCalls.total) * 100) : null;
-  const priorMatchRate = m.visionCalls.prior ? Math.round((m.scans.prior / m.visionCalls.prior) * 100) : null;
+  const matchRate = m.scanReads.total ? Math.round((m.scanMatched.total / m.scanReads.total) * 100) : null;
+  const priorMatchRate = m.scanReads.prior ? Math.round((m.scanMatched.prior / m.scanReads.prior) * 100) : null;
 
   const chart = (id: string, label: string, metric: Metric, color: string, extra: Partial<ChartMetric> = {}): ChartMetric => ({
     id, label, color, total: metric.total, prior: metric.prior,

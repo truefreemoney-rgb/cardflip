@@ -95,6 +95,10 @@ export interface Analytics {
     scans: Metric;
     visionCalls: Metric;
     visionCostUsd: Metric;
+    /** Scans the seller paid for (one per photo; the picture tiebreak's second call is not one). */
+    scanReads: Metric;
+    /** Of those, the ones not given back as a no-match. */
+    scanMatched: Metric;
     priceChecks: Metric;
     listed: Metric;
     sold: Metric;
@@ -341,6 +345,7 @@ export async function getAnalytics(window: Window, realNow = Date.now()): Promis
     socialRows, tiktokMarks,
     lifeSoldUsd, lifeSold, lifeListed,
     attrib,
+    scanReads, scanMatched,
   ] = await Promise.all([
     m({ table: "page_views", ts: "at", agg: "COUNT(DISTINCT visitor)" }),
     m({ table: "page_views", ts: "at", agg: "COUNT(*)" }),
@@ -397,6 +402,11 @@ export async function getAnalytics(window: Window, realNow = Date.now()): Promis
     scalar("SELECT COUNT(*) AS n FROM cards WHERE status = 'sold'"),
     scalar("SELECT COUNT(*) AS n FROM cards WHERE listed_at IS NOT NULL OR status IN ('listed','sold')"),
     attribution(since, now + 1),
+    // Match rate (10-13): one row per scan the seller paid for (draw set; the picture tiebreak is a second call with
+    // no draw), matched = not given back as a no-match. Was surviving cards / every call, so a tiebreak counted as a
+    // scan and a card the seller later removed as a miss (25% on a day every scan matched).
+    m({ table: "scan_usage", ts: "at", agg: "COUNT(*)", where: "draw IS NOT NULL" }),
+    m({ table: "scan_usage", ts: "at", agg: "COUNT(*)", where: "draw IS NOT NULL AND refunded_at IS NULL" }),
   ]);
 
   const visionCostUsd: Metric = {
@@ -430,7 +440,7 @@ export async function getAnalytics(window: Window, realNow = Date.now()): Promis
     range,
     since,
     lifetime: { soldUsd: lifeSoldUsd, sold: lifeSold, listed: lifeListed },
-    metrics: { visitors, pageViews, signups, scans, visionCalls, visionCostUsd, priceChecks, listed, sold, soldUsd, subPayments, subIncomeUsd, boosters, boosterIncomeUsd, wishlist, helpMessages, errors },
+    metrics: { visitors, pageViews, signups, scans, visionCalls, visionCostUsd, scanReads, scanMatched, priceChecks, listed, sold, soldUsd, subPayments, subIncomeUsd, boosters, boosterIncomeUsd, wishlist, helpMessages, errors },
     funnel: { cohort, everyone },
     pages: pages.map((p) => ({ path: p.path, views: Number(p.views), visitors: Number(p.visitors) })),
     referrers: referrers.map((r) => ({ host: r.host, visitors: Number(r.visitors) })),
