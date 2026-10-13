@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import CatalogSearch from "@/components/CatalogSearch";
@@ -30,19 +30,23 @@ import { fetchCurrentUser, logout, type SessionUser } from "@/lib/client/auth";
  * pill shape as the app header's phone layout. From sm it is the one row.
  */
 const NAV_HINT = "cf_nav_signed_in";
+const subscribeNever = () => () => {};
+function readHint(): boolean {
+  try {
+    return window.localStorage.getItem(NAV_HINT) === "1";
+  } catch {
+    return false; // private mode
+  }
+}
 
 export default function MarketingNav() {
   const [user, setUser] = useState<SessionUser | null>(null);
   // No flash of "Log In" on a signed-in phone (Chris 10-08): until the session answers, the two account slots stay
   // invisible unless the last visit left a signed-in hint, in which case the signed-in pair shows at once.
+  // The hint is read AFTER mount (10-12): reading localStorage while rendering made the browser's first paint
+  // ("Log out") differ from the server's ("Log In"), a hydration error on every marketing page for signed-in visitors.
   const [known, setKnown] = useState(false);
-  const [hinted] = useState(() => {
-    try {
-      return typeof window !== "undefined" && window.localStorage.getItem(NAV_HINT) === "1";
-    } catch {
-      return false;
-    }
-  });
+  const hinted = useSyncExternalStore(subscribeNever, readHint, () => false);
   const [searching, setSearching] = useState(false);
   // On /cards/{game}/... the search stays inside that game.
   const pathname = usePathname() ?? "";
