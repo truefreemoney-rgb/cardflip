@@ -25,6 +25,7 @@ import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
 import path from "node:path";
 import { contactSheet, deletePictures, savePicture, StopRun } from "./lib/save-picture.mjs";
+import { deadPictureStandIns } from "./lib/deadPictureStandIns.mjs";
 
 const args = process.argv.slice(2);
 const opt = (name, dflt) => {
@@ -83,9 +84,11 @@ if (prodFlag && !dry) {
   }
 }
 
+// Only tcg_cards has a variant tag (alt-art, starfoil ...); the stand-in rule reads it.
+const VARIANT = T.table === "tcg_cards" ? "variant" : "''";
 const rows = db
   .prepare(
-    `SELECT id, name, ${T.set} AS set_code, ${T.num} AS collector_number, image_url, own_image_url, own_tile_url, own_image_src
+    `SELECT id, name, ${VARIANT} AS variant, set_release_date, ${T.set} AS set_code, ${T.num} AS collector_number, image_url, own_image_url, own_tile_url, own_image_src
        FROM ${T.table} WHERE ${T.where} AND image_url <> '' AND (own_image_src <> image_url${resaveHost ? " OR image_url LIKE ?" : ""})
       ORDER BY set_release_date DESC, ${T.set}, ${T.num}`,
   )
@@ -102,6 +105,8 @@ const tiles = [];
 const bytes = { source: 0, page: 0, tile: 0 };
 let done = 0;
 let failed = 0;
+/** Rows that failed with no saved picture of their own: they get a stand-in after the run. */
+const failedRows = [];
 let stop = null;
 let next = 0;
 
@@ -125,7 +130,8 @@ async function worker() {
         setRow.run(saved.url, saved.tile, row.image_url, row.id);
         prodStmts.push({ sql: PROD_SQL, args: [saved.url, saved.tile, row.image_url, row.id] });
         await flushProd();
-        if (row.own_image_url && row.own_image_url !== saved.url) await deletePictures([row.own_image_url, row.own_tile_url]);
+        // A stand-in's files belong to the other printing: never delete them.
+        if (row.own_image_url && row.own_image_url !== saved.url && !row.own_image_src.startsWith("standin:")) await deletePictures([row.own_image_url, row.own_tile_url]);
       }
       done++;
     } catch (err) {
@@ -134,6 +140,7 @@ async function worker() {
         return;
       }
       failed++;
+      if (!row.own_image_url) failedRows.push(row);
       console.warn(`  ${row.id} (${row.name}): ${err?.message ?? err}`);
     }
     if ((done + failed) % 25 === 0) process.stdout.write(`  ${done + failed}/${rows.length}  ok ${done} failed ${failed}\r`);
@@ -141,10 +148,32 @@ async function worker() {
 }
 
 await Promise.all(Array.from({ length: WORKERS }, worker));
-await flushProd(true);
+
+// Stand-ins (10-13, nightly new-cards run): a card whose own picture could not be saved (a new set the source
+// has no scan of yet) shows our saved copy of another printing of the same card, by the Yu-Gi-Oh stand-in rule
+// (scripts/lib/deadPictureStandIns.mjs: same name, same art treatment, closest release). The row is marked
+// own_image_src = "standin:<that id>", which never equals image_url, so every nightly run tries the card's own
+// picture again and the exact one replaces the stand-in the night it appears. No printing saved = stays blank.
+let standIns = 0;
+if (!dry && failedRows.length) {
+  const pool = db
+    .prepare(`SELECT id, name, ${VARIANT} AS variant, set_release_date, own_image_url AS image_url, own_tile_url FROM ${T.table}
+               WHERE ${T.where} AND own_image_url <> '' AND own_image_src NOT LIKE 'standin:%'`)
+    .all(...T.args);
+  const byUrl = new Map(pool.map((r) => [r.image_url, r]));
+  const dead = (r) => `missing:${r.id}`;
+  const picks = deadPictureStandIns([...pool, ...failedRows.map((r) => ({ ...r, image_url: dead(r) }))], new Set(failedRows.map(dead)));
+  for (const [id, url] of picks) {
+    const from = byUrl.get(url);
+    if (!from) continue;
+    setRow.run(from.image_url, from.own_tile_url, `standin:${from.id}`, id);
+    prodStmts.push({ sql: PROD_SQL, args: [from.image_url, from.own_tile_url, `standin:${from.id}`, id] });
+    standIns++;
+  }
+}await flushProd(true);
 
 const kb = (n) => (n / 1024).toFixed(1);
-console.log(`\n${game}: saved ${done}, failed ${failed}${dry ? " (dry)" : ""}. Average per card: source ${kb(bytes.source / Math.max(done, 1))} KB → page ${kb(bytes.page / Math.max(done, 1))} KB + tile ${kb(bytes.tile / Math.max(done, 1))} KB`);
+console.log(`\n${game}: saved ${done}, failed ${failed}${standIns ? ` (${standIns} show another printing until theirs appears)` : ""}${dry ? " (dry)" : ""}. Average per card: source ${kb(bytes.source / Math.max(done, 1))} KB → page ${kb(bytes.page / Math.max(done, 1))} KB + tile ${kb(bytes.tile / Math.max(done, 1))} KB`);
 if (sheet && tiles.length) {
   await contactSheet(tiles, sheet);
   console.log(`contact sheet: ${sheet} (${tiles.length} tiles)`);

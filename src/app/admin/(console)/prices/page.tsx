@@ -14,7 +14,13 @@ function soldUrl(r: AskListRow): string {
   return `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(r.query + finish)}&LH_Sold=1&LH_Complete=1`;
 }
 
-type CatalogRun = { at: number; failed: string[]; games: Record<string, { cards: number; noOwnPicture: number }> };
+type CatalogRun = {
+  at: number;
+  failed: string[];
+  games: Record<string, { cards: number; noOwnPicture: number; standIns?: number }>;
+  /** Cards still showing another printing's picture 14+ days after release (FYI: retried nightly, no chore). */
+  borrowing?: { game: string; name: string; set: string; released: string }[];
+};
 /** The PC's nightly catalog run (scripts/catalog-sync.cmd -> catalog-nightly-record.mjs), null before the first one. */
 async function lastCatalogRun(): Promise<CatalogRun | null> {
   try {
@@ -118,13 +124,24 @@ export default async function AdminPricesPage() {
               last run {ago(catalog.at)}
               {catalog.failed.length ? <span className="text-amber-300"> · failed: {catalog.failed.join(", ")}</span> : " · all steps fine"}
               {" · "}
-              {Object.entries(catalog.games).map(([g, v]) => `${GAME_LABEL[g] ?? g} ${num(v.cards)}${v.noOwnPicture ? ` (${num(v.noOwnPicture)} no picture yet)` : ""}`).join(" · ")}
+              {Object.entries(catalog.games)
+                .map(([g, v]) => {
+                  const notes = [v.standIns ? `${num(v.standIns)} borrowing another printing` : "", v.noOwnPicture ? `${num(v.noOwnPicture)} no picture yet` : ""].filter(Boolean);
+                  return `${GAME_LABEL[g] ?? g} ${num(v.cards)}${notes.length ? ` (${notes.join(", ")})` : ""}`;
+                })
+                .join(" · ")}
               {Date.now() - catalog.at > 36 * 3600_000 ? <span className="text-amber-300"> · no run in over a day, is the PC on?</span> : null}
             </>
           ) : (
             "no run yet."
           )}
         </p>
+        {catalog?.borrowing?.length ? (
+          <p className="mt-1 text-xs text-zinc-500">
+            Still borrowing 2+ weeks after release (tried again every night):{" "}
+            {catalog.borrowing.map((b) => `${b.name} (${GAME_LABEL[b.game] ?? b.game}, ${b.set})`).join(" · ")}
+          </p>
+        ) : null}
       </div>
       <div>
         <h2 className="mb-2 text-lg font-semibold text-white">
