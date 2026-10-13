@@ -29,3 +29,13 @@ Chris 10-13 ~1:50–2:50am ET: "it really is a big mess to deal with on our end,
 **Marketing & help:** app/page.tsx (FAQ, binder soldValue, "after eBay's cut and postage", fee tile postage row); app/pricing/page.tsx; lib/features.ts; lib/helpArticles.ts (add buyer-pays + fee-on-shipping); repriceNudges.ts comments.
 **DB:** cards.shipping_method (envelope|tracked) → add ship_options + ship_terms; api/cards/[id] route validation; tracked_ship_* inert.
 **Tests:** test-profit (keep legacy, add buyer-pays), test-pricing, test-marketplaces, test-ebay-sell (fake eBay policy POST), test-ebay-sweeps, test-digest, test-ebay-local, test-ebay-golden + fixtures/ebay-golden/requests.json (regenerate), ebay-sandbox-e2e, ebay-item-debug.
+
+## eBay rules check (10-13 ~9:30am ET, s155; sources in the research report)
+- ONE domestic shipping option per policy, and costType (FLAT_RATE / CALCULATED) is per option -> a listing cannot mix a flat $1.31 stamped letter with an eBay-calculated tracked service. Workable: all flat or all calculated. (Account API schema; community confirms eBay stopped allowing the mix.)
+- Up to 4 domestic services per option; the buyer picks at checkout. freeShipping only honoured on the first service.
+- eSE (US_eBayStandardEnvelope): item under $20, <= 0.25 in thick, <= 3 oz, up to 2 cards in toploaders, no graded. Label 1 oz $0.82 / 2 oz $1.11 / 3 oz $1.40 (undated page). Buyer-paid FLAT on eSE: community-only (sellers charge e.g. $1.39); calculated eSE: not documented -> verify with a sandbox policy POST before building. Carrier may need EBAY_SEND (community error 20403).
+- Final value fee applies to shipping the buyer pays (confirmed, seller-fees page) -> fee estimates say "about".
+- Calculated needs packageWeightAndSize on every item; ALL FLAT needs none (no weight presets at all).
+- No tracking = no Item Not Received protection (eBay refunds the buyer); tracking only legally required at $750+ (signature). Stamped letter was already our $20.01-$100 policy since 10-11.
+- GB/IE: calculated shipping not offered (only US/CA/AU in eBay's calculated list) -> flat there anyway. No eSE-like program on GB/AU/CA. Letter codes (CA_PostLettermail, UK Royal Mail ...) from an old reference: verify per site with GeteBayDetails.
+- => Proposal to Chris: ALL FLAT buyer-paid, priced at our real postage (envelope $0.78 <= $20, stamped $1.31 $20.01-$100, tracked $6.07; per-site flat rates abroad). eBay-calculated dropped (cannot sit next to the stamped letter).
