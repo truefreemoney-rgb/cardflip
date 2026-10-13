@@ -1,4 +1,5 @@
 import "server-only";
+import { ownPictureUrl } from "@/lib/server/cardPictures";
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { isShipMethod, type ShipMethod } from "@/lib/fees";
@@ -256,6 +257,7 @@ export async function createCard(userId: string, card: NewCard): Promise<CardRec
   const productType = kind === "sealed" ? (card.productType ?? null) : null;
   const game: GameId = parseGame(card.game);
   const scanPrice = card.scanPrice != null && card.scanPrice > 0 ? card.scanPrice : card.price > 0 ? card.price : null;
+  const imageUrl = await ownPictureUrl(game, card.catalogCardId, card.imageUrl);
 
   await db
     .prepare(
@@ -271,7 +273,7 @@ export async function createCard(userId: string, card: NewCard): Promise<CardRec
       card.cardName,
       card.setName,
       card.cardNumber,
-      card.imageUrl,
+      imageUrl,
       card.condition,
       productType,
       card.price,
@@ -302,7 +304,7 @@ export async function createCard(userId: string, card: NewCard): Promise<CardRec
     cardName: card.cardName,
     setName: card.setName,
     cardNumber: card.cardNumber,
-    imageUrl: card.imageUrl,
+    imageUrl,
     condition: card.condition,
     productType,
     status: "ready",
@@ -634,7 +636,10 @@ export async function updateCard(
     card_name: patch.cardName ?? existingRow.card_name,
     set_name: patch.setName ?? existingRow.set_name,
     card_number: patch.cardNumber ?? existingRow.card_number,
-    image_url: patch.imageUrl ?? existingRow.image_url,
+    image_url:
+      patch.imageUrl != null
+        ? await ownPictureUrl(existingRow.game as GameId, patch.catalogCardId !== undefined ? patch.catalogCardId : existingRow.catalog_card_id, patch.imageUrl)
+        : existingRow.image_url,
     catalog_card_id: patch.catalogCardId !== undefined ? patch.catalogCardId : existingRow.catalog_card_id,
     rarity: patch.rarity !== undefined ? patch.rarity : existingRow.rarity,
     category: patch.category !== undefined ? patch.category : existingRow.category,

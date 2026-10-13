@@ -1,4 +1,5 @@
 import { parseGame } from "@/lib/games";
+import { ownPictureUrl } from "@/lib/server/cardPictures";
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
@@ -94,6 +95,8 @@ export async function addToWishlist(
   price: number | null,
 ): Promise<WishlistItem> {
   const card = cleanCard(rawCard);
+  // Our saved copy, whatever link the app sent (lib/server/cardPictures.ts ownPictureUrl).
+  card.imageSmall = await ownPictureUrl(card.game, card.id, card.imageSmall);
   if (!card.name) throw new Error("wishlist: card name is required");
   const id = randomUUID();
   const addedAt = Date.now();

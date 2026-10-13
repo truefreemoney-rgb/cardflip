@@ -1,4 +1,5 @@
 import "server-only";
+import { ownPictureUrl } from "@/lib/server/cardPictures";
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { pickPrice } from "@/lib/listing";
@@ -121,6 +122,8 @@ export async function logPriceCheck(
   language: ScanLanguage,
 ): Promise<PriceCheckEntry> {
   const card = cleanCard(rawCard);
+  // Our saved copy, whatever link the app sent (lib/server/cardPictures.ts ownPictureUrl).
+  card.imageSmall = await ownPictureUrl(card.game, card.id, card.imageSmall);
   if (!card.name) throw new Error("price check: card name is required");
   const id = randomUUID();
   const checkedAt = Date.now();

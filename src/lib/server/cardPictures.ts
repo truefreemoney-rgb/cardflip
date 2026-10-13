@@ -44,3 +44,14 @@ export async function withOwnPictures(cards: PokemonCard[]): Promise<PokemonCard
     }),
   );
 }
+
+/**
+ * The picture a saved row (inventory card, watchlist item, price check) stores: our saved copy whenever the catalog
+ * has one, whatever link the app sent (a live pokemontcg.io answer, an old cached search). Our own addresses (and a
+ * seller's photo on cardflip.io) are kept as sent. 10-13, Chris: every card picture comes from our database.
+ */
+export async function ownPictureUrl(game: GameId | null | undefined, catalogId: string | null | undefined, url: string): Promise<string> {
+  if (!catalogId || /\/pics\//.test(url) || /^https:\/\/(www\.)?cardflip\.io\//.test(url)) return url;
+  const pic = await catalogPicture(catalogId, game).catch(() => null);
+  return pic && /\/pics\//.test(pic.large) ? pic.large : url;
+}
