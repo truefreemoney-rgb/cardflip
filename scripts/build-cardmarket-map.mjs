@@ -32,7 +32,8 @@ if (process.argv.includes("--prod")) {
 }
 
 const cached = async (url, file) => {
-  if (!fs.existsSync(file)) {
+  // Re-read after 20 h (10-13: the nightly catalog run must see Cardmarket's new products, not a cached list).
+  if (!fs.existsSync(file) || Date.now() - fs.statSync(file).mtimeMs > 20 * 3600_000) {
     const r = await fetch(url, { headers: UA });
     if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`);
     fs.writeFileSync(file, await r.text());
@@ -65,8 +66,9 @@ for (const r of rows) bySet.set(`${r.set_code}|${r.set_name}`, [...(bySet.get(`$
 const map = {};
 const report = { sets: 0, pinned: 0, gaps: 0, mapped: 0, ambiguous: 0, missing: 0, unpinned: [] };
 for (const [key, list] of bySet) {
-  const gaps = list.filter((r) => r.price_usd == null && r.price_usd_foil == null);
-  if (!gaps.length) continue;
+  // EVERY card of a pinned set is mapped (10-13): the daily job only uses the map for cards TCGplayer leaves
+  // unpriced that day, and a gaps-only map dropped a card once its Cardmarket price had filled the gap.
+  const gaps = list;
   report.sets++;
   report.gaps += gaps.length;
   const names = [...new Set(list.map((r) => norm(nameOf(r))))];
@@ -90,6 +92,19 @@ for (const [key, list] of bySet) {
   }
 }
 fs.mkdirSync("src/data", { recursive: true });
-fs.writeFileSync(`src/data/cardmarket-${game}.json`, JSON.stringify(map, null, 0) + "\n");
+// With --write-db the map lives in the database only (28k Yu-Gi-Oh rows would bloat the server bundle).
+if (!process.argv.includes("--write-db")) fs.writeFileSync(`src/data/cardmarket-${game}.json`, JSON.stringify(map, null, 0) + "\n");
+// --write-db: the same map into cardmarket_map, which the daily price job reads over the bundled file.
+if (process.argv.includes("--write-db")) {
+  const ids = Object.entries(map);
+  await c.execute("CREATE TABLE IF NOT EXISTS cardmarket_map (game TEXT NOT NULL, card_id TEXT NOT NULL, product_id INTEGER NOT NULL, PRIMARY KEY (game, card_id))");
+  const stmts = [{ sql: "DELETE FROM cardmarket_map WHERE game = ?", args: [game] }];
+  for (let i = 0; i < ids.length; i += 400) {
+    const part = ids.slice(i, i + 400);
+    stmts.push({ sql: `INSERT INTO cardmarket_map (game, card_id, product_id) VALUES ${part.map(() => "(?, ?, ?)").join(", ")}`, args: part.flatMap(([id, pid]) => [game, id, pid]) });
+  }
+  await c.batch(stmts, "write");
+  console.log(`cardmarket_map: ${ids.length} ${game} rows written`);
+}
 console.log(JSON.stringify({ ...report, unpinned: report.unpinned.slice(0, 40) }, null, 1));
 process.exit(0);

@@ -115,10 +115,16 @@ async function worker(queue) {
 const queue = [...groups];
 await Promise.all([1, 2, 3, 4].map(() => worker(queue)));
 
+// Upsert in place, then drop only rows TCGplayer no longer lists (10-13: the old wipe-and-reinsert erased
+// own_image_url / own_tile_url / own_image_src, our saved pictures, and push-catalog then sent the blanks to
+// Turso). A run with failed groups drops nothing: their rows were simply not seen this time.
 db.exec("BEGIN");
-db.exec("DELETE FROM tcg_cards WHERE game = 'yugioh'");
 for (const r of rows) {
   upsert.run(r.id, r.name, r.subtitle, r.setCode, r.setName, r.number, null, r.released, r.rarity, r.variant, r.image, r.price, null, now);
+}
+if (!failed) {
+  const gone = db.prepare("DELETE FROM tcg_cards WHERE game = 'yugioh' AND (synced_at IS NULL OR synced_at < ?)").run(now).changes;
+  if (gone) console.log(`  ${gone} rows TCGplayer no longer lists removed`);
 }
 db.exec("COMMIT");
 // TCGplayer has no scan for ~1,700 of these products (its CDN answers 403):

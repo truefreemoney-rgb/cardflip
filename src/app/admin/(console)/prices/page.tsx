@@ -2,6 +2,7 @@ import { ago, money, num } from "@/components/admin/format";
 import PriceCallButtons from "@/components/admin/PriceCallButtons";
 import { requireOwnerPage } from "@/lib/server/adminPage";
 import { askCounts, lastRefereeRun, listAsks, type AskListRow } from "@/lib/server/ebayReferee";
+import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,16 @@ function soldUrl(r: AskListRow): string {
   return `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(r.query + finish)}&LH_Sold=1&LH_Complete=1`;
 }
 
+type CatalogRun = { at: number; failed: string[]; games: Record<string, { cards: number; noOwnPicture: number }> };
+/** The PC's nightly catalog run (scripts/catalog-sync.cmd -> catalog-nightly-record.mjs), null before the first one. */
+async function lastCatalogRun(): Promise<CatalogRun | null> {
+  try {
+    const row = (await db.prepare("SELECT value FROM price_history_meta WHERE key = 'catalog_nightly'").get()) as { value: string } | undefined;
+    return row ? (JSON.parse(row.value) as CatalogRun) : null;
+  } catch {
+    return null;
+  }
+}
 function Table({ rows, empty }: { rows: AskListRow[]; empty: string }) {
   if (rows.length === 0) return <p className="rounded-2xl border border-edge bg-surface-1 px-4 py-3 text-sm text-zinc-500">{empty}</p>;
   return (
@@ -82,7 +93,7 @@ function Table({ rows, empty }: { rows: AskListRow[]; empty: string }) {
  */
 export default async function AdminPricesPage() {
   await requireOwnerPage();
-  const [run, counts, check, high, manual] = await Promise.all([lastRefereeRun(), askCounts(), listAsks("check"), listAsks("high"), listAsks("manual")]);
+  const [run, counts, check, high, manual, catalog] = await Promise.all([lastRefereeRun(), askCounts(), listAsks("check"), listAsks("high"), listAsks("manual"), lastCatalogRun()]);
   return (
     <section className="space-y-6">
       <div>
@@ -99,6 +110,20 @@ export default async function AdminPricesPage() {
             "No run yet."
           )}{" "}
           This week: {num(counts.ok)} fine, {num(counts.check)} to check, {num(counts.high)} hidden, {num(counts.none)} not on eBay, {num(counts.manual)} called by you.
+        </p>
+        <p className="mt-1 text-sm text-zinc-400">
+          New cards (your PC, nightly 2am):{" "}
+          {catalog ? (
+            <>
+              last run {ago(catalog.at)}
+              {catalog.failed.length ? <span className="text-amber-300"> · failed: {catalog.failed.join(", ")}</span> : " · all steps fine"}
+              {" · "}
+              {Object.entries(catalog.games).map(([g, v]) => `${GAME_LABEL[g] ?? g} ${num(v.cards)}${v.noOwnPicture ? ` (${num(v.noOwnPicture)} no picture yet)` : ""}`).join(" · ")}
+              {Date.now() - catalog.at > 36 * 3600_000 ? <span className="text-amber-300"> · no run in over a day, is the PC on?</span> : null}
+            </>
+          ) : (
+            "no run yet."
+          )}
         </p>
       </div>
       <div>

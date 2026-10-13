@@ -73,9 +73,13 @@ async function withCardtrader(game: TcgGame, day: string, base: { points: TcgPoi
 
 /** TCGplayer's points plus Cardmarket's (converted) for the mapped cards TCGplayer can't price. Never throws. */
 async function withCardmarket(game: TcgGame, base: { points: TcgPoint[]; failed: number }): Promise<{ points: TcgPoint[]; failed: number }> {
-  const map = CARDMARKET_MAPS[game];
-  if (!map || !Object.keys(map).length) return base;
+  if (!CARDMARKET_MAPS[game]) return base;
   try {
+    // The nightly map in the database (cardmarket_map) on top of the bundled one, so new cards need no deploy.
+    const map: Record<string, number> = { ...CARDMARKET_MAPS[game] };
+    const rows = (await db.prepare("SELECT card_id, product_id FROM cardmarket_map WHERE game = ?").all(game)) as { card_id: string; product_id: number }[];
+    for (const r of rows) map[r.card_id] = Number(r.product_id);
+    if (!Object.keys(map).length) return base;
     const rate = await (await import("@/lib/server/fx")).usdPerEur();
     const fill = cardmarketPoints(base.points, map, await fetchPriceGuide(CARDMARKET_GAME[game as "yugioh" | "lorcana"]), rate);
     const have = new Set(fill.map((p) => p.id));

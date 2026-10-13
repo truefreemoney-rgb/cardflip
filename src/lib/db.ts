@@ -425,6 +425,15 @@ const SCHEMA = `
     PRIMARY KEY (card_id, variant, game)
   );
   CREATE INDEX IF NOT EXISTS idx_ebay_asks_verdict ON ebay_asks(verdict, day);
+  -- Our card id -> Cardmarket idProduct (10-13), rebuilt nightly by the PC's
+  -- catalog run (scripts/build-cardmarket-map.mjs --prod --write-db) so new
+  -- cards get a Cardmarket price without a deploy. Overrides src/data/cardmarket-<game>.json.
+  CREATE TABLE IF NOT EXISTS cardmarket_map (
+    game TEXT NOT NULL,
+    card_id TEXT NOT NULL,
+    product_id INTEGER NOT NULL,
+    PRIMARY KEY (game, card_id)
+  );
   CREATE TABLE IF NOT EXISTS price_history_meta (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
