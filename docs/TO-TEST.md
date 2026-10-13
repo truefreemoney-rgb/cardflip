@@ -7,6 +7,13 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 Since 10-08 the nav read the signed-in hint from localStorage while rendering, so for a signed-in visitor the server HTML said "Log In" and the browser's first paint said "Log out": React threw a hydration error on every marketing page and rebuilt the page in the browser (slower first paint, console error; new prod errors in OPEN-TESTS E #73 may include it). Now read through useSyncExternalStore with a server snapshot of false. Pane 10-12: fresh tab, signed in, card page: no console errors, nav shows Log out at once.
 - [ ] PROD after the push, signed in on the phone: open cardflip.io and a /cards page: nav shows Log out + Open the App with no flash of Log In; error digest shows no new "Hydration failed" lines.
 
+## 10-12 late night: One Piece + Pokémon pictures self-hosted (LOCAL, NOT PUSHED; runs done on Blob + Turso)
+One Piece 5,546 of 5,549 (3 have no picture anywhere, BACKLOG), 4,249 sourced from TCGplayer per Chris. Pokémon 22,315 of 22,315 (TCGdex high.webp; en_cards own_* columns; scanner + card/list pages read them). Local = Turso for both. Local proof: /cards/pokemon 24 of ours, 0 tcgdex; 1st Ed Charizard page 42 of ours, 0 tcgdex.
+- [ ] PROD after the push: cardflip.io/cards/onepiece, open a set: tiles now SHOW (the optcgapi list-page block no longer applies, our copies are on our store) and right-click → ...blob.vercel-storage.com/cards/onepiece/...-tile.webp.
+- [ ] PROD: cardflip.io/cards/pokemon → a set → a card page: picture from ...blob.vercel-storage.com/cards/pokemon/, sharp.
+- [ ] PROD: scan any Pokémon card: candidate thumbnails load (now our store); identification unchanged.
+- [ ] PROD: /app/collection sets page set logos still show (derived from en_cards.image_url, untouched).
+
 ## 10-12 night: Lorcana pictures self-hosted (LOCAL, NOT PUSHED; the run itself IS live on Blob + Turso)
 Chris 10-12: "find card, save to our database and everything pulls from there." scripts/save-pictures.mjs --game lorcana --prod saved every Lorcana picture (3,469) to our Blob as cards/lorcana/<id>-<hash>.webp (500px page copy ~47 KB) + -tile.webp (240px ~15 KB) and wrote own_image_url / own_tile_url / own_image_src on the rows, local and Turso. Readers (tcgCards.ts, cardPages.ts, movers) prefer own_* and fall back to image_url; set-rank list cache bumped to v4 so lists switch at deploy. Nothing on the live site changes until this code is pushed.
 - [ ] PROD after the push: cardflip.io/cards/lorcana, open a set, right-click a tile → the picture URL is mlwovvakovcpakbr.public.blob.vercel-storage.com/cards/lorcana/...-tile.webp (not cards.lorcast.io); a card page shows the ...webp page copy, sharp, not blurry.

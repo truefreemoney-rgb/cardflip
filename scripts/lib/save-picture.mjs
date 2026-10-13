@@ -42,8 +42,9 @@ const SOURCE_LIMITS = {
   // that product", not a block (memory: catalog picture gaps).
   "tcgplayer-cdn.tcgplayer.com": { gapMs: 300, daily: 5000 },
   // TCGdex publishes no limit (checked 10-12): nginx, immutable year-long cache
-  // headers, no rate headers. Pokémon's main source, 20k pictures.
-  "assets.tcgdex.net": { gapMs: 150, daily: 25000 },
+  // headers, no rate headers. Pokémon's main source, 20k pictures. At 150 ms the
+  // 10-12 run got 646 503s in bursts (no 429); 300 ms for reruns.
+  "assets.tcgdex.net": { gapMs: 300, daily: 25000 },
   // pokemontcg.io fails ~half its API calls (enCards.ts); its image host gets the cautious default plus a gap.
   "images.pokemontcg.io": { gapMs: 500, daily: 2000 },
 };
@@ -132,7 +133,14 @@ async function blobClient() {
  */
 export async function savePicture({ game, id, src, fetchUrl = src, dry = false }) {
   // fetchUrl: a sharper copy of the same picture (Pokémon: TCGdex high.webp for a stored low.webp); src names the paths.
-  const buf = await fetchSourcePicture(fetchUrl);
+  let buf;
+  try {
+    buf = await fetchSourcePicture(fetchUrl);
+  } catch (err) {
+    // The sharper twin is missing for a few cards (TCGdex 404): the stored link itself is still a picture.
+    if (fetchUrl === src || err instanceof StopRun || !/\b404$/.test(String(err?.message))) throw err;
+    buf = await fetchSourcePicture(src);
+  }
   const { page, tile } = await makeCopies(buf);
   const paths = blobPaths(game, id, src);
   if (dry) return { url: "", tile: "", bytes: { source: buf.length, page: page.length, tile: tile.length }, page, tileBuf: tile };
