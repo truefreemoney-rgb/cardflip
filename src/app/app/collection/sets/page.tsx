@@ -33,6 +33,8 @@ interface MissingCard {
   number: string;
   label: string;
   imageUrl: string;
+  /** Absent on an answer cached before 10-13. */
+  imageLarge?: string;
   price: number | null;
 }
 
@@ -137,8 +139,7 @@ export default function SetCompletionPage() {
             number: card.number,
             rarity: null,
             imageSmall: card.imageUrl,
-            // Only Pokémon art has a /high.webp twin; the other games keep their one picture.
-            imageLarge: game === "pokemon" ? card.imageUrl.replace("/low.webp", "/high.webp") : card.imageUrl,
+            imageLarge: card.imageLarge || card.imageUrl,
             prices: [],
             englishName: null,
             game,

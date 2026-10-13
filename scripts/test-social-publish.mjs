@@ -455,7 +455,7 @@ console.log("the 7pm jumps are filed for the no-repeat rule once they land (thei
   for (const back of [3, 2, 1, 0]) await recordPoint("jj1-1", "pokemon", "normal", "tcgplayer", "USD", 30, jd(back));
   for (const key of ["magic_public", "lorcana_public", "onepiece_public", "yugioh_public"]) await setSetting(key, "1");
   const stg = (name, setName, number, price) => ({ name, setName, number, imageUrl: `https://img.example/${encodeURIComponent(name)}.png`, price, lead: true });
-  for (const [key, c] of [["stage:v8:pokemon", stg("Charizard ex", "Obsidian Flames", "125", 48.5)], ["stage:v14:mtg", stg("Sol Ring", "Commander Masters", "410", 32.1)], ["stage:v14:lorcana", stg("Elsa", "The First Chapter", "42", 61)], ["stage:v14:onepiece", stg("Portgas.D.Ace", "Premium Booster", "P-055", 75)], ["stage:v14:yugioh", stg("Dark Magician", "Legend of Blue Eyes", "LOB-005", 55.25)]]) {
+  for (const [key, c] of [["stage:v9:pokemon", stg("Charizard ex", "Obsidian Flames", "125", 48.5)], ["stage:v15:mtg", stg("Sol Ring", "Commander Masters", "410", 32.1)], ["stage:v15:lorcana", stg("Elsa", "The First Chapter", "42", 61)], ["stage:v15:onepiece", stg("Portgas.D.Ace", "Premium Booster", "P-055", 75)], ["stage:v15:yugioh", stg("Dark Magician", "Legend of Blue Eyes", "LOB-005", 55.25)]]) {
     await db.prepare("INSERT OR REPLACE INTO card_cache (key, payload, cached_at) VALUES (?, ?, ?)").run(key, JSON.stringify([c]), Date.now());
   }
   const seven = Date.UTC(2026, 10, 21, 0, 30); // 7:30pm EST on Nov 20

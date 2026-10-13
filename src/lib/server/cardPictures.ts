@@ -30,3 +30,17 @@ export async function fillMissingPictures(cards: PokemonCard[]): Promise<Pokemon
     }),
   );
 }
+
+/**
+ * Cards from outside our catalog (the homepage's live pokemontcg.io pick and wall) carry that site's picture links:
+ * swap in our saved copies (lib/pics.ts) wherever the catalog has the same id. 10-13, Chris: everything pulls from
+ * our own pictures.
+ */
+export async function withOwnPictures(cards: PokemonCard[]): Promise<PokemonCard[]> {
+  return Promise.all(
+    cards.map(async (card) => {
+      const pic = await catalogPicture(card.id, card.game).catch(() => null);
+      return pic ? { ...card, imageSmall: pic.small, imageLarge: pic.large } : card;
+    }),
+  );
+}

@@ -14,6 +14,7 @@ import { getSetting, setSetting } from "@/lib/server/settings";
 import { gameJumps, MOVER_GAMES, sleepers, topMovers, type Mover } from "@/lib/server/social";
 import { monthlyScans, scanQuota, scanTier, type User } from "@/lib/server/users";
 import { listWishlist } from "@/lib/server/wishlist";
+import { toPics } from "@/lib/pics";
 
 /**
  * The facts each weekly mail is built from (docs/EMAILS.md). Three rules hold
@@ -225,7 +226,7 @@ async function personalMovers(userId: string, now: number, limit = 3): Promise<M
   for (const c of [...(d?.gainers ?? []), ...(d?.losers ?? [])]) {
     const row = ownedById.get(c.id);
     if (!row || c.change === 0) continue;
-    picks.push({ name: c.name, set: c.set, number: c.number, game: row.game, image: row.image_url, url: `${SITE_URL}/app/collection`, price: c.now, before: c.before, abs: Math.abs(c.change), cardId: row.catalog_card_id });
+    picks.push({ name: c.name, set: c.set, number: c.number, game: row.game, image: row.image_url ? toPics(row.image_url) : null, url: `${SITE_URL}/app/collection`, price: c.now, before: c.before, abs: Math.abs(c.change), cardId: row.catalog_card_id });
   }
 
   // Watchlist: today vs a week ago on the catalog series, each judged by the guard.
@@ -285,7 +286,7 @@ async function youngGameMovers(game: GameId, day: string, { direction = "up" as 
   const [lo, hi] = band ?? [minPrice, Infinity];
   const rows = (await db
     .prepare(
-      `SELECT p.card_id, p.variant, p.start_day, p.prices, t.name, t.subtitle, t.set_name, t.collector_number, t.image_url
+      `SELECT p.card_id, p.variant, p.start_day, p.prices, t.name, t.subtitle, t.set_name, t.collector_number, t.image_url, t.own_image_url
          FROM price_series p JOIN tcg_cards t ON t.id = p.card_id
         WHERE p.game = ? AND p.source = 'tcgplayer' AND p.currency = 'USD' AND p.updated_day >= ? AND p.start_day <= ? AND t.image_url <> ''
           AND COALESCE(json_extract(p.prices, '$[#-1]'), json_extract(p.prices, '$[#-2]'), 0) >= ?
@@ -302,6 +303,7 @@ async function youngGameMovers(game: GameId, day: string, { direction = "up" as 
     set_name: string;
     collector_number: string;
     image_url: string;
+    own_image_url: string;
   }>;
   const moves: Array<MoverLike & { abs: number }> = [];
   for (const r of rows) {
@@ -315,7 +317,7 @@ async function youngGameMovers(game: GameId, day: string, { direction = "up" as 
     if (!held(Math.min(idx, s.prices.length - 1), to) || !held(Math.min(idx - days, s.prices.length - 1), from)) continue;
     const p = ((to - from) / from) * 100;
     if ((direction === "up" && p <= 0) || (direction === "down" && p >= 0)) continue;
-    moves.push({ cardId: r.card_id, name: r.subtitle ? `${r.name} - ${r.subtitle}` : r.name, setName: r.set_name, number: r.collector_number, imageUrl: r.image_url, variant: r.variant, from, to, pct: Math.round(p * 10) / 10, abs: Math.abs(p) });
+    moves.push({ cardId: r.card_id, name: r.subtitle ? `${r.name} - ${r.subtitle}` : r.name, setName: r.set_name, number: r.collector_number, imageUrl: toPics(r.own_image_url || r.image_url), variant: r.variant, from, to, pct: Math.round(p * 10) / 10, abs: Math.abs(p) });
   }
   moves.sort((a, b) => b.abs - a.abs);
   const seen = new Set<string>();

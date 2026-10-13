@@ -4,6 +4,8 @@ import { plausiblePrices } from "@/lib/listing";
 import { getFeaturedCard, getShowcaseCards } from "@/lib/tcg";
 import { MTG_REFEREE_SQL } from "@/lib/server/priceTrust";
 import { trustedUsdPrices } from "@/lib/server/priceTrustLoad";
+import { toPics } from "@/lib/pics";
+import { withOwnPictures } from "@/lib/server/cardPictures";
 import { gameOf, type CardPrice, type GameId, type PokemonCard } from "@/lib/types";
 
 /**
@@ -44,7 +46,7 @@ export const STAGE_ICONS: readonly string[] = ICONS;
 const STAGE_TARGET_USD = 35;
 const nearTarget = (card: PokemonCard) => Math.abs((marketOf(card) ?? Infinity) - STAGE_TARGET_USD);
 // v8 (09-30): the price guard (priceTrust) filters candidates; a cached list from before it can still hold a junk price.
-const cacheKey = (magic: boolean) => `stage:v8:${magic ? "magic" : "pokemon"}`;
+const cacheKey = (magic: boolean) => `stage:v9:${magic ? "magic" : "pokemon"}`;
 
 // v3–v6 (09-09): one slot was a full-art Pikachu near $35 (see git history).
 // v7 (09-30): Chris — "use popular cards, maybe update the pokemon card to
@@ -162,7 +164,7 @@ async function build(magic: boolean): Promise<StageCard[]> {
   }
   // No mirror here (fresh dev DB): the old upstream path.
   const [featured, showcase] = await Promise.all([getFeaturedCard(), getShowcaseCards(magic)]);
-  return finish([featured, ...showcase].filter((c): c is PokemonCard => !!c), magic);
+  return finish(await withOwnPictures([featured, ...showcase].filter((c): c is PokemonCard => !!c)), magic);
 }
 
 // ---- The other games' stages (09-30, Chris: "when you click a different
@@ -186,8 +188,8 @@ export const GAME_ICONS: Record<OtherGame, string[]> = {
   onepiece: ["Monkey.D.Luffy", "Roronoa Zoro", "Shanks", "Nami", "Trafalgar Law", "Portgas.D.Ace", "Boa Hancock", "Sanji", "Kaido", "Nico Robin"],
 };
 
-type GameRow = { name: string; set_name: string; collector_number: string; image_url: string; price_usd: number };
-const ROW_COLS = "name, set_name, collector_number, image_url, price_usd";
+type GameRow = { name: string; set_name: string; collector_number: string; image_url: string; own_image_url: string; price_usd: number };
+const ROW_COLS = "name, set_name, collector_number, image_url, own_image_url, price_usd";
 // Magic's price guard (priceTrust test 1, in SQL, shared with mtgShowcase): Scryfall's Cardmarket price is on the row,
 // so a TCGplayer price >= 5x it (EUR at 1.10; 4x under $100) is junk. A missing or sub-EUR 1 Cardmarket price is no referee.
 const MTG_REFEREE = MTG_REFEREE_SQL;
@@ -249,7 +251,7 @@ async function buildGame(game: OtherGame): Promise<StageCard[]> {
       const key = r.name.toLowerCase();
       if (seen.has(key)) continue;
       seen.add(key);
-      out.push({ name: r.name, setName: r.set_name, number: r.collector_number, imageUrl: large(r.image_url), price: r.price_usd });
+      out.push({ name: r.name, setName: r.set_name, number: r.collector_number, imageUrl: toPics(r.own_image_url || large(r.image_url)), price: r.price_usd });
       if (out.length === STAGE_CARDS) break;
     }
     if (out[0]) out[0].lead = true;
@@ -265,7 +267,8 @@ export async function getGameStageCards(game: GameId, now = Date.now()): Promise
   // v10 (09-30): One Piece pictures moved to TCGplayer scans (no SAMPLE stamp).
   // v13 (09-30): One Piece leads with the pinned clean P-055 (LEAD_PIN).
   // v14 (09-30): Magic rows pass the Cardmarket referee (MTG_REFEREE).
-  const key = `stage:v14:${game}`;
+  // v15 (10-13): our saved pictures (/pics) first.
+  const key = `stage:v15:${game}`;
   try {
     const row = (await db.prepare("SELECT payload, cached_at FROM card_cache WHERE key = ?").get(key)) as { payload: string; cached_at: number } | undefined;
     if (row && now - row.cached_at < STAGE_TTL_MS) {

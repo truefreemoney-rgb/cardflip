@@ -361,11 +361,11 @@ await jmtg("mtg-j3", "Step Mage", 90, [...Array.from({ length: 70 }, (_, i) => (
 for (const key of ["magic_public", "lorcana_public", "onepiece_public", "yugioh_public"]) await setSetting(key, "1");
 const stg = (name, setName, number, price, extra = {}) => ({ name, setName, number, imageUrl: `https://img.example/${encodeURIComponent(name)}.png`, price, ...extra });
 const STAGES = {
-  "stage:v8:pokemon": [stg("Charizard ex", "Obsidian Flames", "125", 48.5, { lead: true })],
-  "stage:v14:mtg": [stg("Sol Ring", "Commander Masters", "410", 32.1, { lead: true })],
-  "stage:v14:lorcana": [stg("Elsa", "The First Chapter", "42", 61, { lead: true })],
-  "stage:v14:onepiece": [stg("Portgas.D.Ace", "Premium Booster", "P-055", 75, { lead: true })],
-  "stage:v14:yugioh": [stg("Dark Magician", "Legend of Blue Eyes (Worldwide English)", "LOB-005", 55.25, { lead: true })],
+  "stage:v9:pokemon": [stg("Charizard ex", "Obsidian Flames", "125", 48.5, { lead: true })],
+  "stage:v15:mtg": [stg("Sol Ring", "Commander Masters", "410", 32.1, { lead: true })],
+  "stage:v15:lorcana": [stg("Elsa", "The First Chapter", "42", 61, { lead: true })],
+  "stage:v15:onepiece": [stg("Portgas.D.Ace", "Premium Booster", "P-055", 75, { lead: true })],
+  "stage:v15:yugioh": [stg("Dark Magician", "Legend of Blue Eyes (Worldwide English)", "LOB-005", 55.25, { lead: true })],
 };
 for (const [key, cards] of Object.entries(STAGES)) await db.prepare("INSERT OR REPLACE INTO card_cache (key, payload, cached_at) VALUES (?, ?, ?)").run(key, JSON.stringify(cards), Date.now());
 
@@ -577,7 +577,7 @@ check("a TCG game's guess is its popular stage card, with its catalog id and no 
 
 // Head to head in a TCG game: two popular cards at least 10% apart, the dearer wins.
 await tcg("lc-2", "lorcana", "Mickey Mouse", "TFC", "The First Chapter", "1", 40);
-await db.prepare("INSERT OR REPLACE INTO card_cache (key, payload, cached_at) VALUES (?, ?, ?)").run("stage:v14:lorcana", JSON.stringify([stg("Elsa", "The First Chapter", "42", 61, { lead: true }), stg("Mickey Mouse", "The First Chapter", "1", 40)]), Date.now());
+await db.prepare("INSERT OR REPLACE INTO card_cache (key, payload, cached_at) VALUES (?, ?, ?)").run("stage:v15:lorcana", JSON.stringify([stg("Elsa", "The First Chapter", "42", 61, { lead: true }), stg("Mickey Mouse", "The First Chapter", "1", 40)]), Date.now());
 const pL = await SOC.pair("lorcana", A);
 check("TCG head to head: by price, the dearer card wins, the verdict says so", [pL.byPrice, [pL.a.cardId, pL.b.cardId].sort(), [pL.a, pL.b][pL.winner].cardId, SOC.versusVerdict(pL), SOC.versusCaption("lorcana", pL).split("\n")[0].endsWith("Which is worth more?")], [true, ["lc-1", "lc-2"], "lc-1", "Elsa is worth more today: $61.00 to $40.00.", true]);
 check("Yu-Gi-Oh's caption says Yu-Gi-Oh without the exclamation mark", SOC.guessCaption("yugioh", [{ ...gL, name: "Dark Magician" }]).includes("Yu-Gi-Oh:") && !SOC.guessCaption("yugioh", [gL]).includes("!"), true);
@@ -596,7 +596,7 @@ const mixedDay = Array.from({ length: 6 }, (_, i) => addDays(A, i)).find((d) => 
 const gm = (await SOC.socialDrafts("pokemon", mixedDay)).find((d) => d.kind === "guess");
 check("a mixed guess: one card per game, filed by game for the no-repeat lists, one tag per game, the caption names each game", [gm.mixed, Object.keys(gm.featured).sort(), gm.hashtags, gm.title, gm.caption.split("\n")[0], gm.caption.split("\n").slice(2, 6).every((l) => /^(Pokémon|Lorcana|One Piece|Yu-Gi-Oh): /.test(l))], [true, ["lorcana", "onepiece", "pokemon", "yugioh"], ["PokemonTCG", "DisneyLorcana", "OPTCG", "Yugioh", "TCG"], "What's it worth? One card from each game", "What's it worth? One card from each game, market price today:", true]);
 check("the picture route's kind list knows the angles (the image is drawn from the same angleData)", (await import("node:fs")).readFileSync(new URL("../src/app/api/social/image/route.tsx", import.meta.url), "utf8").includes("...ANGLE_KINDS] as const"), true);
-await db.prepare("INSERT OR REPLACE INTO card_cache (key, payload, cached_at) VALUES (?, ?, ?)").run("stage:v14:lorcana", JSON.stringify(STAGES["stage:v14:lorcana"]), Date.now());
+await db.prepare("INSERT OR REPLACE INTO card_cache (key, payload, cached_at) VALUES (?, ?, ?)").run("stage:v15:lorcana", JSON.stringify(STAGES["stage:v15:lorcana"]), Date.now());
 
 if (failures) { console.log(`\n${failures} failing`); process.exit(1); }
 console.log("\nall green");

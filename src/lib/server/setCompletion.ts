@@ -4,6 +4,7 @@ import { cachedList } from "@/lib/server/listCache";
 import { judgeSeries, latestUsdWithTrust, loadTrustData } from "@/lib/server/priceTrustSite";
 import { displayNumber, headlinePrice, variantPrices } from "@/lib/cardPages";
 import { todayUtc } from "@/lib/priceSeries";
+import { toPics } from "@/lib/pics";
 import type { GameId } from "@/lib/types";
 
 /**
@@ -36,7 +37,10 @@ export interface MissingCard {
   number: string;
   /** How the number reads on the card: "#3/198", "LTR 187", "OP01-001". */
   label: string;
+  /** List tile, ours (/pics/...) once saved. */
   imageUrl: string;
+  /** The 500px picture, ours once saved. */
+  imageLarge: string;
   price: number | null;
 }
 
@@ -67,6 +71,7 @@ interface CatRow {
   number: string;
   label: string;
   imageUrl: string;
+  imageLarge: string;
 }
 
 interface SetCatalog {
@@ -103,6 +108,12 @@ async function ownedRows(userId: string, game: GameId): Promise<OwnedRow[]> {
     .all(userId, game)) as unknown as OwnedRow[];
 }
 
+/** Our saved copies first; the third-party link only for a card with no saved picture yet. */
+const pics = (r: { image_url: string; own_image_url: string; own_tile_url: string }) => ({
+  imageUrl: toPics(r.own_tile_url || r.own_image_url || r.image_url),
+  imageLarge: toPics(r.own_image_url || r.image_url),
+});
+
 /** Printed order: numeric part first ("2" before "10", "123a" after "123"), then the rest as text. */
 const byNumber = (a: CatRow, b: CatRow) => a.number.localeCompare(b.number, "en", { numeric: true }) || a.name.localeCompare(b.name);
 
@@ -110,32 +121,32 @@ async function buildCatalog(game: GameId, setKey: string): Promise<SetCatalog> {
   if (game === "pokemon") {
     const rows = (await db
       .prepare(
-        `SELECT id, name, local_id, image_url, set_release_date, set_card_count_official
+        `SELECT id, name, local_id, image_url, own_image_url, own_tile_url, set_release_date, set_card_count_official
            FROM en_cards WHERE set_id = ?
           ORDER BY CASE WHEN local_id GLOB '[0-9]*' THEN 0 ELSE 1 END, CAST(local_id AS INTEGER), local_id`,
       )
-      .all(setKey)) as unknown as { id: string; name: string; local_id: string; image_url: string; set_release_date: string | null; set_card_count_official: number | null }[];
+      .all(setKey)) as unknown as { id: string; name: string; local_id: string; image_url: string; own_image_url: string; own_tile_url: string; set_release_date: string | null; set_card_count_official: number | null }[];
     const printed = rows[0]?.set_card_count_official ?? null;
     return {
       releaseDate: rows[0]?.set_release_date ?? null,
       printed,
-      rows: rows.map((r) => ({ id: r.id, name: r.name, number: r.local_id, label: `#${r.local_id}${printed ? `/${printed}` : ""}`, imageUrl: r.image_url })),
+      rows: rows.map((r) => ({ id: r.id, name: r.name, number: r.local_id, label: `#${r.local_id}${printed ? `/${printed}` : ""}`, ...pics(r) })),
     };
   }
   if (game === "mtg") {
     const rows = (await db
       .prepare(
-        `SELECT c.id, c.name, c.collector_number, c.set_code, c.image_url, c.set_release_date, s.printed_size
+        `SELECT c.id, c.name, c.collector_number, c.set_code, c.image_url, c.own_image_url, c.own_tile_url, c.set_release_date, s.printed_size
            FROM mtg_cards c LEFT JOIN mtg_sets s ON s.code = c.set_code
           WHERE c.set_code = ? AND c.lang = 'en' AND c.image_url <> ''`,
       )
-      .all(setKey)) as unknown as { id: string; name: string; collector_number: string; set_code: string; image_url: string; set_release_date: string | null; printed_size: number | null }[];
+      .all(setKey)) as unknown as { id: string; name: string; collector_number: string; set_code: string; image_url: string; own_image_url: string; own_tile_url: string; set_release_date: string | null; printed_size: number | null }[];
     const out = rows.map((r) => ({
       id: r.id,
       name: r.name,
       number: r.collector_number,
       label: displayNumber("mtg", { number: r.collector_number, setCode: r.set_code.toUpperCase() }),
-      imageUrl: r.image_url,
+      ...pics(r),
     }));
     out.sort(byNumber);
     return { releaseDate: rows[0]?.set_release_date || null, printed: rows[0]?.printed_size ?? null, rows: out };
@@ -145,18 +156,18 @@ async function buildCatalog(game: GameId, setKey: string): Promise<SetCatalog> {
   const cut = setKey.indexOf("|");
   const rows = (await db
     .prepare(
-      `SELECT id, name, subtitle, collector_number, set_code, set_total, image_url, set_release_date
+      `SELECT id, name, subtitle, collector_number, set_code, set_total, image_url, own_image_url, own_tile_url, set_release_date
          FROM tcg_cards
         WHERE game = ? AND set_code = ? AND set_name = ? AND image_url <> ''
           AND (id NOT LIKE '%#%' OR id LIKE '%#promo' OR id LIKE '%#don')`,
     )
-    .all(game, setKey.slice(0, cut), setKey.slice(cut + 1))) as unknown as { id: string; name: string; subtitle: string; collector_number: string; set_code: string; set_total: number | null; image_url: string; set_release_date: string }[];
+    .all(game, setKey.slice(0, cut), setKey.slice(cut + 1))) as unknown as { id: string; name: string; subtitle: string; collector_number: string; set_code: string; set_total: number | null; image_url: string; own_image_url: string; own_tile_url: string; set_release_date: string }[];
   const out = rows.map((r) => ({
     id: r.id,
     name: r.subtitle ? `${r.name} - ${r.subtitle}` : r.name,
     number: r.collector_number,
     label: displayNumber(game, { number: r.collector_number, setTotal: r.set_total, setCode: r.set_code }),
-    imageUrl: r.image_url,
+    ...pics(r),
   }));
   out.sort(byNumber);
   return { releaseDate: rows[0]?.set_release_date || null, printed: rows[0]?.set_total ?? null, rows: out };
@@ -164,7 +175,7 @@ async function buildCatalog(game: GameId, setKey: string): Promise<SetCatalog> {
 
 /** One set's catalog, from card_cache for a day (an object wrapper: cachedList will not memo a bare empty list). */
 async function setCatalog(game: GameId, setKey: string): Promise<SetCatalog> {
-  return cachedList(`sets:cat:v2:${game}:${setKey}`, CAT_TTL_MS, () => buildCatalog(game, setKey));
+  return cachedList(`sets:cat:v3:${game}:${setKey}`, CAT_TTL_MS, () => buildCatalog(game, setKey));
 }
 
 /** Today's market per card id, guard applied: a flagged or missing price is absent from the map. */
@@ -186,7 +197,7 @@ async function marketPrices(game: GameId, ids: string[]): Promise<Map<string, nu
 
 const toMissing = (r: CatRow, prices: Map<string, number>): MissingCard => {
   const p = prices.get(r.id);
-  return { id: r.id, name: r.name, number: r.number, label: r.label, imageUrl: r.imageUrl, price: p != null && p > 0 ? round(p) : null };
+  return { id: r.id, name: r.name, number: r.number, label: r.label, imageUrl: r.imageUrl, imageLarge: r.imageLarge, price: p != null && p > 0 ? round(p) : null };
 };
 
 /** Every set of this game the seller has a card from, most complete first. */

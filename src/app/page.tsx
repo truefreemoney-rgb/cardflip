@@ -14,6 +14,7 @@ import DemoInventory from "@/components/DemoInventory";
 import PlanCard from "@/components/PlanCard";
 import { PRICE, SCANS } from "@/lib/pricing";
 import { getFeaturedCard, getShowcaseCards } from "@/lib/tcg";
+import { withOwnPictures } from "@/lib/server/cardPictures";
 import { GATED_GAMES, gamePublic, magicPublic } from "@/lib/server/settings";
 import { getGameStageCards, type StageCard } from "@/lib/server/stageCards";
 import { wallCards } from "@/lib/server/wallCards";
@@ -166,7 +167,7 @@ export default async function Home() {
   const gated = await Promise.all(GATED_GAMES.map(async (g) => ((await gamePublic(g)) ? g : null)));
   const games: GameId[] = ["pokemon", ...(["mtg", "lorcana", "onepiece", "yugioh"] as const).filter((g) => gated.includes(g))];
   const [featuredLive, showcaseMirror, catalogLabel, stages, stats] = await Promise.all([
-    getFeaturedCard(),
+    getFeaturedCard().then(async (c) => (c ? (await withOwnPictures([c]))[0] : null)),
     // The wall recipe (lib/wallMix.ts): 4 Pokémon, 2 Magic, 2 other games, each printing picked for its history.
     wallCards(games),
     catalogSizeLabel(),
@@ -177,7 +178,7 @@ export default async function Home() {
   ]);
   const gameCards = stages.filter((s): s is { game: GameId; card: StageCard } => !!s.card);
   // No mirrors here (fresh dev DB): the old upstream showcase, so the page still has a wall to show.
-  const showcaseLive = showcaseMirror.length >= 8 ? showcaseMirror : await getShowcaseCards(magic);
+  const showcaseLive = showcaseMirror.length >= 8 ? showcaseMirror : await withOwnPictures(await getShowcaseCards(magic));
 
   // Data honesty: the hero card and the wall show real prices, so a card whose market the price guard flags
   // (lib/server/priceTrustSite.ts) is dropped BEFORE the pick, exactly as the stage strip does. Fails open.

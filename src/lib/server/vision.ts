@@ -1037,8 +1037,8 @@ export interface TiebreakResult {
 async function catalogPicture(id: string, game: GameId): Promise<{ base64: string; mediaType: ImageMediaType } | null> {
   let url: string | null = null;
   if (game === "mtg") {
-    const { mtgCardById } = await import("@/lib/server/mtgCards");
-    url = (await mtgCardById(id))[0]?.imageLarge ?? null;
+    const { mtgReferenceImage } = await import("@/lib/server/mtgCards");
+    url = await mtgReferenceImage(id);
   } else if (game === "lorcana" || game === "onepiece" || game === "yugioh") {
     const { tcgReferenceImage } = await import("@/lib/server/tcgCards");
     url = await tcgReferenceImage(id);

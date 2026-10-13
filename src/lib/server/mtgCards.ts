@@ -34,6 +34,7 @@ interface MtgCardRow {
   set_release_date: string;
   image_url: string;
   /** Our stored list tile (10-12, scripts/save-pictures.mjs); '' until saved. */
+  own_image_url: string;
   own_tile_url: string;
   rarity: string;
   type_line: string;
@@ -60,7 +61,7 @@ interface MtgCardRow {
 }
 
 const CARD_COLUMNS = `id, name, set_code, set_name, collector_number, set_release_date,
-                      image_url, own_tile_url, rarity, type_line, finishes,
+                      image_url, own_image_url, own_tile_url, rarity, type_line, finishes,
                       price_usd, price_usd_foil, price_usd_etched, price_eur, price_eur_foil,
                       artist, frame, border_color, frame_effects, promo_types, full_art, textless, flavor_name, attraction_lights`;
 
@@ -134,9 +135,9 @@ function toCard(row: MtgCardRow): PokemonCard {
     setSeries: "",
     number: row.collector_number,
     rarity: row.rarity ? row.rarity[0].toUpperCase() + row.rarity.slice(1) : null,
-    // Thumbnails from our store; imageLarge stays Scryfall's scan, the picture tiebreak (vision.ts catalogPicture) compares against it.
-    imageSmall: toPics(row.own_tile_url || row.image_url),
-    imageLarge: largeImage(row.image_url),
+    // Both pictures from our store; the scanner's picture tiebreak keeps Scryfall's scan (mtgReferenceImage).
+    imageSmall: toPics(row.own_tile_url || row.own_image_url || row.image_url),
+    imageLarge: toPics(row.own_image_url || largeImage(row.image_url)),
     prices: pricesOf(row),
     englishName: null,
     setTotal: null,
@@ -324,6 +325,12 @@ export async function mtgCardById(id: string): Promise<PokemonCard[]> {
     .prepare(`SELECT ${CARD_COLUMNS} FROM mtg_cards WHERE id = ?`)
     .get(id)) as MtgCardRow | undefined;
   return row ? withUsd([toCard(row)]) : [];
+}
+
+/** Scryfall's large scan for the scanner's picture tiebreak (vision.ts catalogPicture), unchanged by self-hosting. */
+export async function mtgReferenceImage(id: string): Promise<string | null> {
+  const row = (await db.prepare("SELECT image_url FROM mtg_cards WHERE id = ?").get(id)) as { image_url: string } | undefined;
+  return row?.image_url ? largeImage(row.image_url) : null;
 }
 
 export async function searchMtgCardsLocal(
