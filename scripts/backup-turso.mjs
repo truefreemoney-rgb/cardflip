@@ -105,11 +105,19 @@ for (const t of tables) {
   let copied = 0;
   const writePage = (rows, cols) => {
     if (!insert) {
-      insert = local.prepare(`INSERT INTO ${t.name} (${cols.join(", ")}) VALUES (${cols.map(() => "?").join(", ")})`);
+      // OR REPLACE (10-13): the live site keeps writing during the copy; a row it REPLACEs gets a new
+      // rowid and can arrive twice, so the later (newer) copy wins instead of a UNIQUE error.
+      insert = local.prepare(`INSERT OR REPLACE INTO ${t.name} (${cols.join(", ")}) VALUES (${cols.map(() => "?").join(", ")})`);
     }
     local.exec("BEGIN");
-    for (const row of rows) insert.run(...cols.map((c) => coerce(row[c])));
-    local.exec("COMMIT");
+    try {
+      for (const row of rows) insert.run(...cols.map((c) => coerce(row[c])));
+      local.exec("COMMIT");
+    } catch (err) {
+      local.exec("ROLLBACK");
+      err.local = true;
+      throw err;
+    }
     copied += rows.length;
     process.stdout.write(`\r${t.name}: ${copied}/${total}`);
   };
@@ -127,6 +135,7 @@ for (const t of tables) {
       if (page.rows.length < PAGE) break;
     }
   } catch (err) {
+    if (err.local) throw err;
     // WITHOUT ROWID (or rowid shadowed) — fall back to plain OFFSET pages.
     console.warn(`\n${t.name}: rowid pagination failed (${err.message}), using OFFSET`);
     for (let off = copied; ; off += PAGE) {
@@ -137,7 +146,10 @@ for (const t of tables) {
     }
   }
   const localCount = local.prepare(`SELECT COUNT(*) AS n FROM ${t.name}`).get().n;
-  const ok = Number(localCount) === total;
+  // card_cache is a scanner cache the live site trims and refills all day: a few rows of drift
+  // during the copy is normal (10-13: 41,564 vs 41,565 failed the whole backup). Every other table stays exact.
+  const drift = Math.abs(Number(localCount) - total);
+  const ok = drift === 0 || (t.name === "card_cache" && drift <= Math.max(10, total * 0.001));
   if (!ok) problems.push(`${t.name}: remote ${total} vs local ${localCount}`);
   process.stdout.write(`\r${t.name}: ${localCount}/${total}${ok ? " ok" : " MISMATCH"}\n`);
   grandTotal += total;
