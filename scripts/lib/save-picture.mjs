@@ -41,6 +41,11 @@ const SOURCE_LIMITS = {
   // TCGplayer's CDN publishes no limit either; a 403 there means "no scan of
   // that product", not a block (memory: catalog picture gaps).
   "tcgplayer-cdn.tcgplayer.com": { gapMs: 300, daily: 5000 },
+  // TCGdex publishes no limit (checked 10-12): nginx, immutable year-long cache
+  // headers, no rate headers. Pokémon's main source, 20k pictures.
+  "assets.tcgdex.net": { gapMs: 150, daily: 25000 },
+  // pokemontcg.io fails ~half its API calls (enCards.ts); its image host gets the cautious default plus a gap.
+  "images.pokemontcg.io": { gapMs: 500, daily: 2000 },
 };
 const DEFAULT_LIMIT = { gapMs: 500, daily: 2000 };
 
@@ -125,8 +130,9 @@ async function blobClient() {
  * Fetch, resize and store one card's picture. Returns our two URLs plus
  * sizes. `dry` does everything except the upload (URLs come back empty).
  */
-export async function savePicture({ game, id, src, dry = false }) {
-  const buf = await fetchSourcePicture(src);
+export async function savePicture({ game, id, src, fetchUrl = src, dry = false }) {
+  // fetchUrl: a sharper copy of the same picture (Pokémon: TCGdex high.webp for a stored low.webp); src names the paths.
+  const buf = await fetchSourcePicture(fetchUrl);
   const { page, tile } = await makeCopies(buf);
   const paths = blobPaths(game, id, src);
   if (dry) return { url: "", tile: "", bytes: { source: buf.length, page: page.length, tile: tile.length }, page, tileBuf: tile };

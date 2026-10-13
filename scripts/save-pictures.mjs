@@ -10,6 +10,8 @@
 // image_url keeps the source link (the weekly sync still writes it), so a
 // row with own_image_src == image_url is done and skipped. Readers prefer
 // own_* and fall back to image_url until a game is fully backfilled.
+// --game pokemon reads en_cards instead (same three columns); its TCGdex
+// low.webp links are saved from the high.webp twin.
 //
 //   node --env-file=.env.local scripts/save-pictures.mjs --game lorcana --dry --limit 12 --sheet out.png
 //   node --env-file=.env.local scripts/save-pictures.mjs --game lorcana [--limit N] [--prod]
@@ -35,15 +37,21 @@ const dry = args.includes("--dry");
 const sheet = opt("--sheet", "");
 const prodFlag = args.includes("--prod");
 const WORKERS = Number(opt("--workers", "4")) || 4;
-if (!/^(lorcana|onepiece|yugioh)$/.test(game)) {
-  console.error("usage: --game lorcana|onepiece|yugioh [--limit N] [--dry] [--sheet out.png] [--prod]");
+if (!/^(lorcana|onepiece|yugioh|pokemon)$/.test(game)) {
+  console.error("usage: --game lorcana|onepiece|yugioh|pokemon [--limit N] [--dry] [--sheet out.png] [--prod]");
   process.exit(2);
 }
 
 const db = new DatabaseSync(process.env.CARDFLIP_DB_PATH ?? path.join(process.cwd(), "data", "cardflip.db"));
+// Pokémon lives in its own table (en_cards, 10-12): same three columns, its own set / number names.
+const T = game === "pokemon"
+  ? { table: "en_cards", where: "1 = 1", set: "set_id", num: "local_id", args: [] }
+  : { table: "tcg_cards", where: "game = ?", set: "set_code", num: "collector_number", args: [game] };
+// TCGdex rows store the small low.webp; the saved copies are made from its high.webp twin.
+const fetchUrlOf = (src) => (/^https:\/\/assets\.tcgdex\.net\/.*\/low\.webp$/.test(src) ? src.replace(/\/low\.webp$/, "/high.webp") : src);
 const COLUMNS = ["own_image_url TEXT NOT NULL DEFAULT ''", "own_tile_url TEXT NOT NULL DEFAULT ''", "own_image_src TEXT NOT NULL DEFAULT ''"];
-const have = new Set(db.prepare("PRAGMA table_info(tcg_cards)").all().map((c) => c.name));
-for (const col of COLUMNS) if (!have.has(col.split(" ")[0])) db.exec(`ALTER TABLE tcg_cards ADD COLUMN ${col}`);
+const have = new Set(db.prepare(`PRAGMA table_info(${T.table})`).all().map((c) => c.name));
+for (const col of COLUMNS) if (!have.has(col.split(" ")[0])) db.exec(`ALTER TABLE ${T.table} ADD COLUMN ${col}`);
 
 let prod = null;
 if (prodFlag && !dry) {
@@ -52,7 +60,7 @@ if (prodFlag && !dry) {
   prod = createClient({ url: cfg.dbUrl, authToken: cfg.dbToken });
   for (const col of COLUMNS) {
     try {
-      await prod.execute(`ALTER TABLE tcg_cards ADD COLUMN ${col}`);
+      await prod.execute(`ALTER TABLE ${T.table} ADD COLUMN ${col}`);
     } catch (err) {
       if (!/duplicate column/i.test(String(err?.message ?? err))) throw err;
     }
@@ -61,16 +69,16 @@ if (prodFlag && !dry) {
 
 const rows = db
   .prepare(
-    `SELECT id, name, set_code, collector_number, image_url, own_image_url, own_tile_url, own_image_src
-       FROM tcg_cards WHERE game = ? AND image_url <> '' AND own_image_src <> image_url
-      ORDER BY set_release_date DESC, set_code, collector_number${limit ? ` LIMIT ${limit}` : ""}`,
+    `SELECT id, name, ${T.set} AS set_code, ${T.num} AS collector_number, image_url, own_image_url, own_tile_url, own_image_src
+       FROM ${T.table} WHERE ${T.where} AND image_url <> '' AND own_image_src <> image_url
+      ORDER BY set_release_date DESC, ${T.set}, ${T.num}${limit ? ` LIMIT ${limit}` : ""}`,
   )
-  .all(game);
-const total = db.prepare("SELECT COUNT(*) AS n FROM tcg_cards WHERE game = ? AND image_url <> ''").get(game).n;
+  .all(...T.args);
+const total = db.prepare(`SELECT COUNT(*) AS n FROM ${T.table} WHERE ${T.where} AND image_url <> ''`).get(...T.args).n;
 console.log(`${game}: ${rows.length} of ${total} pictures to save${dry ? " (DRY, nothing uploaded or written)" : ""}${prod ? ", prod too" : ""}`);
 
-const setRow = db.prepare("UPDATE tcg_cards SET own_image_url = ?, own_tile_url = ?, own_image_src = ? WHERE id = ?");
-const PROD_SQL = "UPDATE tcg_cards SET own_image_url = ?, own_tile_url = ?, own_image_src = ? WHERE id = ?";
+const PROD_SQL = `UPDATE ${T.table} SET own_image_url = ?, own_tile_url = ?, own_image_src = ? WHERE id = ?`;
+const setRow = db.prepare(PROD_SQL);
 const prodStmts = [];
 const tiles = [];
 const bytes = { source: 0, page: 0, tile: 0 };
@@ -90,7 +98,7 @@ async function worker() {
     const row = rows[next++];
     if (!row) return;
     try {
-      const saved = await savePicture({ game, id: row.id, src: row.image_url, dry });
+      const saved = await savePicture({ game, id: row.id, src: row.image_url, fetchUrl: fetchUrlOf(row.image_url), dry });
       bytes.source += saved.bytes.source;
       bytes.page += saved.bytes.page;
       bytes.tile += saved.bytes.tile;

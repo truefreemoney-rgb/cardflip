@@ -34,12 +34,15 @@ interface EnCardRow {
   local_id: string;
   set_release_date: string;
   image_url: string;
+  /** Our stored copies (10-12, scripts/save-pictures.mjs); '' until saved. */
+  own_image_url: string;
+  own_tile_url: string;
   set_card_count_official: number | null;
   set_code: string;
 }
 
 /** Every column the ranking needs, in one place — the two queries share it. */
-const CARD_COLUMNS = `id, name, set_name, local_id, set_release_date, image_url,
+const CARD_COLUMNS = `id, name, set_name, local_id, set_release_date, image_url, own_image_url, own_tile_url,
                       set_card_count_official, set_code`;
 
 function toCard(row: EnCardRow): PokemonCard {
@@ -50,8 +53,8 @@ function toCard(row: EnCardRow): PokemonCard {
     setSeries: "",
     number: row.local_id,
     rarity: null,
-    imageSmall: row.image_url,
-    imageLarge: row.image_url.replace("/low.webp", "/high.webp"),
+    imageSmall: row.own_tile_url || row.own_image_url || row.image_url,
+    imageLarge: row.own_image_url || row.image_url.replace("/low.webp", "/high.webp"),
     prices: [],
     englishName: null,
     setTotal: row.set_card_count_official,

@@ -198,7 +198,7 @@ interface CatalogRow {
   rarity: string | null;
   variant: string | null;
   image_url: string;
-  /** Our stored copies (tcg_cards only, 10-12): preferred over image_url when set. */
+  /** Our stored copies (tcg_cards and en_cards, 10-12): preferred over image_url when set. */
   own_image_url?: string;
   own_tile_url?: string;
   price_eur?: number | null;
@@ -230,7 +230,7 @@ function factsOf(game: GameId, row: CatalogRow, setSlug: string): CardFacts {
     release: row.release ?? "",
     rarity,
     tags: printingTags(game, { id: row.id, rarity: game === "yugioh" ? row.rarity : null, variant: row.variant }),
-    image: game === "mtg" ? largeImage(row.image_url) : game === "pokemon" ? row.image_url.replace("/low.webp", "/high.webp") : row.own_image_url || row.image_url,
+    image: game === "mtg" ? largeImage(row.image_url) : game === "pokemon" ? row.own_image_url || row.image_url.replace("/low.webp", "/high.webp") : row.own_image_url || row.image_url,
     tile: row.own_tile_url || row.own_image_url || "",
   };
 }
@@ -247,7 +247,7 @@ export async function loadCardRecord(game: GameId, rawKey: string): Promise<Card
     row = (await db
       .prepare(
         `SELECT id, name, set_id AS set_key, set_name, set_code, local_id AS number, set_card_count_official AS set_total,
-                set_release_date AS release, image_url, NULL AS rarity, NULL AS variant
+                set_release_date AS release, image_url, own_image_url, own_tile_url, NULL AS rarity, NULL AS variant
            FROM en_cards WHERE id = ?`,
       )
       .get(key)) as CatalogRow | undefined;
@@ -424,7 +424,7 @@ export interface SetCard {
 /** The columns every list read selects, per catalog table, shaped as a CatalogRow. */
 const LIST_SELECT = {
   pokemon: `SELECT id, name, set_id AS set_key, set_name, set_code, local_id AS number, set_card_count_official AS set_total,
-                   set_release_date AS release, image_url, NULL AS rarity, NULL AS variant FROM en_cards`,
+                   set_release_date AS release, image_url, own_image_url, own_tile_url, NULL AS rarity, NULL AS variant FROM en_cards`,
   mtg: `SELECT id, name, set_code AS set_key, set_name, set_code, collector_number AS number, NULL AS set_total,
                set_release_date AS release, image_url, rarity, NULL AS variant FROM mtg_cards`,
   tcg: `SELECT id, name, subtitle, set_code || '|' || set_name AS set_key, set_name, set_code, collector_number AS number, set_total,
@@ -532,7 +532,7 @@ interface SetStandings {
 
 async function setStandings(game: GameId, set: SetEntry): Promise<SetStandings> {
   try {
-    return await cachedList(`seo:setrank:v4:${game}:${set.key}`, TOP_TTL_MS, async () => {
+    return await cachedList(`seo:setrank:v5:${game}:${set.key}`, TOP_TTL_MS, async () => {
       const cards = (await loadSetCards(game, set)).filter((c) => c.price != null && c.price >= indexFloorUsd(game) && !c.unverified && !c.stale);
       const prices = cards.map((c) => c.price as number).sort((a, b) => a - b);
       const mid = prices.length >> 1;

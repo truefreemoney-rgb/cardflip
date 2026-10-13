@@ -877,6 +877,11 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
       "set_card_count_official INTEGER",
       "set_card_count_total INTEGER",
       "set_code TEXT NOT NULL DEFAULT ''",
+      // Our own picture copies, as on tcg_cards (10-12). image_url keeps the TCGdex low.webp path
+      // (set logos are derived from it, lib/grading.ts).
+      "own_image_url TEXT NOT NULL DEFAULT ''",
+      "own_tile_url TEXT NOT NULL DEFAULT ''",
+      "own_image_src TEXT NOT NULL DEFAULT ''",
     ],
   ],
   [
