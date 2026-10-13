@@ -375,3 +375,5 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 
 - [ ] Stand-ins: a new card with no scan shows another printing's picture (own_image_src 'standin:<id>'), and the night its own scan appears it switches (tested on a DB copy 10-13: borrow, keep on retry, replace, stand-in's files kept). /admin/prices lists cards still borrowing 2+ weeks after release.
 
+- [ ] Old Yu-Gi-Oh borrowers retry nightly (sync-yugioh no longer repoints dead links, 10-13): first run already swapped 186 to real TCGplayer scans (99 from the old dead list, sheet checked by eye, all clean BETB scans); 233 still 403 keep their borrowed copy. After tonight /admin/prices Yu-Gi-Oh "borrowing" ~233 and falling over time.
+

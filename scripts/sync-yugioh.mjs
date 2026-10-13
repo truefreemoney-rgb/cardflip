@@ -13,7 +13,6 @@
 import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
 import path from "node:path";
-import { deadPictureStandIns, ownPictures } from "./lib/deadPictureStandIns.mjs";
 
 const API = "https://tcgcsv.com/tcgplayer/2";
 const HEADERS = { "User-Agent": "CardFlip/1.0 (+https://cardflip.io)", Accept: "application/json" };
@@ -127,18 +126,10 @@ if (!failed) {
   if (gone) console.log(`  ${gone} rows TCGplayer no longer lists removed`);
 }
 db.exec("COMMIT");
-// TCGplayer has no scan for ~1,700 of these products (its CDN answers 403):
-// they show another printing of the same card (10-01). The dead list is
-// refreshed by scripts/sweep-picture-links.mjs.
-const deadFile = path.join(process.cwd(), "scripts", "dead-pictures-yugioh.json");
-if (fs.existsSync(deadFile)) {
-  const standIns = deadPictureStandIns(db.prepare("SELECT id, name, variant, image_url, set_release_date FROM tcg_cards WHERE game = 'yugioh'").all(), new Set(JSON.parse(fs.readFileSync(deadFile, "utf8"))), ownPictures("yugioh"));
-  const repoint = db.prepare("UPDATE tcg_cards SET image_url = ? WHERE id = ?");
-  db.exec("BEGIN");
-  for (const [id, url] of standIns) repoint.run(url, id);
-  db.exec("COMMIT");
-  console.log(`  ${standIns.size} dead pictures show another printing`);
-}
+// TCGplayer has no scan for some products (its CDN answers 403). Until 10-13 the sync pointed those rows at
+// another printing's link (dead-pictures-yugioh.json), so they never tried their own scan again. Now every row
+// keeps its OWN link: scripts/save-pictures.mjs (nightly) tries it, keeps the saved borrowed copy while it
+// fails (or gives a new card a stand-in), and swaps in the real scan the night TCGplayer has one.
 // Exact printings TCGplayer has no scan of, by row id -> Yugipedia scan (10-13: new sets whose
 // stand-in was itself dead, e.g. LEDD Dark Magician Girl borrowed the JPP card's missing picture).
 // save-pictures.mjs copies the source into our Blob; it is never shown from Yugipedia.

@@ -11,16 +11,17 @@ const c = createClient({ url: creds.dbUrl, authToken: creds.dbToken });
 const one = async (sql, args = []) => Number((await c.execute({ sql, args })).rows[0]?.n ?? 0);
 const games = {};
 const borrowing = [];
+const BORROWING = "(own_image_src LIKE 'standin:%' OR (own_image_url <> '' AND image_url <> '' AND own_image_src <> image_url))";
 const cutoff = new Date(Date.now() - 14 * 86400_000).toISOString().slice(0, 10);
 const count = async (game, table, where = "1", args = []) => {
   games[game] = {
     cards: await one(`SELECT COUNT(*) AS n FROM ${table} WHERE ${where}`, args),
     noOwnPicture: await one(`SELECT COUNT(*) AS n FROM ${table} WHERE ${where} AND COALESCE(own_image_url, '') = ''`, args),
-    // save-pictures.mjs marks a borrowed picture own_image_src = "standin:<id>" and retries it nightly.
-    standIns: await one(`SELECT COUNT(*) AS n FROM ${table} WHERE ${where} AND own_image_src LIKE 'standin:%'`, args),
+    // Borrowing = a new card's stand-in (own_image_src "standin:<id>") or an older card whose saved copy is not of its own link (10-13: the old dead-list stand-ins); save-pictures.mjs retries both nightly.
+    standIns: await one(`SELECT COUNT(*) AS n FROM ${table} WHERE ${where} AND ${BORROWING}`, args),
   };
   const old = await c.execute({
-    sql: `SELECT name, set_name AS "set", set_release_date AS released FROM ${table} WHERE ${where} AND own_image_src LIKE 'standin:%' AND set_release_date <> '' AND set_release_date <= ? ORDER BY set_release_date LIMIT 40`,
+    sql: `SELECT name, set_name AS "set", set_release_date AS released FROM ${table} WHERE ${where} AND ${BORROWING} AND set_release_date <> '' AND set_release_date <= ? ORDER BY set_release_date LIMIT 40`,
     args: [...args, cutoff],
   });
   for (const r of old.rows) borrowing.push({ game, name: String(r.name), set: String(r.set ?? ""), released: String(r.released ?? "").slice(0, 10) });
