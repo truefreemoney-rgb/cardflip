@@ -20,12 +20,16 @@ type CatalogRun = {
   games: Record<string, { cards: number; noOwnPicture: number; standIns?: number }>;
   /** Cards still showing another printing's picture 14+ days after release (FYI: retried nightly, no chore). */
   borrowing?: { game: string; name: string; set: string; released: string }[];
+  /** Added on read: no run in over 36 h (the PC was off or the task failed to start). */
+  stale?: boolean;
 };
 /** The PC's nightly catalog run (scripts/catalog-sync.cmd -> catalog-nightly-record.mjs), null before the first one. */
 async function lastCatalogRun(): Promise<CatalogRun | null> {
   try {
     const row = (await db.prepare("SELECT value FROM price_history_meta WHERE key = 'catalog_nightly'").get()) as { value: string } | undefined;
-    return row ? (JSON.parse(row.value) as CatalogRun) : null;
+    if (!row) return null;
+    const run = JSON.parse(row.value) as CatalogRun;
+    return { ...run, stale: Date.now() - run.at > 36 * 3600_000 };
   } catch {
     return null;
   }
@@ -130,7 +134,7 @@ export default async function AdminPricesPage() {
                   return `${GAME_LABEL[g] ?? g} ${num(v.cards)}${notes.length ? ` (${notes.join(", ")})` : ""}`;
                 })
                 .join(" · ")}
-              {Date.now() - catalog.at > 36 * 3600_000 ? <span className="text-amber-300"> · no run in over a day, is the PC on?</span> : null}
+              {catalog.stale ? <span className="text-amber-300"> · no run in over a day, is the PC on?</span> : null}
             </>
           ) : (
             "no run yet."
