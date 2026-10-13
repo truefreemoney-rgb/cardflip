@@ -223,5 +223,13 @@ check("$749.98, $1,249.94 (x4.94) and $2,500.99 are not", [isRoundPrice(749.98),
 check("under $100 never round", isRoundPrice(99.99), false);
 check("thresholds are the calibrated ones", [PRICE_TRUST.refExtreme, PRICE_TRUST.refClear, PRICE_TRUST.spikeRise, PRICE_TRUST.spikeHold, PRICE_TRUST.siblingFail, PRICE_TRUST.stuckDays, PRICE_TRUST.staleOldDays, PRICE_TRUST.softNeed, PRICE_TRUST.softNeedBig], [10, 3, 3, 3, 3, 45, 30, 2, 1]);
 
+// 10-13: a copy listed near the price outranks a Cardmarket gap (Magic foil promos); far from it, the gap still hides.
+{
+  const s = expand([[60, 40]]);
+  check("cardmarket 13.6x hides with no listing", priceTrust({ to: 60, prices: s, refEur: 4 }).ok, false);
+  check("a $50 listing beside a $60 price takes the gap away", priceTrust({ to: 60, prices: s, refEur: 4, listingLowUsd: 50 }).ok, true);
+  check("a $20 listing does not", priceTrust({ to: 60, prices: s, refEur: 4, listingLowUsd: 20 }).ok, false);
+}
+
 if (failures) { console.log(`\n${failures} failing`); process.exit(1); }
 console.log("\nall green");

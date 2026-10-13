@@ -2,7 +2,7 @@ import { createGunzip } from "node:zlib";
 import { createInterface } from "node:readline";
 import { Readable } from "node:stream";
 import { streamJsonObjects } from "@/lib/server/jsonStream";
-import { guardFills, readMtgGapRows, readOracleMaxUsd, tcgplayerFills } from "@/lib/server/mtgTcgplayerFill";
+import { allListingLows, guardFills, readMtgGapRows, readOracleMaxUsd, tcgplayerFills } from "@/lib/server/mtgTcgplayerFill";
 import { CARDTRADER_SOURCE, cardtraderMtgPrices } from "@/lib/server/cardtrader";
 import { PRICE_TRUST } from "@/lib/server/priceTrust";
 import { decodePrices, encodePrices, setDay, todayUtc } from "@/lib/priceSeries";
@@ -44,6 +44,7 @@ const MIN_TRACKED_USD = 0.05;
 interface ScryfallCard {
   id: string;
   lang?: string;
+  tcgplayer_id?: number;
   prices?: { usd?: string | null; usd_foil?: string | null; usd_etched?: string | null; eur?: string | null; eur_foil?: string | null };
 }
 
@@ -66,6 +67,8 @@ export interface RefreshResult {
   tcgplayerFilled?: number;
   /** Rows still blank that took CardTrader's cheapest NM listing. */
   cardtraderFilled?: number;
+  /** Prices over 1.5x the cheapest live listing that took the listing (capToListing). */
+  cappedToListing?: number;
 }
 
 /**
@@ -106,6 +109,43 @@ export function planMtgWrites(
   return { kept, mirrorRows, upserts, seriesSkipped };
 }
 
+/** From this price up a printing's cheapest live listing is kept (listing_lows) and caps it. */
+export const CAP_MIN_USD = 10;
+
+/**
+ * The cheapest-listing cap (10-13, Chris "yes go ahead with both foil fixes"). TCGplayer's market price is its last sale,
+ * and a foil that rarely sells keeps an old high one while copies sit listed far cheaper: 741 of the 837 Magic prices the
+ * site hid that day were foils, 430 of them over 1.5x the cheapest copy for sale. A card can't be worth more than a copy
+ * anyone can buy now, so a price over PRICE_TRUST.staleOverLow x that listing becomes the listing (eBay foil solds,
+ * 10-13 sample: Cromat $155.59 -> $57.30 vs $65-$68 sold, Metamorphic Wurm $68.92 -> $1.30 vs $2-$8, Arena Swamp
+ * $78.77 -> $35.75 vs $40-$49). The listing can be a played copy, so the cap runs a little low on mint, never high.
+ * Mutates the rows; returns how many prices were capped and the listing_lows rows to store. Pure.
+ */
+export function capToListing(
+  rows: MtgPriceRow[],
+  tcgIdOf: Map<string, number>,
+  lowsByProduct: Map<number, Record<string, number>>,
+): { capped: number; lows: ListingLow[] } {
+  let capped = 0;
+  const lows: ListingLow[] = [];
+  for (const r of rows) {
+    if (r.source === CARDTRADER_SOURCE) continue;
+    const l = lowsByProduct.get(tcgIdOf.get(r.id) ?? -1);
+    if (!l) continue;
+    for (const [field, variant, sub] of [["usd", "nonfoil", "Normal"], ["foil", "foil", "Foil"]] as const) {
+      const price = r[field];
+      const low = l[sub];
+      if (price == null || price < CAP_MIN_USD || low == null) continue;
+      lows.push({ cardId: r.id, game: "mtg", variant, lowUsd: low });
+      if (price >= PRICE_TRUST.staleOverLow * low) { // same edge as test 4: exactly 1.5x is too high
+        r[field] = low;
+        capped++;
+      }
+    }
+  }
+  return { capped, lows };
+}
+
 /** A $100+ price whose last value has stood unchanged for PRICE_TRUST.stuckDays calendar days or more (the guard's test 4). */
 function isStuckDear(prices: (number | null)[]): boolean {
   let i = prices.length - 1;
@@ -137,10 +177,12 @@ export async function refreshMtgPricesFromBulk(day = todayUtc()): Promise<Refres
   // then everything is diffed in memory and written back in multi-row
   // batches — per-row statements were ~200k round trips on Turso.
   const pending: MtgPriceRow[] = [];
+  const tcgIdOf = new Map<string, number>();
   const onCard = (obj: unknown) => {
     const c = obj as ScryfallCard;
     if (!c?.id || c.lang !== "en" || !c.prices) return;
     scanned++;
+    if (c.tcgplayer_id) tcgIdOf.set(c.id, c.tcgplayer_id);
     pending.push({
       id: c.id,
       usd: num(c.prices.usd), foil: num(c.prices.usd_foil), etched: num(c.prices.usd_etched),
@@ -211,6 +253,16 @@ export async function refreshMtgPricesFromBulk(day = todayUtc()): Promise<Refres
       console.warn("mtg cardtrader fill:", err instanceof Error ? err.message : err);
     }
   }
+  // Cap at the cheapest live listing and keep that listing for the trust check (capToListing). A failure only skips it.
+  let cappedToListing = 0;
+  try {
+    const r = capToListing(pending.filter((c) => mirror.has(c.id)), tcgIdOf, await allListingLows());
+    cappedToListing = r.capped;
+    const have = new Set(lows.map((l) => `${l.cardId}|${l.variant}`));
+    lows.push(...r.lows.filter((l) => !have.has(`${l.cardId}|${l.variant}`)));
+  } catch (err) {
+    console.warn("mtg listing cap:", err instanceof Error ? err.message : err);
+  }
   const plan = planMtgWrites(pending, mirror, existingSeries, day, ctSeries);
   await updateMtgPriceColumns(plan.mirrorRows);
   await upsertSeriesRows(plan.upserts);
@@ -240,5 +292,6 @@ export async function refreshMtgPricesFromBulk(day = todayUtc()): Promise<Refres
     seriesSkipped: plan.seriesSkipped,
     tcgplayerFilled,
     cardtraderFilled,
+    cappedToListing,
   };
 }

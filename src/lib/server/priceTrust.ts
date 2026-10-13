@@ -177,7 +177,7 @@ export interface PriceTrustInput {
   vintage?: boolean;
   /** The price is printed as the OLD side of a move (or another past reading): judged strictest, see the header. */
   old?: boolean;
-  /** TCGplayer's cheapest live listing (USD, any condition) for this printing, when fresh (listing_lows). Only read by test 4. */
+  /** TCGplayer's cheapest live listing (USD, any condition) for this printing, when fresh (listing_lows). Read by test 1 (a listing near the price outranks a Cardmarket gap) and test 4. */
   listingLowUsd?: number | null;
   /** Pokemon, a non-default printing that is the default's highest sibling: the default's price (test 3b). */
   anchorFor?: number | null;
@@ -370,7 +370,11 @@ export function priceTrust({ to, prices, siblings = [], refEur = null, refAltEur
   let refRatio: number | null = null;
   const primary = refEur != null && refEur >= T.refMinEur ? refEur : null;
   const ref = primary == null ? null : nearestRef(to, [primary, refAltEur]);
-  if (ref != null) {
+  // 10-13: a copy listed on TCGplayer near the price (within staleOverLow either way) outranks a Cardmarket gap. Same market,
+  // live today; Cardmarket is often another printing's figure (Magic promos, foils): 271 hidden Magic foils had a copy listed
+  // at their price. Only the gap goes: the series tests below still run.
+  const listedNear = listingLowUsd != null && listingLowUsd > 0 && to <= T.staleOverLow * listingLowUsd && to * T.staleOverLow >= listingLowUsd;
+  if (ref != null && !listedNear) {
     refRatio = to / (ref * T.eurToUsd);
     if (refRatio >= T.refExtreme) return wrong(`cardmarket ${x(refRatio)}`);
     if (refRatio < T.refClear) {

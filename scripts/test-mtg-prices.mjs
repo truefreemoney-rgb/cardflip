@@ -143,4 +143,20 @@ check("ordinary errors are not transient",
   [false, false, false]);
 console.warn = warn;
 
+// 10-13: the cheapest-listing cap. Over 1.5x the listing takes the listing; at or under stays; under $10 and CardTrader rows untouched.
+{
+  const { capToListing } = await import("../src/lib/server/mtgPriceRefresh.ts");
+  const rows = [
+    { id: "cromat", usd: 3, foil: 155.59, etched: null, eur: null, eurFoil: null },
+    { id: "drum", usd: null, foil: 60, etched: null, eur: null, eurFoil: null },
+    { id: "cheap", usd: 9, foil: null, etched: null, eur: null, eurFoil: null },
+    { id: "ct", usd: 90, foil: null, etched: null, eur: null, eurFoil: null, source: "cardtrader" },
+  ];
+  const ids = new Map([["cromat", 1], ["drum", 2], ["cheap", 3], ["ct", 4]]);
+  const lows = new Map([[1, { Normal: 1, Foil: 57.3 }], [2, { Foil: 41.99 }], [3, { Normal: 1 }], [4, { Normal: 10 }]]);
+  const r = capToListing(rows, ids, lows);
+  check("cap: Cromat foil $155.59 -> $57.30, drum $60 stays (1.43x), cheap and CardTrader untouched",
+    [r.capped, rows.map((x) => [x.usd, x.foil]), r.lows.map((l) => `${l.cardId}|${l.variant}|${l.lowUsd}`)],
+    [1, [[3, 57.3], [null, 60], [9, null], [90, null]], ["cromat|foil|57.3", "drum|foil|41.99"]]);
+}
 console.log(`\nmtg prices: ${passed} checks pass`);
