@@ -23,7 +23,7 @@ source of truth â€” tokens, holo rationing rule, motion policy, voice).
 
 ## Start here next session
 
-**s157 ~3pm ET: NIGHTLY NEW-CARDS RUN PART 1 BUILT** (607315fa, 5 unpushed): PC task daily 2am ET (memory cardflip-auto-new-cards has details); first run 10-14 2am, check backups\catalog-sync.log + /admin/prices "New cards" in the morning (TO-TEST). Part 2 (stand-ins + retry + borrowing list) next.
+**s157 ~3pm ET: NIGHTLY NEW-CARDS RUN PART 1 BUILT** (607315fa, 5 unpushed): PC task daily 2am ET (memory cardflip-auto-new-cards has details); first run 10-14 2am, check backups\catalog-sync.log + /admin/prices "New cards" in the morning (TO-TEST). PART 2 BUILT too (stand-ins + nightly retry + admin borrowing list, 4854c018/81ca7c15; 8 unpushed). Offered: convert the old hand-kept dead lists to nightly retry.
 
 **FIRST ACTION (s157, 10-13 ~2:30pm ET).** BUYER-PAYS SHIPPING SHELVED (Chris: "copy what the big guys are doing"; eBay survey: big sellers ship FREE at every price, see docs/SHIPPING-BUYER-PAYS.md top). Free shipping stays as built. Committed 24f66126 (NOT pushed, 2 unpushed incl. s156 docs): US tracked code USPSParcel (Ground Advantage; old Priority policies moved in place on next publish, still free), eSE carrier EBAY_SEND first; tests green (ebaysell/ebaylocal/marketplaces/golden), TO-TEST block added. Still today: 7pm hand posts; after 8pm ET the 163 Magic Scryfall pictures. Tomorrow 10-14 morning: hotlink log -> DENY; /admin/prices Last run. Then item 6 = automatic new-cards job.
 
