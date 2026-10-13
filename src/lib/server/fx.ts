@@ -88,7 +88,8 @@ export async function fxRateOnDay(currency: string, day: string, memo?: Map<stri
   try {
     const res = await fetch(`https://api.frankfurter.dev/v1/${day}?base=USD&symbols=${WANTED.join(",")}`, {
       signal: AbortSignal.timeout(4000),
-      cache: "no-store",
+      // A past day's rate never changes; "no-store" broke static pages (see getFxRates).
+      cache: "force-cache",
     });
     if (!res.ok) throw new Error(`frankfurter ${res.status}`);
     const body = (await res.json()) as { rates?: Record<string, number> };
@@ -122,7 +123,10 @@ export async function getFxRates(now = Date.now()): Promise<FxRates | null> {
   try {
     const res = await fetch(`https://api.frankfurter.dev/v1/latest?base=USD&symbols=${WANTED.join(",")}`, {
       signal: AbortSignal.timeout(4000),
-      cache: "no-store",
+      // Not "no-store" (10-13): this runs inside statically rendered card pages, where a no-store fetch throws
+      // Next's dynamic-usage error ("fx: rate refresh failed … Dynamic server usage") and flips the page to
+      // dynamic at runtime. A revalidated fetch is allowed there; the settings row above stays the real cache.
+      next: { revalidate: MAX_AGE_MS / 1000 },
     });
     if (!res.ok) throw new Error(`frankfurter ${res.status}`);
     const body = (await res.json()) as { date?: string; rates?: Record<string, number> };
