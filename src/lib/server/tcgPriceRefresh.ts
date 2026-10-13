@@ -463,6 +463,12 @@ export function planTcgRefresh(
     if (game === "onepiece") {
       const same = byPrinting.get(`${id.split("#")[0]}|${held.setName ?? ""}`) ?? [];
       p = same.find((c) => (c.variant ?? "") === (held.variant ?? "")) ?? same[0];
+      // A starter-deck reprint ("OP12-113_r1", variant "reprint") is the same card as its original printing:
+      // TCGplayer sells them as one product and optcgapi prices only the original (10-13: 29 ST31-36 rows sat at $0).
+      if ((!p || (p.usd == null && p.foil == null)) && held.variant === "reprint") {
+        const original = id.split("#")[0].replace(/[_-]r\d+$/, ""); // "_r1", once "-r1" (OP13-008-r1)
+        p = points.find((c) => c.id === original && !c.variant && (c.usd != null || c.foil != null)) ?? p;
+      }
     } else {
       p = byId.get(id);
     }

@@ -85,6 +85,24 @@ check("One Piece: same image + set split by printing tag",
     don.upserts.map((u) => [u.cardId, u.prices]).sort(),
     [["don-don-card-koby-gold-premium-booster-the-best-vol-2-prb-02#don", "[53.53]"], ["don-don-card-koby-premium-booster-the-best-vol-2-prb-02#don", "[0.4]"]]);
 }
+{
+  // 10-13: a starter-deck reprint optcgapi leaves unpriced takes its original printing's price (one TCGplayer product);
+  // a reprint with its own price keeps it, and a promo of the same number never lends its price.
+  const pts = [
+    { id: "OP12-113", usd: 1.25, foil: null, setName: "Legacy of the Master", variant: "" },
+    { id: "OP12-113_pr1", usd: 40, foil: null, setName: "One Piece Promotion Cards", variant: "promo-pr1" },
+    { id: "OP12-113_r1", usd: null, foil: null, setName: "Starter Deck 33: BLUE Kuzan", variant: "reprint" },
+    { id: "OP10-101_r1", usd: 0.5, foil: null, setName: "Starter Deck 36", variant: "reprint" },
+    { id: "OP10-101", usd: 3, foil: null, setName: "Royal Blood", variant: "" },
+  ];
+  const mirror = new Map([
+    ["OP12-113_r1", { usd: 0, foil: null, setName: "Starter Deck 33: BLUE Kuzan", variant: "reprint" }],
+    ["OP10-101_r1", { usd: null, foil: null, setName: "Starter Deck 36", variant: "reprint" }],
+  ]);
+  const plan = planTcgRefresh("onepiece", pts, mirror, new Map(), "2026-10-13");
+  check("One Piece: unpriced ST reprint takes the original's $1.25; a priced reprint keeps its own $0.50",
+    plan.columns.map((c) => [c.id, c.usd]).sort(), [["OP10-101_r1", 0.5], ["OP12-113_r1", 1.25]]);
+}
 check("One Piece printing tag matches the sync's mapping",
   [onePieceNameVariant("Perona (Parallel)"), onePieceNameVariant("Roronoa Zoro (001)"), onePieceNameVariant("Shanks (Box Topper)")], ["parallel", "", "box-topper"]);
 check("a card missing from today's source keeps its price (no column, no point)",
