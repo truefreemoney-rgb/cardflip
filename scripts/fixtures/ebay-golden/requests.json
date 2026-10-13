@@ -241,7 +241,7 @@
             {
               "sortOrder": 1,
               "shippingCarrierCode": "USPS",
-              "shippingServiceCode": "USPSGroundAdvantage",
+              "shippingServiceCode": "USPSParcel",
               "shippingCost": {
                 "value": "0.00",
                 "currency": "USD"

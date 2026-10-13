@@ -317,11 +317,16 @@ async function ensureFreeShipping(token: string, fulfillmentPolicyId: string, mp
     const name = pol?.name;
     if (!pol || typeof name !== "string" || !["CardFlip shipping", "CardFlip envelope", "CardFlip letter"].some((n) => name.startsWith(n))) return;
     const svc = pol.shippingOptions?.[0]?.shippingServices?.[0];
-    if (!svc || svc.freeShipping === true) return;
+    if (!svc) return;
     const kind = name.startsWith("CardFlip envelope") ? "envelope" : name.startsWith("CardFlip letter") ? "letter" : "tracked";
+    // 10-13: US tracked policies made before then went out as USPS Priority (our Ground Advantage code was wrong,
+    // see marketplaces.ts), so a tracked policy on the old codes is moved to Ground Advantage in the same PUT.
+    const staleTracked = mp.key === "US" && kind === "tracked" && (svc.shippingServiceCode === "USPSPriority" || svc.shippingServiceCode === "USPSGroundAdvantage");
+    if (svc.freeShipping === true && !staleTracked) return;
     // The letter policy has no carrier (stamps, no label): never hand it the site's USPS code.
-    const carrier = svc.shippingCarrierCode ?? (kind === "letter" ? null : mp.shipping.carrierCode);
-    const body = fulfillmentPolicyBody(mp, svc.shippingServiceCode || mp.shipping.serviceCode, carrier, kind);
+    const carrier = staleTracked ? mp.shipping.carrierCode : svc.shippingCarrierCode ?? (kind === "letter" ? null : mp.shipping.carrierCode);
+    const code = staleTracked ? mp.shipping.serviceCode : svc.shippingServiceCode || mp.shipping.serviceCode;
+    const body = fulfillmentPolicyBody(mp, code, carrier, kind);
     await ebayFetch(token, "PUT", path, body, undefined, mp);
   } catch (err) {
     console.warn("eBay free-shipping policy update failed:", err instanceof Error ? err.message : err);

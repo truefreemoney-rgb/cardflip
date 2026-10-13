@@ -113,7 +113,9 @@ export const US_MARKETPLACE: Marketplace = {
   taper: { coveredMax: 5, end: 10 },
   shipping: {
     carrierCode: "USPS",
-    serviceCode: "USPSGroundAdvantage",
+    // eBay's code for USPS Ground Advantage is "USPSParcel" (production Metadata API, 10-13); "USPSGroundAdvantage"
+    // does not exist, so before 10-13 every try fell through to Priority.
+    serviceCode: "USPSParcel",
     fallbackServiceCode: "USPSPriority",
     policyCost: "4.99",
     envelopeServiceCode: "US_eBayStandardEnvelope",

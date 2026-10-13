@@ -1,4 +1,7 @@
-# Shipping → buyer pays (plan, 10-13)
+# Shipping → buyer pays (plan, 10-13) — SHELVED 10-13 ~2:30pm ET
+
+**SHELVED (Chris 10-13: "we should just copy what the big guys are doing").** Live eBay survey 10-13 (pane, 144 Pokémon singles, BIN, US sellers): sellers with 2,000+ feedback give FREE shipping on 63/83 (≤$20 15/26 mostly free eSE; $20-$100 20/25; over $100 28/32 free Ground Advantage); small sellers mostly charge ~$5-6 Ground Advantage. Free shipping with postage in the price = what CardFlip already does, so it stays. Kept from this plan: the US tracked code fix (USPSParcel) + eSE carrier EBAY_SEND first + old Priority policies moved in place. Rest below is reference only.
+
 
 Chris 10-13 ~1:50–2:50am ET: "it really is a big mess to deal with on our end, let ebay do it".
 

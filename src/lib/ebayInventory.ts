@@ -602,11 +602,18 @@ function policyBase(marketplace: Marketplace) {
  * API takes a carrier name only on some sites), then the site's alternate
  * code. The throwaway-policy check per site is what the sandbox run is for.
  */
-/** The envelope policy's service tries (US only): eBay Standard Envelope with the USPS carrier, then without. */
+/**
+ * The envelope policy's service tries (US only): eBay Standard Envelope with eBay's own carrier code EBAY_SEND
+ * (production Metadata API, 10-13), then USPS, then none.
+ */
 export function envelopeAttempts(marketplace: Marketplace): { serviceCode: string; carrierCode: string | null }[] {
   const code = marketplace.shipping.envelopeServiceCode;
   if (!code) return [];
-  return [{ serviceCode: code, carrierCode: marketplace.shipping.carrierCode }, { serviceCode: code, carrierCode: null }];
+  return [
+    { serviceCode: code, carrierCode: "EBAY_SEND" },
+    { serviceCode: code, carrierCode: marketplace.shipping.carrierCode },
+    { serviceCode: code, carrierCode: null },
+  ];
 }
 
 /**

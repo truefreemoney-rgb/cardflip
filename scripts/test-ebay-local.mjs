@@ -227,8 +227,9 @@ console.log("Payloads per site");
   check("fulfillment attempts: GB = carrier, no carrier, alternate code", inv.fulfillmentAttempts(MARKETPLACES.GB).map((a) => `${a.serviceCode}/${a.carrierCode}`), [
     "UK_RoyalMail2ndClassLetter/RoyalMail", "UK_RoyalMail2ndClassLetter/null", "UK_RoyalMailSecondClassStandard/null",
   ]);
-  check("fulfillment attempts: US unchanged (Ground Advantage then Priority, both USPS)", inv.fulfillmentAttempts(US_MARKETPLACE).map((a) => `${a.serviceCode}/${a.carrierCode}`), ["USPSGroundAdvantage/USPS", "USPSPriority/USPS"]);
-  check("US fulfillment body keeps shippingCarrierCode in its original slot", Object.keys(inv.fulfillmentPolicyBody(US_MARKETPLACE, "USPSGroundAdvantage", "USPS").shippingOptions[0].shippingServices[0]), ["sortOrder", "shippingCarrierCode", "shippingServiceCode", "shippingCost", "freeShipping"]);
+  check("fulfillment attempts: US Ground Advantage (eBay code USPSParcel) then Priority, both USPS", inv.fulfillmentAttempts(US_MARKETPLACE).map((a) => `${a.serviceCode}/${a.carrierCode}`), ["USPSParcel/USPS", "USPSPriority/USPS"]);
+  check("envelope attempts: eBay Standard Envelope with EBAY_SEND first, then USPS, then no carrier", inv.envelopeAttempts(US_MARKETPLACE).map((a) => `${a.serviceCode}/${a.carrierCode}`), ["US_eBayStandardEnvelope/EBAY_SEND", "US_eBayStandardEnvelope/USPS", "US_eBayStandardEnvelope/null"]);
+  check("US fulfillment body keeps shippingCarrierCode in its original slot", Object.keys(inv.fulfillmentPolicyBody(US_MARKETPLACE, "USPSParcel", "USPS").shippingOptions[0].shippingServices[0]), ["sortOrder", "shippingCarrierCode", "shippingServiceCode", "shippingCost", "freeShipping"]);
   check("marketplaceByEbayId: null / EBAY_US / junk = US; the four sites; EBAY_AU is AU not NZ", [
     marketplaceByEbayId(null).key, marketplaceByEbayId("EBAY_US").key, marketplaceByEbayId("EBAY_XX").key, marketplaceByEbayId("EBAY_GB").key, marketplaceByEbayId("ebay_ie").key, marketplaceByEbayId("EBAY_AU").key, marketplaceByEbayId("EBAY_CA").key,
   ], ["US", "US", "US", "GB", "IE", "AU", "CA"]);

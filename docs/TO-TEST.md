@@ -362,3 +362,8 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 - [ ] Morning after the push: daily_last_result mtg.cappedToListing is in the hundreds (not 0, not tens of thousands); mtg step still finishes under the 800 s cap.
 - [ ] Magic "This price looks off" count drops from ~837 toward ~83 (rerun the sweep script pattern, s154 scratchpad).
 - [ ] Spot-check 3 capped foils on the card page (e.g. Cromat Apocalypse foil ~$57, not $155).
+
+## 10-13 ~2:30pm ET: US tracked = Ground Advantage (USPSParcel), eSE carrier EBAY_SEND
+- [ ] First real US publish after the push: the seller's "CardFlip shipping" policy reads USPS Ground Advantage (not Priority), still free (Seller Hub > Business policies).
+- [ ] First real envelope (≤$20) publish creates "CardFlip envelope" with eBay Standard Envelope (carrier EBAY_SEND) and the listing shows Free eBay Standard Envelope.
+

@@ -77,6 +77,8 @@ globalThis.fetch = async (input, init) => {
       state.named.push({ fulfillmentPolicyId: id, name: body.name });
       return json({ fulfillmentPolicyId: id }, 201);
     }
+    const detail = method === "GET" && state.policyDetail?.[p.split("?")[0].split("/").pop()];
+    if (detail) return json(detail);
     if (method === "POST") { state.policies[k] = `${pol[1]}-1`; return json({ [`${pol[1]}PolicyId`]: state.policies[k] }, 201); }
     const list = state.policies[k] ? [{ [`${pol[1]}PolicyId`]: state.policies[k] }] : [];
     if (k === "f") list.push(...state.named);
@@ -331,6 +333,21 @@ check("withdraw: no offer → 409", err?.status, 409);
   ]);
   const cap = await listed(100);
   check("envelope at exactly $100 lists, on a fresh letter policy", [Boolean(cap.put), cap.posts.map((b) => b.name), cap.put?.listingPolicies?.fulfillmentPolicyId === state.named.find((p) => p.name === "CardFlip letter")?.fulfillmentPolicyId, (await getCardForUser(cap.id, uid)).status], [true, ["CardFlip letter"], true, "listed"]);
+  // 10-13: a "CardFlip shipping" policy made on the old code (USPS Priority) moves to Ground Advantage (eBay code USPSParcel) in place.
+  state.policyDetail = { "tracked-9": { name: "CardFlip shipping", shippingOptions: [{ shippingServices: [{ shippingCarrierCode: "USPS", shippingServiceCode: "USPSPriority", freeShipping: true }] }] } };
+  const trk = await readyCard({ price: 150, shippingMethod: "tracked" });
+  await pushDraft(uid, draftFor(trk, { listing: { ...draftFor(trk).listing, price: 150 } }));
+  log.length = 0;
+  await publishDraft(uid, trk);
+  const moved = calls("PUT", "/sell/account/v1/fulfillment_policy/tracked-9")[0]?.body?.shippingOptions?.[0]?.shippingServices?.[0];
+  check("tracked policy on USPS Priority is rewritten to USPSParcel (Ground Advantage), still free", [moved?.shippingServiceCode, moved?.shippingCarrierCode, moved?.freeShipping], ["USPSParcel", "USPS", true]);
+  state.policyDetail["tracked-9"].shippingOptions[0].shippingServices[0].shippingServiceCode = "USPSParcel";
+  const trk2 = await readyCard({ price: 150, shippingMethod: "tracked" });
+  await pushDraft(uid, draftFor(trk2, { listing: { ...draftFor(trk2).listing, price: 150 } }));
+  log.length = 0;
+  await publishDraft(uid, trk2);
+  check("tracked policy already on USPSParcel + free: no PUT", calls("PUT", "/sell/account/v1/fulfillment_policy/").length, 0);
+  delete state.policyDetail;
 }
 
 Object.assign(console, quiet);
