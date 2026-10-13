@@ -1063,8 +1063,11 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
 }
 
 /** "5 Scans Waiting To Verify": the chip button's label; shorter once the numbers get long so the money keeps its room. */
-export function verifyLabel(count: number, value: number): string {
+export function verifyLabel(count: number, value: number, narrow = false): string {
   const noun = count === 1 ? "Scan" : "Scans";
+  // narrow: "Not this card?" shares the row and the long label cut to "Ver…" at phone width (10-12);
+  // "Verify 12 Scans" + $1,234.56 fits a 375px phone (measured 10-13).
+  if (narrow) return `Verify ${count} ${noun}`;
   const long = count >= 10 || value >= 1000;
   return `${count} ${noun} ${long ? "To Verify" : "Waiting To Verify"}`;
 }
@@ -1286,7 +1289,7 @@ function RevealChip({ item, onOpen, onRemove, onSwap, verify }: ToastProps) {
           onClick={() => onOpen(item.id)}
           className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-full bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-400"
         >
-          <span className="min-w-0 truncate">{verify ? verifyLabel(verify.count, verify.value) : "Verify Your Scan"}</span>
+          <span className="min-w-0 truncate">{verify ? verifyLabel(verify.count, verify.value, !!onSwap) : "Verify Your Scan"}</span>
           {verify && verify.value > 0 && <span className="shrink-0 tabular-nums">{formatMoney(verify.value)}</span>}
         </button>
       )}

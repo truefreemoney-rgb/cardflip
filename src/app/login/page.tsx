@@ -184,17 +184,18 @@ export default function LoginPage() {
                 placeholder="123456"
               />
               {mailedTo ? (
-                <p className="text-xs text-zinc-500">
-                  {mailedTo}{" "}
+                <>
+                  <p className="text-xs text-zinc-500">{mailedTo}</p>
+                  {/* Full-size button (Chris 10-13): the inline text link was easy to miss. */}
                   <button
                     type="button"
                     onClick={sendNewCode}
                     disabled={submitting}
-                    className="font-medium text-brand-300 transition hover:text-brand-200 disabled:opacity-60"
+                    className="mt-1 w-full rounded-full border border-edge px-5 py-2.5 text-sm font-semibold text-zinc-200 transition hover:border-edge-strong hover:text-white disabled:opacity-60"
                   >
                     Send a New Code
                   </button>
-                </p>
+                </>
               ) : (
                 <p className="text-xs text-zinc-500">
                   Open your authenticator app and enter the current 6-digit code for CardFlip.

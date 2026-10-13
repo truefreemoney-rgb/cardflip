@@ -126,17 +126,16 @@ export default function AdminLoginPage() {
                 className={`${FIELD} text-center text-lg tracking-[0.4em]`}
                 placeholder="123456"
               />
-              <p className="text-xs text-zinc-500">
-                {mailedTo}{" "}
-                <button
-                  type="button"
-                  onClick={() => void signIn(false)}
-                  disabled={submitting}
-                  className="font-medium text-brand-300 transition hover:text-brand-200 disabled:opacity-60"
-                >
-                  Send a New Code
-                </button>
-              </p>
+              <p className="text-xs text-zinc-500">{mailedTo}</p>
+              {/* Full-size button (Chris 10-13): the inline text link was easy to miss. */}
+              <button
+                type="button"
+                onClick={() => void signIn(false)}
+                disabled={submitting}
+                className="mt-1 w-full rounded-full border border-edge px-5 py-2.5 text-sm font-semibold text-zinc-200 transition hover:border-edge-strong hover:text-white disabled:opacity-60"
+              >
+                Send a New Code
+              </button>
             </div>
           )}
           <p role="alert" aria-live="polite" className="min-h-0">
