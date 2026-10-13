@@ -7,6 +7,15 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 Since 10-08 the nav read the signed-in hint from localStorage while rendering, so for a signed-in visitor the server HTML said "Log In" and the browser's first paint said "Log out": React threw a hydration error on every marketing page and rebuilt the page in the browser (slower first paint, console error; new prod errors in OPEN-TESTS E #73 may include it). Now read through useSyncExternalStore with a server snapshot of false. Pane 10-12: fresh tab, signed in, card page: no console errors, nav shows Log out at once.
 - [ ] PROD after the push, signed in on the phone: open cardflip.io and a /cards page: nav shows Log out + Open the App with no flash of Log In; error digest shows no new "Hydration failed" lines.
 
+## 10-12 ~11:20pm: card pictures served from cardflip.io/pics + hotlink firewall rule (LOCAL, NOT PUSHED; rule is on Vercel in LOG mode)
+Chris: "put in some safeguard so people cant use images hosted on our website". lib/pics.ts toPics() at the 4 readers, next.config rewrite /pics/* → Blob cards/, proxy.ts skips pics/, vision + ogArt fetch the store directly (fromPics). Local proof: Charizard 1st Ed page 19 of 19 card pictures on /pics, 200 image/webp, storage address 0 times in the HTML. Firewall rule "Card pictures: other sites' hotlinks" (Referer present and not cardflip.io/google/bing/ddg/yahoo/ebay/pinterest/facebook) added via API, action LOG.
+- [ ] PROD after the push: a card page's pictures come from https://cardflip.io/pics/..., and view-source shows no "blob.vercel-storage.com/cards".
+- [ ] PROD: `curl -I -H "Referer: https://example.com/" https://cardflip.io/pics/<a tile path>` → shows in Vercel Firewall as a LOG hit for the rule; `curl -I` with no Referer → 200 and no hit.
+- [ ] After ~1 day of LOG with no false hits (our own pages, Google Images, eBay): switch the hotlink rule to DENY.
+- [ ] Rate-limit rule (600 /pics per minute per IP, deny + timed block) NOT added yet: confirm the WAF rate-limiting price on the Vercel usage/pricing page first (Chris was told ~$1-3/mo estimate), then add it (scratchpad JSON in session s151; recreate: path pre /pics/, fixed_window 60 s, 600, key ip).
+- [ ] Scan a Pokémon card on prod: the picture tiebreak still identifies (it fetches our copy straight from the store via fromPics).
+- [ ] A social/share picture (Share card) renders card art (ogArt fetches via fromPics).
+
 ## 10-12 late night: One Piece + Pokémon pictures self-hosted (LOCAL, NOT PUSHED; runs done on Blob + Turso)
 One Piece 5,546 of 5,549 (3 have no picture anywhere, BACKLOG), 4,249 sourced from TCGplayer per Chris. Pokémon 22,315 of 22,315 (TCGdex high.webp; en_cards own_* columns; scanner + card/list pages read them). Local = Turso for both. Local proof: /cards/pokemon 24 of ours, 0 tcgdex; 1st Ed Charizard page 42 of ours, 0 tcgdex.
 - [ ] PROD after the push: cardflip.io/cards/onepiece, open a set: tiles now SHOW (the optcgapi list-page block no longer applies, our copies are on our store) and right-click → ...blob.vercel-storage.com/cards/onepiece/...-tile.webp.

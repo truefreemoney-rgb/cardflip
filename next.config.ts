@@ -40,6 +40,11 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
+  // Card pictures (10-12, lib/pics.ts): cardflip.io/pics/* is our Blob store's cards/ folder, so the Firewall can
+  // refuse other sites' hotlinks and rate-limit bulk copying (rules on the project's Firewall tab).
+  async rewrites() {
+    return { beforeFiles: [{ source: "/pics/:path*", destination: "https://mlwovvakovcpakbr.public.blob.vercel-storage.com/cards/:path*" }] };
+  },
 };
 
 export default nextConfig;

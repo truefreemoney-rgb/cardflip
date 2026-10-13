@@ -155,5 +155,6 @@ export function countryGatePasses(req: NextRequest, country: string | null, path
 
 export const config = {
   // Everything except Next's static assets; the proxy is a header check, cheap on every request.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|icons/|brand/).*)"],
+  // pics/ (10-12): card pictures, straight to the Blob rewrite; the Firewall guards them, not this.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|icons/|brand/|pics/).*)"],
 };

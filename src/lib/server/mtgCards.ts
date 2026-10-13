@@ -23,6 +23,7 @@ import { MTG_REFEREE_SQL } from "@/lib/server/priceTrust";
 import type { ArtStyle, CardPrice, MtgCues, MtgMark, PokemonCard } from "@/lib/types";
 import type { SetInfo } from "@/lib/grading";
 import { MTG_FINISH_LABEL } from "@/lib/games";
+import { toPics } from "@/lib/pics";
 
 interface MtgCardRow {
   id: string;
@@ -134,7 +135,7 @@ function toCard(row: MtgCardRow): PokemonCard {
     number: row.collector_number,
     rarity: row.rarity ? row.rarity[0].toUpperCase() + row.rarity.slice(1) : null,
     // Thumbnails from our store; imageLarge stays Scryfall's scan, the picture tiebreak (vision.ts catalogPicture) compares against it.
-    imageSmall: row.own_tile_url || row.image_url,
+    imageSmall: toPics(row.own_tile_url || row.image_url),
     imageLarge: largeImage(row.image_url),
     prices: pricesOf(row),
     englishName: null,

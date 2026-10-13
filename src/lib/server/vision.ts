@@ -3,6 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { GameId, ScanLanguage, VisionCardRead, WearLevel } from "@/lib/types";
 import { parseAttractionLights } from "@/lib/mtgCues";
 import { isGameId } from "@/lib/games";
+import { fromPics } from "@/lib/pics";
 
 export type { VisionCardRead };
 
@@ -1048,6 +1049,8 @@ async function catalogPicture(id: string, game: GameId): Promise<{ base64: strin
   if (!url) return null;
   // pokemontcg.io's plain PNG is a 245px thumbnail; use the _hires twin.
   url = url.replace(/(images\.pokemontcg\.io\/[^/]+\/[^/._]+)\.png$/, "$1_hires.png");
+  // Our /pics copies: straight from the store, not through our own Firewall rules (lib/pics.ts).
+  url = fromPics(url);
   // One retry: a picture host that hiccups once would otherwise drop the
   // candidate (10-01: two fresh checks in a row lost pictures that load fine).
   for (let attempt = 0; attempt < 2; attempt++) {

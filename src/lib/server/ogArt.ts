@@ -1,5 +1,6 @@
 import "server-only";
 import { fallbackArtUrl } from "@/lib/cardArt";
+import { fromPics } from "@/lib/pics";
 
 /**
  * Card art as a data URI. Satori draws PNG/JPEG only, so EVERY picture goes
@@ -14,7 +15,8 @@ const ART_HEADERS = { "User-Agent": "CardFlip/1.0 (+https://cardflip.io)", Accep
 
 async function fetchBytes(url: string): Promise<{ bytes: Buffer; type: string } | null> {
   try {
-    const res = await fetch(url, { headers: ART_HEADERS, signal: AbortSignal.timeout(4000), cache: "no-store" });
+    // Our /pics copies come straight from the store, not through our own Firewall rules (lib/pics.ts).
+    const res = await fetch(fromPics(url), { headers: ART_HEADERS, signal: AbortSignal.timeout(4000), cache: "no-store" });
     if (!res.ok) return null;
     return { bytes: Buffer.from(await res.arrayBuffer()), type: res.headers.get("content-type") ?? "" };
   } catch {

@@ -13,6 +13,7 @@ import {
 import type { ArtStyle, CardPrice, PokemonCard } from "@/lib/types";
 import { decodePrices } from "@/lib/priceSeries";
 import { formatVariantLabel } from "@/lib/listing";
+import { toPics } from "@/lib/pics";
 
 /**
  * English card identification, served from our own mirror of TCGdex.
@@ -53,8 +54,8 @@ function toCard(row: EnCardRow): PokemonCard {
     setSeries: "",
     number: row.local_id,
     rarity: null,
-    imageSmall: row.own_tile_url || row.own_image_url || row.image_url,
-    imageLarge: row.own_image_url || row.image_url.replace("/low.webp", "/high.webp"),
+    imageSmall: toPics(row.own_tile_url || row.own_image_url || row.image_url),
+    imageLarge: toPics(row.own_image_url || row.image_url.replace("/low.webp", "/high.webp")),
     prices: [],
     englishName: null,
     setTotal: row.set_card_count_official,

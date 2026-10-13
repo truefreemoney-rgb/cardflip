@@ -34,6 +34,7 @@ import {
 import { historyRange, type HistoryRange, type SetStanding } from "@/lib/cardStory";
 import type { Series } from "@/lib/client/priceHistoryData";
 import type { GameId } from "@/lib/types";
+import { toPics } from "@/lib/pics";
 
 /**
  * The public card pages' reads (/cards, SEO sweep 09-30). Everything here is
@@ -230,8 +231,8 @@ function factsOf(game: GameId, row: CatalogRow, setSlug: string): CardFacts {
     release: row.release ?? "",
     rarity,
     tags: printingTags(game, { id: row.id, rarity: game === "yugioh" ? row.rarity : null, variant: row.variant }),
-    image: game === "mtg" ? row.own_image_url || largeImage(row.image_url) : game === "pokemon" ? row.own_image_url || row.image_url.replace("/low.webp", "/high.webp") : row.own_image_url || row.image_url,
-    tile: row.own_tile_url || row.own_image_url || "",
+    image: toPics(game === "mtg" ? row.own_image_url || largeImage(row.image_url) : game === "pokemon" ? row.own_image_url || row.image_url.replace("/low.webp", "/high.webp") : row.own_image_url || row.image_url),
+    tile: toPics(row.own_tile_url || row.own_image_url || ""),
   };
 }
 

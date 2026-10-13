@@ -8,6 +8,7 @@ import { ONE_PIECE_DON_SET, ONE_PIECE_PROMO_SET } from "@/lib/onepiece";
 import type { SetInfo } from "@/lib/grading";
 import { cachedList, SET_LIST_TTL_MS } from "@/lib/server/listCache";
 import { LOOSE_MIN, looseLike, squash, squashSql } from "@/lib/server/looseName";
+import { toPics } from "@/lib/pics";
 
 /**
  * Lorcana + One Piece identification off the shared mirror (tcg_cards, see
@@ -81,8 +82,8 @@ function toCard(row: TcgRow): PokemonCard {
     setSeries: "",
     number: row.collector_number,
     rarity: row.rarity || null,
-    imageSmall: row.own_tile_url || row.own_image_url || row.image_url,
-    imageLarge: row.own_image_url || row.image_url,
+    imageSmall: toPics(row.own_tile_url || row.own_image_url || row.image_url),
+    imageLarge: toPics(row.own_image_url || row.image_url),
     prices,
     englishName: null,
     setTotal: row.set_total,
