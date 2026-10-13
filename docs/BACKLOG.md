@@ -326,3 +326,5 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 
 ## IMPORTANT (10-13, Chris): automatic new cards + pictures
 Nightly cron for all five games: add new sets/cards, self-host pictures, stand-in + nightly retry (TCGplayer/Yugipedia/Scryfall/TCGdex only, free), admin list of cards still borrowing. Build right after the picture runs. Memory: cardflip-auto-new-cards.
+
+- **Shipping tier line (Chris 10-13 ~2:45pm ET, parked):** "over $100 may be too high" for tracked-only (stamped envelope allowed $20.01-$100 today, fees.ts ENVELOPE_MAX_USD). He'll decide later; don't change until he says. Survey data: docs/SHIPPING-BUYER-PAYS.md top.
