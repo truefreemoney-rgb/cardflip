@@ -398,6 +398,33 @@ const SCHEMA = `
     day TEXT NOT NULL,
     PRIMARY KEY (card_id, variant, game)
   );
+  -- The nightly eBay referee (10-13, lib/server/ebayReferee.ts): what the same
+  -- printing is ASKED for on eBay (Browse API, active fixed-price listings) for
+  -- $100+ printings, and the verdict on the price it was read against. priceTrust
+  -- hides a price eBay calls absurd ("high"); "check" rows are the admin
+  -- hand-check list. manual = an admin's call after an eBay sold check ('hide' /
+  -- 'keep'), binding while the price stays within 10% of manual_price.
+  CREATE TABLE IF NOT EXISTS ebay_asks (
+    card_id TEXT NOT NULL,
+    game TEXT NOT NULL,
+    variant TEXT NOT NULL,
+    price_usd REAL NOT NULL,
+    n INTEGER NOT NULL,
+    n_nm INTEGER NOT NULL,
+    median_usd REAL,
+    q75_usd REAL,
+    vintage INTEGER NOT NULL DEFAULT 0,
+    verdict TEXT NOT NULL,
+    reason TEXT NOT NULL DEFAULT '',
+    label TEXT NOT NULL DEFAULT '',
+    query TEXT NOT NULL DEFAULT '',
+    day TEXT NOT NULL,
+    manual TEXT,
+    manual_price REAL,
+    manual_day TEXT,
+    PRIMARY KEY (card_id, variant, game)
+  );
+  CREATE INDEX IF NOT EXISTS idx_ebay_asks_verdict ON ebay_asks(verdict, day);
   CREATE TABLE IF NOT EXISTS price_history_meta (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL

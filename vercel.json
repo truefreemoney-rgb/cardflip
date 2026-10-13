@@ -35,6 +35,14 @@
       "schedule": "35 11 * * *"
     },
     {
+      "path": "/api/cron/ebay-referee",
+      "schedule": "15 12 * * *"
+    },
+    {
+      "path": "/api/cron/ebay-referee",
+      "schedule": "45 12 * * *"
+    },
+    {
       "path": "/api/cron/social-video",
       "schedule": "40 16 * * *"
     },

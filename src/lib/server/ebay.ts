@@ -179,6 +179,36 @@ export async function fetchEbayComps(
   return buildComps(listings, searchUrl, raw.length);
 }
 
+/**
+ * The raw asks for a search (the nightly eBay referee, lib/server/ebayReferee.ts): fixed-price CCG singles on ebay.com, USD
+ * only, up to 200, unfiltered (the referee's printing-aware matcher filters). One Browse call.
+ */
+export async function searchEbayAsks(query: string): Promise<{ title: string; price: number }[]> {
+  const token = await getAppToken(BROWSE_SCOPE);
+  const url = new URL(`${EBAY_API}/buy/browse/v1/item_summary/search`);
+  url.searchParams.set("q", query);
+  url.searchParams.set("category_ids", CCG_SINGLES_CATEGORY);
+  url.searchParams.set("limit", "200");
+  url.searchParams.set("filter", "buyingOptions:{FIXED_PRICE}");
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}`, "X-EBAY-C-MARKETPLACE-ID": MARKETPLACE },
+    signal: AbortSignal.timeout(10000),
+  });
+  if (res.status === 401) {
+    tokenCache.delete(BROWSE_SCOPE);
+    throw new Error("eBay rejected the access token");
+  }
+  if (!res.ok) throw new Error(`eBay search failed (${res.status})`);
+  const json = (await res.json()) as { itemSummaries?: ItemSummary[] };
+  const out: { title: string; price: number }[] = [];
+  for (const item of json.itemSummaries ?? []) {
+    const price = Number(item.price?.value);
+    if (!item.title || !(price > 0) || (item.price?.currency && item.price.currency !== "USD")) continue;
+    out.push({ title: item.title, price });
+  }
+  return out;
+}
+
 interface ItemSale {
   itemId?: string;
   title?: string;

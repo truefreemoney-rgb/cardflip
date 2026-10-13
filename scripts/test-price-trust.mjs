@@ -232,5 +232,16 @@ check("thresholds are the calibrated ones", [PRICE_TRUST.refExtreme, PRICE_TRUST
   check("Magic only: without listingReferee a near listing leaves the gap (a bogus listing can equal a bogus price)", priceTrust({ to: 60, prices: s, refEur: 4, listingLowUsd: 50 }).ok, false);
 }
 
+// 10-13: the nightly eBay referee (lib/ebayReferee.ts). The caller decides `high` and `manual`; the rule only places them.
+{
+  const fine = liquid(912.37);
+  check("eBay high hides an otherwise fine price, hard", judge(fine, { ebay: { high: true, reason: "ebay asks: 2.6x the upper asks (2 listed)" } }), { ok: false, hard: true, reason: "ebay asks: 2.6x the upper asks (2 listed)" });
+  check("... but a Cardmarket price within 3x still vouches first", judge(fine, { refEur: 700, ebay: { high: true, reason: "x" } }).ok, true);
+  check("... and an OLD price is not the one eBay was read against", judge(fine, { old: true, ebay: { high: true, reason: "x" } }).reason !== "x", true);
+  check("an admin's 'keep' after an eBay sold check beats every test (a 10x Cardmarket gap)", judge(fine, { refEur: 50, ebay: { high: false, reason: "", manual: "keep" } }), { ok: true, reason: "checked against ebay sold", agrees: true });
+  check("an admin's 'hide' hides, hard", judge(fine, { ebay: { high: false, reason: "", manual: "hide" } }), { ok: false, hard: true, reason: "checked against ebay sold: too high" });
+  check("no eBay reading = the rule as before", judge(fine, { ebay: null }).ok, true);
+}
+
 if (failures) { console.log(`\n${failures} failing`); process.exit(1); }
 console.log("\nall green");

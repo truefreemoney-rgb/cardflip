@@ -255,5 +255,34 @@ console.log("loader: one batch, only flagged cards come back");
   }
 }
 
+console.log("eBay referee (10-13): the nightly ask reading, re-judged against the price shown");
+{
+  const { ebayCall } = await import(at("lib/server/priceTrustSite.ts"));
+  const reading = { n: 5, nNm: 5, median: 30, q75: 40 };
+  check("ebayCall: no row, no say", ebayCall(undefined, 150), null);
+  check("ebayCall: far above the upper asks = high", ebayCall({ reading, manual: null, manualPrice: null }, 150)?.high, true);
+  check("... re-judged against the price shown (it fell to $55 since the read: under $100, not refereed)", ebayCall({ reading, manual: null, manualPrice: null }, 55), null);
+  check("a manual call binds within 10% of the checked price", ebayCall({ reading: null, manual: "keep", manualPrice: 150 }, 160)?.manual, "keep");
+  check("... and lapses outside it (the price moved: the call was about another number)", ebayCall({ reading: null, manual: "keep", manualPrice: 150 }, 170), null);
+
+  const putAsk = (id, game, variant, row) =>
+    db.prepare(`INSERT OR REPLACE INTO ebay_asks (card_id, game, variant, price_usd, n, n_nm, median_usd, q75_usd, verdict, reason, day, manual, manual_price) VALUES (?, ?, ?, 150, ?, ?, ?, ?, 'high', '', ?, ?, 150)`)
+      .run(id, game, variant, row.n, row.nNm, row.median, row.q75, row.day ?? TODAY, row.manual ?? null);
+  await db.prepare(`INSERT INTO price_series (card_id, game, variant, source, currency, start_day, prices, updated_day) VALUES ('mtg-ebay', 'mtg', 'nonfoil', 'tcgplayer', 'USD', ?, ?, ?)`).run(addDays(TODAY, -60), encodePrices(liquid(150)), TODAY);
+  await db.prepare(`INSERT INTO mtg_cards (id, name, set_code, set_name, collector_number, price_usd, synced_at) VALUES ('mtg-ebay', 'mtg-ebay', 'x', 'X', '1', 150, 0)`).run();
+  await putAsk("mtg-ebay", "mtg", "nonfoil", reading);
+  clearTrustMemo();
+  check("loader: a fine $150 Magic card that eBay lists at ~$30 is hidden, with eBay's reason", (await siteTrust([{ cardId: "mtg-ebay", game: "mtg", variant: "nonfoil" }])).get(trustKey("mtg-ebay", "nonfoil")), { hard: true, reason: "ebay asks: 3.8x the upper asks (5 listed)" });
+  await putAsk("mtg-ebay", "mtg", "nonfoil", { ...reading, day: addDays(TODAY, -11) });
+  clearTrustMemo();
+  check("... a reading older than 10 days is no evidence", (await siteTrust([{ cardId: "mtg-ebay", game: "mtg", variant: "nonfoil" }])).size, 0);
+  await putAsk("mtg-ebay", "mtg", "nonfoil", { ...reading, manual: "keep" });
+  clearTrustMemo();
+  check("... an admin's 'keep' after an eBay sold check shows it again", (await siteTrust([{ cardId: "mtg-ebay", game: "mtg", variant: "nonfoil" }])).size, 0);
+  await putAsk("fine-umbreon", "pokemon", "holofoil", { n: 5, nNm: 5, median: 20, q75: 30 });
+  clearTrustMemo();
+  check("Cardmarket agreeing still outranks eBay asks (Umbreon)", (await siteTrust([{ cardId: "fine-umbreon", game: "pokemon", variant: "holofoil" }])).size, 0);
+}
+
 console.log(failures === 0 ? "\nAll site price-guard checks passed." : `\n${failures} site price-guard check(s) FAILED.`);
 process.exit(failures === 0 ? 0 : 1);

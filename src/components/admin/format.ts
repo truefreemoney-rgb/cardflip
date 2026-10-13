@@ -80,7 +80,7 @@ export const STATUS_STYLE: Record<string, string> = {
 export const ADMIN_NAV_GROUPS: ReadonlyArray<{ label: string; pages: ReadonlyArray<readonly [string, string]> }> = [
   { label: "Money", pages: [["/admin", "Overview"], ["/admin/analytics", "Analytics"], ["/admin/adtest", "Ad Test"], ["/admin/emails", "Emails"]] },
   { label: "People", pages: [["/admin/users", "Users"], ["/admin/waitlist", "Waitlist"], ["/admin/support", "Support"]] },
-  { label: "Content", pages: [["/admin/social", "Social"], ["/admin/cards", "Cards"], ["/admin/drop", "Drop"]] },
+  { label: "Content", pages: [["/admin/social", "Social"], ["/admin/cards", "Cards"], ["/admin/prices", "Price checks"], ["/admin/drop", "Drop"]] },
   { label: "Settings", pages: [["/admin/switches", "Switches"], ["/admin/board", "Tasks"], ["/admin/errors", "Log"], ["/admin/system", "System"]] },
 ];
 

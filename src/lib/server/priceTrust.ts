@@ -16,6 +16,7 @@
  * slightly smaller pool is always fine; a junk price is not.
  *
  * Order of tests, first hit decides:
+ *  0. An admin's eBay sold check (10-13, `ebay.manual`): keep or hide, binding.
  *  1. Cross-source referee (any price >= $10): TCG >= 10x Cardmarket -> no
  *     (since 10-06; it was 5x / 4x under $100, which hid Cresselia at $17 on
  *     a 5.4x gap with 140 steady days). TCG < 3x -> yes, stop (two sources
@@ -23,6 +24,8 @@
  *     inconclusive: Europe runs cheaper on old US holos and Cardmarket can be
  *     the wrong printing, so it only ever counts as one extra soft sign
  *     (test 6, and the under-$100 line below), never a verdict alone.
+ * 1b. eBay asks (10-13, `ebay.high`, $100+ printings read nightly): far above
+ *     every ask for the same printing -> no. See lib/ebayReferee.ts.
  *  2. A spike that never came back (>= $50): a one-step rise >= 3x and the
  *     price is still >= 3x the level before it (the higher of the 7- and
  *     30-point medians, so a short glitch-low that recovers is not a spike).
@@ -185,6 +188,12 @@ export interface PriceTrustInput {
    * guard before they get it.
    */
   listingReferee?: boolean;
+  /**
+   * The nightly eBay referee (10-13, lib/ebayReferee.ts) read against this price: `high` = the price is far above what the
+   * same printing is asked for on eBay (test 1b). `manual` = an admin's call after an eBay SOLD check, binding over every
+   * test while the price stays within 10% of the checked one ('keep' vouches, 'hide' is wrong). The caller decides both.
+   */
+  ebay?: { high: boolean; reason: string; manual?: "hide" | "keep" | null } | null;
   /** Pokemon, a non-default printing that is the default's highest sibling: the default's price (test 3b). */
   anchorFor?: number | null;
 }
@@ -363,12 +372,15 @@ export function stepJump({ prices, days, refEur = null, refPrices = null }: Step
 
 
 /** ok = the price may be printed; reason says why not (or, when a second source vouched, that it did). */
-export function priceTrust({ to, prices, siblings = [], refEur = null, refAltEur = null, vintage = false, old = false, listingLowUsd = null, listingReferee = false, anchorFor = null }: PriceTrustInput): PriceTrust {
+export function priceTrust({ to, prices, siblings = [], refEur = null, refAltEur = null, vintage = false, old = false, listingLowUsd = null, listingReferee = false, ebay = null, anchorFor = null }: PriceTrustInput): PriceTrust {
   const T = PRICE_TRUST;
   if (!(to > 0)) return { ok: false, hard: true, reason: "no price" };
   // Nothing below $10 is worth a second look: the mover and pool floors sit there.
   if (to < T.refMinUsd) return { ok: true, reason: "" };
   const wrong = (reason: string): PriceTrust => ({ ok: false, hard: true, reason });
+  // 0. An admin checked this price against eBay sold listings: that beats every heuristic below (a past price is not the one checked).
+  if (!old && ebay?.manual === "keep") return { ok: true, reason: "checked against ebay sold", agrees: true };
+  if (!old && ebay?.manual === "hide") return wrong("checked against ebay sold: too high");
 
   // 1. Cross-source referee. The second reading speaks only when nearer than the first, and then it never vouches:
   // a junk TCGdex EUR 2,216 must not wave through the $1,013 Rayquaza spike, so an agreeing second reading only
@@ -388,6 +400,10 @@ export function priceTrust({ to, prices, siblings = [], refEur = null, refAltEur
       refRatio = null;
     }
   }
+
+  // 1b. eBay asks (10-13): far above everything the same printing is listed for (a $68,000 ultra rare listed by 111 sellers at
+  // ~$4). After the Cardmarket vouch above: two sources agreeing still outrank asks, which run in every condition.
+  if (!old && ebay?.high) return wrong(ebay.reason);
 
   const f = features(prices, to);
   // 2. A spike that never came back.

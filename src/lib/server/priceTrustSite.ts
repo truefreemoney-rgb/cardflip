@@ -5,6 +5,7 @@ import { pickPrice } from "@/lib/listing";
 import { PRICE_TRUST, REF_ALT_SOURCE, isVintage, lastPriced, priceTrust } from "@/lib/server/priceTrust";
 import { variantRank } from "@/lib/server/priceHistory";
 import type { PriceFlag, PriceStale } from "@/lib/priceFlag";
+import { EBAY_REFEREE, refereeVerdict, type AskReading } from "@/lib/ebayReferee";
 import type { CardPrice, GameId, PokemonCard } from "@/lib/types";
 
 /**
@@ -68,6 +69,15 @@ export interface TrustData {
   released: string;
   /** TCGplayer's cheapest live listing per variant (USD), read within the last LOW_MAX_AGE_DAYS (listing_lows, $100+ printings only). */
   lows?: Record<string, number>;
+  /** The nightly eBay referee per variant (ebay_asks): the ask reading when fresh, and an admin's binding call. */
+  asks?: Record<string, EbayAsksRow>;
+}
+
+/** One ebay_asks row as the guard reads it. `reading` is null when older than EBAY_REFEREE.maxAgeDays (a manual call has no age limit). */
+export interface EbayAsksRow {
+  reading: AskReading | null;
+  manual: "hide" | "keep" | null;
+  manualPrice: number | null;
 }
 
 export interface JudgeOpts {
@@ -162,7 +172,7 @@ export function judgeFull(data: TrustData, opts: JudgeOpts = {}): { flag: PriceF
     const others = data.series.filter((o) => o !== def && o !== s).map(lastIn);
     if (others.every((v) => v == null || v <= to)) anchorFor = lastIn(def);
   }
-  const verdict = priceTrust({ to, prices, siblings, refEur, refAltEur, vintage: isVintage(data.game === "pokemon" ? variant : "", data.released), old: opts.old != null, listingLowUsd, listingReferee: data.game === "mtg", anchorFor });
+  const verdict = priceTrust({ to, prices, siblings, refEur, refAltEur, vintage: isVintage(data.game === "pokemon" ? variant : "", data.released), old: opts.old != null, listingLowUsd, listingReferee: data.game === "mtg", ebay: ebayCall(data.asks?.[variant], to), anchorFor });
   if (verdict.ok) return NONE;
   // Stale (10-02): the number stands, with a note; nothing is hidden or left out.
   if (verdict.stale != null) return { flag: null, stale: { days: verdict.stale } };
@@ -173,6 +183,18 @@ export function judgeFull(data: TrustData, opts: JudgeOpts = {}): { flag: PriceF
 }
 
 const NONE: { flag: null; stale: null } = { flag: null, stale: null };
+
+/** A manual call binds while the price stays within this of the price that was checked. */
+const MANUAL_BAND = 0.1;
+
+/** The eBay referee's say on `to`: the verdict is recomputed against the price being judged (it may have moved since the nightly read). Pure. */
+export function ebayCall(row: EbayAsksRow | undefined, to: number): { high: boolean; reason: string; manual: "hide" | "keep" | null } | null {
+  if (!row) return null;
+  const manual = row.manual && row.manualPrice && Math.abs(to - row.manualPrice) <= MANUAL_BAND * row.manualPrice ? row.manual : null;
+  const v = row.reading && to >= EBAY_REFEREE.minUsd ? refereeVerdict(to, row.reading) : null;
+  if (!manual && v?.verdict !== "high") return null;
+  return { high: v?.verdict === "high", reason: v?.reason ?? "", manual };
+}
 
 // ---------------------------------------------------------------------------
 // Loading
@@ -221,6 +243,30 @@ export async function readListingLows(game: GameId, cardIds: string[], day = tod
   return out;
 }
 
+/**
+ * The eBay referee's rows (ebay_asks) per card and variant: fresh readings, and manual calls of any age. Every loader that
+ * builds TrustData reads it here. A failed read (or a database without the table yet) is no evidence (empty), never an error.
+ */
+export async function readEbayAsks(game: GameId, cardIds: string[], day = todayUtc()): Promise<Map<string, Record<string, EbayAsksRow>>> {
+  const out = new Map<string, Record<string, EbayAsksRow>>();
+  if (cardIds.length === 0) return out;
+  const since = addDays(day, -EBAY_REFEREE.maxAgeDays);
+  const rows = await (db
+    .prepare(
+      `SELECT card_id, variant, n, n_nm, median_usd, q75_usd, vintage, day, manual, manual_price FROM ebay_asks
+        WHERE game = ? AND card_id IN (${cardIds.map(() => "?").join(",")}) AND (day >= ? OR manual IS NOT NULL)`,
+    )
+    .all(game, ...cardIds, since) as unknown as Promise<
+    { card_id: string; variant: string; n: number; n_nm: number; median_usd: number | null; q75_usd: number | null; vintage: number; day: string; manual: string | null; manual_price: number | null }[]
+  >).catch(() => []);
+  for (const r of rows) {
+    const reading: AskReading | null = r.day >= since ? { n: Number(r.n), nNm: Number(r.n_nm), median: r.median_usd == null ? null : Number(r.median_usd), q75: r.q75_usd == null ? null : Number(r.q75_usd), vintage: Number(r.vintage) === 1 } : null;
+    const manual = r.manual === "hide" || r.manual === "keep" ? r.manual : null;
+    out.set(r.card_id, { ...(out.get(r.card_id) ?? {}), [r.variant]: { reading, manual, manualPrice: r.manual_price == null ? null : Number(r.manual_price) } });
+  }
+  return out;
+}
+
 /** One chunk (<= 400 cards of one game): the series query and the release-date / EUR query run together. */
 async function readChunk(game: GameId, chunk: string[], day: string): Promise<Map<string, TrustData>> {
   const marks = chunk.map(() => "?").join(",");
@@ -240,7 +286,12 @@ async function readChunk(game: GameId, chunk: string[], day: string): Promise<Ma
             { id: string; set_release_date: string; price_eur: number | null; price_eur_foil: number | null }[]
           >)
         : Promise.resolve([]);
-  const [rows, metaRows, lows] = (await Promise.all([seriesQ, metaQ, readListingLows(game, chunk, day)])) as [SeriesRow[], MetaRow[], Map<string, Record<string, number>>];
+  const [rows, metaRows, lows, asks] = (await Promise.all([seriesQ, metaQ, readListingLows(game, chunk, day), readEbayAsks(game, chunk, day)])) as [
+    SeriesRow[],
+    MetaRow[],
+    Map<string, Record<string, number>>,
+    Map<string, Record<string, EbayAsksRow>>,
+  ];
   const meta = new Map<string, { released: string; eur: TrustData["eur"] }>();
   for (const m of metaRows) {
     meta.set(m.id, { released: m.set_release_date ?? "", eur: game === "mtg" ? { nonfoil: m.price_eur ?? null, foil: m.price_eur_foil ?? null } : null });
@@ -261,6 +312,10 @@ async function readChunk(game: GameId, chunk: string[], day: string): Promise<Ma
   for (const [id, l] of lows) {
     const d = built.get(id);
     if (d) d.lows = l;
+  }
+  for (const [id, a] of asks) {
+    const d = built.get(id);
+    if (d) d.asks = a;
   }
   const at = Date.now();
   for (const [id, d] of built) {

@@ -3,6 +3,14 @@
 Things that shipped but were never exercised on a real phone or with real
 traffic. Tick when tested; note what you saw. Newest batch first.
 
+## 10-13: nightly eBay referee + /admin/prices "Price checks" (LOCAL, NOT PUSHED)
+Chris 10-13: "make the daily price check against eBay automatic". Every $100+ printing (4,550 on 10-13: Magic 1,801, Pokemon 1,527, YGO 640, One Piece 424, Lorcana 158) is read against eBay's ACTIVE fixed-price listings (Browse API; sold data is denied) up to 900 calls a night, 8:15am + 8:45am ET (cron /api/cron/ebay-referee, 12:15 + 12:45 UTC). lib/ebayReferee.ts = printing-aware matcher + rule (hide at 1.5x the upper NM asks with 3+ asks; vintage pre-2010 needs 3x; 100x one ask); table ebay_asks; priceTrust test 0 (admin call) + 1b (eBay high). Prize sets, unknown rare tags, One Piece special versions and Lorcana/OP promo sets are never auto-hidden (>= $2,000 they go to the hand-check list). Calibrated on 58 eBay-SOLD-checked cards: 4 of 17 bad caught, 0 of 27 good hidden. Local run (366 read, 500 calls, 85 s): 13 hidden (Genex Axel $213,589, Bujingi Crane $199,379, Green Baboon $194,450, Tower of Babel $5,020, foil Llanowar Elves $954 ...), 91 to hand check. Pane: /admin/prices renders desktop + phone (folds, no side scroll); "Right, keep" moved Mewtwo Star to Your calls and the guard showed it; Undo put it back.
+- [ ] PROD after the push: Vercel cron list shows /api/cron/ebay-referee twice; the next morning /admin/prices says "Last run ... read" with ~400-450 cards and ~900 calls, 0 failed.
+- [ ] PROD: the /admin Overview "eBay API limits today" tile stays under the Browse cap (referee 900 + comps).
+- [ ] PROD: a hidden card (e.g. search "Genex Ally Axel" Starstrike Blast) shows "This price looks off, check sold listings", not $213,589.
+- [ ] PROD: on the phone, /admin/prices > Hand check: tap "eBay sold" (opens sold listings), then "Right, keep" or "Wrong, hide" on one row; it moves to Your calls; Undo returns it.
+- [ ] After a week: every $100+ card has a reading (counts line: fine + check + hidden + not on eBay ~ 4,500).
+
 ## 10-12 night: marketing nav hydration error fixed (LOCAL, NOT PUSHED)
 Since 10-08 the nav read the signed-in hint from localStorage while rendering, so for a signed-in visitor the server HTML said "Log In" and the browser's first paint said "Log out": React threw a hydration error on every marketing page and rebuilt the page in the browser (slower first paint, console error; new prod errors in OPEN-TESTS E #73 may include it). Now read through useSyncExternalStore with a server snapshot of false. Pane 10-12: fresh tab, signed in, card page: no console errors, nav shows Log out at once.
 - [ ] PROD after the push, signed in on the phone: open cardflip.io and a /cards page: nav shows Log out + Open the App with no flash of Log In; error digest shows no new "Hydration failed" lines.
