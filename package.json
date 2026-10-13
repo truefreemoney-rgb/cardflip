@@ -18,6 +18,7 @@
     "sync:en": "node scripts/sync-cards.mjs en en_cards",
     "sync:mtg": "node --experimental-strip-types --no-warnings scripts/sync-mtg.mjs",
     "sync:lorcana": "node --experimental-strip-types --no-warnings scripts/sync-lorcana.mjs",
+    "pictures:save": "node --env-file=.env.local scripts/save-pictures.mjs",
     "sync:onepiece": "node --experimental-strip-types --no-warnings scripts/sync-onepiece.mjs --with-promos --with-don && node --experimental-strip-types --no-warnings scripts/sync-onepiece-images.mjs",
     "sync:onepiece:images": "node --experimental-strip-types --no-warnings scripts/sync-onepiece-images.mjs",
     "sync:yugioh": "node --experimental-strip-types --no-warnings scripts/sync-yugioh.mjs",

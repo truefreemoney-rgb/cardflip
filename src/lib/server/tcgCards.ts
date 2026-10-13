@@ -36,6 +36,8 @@ interface TcgRow {
   rarity: string;
   variant: string;
   image_url: string;
+  own_image_url: string;
+  own_tile_url: string;
   price_usd: number | null;
   price_usd_foil: number | null;
 }
@@ -49,7 +51,8 @@ function onePieceVariantFamily(v: string): string {
   return "other";
 }
 
-const COLUMNS = "id, game, name, subtitle, set_code, set_name, collector_number, set_total, set_release_date, rarity, variant, image_url, price_usd, price_usd_foil";
+// own_* (10-12, scripts/save-pictures.mjs): our stored copies, preferred over the source link in image_url.
+const COLUMNS = "id, game, name, subtitle, set_code, set_name, collector_number, set_total, set_release_date, rarity, variant, image_url, own_image_url, own_tile_url, price_usd, price_usd_foil";
 
 export type TcgGame = Extract<GameId, "lorcana" | "onepiece" | "yugioh">;
 export const isTcgGame = (g: GameId): g is TcgGame => g === "lorcana" || g === "onepiece" || g === "yugioh";
@@ -78,8 +81,8 @@ function toCard(row: TcgRow): PokemonCard {
     setSeries: "",
     number: row.collector_number,
     rarity: row.rarity || null,
-    imageSmall: row.image_url,
-    imageLarge: row.image_url,
+    imageSmall: row.own_tile_url || row.own_image_url || row.image_url,
+    imageLarge: row.own_image_url || row.image_url,
     prices,
     englishName: null,
     setTotal: row.set_total,

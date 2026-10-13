@@ -25,6 +25,7 @@ export interface MoverRow {
   name: string;
   number: string;
   image: string;
+  tile?: string;
   setSlug: string;
   setName: string;
   variant: string;
@@ -44,7 +45,7 @@ async function rowsFor(game: GameId, movers: Mover[]): Promise<MoverRow[]> {
   for (const m of movers) {
     const t = tiles.get(m.cardId);
     if (!t || m.unsettled) continue;
-    out.push({ key: t.key, name: t.name, number: t.number, image: t.image, setSlug: t.setSlug, setName: t.setName, variant: variantLabel(m.variant), from: m.from, to: m.to, pct: m.pct });
+    out.push({ key: t.key, name: t.name, number: t.number, image: t.image, tile: t.tile, setSlug: t.setSlug, setName: t.setName, variant: variantLabel(m.variant), from: m.from, to: m.to, pct: m.pct });
   }
   return out.slice(0, MOVERS_SHOWN);
 }

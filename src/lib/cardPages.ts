@@ -354,6 +354,8 @@ export interface CardFacts {
   tags: string[];
   /** The large picture. */
   image: string;
+  /** Our small list copy (10-12, self-hosted), '' until the game's pictures are saved: lists use it over image. */
+  tile?: string;
 }
 
 const titleCase = (s: string) => s.replace(/[-_]+/g, " ").replace(/\b[a-z]/g, (c) => c.toUpperCase());

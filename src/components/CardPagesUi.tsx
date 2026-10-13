@@ -83,6 +83,8 @@ export interface TileData {
   name: string;
   number: string;
   image: string;
+  /** Our small list copy when we have one (self-hosted pictures, 10-12). */
+  tile?: string;
   price: number | null;
   flagged: boolean;
   setSlug: string;
@@ -100,7 +102,7 @@ export function TileGrid({ game, tiles, showSet = false }: { game: GameId; tiles
             className="flex h-full flex-col overflow-hidden rounded-2xl border border-edge bg-surface-1 transition hover:border-edge-strong"
           >
             <div className="aspect-[5/7] bg-black/30">
-              {showsInLists(t.image) && <ArtImg src={t.image} alt={`${t.name}, ${t.setName}`} loading="lazy" width={500} height={700} className="h-full w-full object-cover" />}
+              {showsInLists(t.tile || t.image) && <ArtImg src={t.tile || t.image} alt={`${t.name}, ${t.setName}`} loading="lazy" width={500} height={700} className="h-full w-full object-cover" />}
             </div>
             <div className="flex flex-1 flex-col gap-0.5 p-2.5">
               <p className="truncate text-sm font-medium text-white">{t.name}</p>

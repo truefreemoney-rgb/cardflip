@@ -53,7 +53,7 @@ function MoverList({ game, rows }: { game: GameId; rows: MoverRow[] }) {
         <li key={`${r.key}-${r.variant}`}>
           <Link href={cardPath(game, r.setSlug, r.name, r.key)} className="flex items-center gap-3 rounded-xl border border-edge bg-surface-1 p-2 transition hover:border-edge-strong">
             <div className="aspect-[5/7] w-10 shrink-0 overflow-hidden rounded bg-black/30">
-              {showsInLists(r.image) && <ArtImg src={r.image} alt="" loading="lazy" width={80} height={112} className="h-full w-full object-cover" />}
+              {showsInLists(r.tile || r.image) && <ArtImg src={r.tile || r.image} alt="" loading="lazy" width={80} height={112} className="h-full w-full object-cover" />}
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium text-white">{r.name}</p>

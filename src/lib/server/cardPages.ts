@@ -198,6 +198,9 @@ interface CatalogRow {
   rarity: string | null;
   variant: string | null;
   image_url: string;
+  /** Our stored copies (tcg_cards only, 10-12): preferred over image_url when set. */
+  own_image_url?: string;
+  own_tile_url?: string;
   price_eur?: number | null;
   price_eur_foil?: number | null;
 }
@@ -227,7 +230,8 @@ function factsOf(game: GameId, row: CatalogRow, setSlug: string): CardFacts {
     release: row.release ?? "",
     rarity,
     tags: printingTags(game, { id: row.id, rarity: game === "yugioh" ? row.rarity : null, variant: row.variant }),
-    image: game === "mtg" ? largeImage(row.image_url) : game === "pokemon" ? row.image_url.replace("/low.webp", "/high.webp") : row.image_url,
+    image: game === "mtg" ? largeImage(row.image_url) : game === "pokemon" ? row.image_url.replace("/low.webp", "/high.webp") : row.own_image_url || row.image_url,
+    tile: row.own_tile_url || row.own_image_url || "",
   };
 }
 
@@ -263,7 +267,7 @@ export async function loadCardRecord(game: GameId, rawKey: string): Promise<Card
     row = (await db
       .prepare(
         `SELECT id, name, subtitle, set_code || '|' || set_name AS set_key, set_name, set_code, collector_number AS number, set_total,
-                set_release_date AS release, rarity, variant, image_url
+                set_release_date AS release, rarity, variant, image_url, own_image_url, own_tile_url
            FROM tcg_cards WHERE id = ? AND game = ?`,
       )
       .get(key, game)) as CatalogRow | undefined;
@@ -407,6 +411,8 @@ export interface SetCard {
   number: string;
   tags: string[];
   image: string;
+  /** Our small list copy when we have one ('' = use image). */
+  tile?: string;
   price: number | null;
   flagged: boolean;
   /** A price too high for the history behind it (lib/cardPages.ts isUnverified): never listed or featured. */
@@ -422,7 +428,7 @@ const LIST_SELECT = {
   mtg: `SELECT id, name, set_code AS set_key, set_name, set_code, collector_number AS number, NULL AS set_total,
                set_release_date AS release, image_url, rarity, NULL AS variant FROM mtg_cards`,
   tcg: `SELECT id, name, subtitle, set_code || '|' || set_name AS set_key, set_name, set_code, collector_number AS number, set_total,
-               set_release_date AS release, rarity, variant, image_url FROM tcg_cards`,
+               set_release_date AS release, rarity, variant, image_url, own_image_url, own_tile_url FROM tcg_cards`,
 } as const;
 
 /** Catalog rows with a picture and a key a page can have. */
@@ -479,7 +485,7 @@ export async function loadSetCards(game: GameId, set: SetEntry, today = todayUtc
     if (prices.length === 0) continue;
     const head = headlinePrice(prices);
     const f = factsOf(game, r, "");
-    out.push({ key: r.key, name: f.name, number: f.number, tags: f.tags, image: f.image, price: head ? head.price : null, flagged: !head, unverified: head ? isUnverified(head) : false, ...(head?.stale ? { stale: true } : {}) });
+    out.push({ key: r.key, name: f.name, number: f.number, tags: f.tags, image: f.image, tile: f.tile, price: head ? head.price : null, flagged: !head, unverified: head ? isUnverified(head) : false, ...(head?.stale ? { stale: true } : {}) });
   }
   return out.sort((a, b) => (b.price ?? -1) - (a.price ?? -1) || a.name.localeCompare(b.name) || a.number.localeCompare(b.number, "en", { numeric: true }));
 }
@@ -526,7 +532,7 @@ interface SetStandings {
 
 async function setStandings(game: GameId, set: SetEntry): Promise<SetStandings> {
   try {
-    return await cachedList(`seo:setrank:v3:${game}:${set.key}`, TOP_TTL_MS, async () => {
+    return await cachedList(`seo:setrank:v4:${game}:${set.key}`, TOP_TTL_MS, async () => {
       const cards = (await loadSetCards(game, set)).filter((c) => c.price != null && c.price >= indexFloorUsd(game) && !c.unverified && !c.stale);
       const prices = cards.map((c) => c.price as number).sort((a, b) => a - b);
       const mid = prices.length >> 1;
@@ -609,7 +615,7 @@ export async function otherPrintings(game: GameId, f: Pick<CardFacts, "name" | "
       const setSlug = index.slugOf.get(r.set_key);
       if (!setSlug) continue;
       const fx = factsOf(game, r, setSlug);
-      out.push({ key: r.key, name: fx.name, number: fx.number, tags: fx.tags, image: fx.image, price: head.price, flagged: false, unverified: false, setSlug, setName: fx.setName });
+      out.push({ key: r.key, name: fx.name, number: fx.number, tags: fx.tags, image: fx.image, tile: fx.tile, price: head.price, flagged: false, unverified: false, setSlug, setName: fx.setName });
     }
     return out.sort((a, b) => (b.price ?? 0) - (a.price ?? 0)).slice(0, limit);
   });
@@ -638,7 +644,7 @@ export async function nameTiles(game: GameId, term: string, limit = 60): Promise
       const setSlug = index.slugOf.get(r.set_key);
       if (!setSlug) continue;
       const fx = factsOf(game, r, setSlug);
-      out.push({ key: r.key, name: fx.name, number: fx.number, tags: fx.tags, image: fx.image, price: head.price, flagged: false, unverified: false, setSlug, setName: fx.setName });
+      out.push({ key: r.key, name: fx.name, number: fx.number, tags: fx.tags, image: fx.image, tile: fx.tile, price: head.price, flagged: false, unverified: false, setSlug, setName: fx.setName });
     }
     return out.sort((a, b) => (b.price ?? 0) - (a.price ?? 0));
   });
@@ -698,7 +704,7 @@ export async function gameTopTiles(game: GameId): Promise<Tile[]> {
       const head = headlinePrice(variantPrices(game, judgedSeries(data, today), today));
       if (!head || isUnverified(head) || head.stale) continue;
       const f = factsOf(game, r, "");
-      out.push({ key: r.key, name: f.name, number: f.number, tags: f.tags, image: f.image, price: head.price, flagged: false, unverified: false, setSlug: index.slugOf.get(r.set_key) ?? slugify(r.set_name, 80), setName: r.set_name });
+      out.push({ key: r.key, name: f.name, number: f.number, tags: f.tags, image: f.image, tile: f.tile, price: head.price, flagged: false, unverified: false, setSlug: index.slugOf.get(r.set_key) ?? slugify(r.set_name, 80), setName: r.set_name });
     }
     return out.sort((a, b) => (b.price ?? 0) - (a.price ?? 0)).slice(0, TOP_TILES);
   });
@@ -711,7 +717,7 @@ export async function pageTilesByIds(game: GameId, ids: string[]): Promise<Map<s
   const index = await setIndex(game);
   for (const r of await catalogByIds(game, ids)) {
     const f = factsOf(game, r, "");
-    out.set(r.id, { key: r.key, name: f.name, number: f.number, tags: f.tags, image: f.image, price: null, flagged: false, unverified: false, setSlug: index.slugOf.get(r.set_key) ?? slugify(r.set_name, 80), setName: r.set_name });
+    out.set(r.id, { key: r.key, name: f.name, number: f.number, tags: f.tags, image: f.image, tile: f.tile, price: null, flagged: false, unverified: false, setSlug: index.slugOf.get(r.set_key) ?? slugify(r.set_name, 80), setName: r.set_name });
   }
   return out;
 }

@@ -3,6 +3,13 @@
 Things that shipped but were never exercised on a real phone or with real
 traffic. Tick when tested; note what you saw. Newest batch first.
 
+## 10-12 night: Lorcana pictures self-hosted (LOCAL, NOT PUSHED; the run itself IS live on Blob + Turso)
+Chris 10-12: "find card, save to our database and everything pulls from there." scripts/save-pictures.mjs --game lorcana --prod saved every Lorcana picture (3,469) to our Blob as cards/lorcana/<id>-<hash>.webp (500px page copy ~47 KB) + -tile.webp (240px ~15 KB) and wrote own_image_url / own_tile_url / own_image_src on the rows, local and Turso. Readers (tcgCards.ts, cardPages.ts, movers) prefer own_* and fall back to image_url; set-rank list cache bumped to v4 so lists switch at deploy. Nothing on the live site changes until this code is pushed.
+- [ ] PROD after the push: cardflip.io/cards/lorcana, open a set, right-click a tile → the picture URL is mlwovvakovcpakbr.public.blob.vercel-storage.com/cards/lorcana/...-tile.webp (not cards.lorcast.io); a card page shows the ...webp page copy, sharp, not blurry.
+- [ ] PROD: search "Elsa" from the header on a Lorcana page: result thumbnails come from our store too.
+- [ ] PROD: Lorcana scanner candidates (scan any Lorcana card): the printing thumbnails load from our store; the scan still identifies the card (tiebreak still reads ref_image_url / image_url, unchanged).
+- [ ] Weekly catalog sync (Sunday 10:30): sync:lorcana overwrites image_url but not own_*; a re-run of pictures:save --game lorcana afterwards saves only NEW or changed pictures (count printed on the first line, should be small).
+
 ## 10-12 ~3:30pm: Inventory summary postage = each copy's real rate (LOCAL, NOT PUSHED)
 Was a flat $0.78 per copy everywhere (a $1,178.52 card read "Postage · 1 × $0.78"). Now salePostage (fees.ts): over $100 tracked $6.07 whatever was picked; otherwise the row's pick at its price (envelope $0.78 up to $20, stamps $1.31 to $100; tracked $6.07); no pick = the label up to $20, tracked above. Same rule in saleNet/saleBreakdown (sales report, CSV), the reprice sheet's "you keep", and the Listed panel. Pane 10-12: $41.12 no pick → "Postage · 1 × $6.07", fees $5.85, You Keep $29.20; hand-sold → "Postage $0.00".
 - [x] (10-12 ~3:15pm ET Chris on the tunnel: passed) Tunnel, Seller mode, Inventory summary: the $1,178.52 Pikachu (svp-085) reads "Postage · 1 × $6.07" and You Keep on eBay ≈ $1,015.90 (was $1,021.19).

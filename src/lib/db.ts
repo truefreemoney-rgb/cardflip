@@ -853,7 +853,17 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
   ],
   // One Piece (09-30): Bandai's stamped card-list art for the picture
   // tiebreak only; image_url is the clean TCGplayer scan people see, or ''.
-  ["tcg_cards", ["ref_image_url TEXT NOT NULL DEFAULT ''"]],
+  [
+    "tcg_cards",
+    [
+      "ref_image_url TEXT NOT NULL DEFAULT ''",
+      // Our own copies of the picture (10-12, scripts/save-pictures.mjs): ~500px page copy, small list tile,
+      // and the source URL they were made from. Readers prefer these and fall back to image_url.
+      "own_image_url TEXT NOT NULL DEFAULT ''",
+      "own_tile_url TEXT NOT NULL DEFAULT ''",
+      "own_image_src TEXT NOT NULL DEFAULT ''",
+    ],
+  ],
   // Server log (10-03): console.warn lines share the table; 'error' | 'warn'.
   ["error_events", ["level TEXT NOT NULL DEFAULT 'error'"]],
   // Ticket photos (Chris 09-26): JSON array of Blob URLs. Prod's table
