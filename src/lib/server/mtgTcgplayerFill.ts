@@ -54,8 +54,22 @@ export interface MtgFill {
 const fold = (s: string) =>
   s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9]+/g, " ").trim();
 const STAMP = /gold[- ]stamped/i;
-/** Product name → bare card name: drop "Art Card" and every parenthetical. */
-const bareProduct = (n: string) => fold(n.replace(/\([^)]*\)/g, " ").replace(/\bart card\b/i, " "));
+/**
+ * Product name → bare card name: drop "Art Card" and every parenthetical, plus
+ * the words TCGplayer puts before "Art Card" that Scryfall's name lacks
+ * (10-13: "Dinosaur Token Art Card", "Valley Questcaller 2 Art Card",
+ * "Omniscience Anime Art Card"; the number still tells those apart).
+ */
+const bareProduct = (n: string) =>
+  fold(n.replace(/\([^)]*\)/g, " ").replace(/(?:\s+(?:token|anime|\d+))*\s+art card\b/i, " ").replace(/\bart card\b/i, " "));
+/** Scryfall row name → names to try: whole (a doubled "A // B // A // B" halved), then the front face. */
+const rowNames = (n: string) => {
+  const parts = n.split(" // ");
+  const half = parts.length % 2 === 0 && parts.slice(0, parts.length / 2).join("|") === parts.slice(parts.length / 2).join("|");
+  const whole = fold(half ? parts.slice(0, parts.length / 2).join(" // ") : n);
+  const front = fold(parts[0]);
+  return front === whole ? [whole] : [whole, front];
+};
 const bareNumber = (n: string) => n.split("/")[0].trim().toLowerCase().replace(/^0+(?=\w)/, "");
 
 /** Scryfall set code → TCGplayer group abbreviation, where neither rule finds it. */
@@ -72,6 +86,7 @@ const GROUP_ALIASES: Record<string, string> = {
   pcmp: "CHAMPS",
   pmei: "MEDIA",
   afic: "FIC", // Final Fantasy Scene Box cards sit with the Commander decks
+  atle: "ASTLA", // Avatar Eternal Art Series cards sit unnumbered in "Art Series: Avatar: The Last Airbender"
 };
 /** Scryfall set code → several TCGplayer groups searched as one (their abbreviation is shared). */
 const GROUP_IDS: Record<string, number[]> = {
@@ -122,13 +137,28 @@ export function matchMtgProducts(rows: MtgGapRow[], products: TcgProduct[]): Mtg
   const rowsByName = new Map<string, number>();
   for (const r of rows) rowsByName.set(fold(r.name), (rowsByName.get(fold(r.name)) ?? 0) + 1);
   const out: MtgFill[] = [];
+  const rowKeys = new Set(rows.map((r) => `${fold(r.name)}#${bareNumber(listNumber(r.setCode, r.number))}`));
   for (const r of rows) {
-    const name = fold(r.name);
     let num = bareNumber(listNumber(r.setCode, r.number));
     const stamped = /^\d+s$/.test(num);
     if (stamped) num = num.slice(0, -1);
-    let hits = byKey.get(key(name, num, stamped)) ?? [];
-    if (!hits.length && !numbered && !stamped && rowsByName.get(name) === 1) hits = byName.get(name) ?? [];
+    const art = /art series$/i.test(r.setName.trim());
+    // Art Series "1c" (Scryfall) = TCGplayer #1 (Marvel Thanos 1/9…9/9), unless a row of that name owns plain "1" (Nine-Lives Familiar 36 + 36b).
+    const plain = num.replace(/(?<=\d)[a-z]$/, "");
+    const nums = art && !stamped && plain !== num && !rowKeys.has(`${fold(r.name)}#${plain}`) ? [num, plain] : [num];
+    let hits: TcgProduct[] = [];
+    for (const name of art ? rowNames(r.name) : [fold(r.name)]) {
+      for (const n of nums) {
+        hits = byKey.get(key(name, n, stamped)) ?? [];
+        if (hits.length) break;
+      }
+      // No name + number hit (unnumbered group, or numbers that differ like
+      // Karlov Manor Art Series 46 vs 41 or Marvel "1b" vs 1): a name that is
+      // unique on both sides. Two products of one name (Aurelia 36 + 41) = no match.
+      // Numbered groups only for Art Series: elsewhere a number miss can be another printing.
+      if (!hits.length && !stamped && (!numbered || art) && rowsByName.get(fold(r.name)) === 1) hits = byName.get(name) ?? [];
+      if (hits.length) break;
+    }
     if (hits.length !== 1) continue;
     const pr = hits[0].prices;
     const foilOnly = !/nonfoil/.test(r.finishes) && /foil/.test(r.finishes);

@@ -66,5 +66,27 @@ assert.deepEqual(
   [{ id: "y", usd: 900, foil: null }],
 );
 
+// 10-13 Art Series gaps: "Token"/"2"/"Anime" before "Art Card", doubled and two-faced names, "1c" = #1, name-only on a number miss.
+const art = (id, name, number, setName = "Marvel Super Heroes Art Series") => ({ id, name, setCode: "amsh", setName, number, finishes: "nonfoil" });
+const p = (name, number, usd) => ({ name, number, prices: { Normal: usd } });
+const got = (rows, products) => Object.fromEntries(matchMtgProducts(rows, products).map((f) => [f.id, f.usd]));
+assert.deepEqual(
+  got(
+    [art("t", "Dinosaur", "67"), art("q", "Valley Questcaller", "37"), art("m", "Mirror Room // Fractured Realm // Mirror Room // Fractured Realm", "36"), art("h", "Hobgoblin Bandit Lord // Hobgoblin", "30")],
+    [p("Dinosaur Token Art Card", "67", 0.17), p("Valley Questcaller 2 Art Card", "37", 0.22), p("Valley Questcaller Art Card", "4", 0.5), p("Mirror Room // Fractured Realm Art Card", "36", 0.17), p("Hobgoblin Bandit Lord Art Card", "30", 0.23)],
+  ),
+  { t: 0.17, q: 0.22, m: 0.17, h: 0.23 },
+);
+assert.deepEqual(
+  got(
+    [art("i", "Iron Man, Futurist Paragon", "1b"), art("t1", "Thanos, the Mad Titan", "1c"), art("t2", "Thanos, the Mad Titan", "2c"), art("k", "Kraul Whipcracker", "47"), art("a", "Aurelia, the Law Above", "46")],
+    [p("Iron Man, Futurist Paragon Art Card", "1", 0.41), p("Thanos, the Mad Titan Art Card (1/9)", "1", 0.3), p("Thanos, the Mad Titan Art Card (2/9)", "2", 0.31), p("Kraul Whipcracker Art Card", "42", 0.14), p("Aurelia, the Law Above Art Card (41/49)", "41", 1), p("Aurelia, the Law Above Art Card (36/49)", "36", 2)],
+  ),
+  { i: 0.41, t1: 0.3, t2: 0.31, k: 0.14 },
+  "two products of one name (Aurelia) stay blank",
+);
+// Outside Art Series a number miss never falls back to the name (it could be another printing).
+assert.deepEqual(got([{ ...art("s", "Ajani Goldmane // Ajani Goldmane", "745"), setCode: "sld", setName: "Secret Lair Drop" }], [p("Ajani Goldmane", "999", 1657)]), {});
+
 console.log("mtg tcgplayer fill: all assertions passed");
 process.exit(0);
