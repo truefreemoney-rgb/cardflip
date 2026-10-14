@@ -76,7 +76,7 @@ export function shipSteps(method: ShipMethod, price?: number | null): string[] {
       "Penny sleeve, then a toploader. Tape the top of the toploader shut.",
       "Put it in a plain white envelope with a stiff piece of cardboard, nothing thicker than a quarter inch.",
       // Chris 10-14: one total, no stamp names or surcharge math ("simplify it").
-      "Postage is $1.31 total. Hand it in at the post office counter and they'll stamp it for you.",
+      "Postage is $1.31 total. Use $1.31 in postage stamps, or hand it in at the post office counter and they'll stamp it for you.",
       "Mail it within 1 business day, then mark it shipped on eBay (Seller Hub → Orders → Mark as shipped).",
     ];
   }
