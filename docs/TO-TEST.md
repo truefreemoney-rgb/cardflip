@@ -441,7 +441,7 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 - [x] (10-14 3:25pm ET Chris phone: pass) Watchlist: Total value starts as a one-line bar (tap to open, the arrow folds it again); "Add a card" panel has Hide / Show; both remembered after a reload.
 - [x] (10-14 2:53pm ET Chris phone: $1,574.99 reverse holo, eBay sold raw $700-3,500 since late Aug so the number stands) Watchlist: Legendary Collection Pikachu 86 shows $1,574.99 "steady" (was "$6.62, down 100%": the Watchlist read a different printing than the one saved).
 - [ ] Card detail (Search/Watchlist), the Source/Variant/Low/Market table: a "low" above the market shows "—" (Chris 10-14: Legendary Collection Pikachu reverse holo read Low $19,999.99 beside Market $1,574.99, a joke listing; fixed locally, not pushed). The Normal row still shows its real low.
-- [ ] Search: 'All sets' opens a full panel of every set with pictures (newest first; One Piece by value), a 'Find a set' box narrows it, tapping a set opens all its cards.
+- [x] (10-14 3:40pm ET Chris phone: pass) Search: 'All sets' opens a full panel of every set with pictures (newest first; One Piece by value), a 'Find a set' box narrows it, tapping a set opens all its cards.
 
 ## 10-14 ~6:30am ET: owner eBay reconnected (link dropped 10-13 10:10pm ET by invalid_grant 'issued to another client', cause unknown)
 - [ ] After ~8:30am ET (first token refresh on prod): /api/ebay/status from the pane still connected:true, and /admin/errors has no new 'eBay refresh rejected'. NEVER verify via a local script calling ebayAuth (deletes the link: local key).
