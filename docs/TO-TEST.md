@@ -1,4 +1,4 @@
-# To test later
+﻿# To test later
 
 Things that shipped but were never exercised on a real phone or with real
 traffic. Tick when tested; note what you saw. Newest batch first.
@@ -369,7 +369,7 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 
 
 ## 10-13 ~3pm ET: nightly new-cards run (PC, 2am ET)
-- [ ] 10-14 morning: backups\catalog-sync.log ends with "===== done ... (failed:)" and nothing after failed:; /admin/prices shows "New cards ... last run" ~2am, all steps fine.
+- [ ] 10-14 morning: (LOG PASS 10-14 7:40am ET: done 2:33am, failed: empty, all 5 games 0 failed, 44 YGO stand-ins; /admin/prices tile PASS 8:25am: last run 6 h ago, all steps fine) backups\catalog-sync.log ends with "===== done ... (failed:)" and nothing after failed:; /admin/prices shows "New cards ... last run" ~2am, all steps fine.
 - [ ] Yu-Gi-Oh saved pictures intact on Turso after the push (count own_image_url<>'' for yugioh >= 59,969); the 22 new rows got pictures.
 - [ ] After the code push: cardmarket_map rows on Turso (yugioh ~28k, lorcana ~2.6k) and the 5:25am tcg-prices run still green.
 

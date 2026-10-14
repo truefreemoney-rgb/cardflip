@@ -1,4 +1,4 @@
-# Open tests, 10-13 (ET). Total 89 = A 3 / B 30 / C 2 / D 29 / E 19 / X 6
+﻿# Open tests, 10-13 (ET). Total 89 = A 3 / B 30 / C 2 / D 29 / E 19 / X 6
 
 Built from docs/TO-TEST.md + docs/OPEN-TESTS.md. Passed and replaced checks are left out.
 
@@ -39,7 +39,7 @@ Built from docs/TO-TEST.md + docs/OPEN-TESTS.md. Passed and replaced checks are 
 30. PASS 10-14 (me, pane signed in: header Log out + Open the App, no hydration errors): Signed in on the phone: nav shows Log out and Open the App with no flash of Log In; no new hydration errors. [10-12]
 31. PASS 10-14 (me, pane signed in: Inventory 14 own photos via /api/card-image, Set Completion card tiles /pics 200, Watchlist /pics): Signed in on prod: Inventory, Set Completion (set logos) and Watchlist pictures all load from cardflip.io/pics. [10-13]
 32. Scan a Pokémon, a Magic and a Lorcana card on prod: pictures load and the card is still identified. [10-13]
-33. Phone, /admin/prices Hand check: tap "eBay sold", then "Right, keep" or "Wrong, hide"; it moves to Your calls; Undo returns it. [10-13]
+33. PASS 10-14 (me, pane at 375px, owner session: keep -> moved to Your calls 104->103, Undo -> back to 104): Phone, /admin/prices Hand check: tap "eBay sold", then "Right, keep" or "Wrong, hide"; it moves to Your calls; Undo returns it. [10-13]
 
 ## C. A decision only you make - 2
 
@@ -58,15 +58,15 @@ Built from docs/TO-TEST.md + docs/OPEN-TESTS.md. Passed and replaced checks are 
 43. First Booster or plan purchase from an ad signup shows in /admin. [10-07]
 44. First sign-up from an ad shows in Google Ads Goals > Sign-up (within about 48 hours). [10-07]
 45. First Stripe purchase shows in Google Ads Goals > Purchase. [10-07]
-46. YGO+OP PASS 10-14 (hub top: YGO $19,998.16 Stardust Dragon Victim Sanctuary, OP $1,666.26); Lorcana top still $975, recheck 10-15: From about 10-14: Yu-Gi-Oh, Lorcana and One Piece $1,000+ cards show in the top lists. [10-06]
+46. YGO+OP PASS 10-14 (hub top: YGO $19,998.16 Stardust Dragon Victim Sanctuary, OP $1,666.26); Lorcana top still $975 = BY DESIGN (10-14 checked: all 23 Lorcana $1,000+ rows are "unverified" = under 14 priced days, MATURE_PRICED_DAYS lib/cardPages.ts:67; series began 09-30 with gaps 10-09/10-10; card pages say "looks off" too), recheck 10-17 (14 days + 1-day tile cache + 48 h page): From about 10-14: Yu-Gi-Oh, Lorcana and One Piece $1,000+ cards show in the top lists. [10-06]
 47. 10-16 evening: reach-trial review (Instagram, Threads, X views vs baseline); revert if no lift. [10-09]
 48. eBay reconnect warning appears 30 days before the link expires (first ones about 2028). [10-06]
 49. /admin funnel shows ad-page signups as landing /scan (no ad has landed there yet). [10-06]
 50. PASS 10-14 (ebay_referee_last: 10-13 8:45am ET, 902 calls, 0 failed, verdicts high 29 / check 124 / ok 297 / none 193; next run 10-14 8:15+8:45am): After the push, next morning: Vercel shows the eBay referee cron twice; /admin/prices shows about 900 calls, 0 failed. [10-13]
-51. PENDING (10-14 6:40am ET Browse 1 of 5,000; recheck after the 8:45am run): After the referee runs: /admin "eBay API limits today" tile stays under the Browse cap. [10-13]
+51. PASS 10-14 8:50am ET (Browse 900 of 5,000 after the run; owner eBay still connected; 1 "refresh rejected" in 24 h = the known 6am one, none new): After the referee runs: /admin "eBay API limits today" tile stays under the Browse cap. [10-13]
 52. After a week of referee runs: every $100+ card has an eBay reading (about 4,500). [10-13]
 53. Sunday 10-18 catalog sync: Lorcana pictures kept, and the picture re-save only adds a few new ones. [10-12]
-54. One Piece top tiles are SAMPLE-stamped scans; the nightly job should swap in clean ones. [10-13]
+54. CHECKED 10-14 ~8:10am ET: all 12 top tiles still stamped; the nightly never re-checked (stamp cache trusted forever). TCGplayer's exact product (already linked) carries the stamp itself for all 12, so no clean source exists yet. FIXED 45ee7180 (local nightly, no push needed): stamped entries re-fetched daily, changed thumb -> re-score -> clean gets ?v= link -> re-saved. Recheck: nightly log line "N stamped pictures now clean". One Piece top tiles are SAMPLE-stamped scans; the nightly job should swap in clean ones. [10-13]
 55. PASS 10-14 (Art Series 2,607 cards, 32 unpriced): Morning after the push: the 56 Magic Art Series cards have prices (unpriced count 87 down to about 31). [10-13]
 56. MECHANICS PASS 10-14 (5am run done 5:49am ET, whole daily 200 s, 0 sources failed) BUT capped = 2,583, not hundreds. eBay spot-check of 11 capped $40+: 5 in range, 3 Alpha cards 40-55% LOW (1 sale each), Jace WWK foil $134 vs $180-255 LOW, 2 no compare; Alpha Ancestral $9,960 vs raw $6-8k OK. Cap = cheapest listing of ANY condition -> undercuts vintage. BACKLOG entry, recheck with more data: Morning after the push: Magic "capped to listing" count is in the hundreds, mtg step under 800 seconds. [10-13]
 57. PARTLY 10-14 (837 -> 271 flagged of 15,590 Magic $10+ prices, 35 hard; the rest are thin/round/young-series signs the listing cap cannot touch, the 83 estimate only counted the Cardmarket test): Magic "This price looks off" count drops from about 837 toward about 83. [10-13]
