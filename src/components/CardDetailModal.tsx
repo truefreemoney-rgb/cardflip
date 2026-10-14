@@ -298,7 +298,11 @@ export default function CardDetailModal({
                       <tr key={i} className="border-b border-white/5 last:border-0">
                         <td className="py-2 pr-4 capitalize text-zinc-300">{p.source === "tcgplayer" ? "Market" : p.source}</td>
                         <td className="py-2 pr-4 text-zinc-400">{p.label}</td>
-                        <td className="py-2 pr-4 text-right text-zinc-400">{formatMoney(p.low, p.currency)}</td>
+                        {/* A "low" above the market is a joke listing, not a low (Chris 10-14: Legendary Collection Pikachu
+                            reverse holo read Low $19,999.99 beside Market $1,574.99): show nothing rather than that. */}
+                        <td className="py-2 pr-4 text-right text-zinc-400">
+                          {p.low != null && p.low > 0 && !(p.market != null && p.market > 0 && p.low > p.market) ? formatMoney(p.low, p.currency) : "—"}
+                        </td>
                         {p.untrusted ? (
                           <td className="py-2 text-right text-xs leading-snug">
                             <PriceFlagText className="inline-block max-w-[13rem]" />
