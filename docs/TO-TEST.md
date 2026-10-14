@@ -3,6 +3,13 @@
 Things that shipped but were never exercised on a real phone or with real
 traffic. Tick when tested; note what you saw. Newest batch first.
 
+## 10-14 ~11am: 22-commit batch (hand calls, eBay slab-free links, flaky test fix, OP SAMPLE re-check) PUSHED
+- [ ] PROD: /cards/pokemon lists each Trainer Gallery set ONCE (stale page copies clear with this build).
+- [ ] CI: test-campaigns "Thursday five-game list" passes without the network (df04bebd); check the main run.
+- [ ] PROD: /admin/prices hand-call keep on a card the referee never read returns 200 (0e48b666) - the 128 PriceCharting keeps are the test.
+- [ ] 10-15 2am log: One Piece SAMPLE-stamped pictures re-checked daily (45ee7180), line present.
+- [ ] PROD: a $100+ raw card's "Buy on eBay" link excludes slabs (1a9878df); a slab search still names its grade.
+
 ## 10-13 ~3pm: every card picture from our storage (PUSHED 83ddd479)
 Chris saw blank One Piece hub tiles: the hubs' "most valuable" lists were cached 10-12 7pm ET (before pictures) with optcgapi links, which lists hide. Fixed: 22,946 stale card_cache tile lists deleted on Turso (seo:top/settop/printings/movers/namelist); 3,636 One Piece prod rows still had the optcgapi image_url (10-12 twin-first change was local only) -> copied from local; code (ee70b040): set completion, Magic big picture (scanner tiebreak keeps Scryfall via mtgReferenceImage), homepage featured card + wall, scan stage cards, email movers; 83ddd479: saves (cards, edits, watchlist, price checks) store our copy (ownPictureUrl); 143 old prod user rows rewritten to cardflip.io/pics (12 left: 11 blank no-id rows, 1 Japanese card). Dev: hubs, homepage, /scan, movers = 0 outside pictures, 0 blank; 100/100 tests.
 - [ ] PROD after the build: /cards/one-piece, /cards/pokemon, /cards/lorcana: 12 of 12 tiles show, all src cardflip.io/pics (curl count of outside hosts = 0).
