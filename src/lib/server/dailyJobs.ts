@@ -36,7 +36,7 @@ import type { TcgGame } from "@/lib/server/tcgCards";
  * can never double-run:
  *   - an hourly timer while the machine is awake (instrumentation.ts)
  *   - the /api/auth/me heartbeat (any app page load, via after())
- *   - GET /api/cron/daily?key=CRON_SECRET for an external pinger, which is
+ *   - GET /api/cron/daily with Bearer CRON_SECRET for an external pinger, which is
  *     what covers a zero-traffic day on a scale-to-zero machine.
  * "Due" = last successful finish > 20h ago, or a run that started > 10 min
  * ago and never finished (killed mid-way — resume).

@@ -9,14 +9,14 @@ import { refreshMetaTokens } from "@/lib/server/sites/meta";
 
 /**
  * Social autopilot publisher (docs/SOCIAL-AUTOPILOT.md §1).
- *   GET|POST /api/social/publish?key=<CRON_SECRET>            → posts if it is a post day and not yet posted
+ *   GET|POST /api/social/publish (Bearer <CRON_SECRET>)       → posts if it is a post day and not yet posted
  *   ...&slot=morning|midday|evening                           → that slot (default: the slot for the current Eastern hour)
  *   ...&force=1                                              → posts now (re-posts if the slot already went out)
  *   ...&dry=1                                                → says what would go out, posts nothing
  *   ...&day=YYYY-MM-DD                                       → another day's drafts
  * The daily Pokémon cron calls publishSocial() itself; this route is the
  * manual handle. Owner cookie (the /admin/social "Post now" button) or
- * ?key=CRON_SECRET / Bearer (routine, manual pinger) — same gate as
+ * Bearer CRON_SECRET (routine, manual pinger) — same gate as
  * /api/social/image and /api/social/drafts.
  */
 export const dynamic = "force-dynamic";

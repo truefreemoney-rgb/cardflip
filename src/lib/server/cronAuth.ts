@@ -3,10 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { presentedKey, secretEqual } from "@/lib/server/secretEqual";
 
 /**
- * Shared gate for the /api/cron/* routes. Accepts either `?key=CRON_SECRET`
- * (manual pinger, cron-job.org) or `Authorization: Bearer CRON_SECRET` —
- * Vercel Cron sends the Bearer header automatically when the CRON_SECRET
- * env var exists. Returns the error response to send, or null to proceed.
+ * Shared gate for the /api/cron/* routes: `Authorization: Bearer CRON_SECRET`
+ * only (Vercel Cron sends it automatically when the CRON_SECRET env var
+ * exists; the old ?key= query was dropped 10-14). Returns the error response to send, or null to proceed.
  */
 export function cronAuthError(req: NextRequest): NextResponse | null {
   const secret = process.env.CRON_SECRET;

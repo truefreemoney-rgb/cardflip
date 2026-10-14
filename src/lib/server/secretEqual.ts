@@ -13,24 +13,10 @@ export function secretEqual(given: string | null | undefined, secret: string | n
   return timingSafeEqual(a, b);
 }
 
-const warnedKeyPaths = new Set<string>();
-
 /**
- * The key a machine caller presented: the Authorization Bearer header first, then the legacy ?key= query.
- * A ?key= in the URL lands in access logs, so the first use per path per process logs one warning (path only,
- * never the key) to find whichever pinger still sends it before the query form is removed.
+ * The key a machine caller presented: the Authorization Bearer header only. The legacy ?key= query (it landed
+ * in access logs) was dropped 10-14 after its warning stayed silent; a ?key= now reads as no key.
  */
-export function presentedKey(req: { headers: Headers; nextUrl?: URL }): string | null {
-  const bearer = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  if (bearer) return bearer;
-  const key = req.nextUrl?.searchParams.get("key") ?? null;
-  if (key) warnKeyInUrl(req.nextUrl?.pathname ?? "unknown");
-  return key;
-}
-
-/** One server-log warning per path per process when a secret arrived as ?key= (never logs the value). */
-export function warnKeyInUrl(pathname: string): void {
-  if (warnedKeyPaths.has(pathname)) return;
-  warnedKeyPaths.add(pathname);
-  console.warn(`Secret presented in the URL (?key=) on ${pathname}; use the Authorization: Bearer header so it stays out of access logs.`);
+export function presentedKey(req: { headers: Headers }): string | null {
+  return req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") || null;
 }

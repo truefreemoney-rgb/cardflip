@@ -80,25 +80,25 @@ Built from docs/TO-TEST.md + docs/OPEN-TESTS.md. Passed and replaced checks are 
 
 ## E. Mine (scripts, curl, browser pane) - 19
 
-65. FIX two recurring prod errors: "static to dynamic at runtime /cards/magic" and "fx: rate refresh failed". [10-11]
+65. PASS 10-14 (Vercel logs past day: 0 'static to dynamic', 0 'fx'; only error = one seller's expired eBay refresh token): FIX two recurring prod errors: "static to dynamic at runtime /cards/magic" and "fx: rate refresh failed". [10-11]
 66. Read the 10-09 TikTok views (question-format test) into SOCIAL-AUTOPILOT.md; decide 7pm weighting. [10-10]
 67. Facebook posts: count hashtags (X and Bluesky already passed). [10-07]
 68. TikTok Events Manager: ViewContent and ClickButton still arriving from /scan. [10-06]
 69. Google Search Console: Google shows the new home page title. [10-06]
-70. Vercel logs: no "?key=" warnings for a week, then drop ?key= support. [10-06]
+70. DONE 10-14 (past-day warnings had no ?key= line, no task/workflow/script sends it; ?key= support REMOVED, header only, commit pending push): Vercel logs: no "?key=" warnings for a week, then drop ?key= support. [10-06]
 71. /admin/adtest: signup-page "made an account" rate is improving after the Username rename. [10-07]
 72. Fewer "Undelivered Mail Returned" bounces at support@ from welcome emails. [10-07]
-73. Hub pages /cards/one-piece, /pokemon, /lorcana: 12 of 12 tiles show, all from cardflip.io/pics. [10-13]
-74. Homepage hero card, wall and games strip all load from /pics. [10-13]
-75. Card pages' pictures come from cardflip.io/pics; view-source shows no storage address. [10-12]
-76. Hotlink test with curl: foreign Referer logs a firewall hit; no Referer gets 200 and no hit. [10-12]
-77. After a clean day of LOG-only hits, switch the hotlink rule to DENY. [10-12]
-78. Share-card picture renders card art (art fetch reads our copy). [10-12]
-79. Lorcana header search "Elsa": result thumbnails come from our storage. [10-12]
-80. After push: searching "Genex Ally Axel" shows "This price looks off", not $213,589. [10-13]
-81. After push: run sync-first-edition --prod; Base Set Charizard 4/102 then shows no 1st Edition stamp. [10-12]
-82. After push: Turso has the scan_market column and a new pack pull stores it. [10-12]
-83. After push: Yu-Gi-Oh saved pictures intact on Turso (at least 59,969) and the 22 new rows have pictures. [10-13]
+73. PASS 10-14 (curl, 0 storage/foreign refs): Hub pages /cards/one-piece, /pokemon, /lorcana: 12 of 12 tiles show, all from cardflip.io/pics. [10-13]
+74. PASS 10-14 (curl, 0 storage/foreign refs): Homepage hero card, wall and games strip all load from /pics. [10-13]
+75. PASS 10-14 (curl, 0 storage/foreign refs): Card pages' pictures come from cardflip.io/pics; view-source shows no storage address. [10-12]
+76. PASS 10-14 (foreign Referer 200 + logged 1 hit; no Referer 200 no hit; past day = only my test hit): Hotlink test with curl: foreign Referer logs a firewall hit; no Referer gets 200 and no hit. [10-12]
+77. READY FOR CHRIS 10-14 (clean day: 0 outside hotlinks; my rec below in STATE): After a clean day of LOG-only hits, switch the hotlink rule to DENY. [10-12]
+78. PASS 10-14 (/api/share/card YGO Big Core + Umbreon VMAX: 200 PNG with card art): Share-card picture renders card art (art fetch reads our copy). [10-12]
+79. PASS 10-14 (live search Elsa lorcana: 32/32 thumbnails cardflip.io/pics): Lorcana header search "Elsa": result thumbnails come from our storage. [10-12]
+80. PASS 10-14 (no $213,589 anywhere: live search shows 3 printings at $5.31/$2.05, $3.70, $0.11; Turso has no other Axel row, the bad price is gone from the catalog): After push: searching "Genex Ally Axel" shows "This price looks off", not $213,589. [10-13]
+81. PASS 10-14 (live base1-4 picture /pics/pokemon/base1-4-a332bdb6.webp is the unstamped unlimited print; no rerun needed): After push: run sync-first-edition --prod; Base Set Charizard 4/102 then shows no 1st Edition stamp. [10-12]
+82. PASS 10-14 (Turso cards.scan_market exists; 10+ new cards since the push carry it): After push: Turso has the scan_market column and a new pack pull stores it. [10-12]
+83. PASS 10-14 (Turso YGO 60,193/60,193 own pictures; 12 prod-only rows had none -> copied local, saved 11 exact TCGplayer pictures screened by eye, Red-Eyes Black Dragon Exceed 719879 403 = borrowed printing until nightly retry finds it): After push: Yu-Gi-Oh saved pictures intact on Turso (at least 59,969) and the 22 new rows have pictures. [10-13]
 
 ## X. CLOSED 10-13 (Chris: "yes close the 6") - 6
 

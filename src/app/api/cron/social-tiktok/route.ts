@@ -15,7 +15,7 @@ import { alertPackageFailure, notifyPackageReady, packageSafetyNet, tiktokTarget
  * if any slot is missing, or was made under a day plan that has since
  * changed, it dispatches the social-post workflow's TikTok run, which remakes
  * only those slots.
- *   GET /api/cron/social-tiktok          → Bearer CRON_SECRET (Vercel), ?key=, SOCIAL_POST_KEY (GitHub), or the owner cookie
+ *   GET /api/cron/social-tiktok          → Bearer CRON_SECRET (Vercel), Bearer SOCIAL_POST_KEY (GitHub), or the owner cookie
  *   ...&dry=1                            → report only, never dispatch
  *   ...&force=1                          → check outside the windows and dispatch even right after a dispatch
  *   ...&day=YYYY-MM-DD                   → check that day's package

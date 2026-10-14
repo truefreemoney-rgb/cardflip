@@ -14,7 +14,7 @@
  * pauses the banked plan scans and resubscribe brings them back, the lazy
  * seed keeps deploy day from walling a subscriber; grace statuses counting as
  * subscribed; and the cron gate's three answers — 503 unconfigured, 403
- * wrong/missing key, pass on either ?key= or a Bearer header.
+ * wrong/missing key, pass on a Bearer header only (?key= dropped 10-14).
  *
  * Same throwaway-db trick as test-auth.mjs: chdir to a temp dir before any
  * import so `data/cardflip.db` lands there.
@@ -471,7 +471,7 @@ check("no secret configured → 503", cronAuthError(cronReq("/api/cron/daily?key
 process.env.CRON_SECRET = "s3cret";
 check("missing key → 403", cronAuthError(cronReq("/api/cron/daily"))?.status, 403);
 check("wrong ?key → 403", cronAuthError(cronReq("/api/cron/daily?key=nope"))?.status, 403);
-check("right ?key passes", cronAuthError(cronReq("/api/cron/daily?key=s3cret")), null);
+check("right ?key is refused since 10-14 (header only)", cronAuthError(cronReq("/api/cron/daily?key=s3cret"))?.status, 403);
 check("Bearer header passes", cronAuthError(cronReq("/api/cron/daily", { authorization: "Bearer s3cret" })), null);
 check("bearer prefix is case-insensitive", cronAuthError(cronReq("/api/cron/daily", { authorization: "bearer s3cret" })), null);
 check("wrong Bearer → 403", cronAuthError(cronReq("/api/cron/daily", { authorization: "Bearer wrong" }))?.status, 403);
