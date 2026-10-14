@@ -1,7 +1,7 @@
 import "server-only";
 import { buildComps, isComparable } from "@/lib/ebayComps";
 import { ebaySearchUrl, ebaySoldSearchUrl } from "@/lib/listing";
-import { gameOf, type EbayComps, type EbayListing, type PokemonCard } from "@/lib/types";
+import { gameOf, type EbayComps, type EbayListing, type GradedInfo, type PokemonCard } from "@/lib/types";
 import { GAMES } from "@/lib/games";
 
 export { ebaySearchUrl, ebaySoldSearchUrl };
@@ -124,7 +124,7 @@ export async function fetchEbayComps(
   firstEdition?: boolean | null,
 ): Promise<EbayComps | null> {
   const token = await getAppToken(BROWSE_SCOPE);
-  const searchUrl = ebaySearchUrl(card);
+  const searchUrl = ebaySearchUrl(card, { firstEdition: firstEdition === true, grading: grading as GradedInfo | null });
 
   const url = new URL(`${EBAY_API}/buy/browse/v1/item_summary/search`);
   // For a slab, the company+grade go into the query and isComparable flips

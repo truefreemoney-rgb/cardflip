@@ -916,6 +916,13 @@ function ebayQuery(card: PokemonCard, facts: ListingFacts = {}): string {
 }
 
 /**
+ * eBay minus-words that drop graded slabs from a raw card's search (Chris, 10-14: the "eBay sold" pages were full of PSA
+ * slabs, a different market, so raw prices looked wrong next to them). Links only: the comps and referee filter titles.
+ */
+export const RAW_ONLY_TERMS = "-psa -bgs -cgc -sgc -graded -slab";
+const rawOnly = (q: string, facts: ListingFacts) => (facts.grading || facts.sealed ? q : `${q} ${RAW_ONLY_TERMS}`);
+
+/**
  * The eBay search a human would run for this card — same query the comps
  * average is built from, so the seller can click through and check our work.
  * Lives here rather than in the server eBay client because the UI links to it
@@ -923,7 +930,7 @@ function ebayQuery(card: PokemonCard, facts: ListingFacts = {}): string {
  */
 export function ebaySearchUrl(card: PokemonCard, facts: ListingFacts = {}, opts: { sort?: "best" | "lowest" } = {}): string {
   const params = new URLSearchParams({
-    _nkw: ebayQuery(card, facts),
+    _nkw: rawOnly(ebayQuery(card, facts), facts),
     // Best Match (Chris, 09-01 — was price+shipping lowest first): the
     // cheapest-first view led with junk/damaged outliers; eBay's own
     // relevance puts the listings the average is really made of up top.
@@ -962,7 +969,7 @@ export function ebaySoldSearchUrl(
   facts: ListingFacts = {},
 ): string {
   const params = new URLSearchParams({
-    _nkw: ebayQuery(card, facts),
+    _nkw: rawOnly(ebayQuery(card, facts), facts),
     LH_Sold: "1",
     LH_Complete: "1",
   });

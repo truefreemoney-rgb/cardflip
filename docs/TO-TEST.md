@@ -426,3 +426,6 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 
 ## 10-14 ~6:30am ET: owner eBay reconnected (link dropped 10-13 10:10pm ET by invalid_grant 'issued to another client', cause unknown)
 - [ ] After ~8:30am ET (first token refresh on prod): /api/ebay/status from the pane still connected:true, and /admin/errors has no new 'eBay refresh rejected'. NEVER verify via a local script calling ebayAuth (deletes the link: local key).
+
+## 10-14 ~7am ET: eBay links leave slabs out (Chris: 'any title with PSA is a slab')
+- [ ] After push: /admin/prices 'eBay sold' and a raw card's 'check sold listings' open eBay with '-psa -bgs -cgc -sgc -graded -slab' and no slab titles; a slab item's eBay link still searches its grade (e.g. PSA 9).

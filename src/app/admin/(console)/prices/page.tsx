@@ -3,6 +3,7 @@ import PriceCallButtons from "@/components/admin/PriceCallButtons";
 import { requireOwnerPage } from "@/lib/server/adminPage";
 import { askCounts, lastRefereeRun, listAsks, type AskListRow } from "@/lib/server/ebayReferee";
 import { db } from "@/lib/db";
+import { RAW_ONLY_TERMS } from "@/lib/listing";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,7 @@ const GAME_LABEL: Record<string, string> = { pokemon: "Pokémon", mtg: "Magic", 
 /** eBay sold listings for the row's printing: the referee's own search, plus the finish word it cannot leave out. */
 function soldUrl(r: AskListRow): string {
   const finish = r.variant === "foil" || r.variant === "etched" ? " foil" : r.variant === "reverseHolofoil" ? " reverse holo" : r.variant.startsWith("1stEdition") ? " 1st edition" : "";
-  return `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(r.query + finish)}&LH_Sold=1&LH_Complete=1`;
+  return `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(`${r.query}${finish} ${RAW_ONLY_TERMS}`)}&LH_Sold=1&LH_Complete=1`;
 }
 
 type CatalogRun = {

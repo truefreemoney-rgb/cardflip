@@ -15,6 +15,7 @@ import {
   canPriceListing,
   describeItemCondition,
   ebaySoldSearchUrl,
+  ebaySearchUrl,
   firstEditionPrice,
   formatMoney,
   pickPrice,
@@ -235,6 +236,17 @@ console.log("\nA slab's grade replaces the condition flow:");
       "PSA+10",
     ),
     true,
+  );
+  // Chris 10-14: a raw card's eBay pages were full of PSA slabs; the links leave them out, a slab's link keeps its grade.
+  const nkw = (u) => new URL(u).searchParams.get("_nkw");
+  check(
+    "raw links leave slabs out, slab links do not",
+    [
+      nkw(ebaySoldSearchUrl(card([]))).includes("-psa -bgs -cgc -sgc -graded -slab"),
+      nkw(ebaySearchUrl(card([]))).includes("-psa"),
+      nkw(ebaySoldSearchUrl(card([]), { grading: { company: "PSA", grade: "10" } })).includes("-psa"),
+    ],
+    [true, true, false],
   );
 }
 

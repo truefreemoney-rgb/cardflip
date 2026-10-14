@@ -8,7 +8,7 @@ import {
   fetchEbaySoldComps,
   isEbayConfigured,
 } from "@/lib/server/ebay";
-import type { PokemonCard } from "@/lib/types";
+import type { GradedInfo, PokemonCard } from "@/lib/types";
 import { canBeFirstEdition, isFirstEditionCard } from "@/lib/listing";
 import { recordPoint } from "@/lib/server/priceHistory";
 import { englishCardById } from "@/lib/server/enCards";
@@ -65,8 +65,10 @@ export async function POST(req: Request) {
           ? (body.firstEdition as boolean)
           : false;
 
-    const searchUrl = ebaySearchUrl(card, { firstEdition: firstEdition === true });
-    const soldSearchUrl = ebaySoldSearchUrl(card, { firstEdition: firstEdition === true });
+    // A slab's links search its own grade; a raw card's leave slabs out (RAW_ONLY_TERMS).
+    const linkFacts = { firstEdition: firstEdition === true, grading: grading as GradedInfo | null };
+    const searchUrl = ebaySearchUrl(card, linkFacts);
+    const soldSearchUrl = ebaySoldSearchUrl(card, linkFacts);
 
     if (!isEbayConfigured()) {
       return NextResponse.json({
