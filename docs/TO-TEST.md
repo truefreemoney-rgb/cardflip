@@ -438,7 +438,7 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 - [x] (10-14 2:40pm ET Chris phone: pass, all games) Search, before typing, for EVERY game (switch the game pill): six "Open a whole set" tiles
 - [ ] Search before typing: switch the game pill: the My Watchlist row shows ONLY that game's watched cards (Chris 10-14: the Pokémon row stayed put on Magic; fixed locally, not pushed: rows saved without a game count as Pokémon). "See all N" counts that game's cards; a game with none shows the "Tap ☆" line., each with a picture (Pokémon logo when TCGdex has one, else the set's most valuable card art). One Piece (no release dates) shows its top-value sets with "N cards".
 - [x] (10-14 2:33pm ET Chris phone) Search, open a card: the card picture is big (about two thirds of the phone width).
-- [ ] Watchlist: Total value starts as a one-line bar (tap to open, the arrow folds it again); "Add a card" panel has Hide / Show; both remembered after a reload.
+- [x] (10-14 3:25pm ET Chris phone: pass) Watchlist: Total value starts as a one-line bar (tap to open, the arrow folds it again); "Add a card" panel has Hide / Show; both remembered after a reload.
 - [ ] Watchlist: Legendary Collection Pikachu 86 shows $1,574.99 "steady" (was "$6.62, down 100%": the Watchlist read a different printing than the one saved).
 - [ ] Search: 'All sets' opens a full panel of every set with pictures (newest first; One Piece by value), a 'Find a set' box narrows it, tapping a set opens all its cards.
 
