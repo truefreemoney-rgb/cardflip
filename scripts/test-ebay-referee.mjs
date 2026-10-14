@@ -22,6 +22,7 @@ console.log("Magic: special printings");
   check("raised-foil Avatar Aang matches its raised-foil listing", aang("Avatar Aang (Raised Foil) 363 Avatar: The Last Airbender MAGIC: THE GATHERING"));
   check("... not a regular copy (the live comps matcher priced it off $0.99 copies)", aang("Avatar Aang Avatar The Last Airbender NM"), false);
   check("... not a PSA 10", aang("2025 MTG Avatar: The Last Airbender Aang #0363 Headliner Raised Foil PSA 10"), false);
+  check("... not a PSA9 / BGS9.5 written without a space", [aang("Avatar Aang 363 Raised Foil PSA9"), aang("Avatar Aang 363 Raised Foil BGS9.5")], [false, false]);
 
   const ff = refereeMatcher({ game: "mtg", cardId: "f", variant: "foil", name: "Final Fortune", number: "182★", setName: "Seventh Edition", setCode: "7ed", promoTypes: "", finishes: "foil" });
   check("Seventh Edition ★ is the foil: a foil listing matches", ff("MTG - Final Fortune - Foil Seventh Edition"));
