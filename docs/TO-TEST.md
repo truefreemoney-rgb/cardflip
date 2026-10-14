@@ -396,3 +396,9 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 
 ## 10-13 ~7:50pm ET: fx fetch no longer no-store (after the push)
 - [ ] Vercel logs / /admin errors for 24 h after the push: no 'fx: rate refresh failed ... Dynamic server usage' and no 'Page changed from static to dynamic at runtime /cards/magic/...'. If the static-to-dynamic one remains, it has a second cause: find it with a local next build.
+
+## 10-14 ~4am ET: code wait, envelope wording, no confidence %, backup fix (not pushed yet)
+- [ ] Phone, /login (or /admin/login) with an emailed code: right after the code mails, the button reads 'Send a New Code (60s)' and counts down, greyed out; at 0 it works again. Email-confirm wall on signup counts 60s too.
+- [ ] A scan the AI was unsure of: Scanner list and Inventory show 'Verify match' but NO 'low-confidence read (40%)' text anywhere.
+- [ ] 'How to ship' on a $20-$100 envelope card, step 3 reads: 'Put $1.31 in stamps on it (1 regular stamp plus 49¢), or hand it in at the post office counter.'
+- [ ] Nightly backup (cardflip-backups repo) goes green the night after the push (foreign keys off in the copy; local run 10-14 passed, 552,343 rows).

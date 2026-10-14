@@ -16,7 +16,7 @@ import type { SessionUser } from "@/lib/client/auth";
 /** How long a code works (emailVerify.CODE_TTL_MS). */
 export const CODE_TTL_MS = 60 * 60 * 1000;
 /** The gap between codes the server enforces (emailVerify.RESEND_COOLDOWN_SECONDS). */
-export const RESEND_COOLDOWN_SECONDS = 30;
+export const RESEND_COOLDOWN_SECONDS = 60;
 export const CODE_LENGTH = 6;
 
 /** Shown when a request never reached the server (offline, timeout). */

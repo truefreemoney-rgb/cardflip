@@ -71,8 +71,11 @@ const remote = {
     client.close();
   },
 };
-const local = new DatabaseSync(raw);
-local.exec("PRAGMA journal_mode = OFF; PRAGMA synchronous = OFF;");
+// Foreign keys OFF (10-14): node:sqlite turns them on by default, and a copy taken table by table while the
+// site writes (plus OR REPLACE below) can hold a child row a beat before or after its parent. A snapshot
+// copies rows as they are; the count and integrity checks below still guard it.
+const local = new DatabaseSync(raw, { enableForeignKeyConstraints: false });
+local.exec("PRAGMA journal_mode = OFF; PRAGMA synchronous = OFF; PRAGMA foreign_keys = OFF;");
 
 // Values arrive as string/number/bigint/ArrayBuffer/null; node:sqlite wants
 // Uint8Array for blobs and chokes on out-of-range bigints.

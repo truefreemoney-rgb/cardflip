@@ -129,7 +129,7 @@ export async function POST(req: Request) {
     // network per day (so one script cannot spend the day's shared mail budget
     // and lift the wall for everyone) and per address (so a signup, delete and
     // sign-up-again loop is not a way to mail a stranger). The same address key
-    // as Send a New Code, so the two share one 30-second gap.
+    // as Send a New Code, so the two share one 60-second gap.
     const mailLimited =
       (await limitCodeMail(req)) ?? (await limitWithMessage([[`auth:code:to:${email.toLowerCase()}`, LIMITS.emailCode]]));
     if (mailLimited) return mailLimited;

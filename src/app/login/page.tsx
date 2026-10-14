@@ -3,6 +3,7 @@
 import PasswordField from "@/components/PasswordField";
 
 import { useEffect, useRef, useState } from "react";
+import { useResendGap } from "@/lib/client/resendGap";
 import Link from "next/link";
 import Logo from "@/components/Logo";
 import Spinner from "@/components/Spinner";
@@ -21,6 +22,7 @@ export default function LoginPage() {
   const [needsCode, setNeedsCode] = useState(false);
   // Admin accounts get the code by email instead of an authenticator app; the server says where it went.
   const [mailedTo, setMailedTo] = useState<string | null>(null);
+  const resendGap = useResendGap();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Errors take focus (QA leftover): announced, and scrolled into view on a phone.
@@ -75,7 +77,10 @@ export default function LoginPage() {
         // Password was right; the account has two-step on. First time through
         // is a prompt, not an error — only a wrong code reads as one.
         if (needsCode) setError(err.message);
-        else if (err.byEmail) setMailedTo(err.message);
+        else if (err.byEmail) {
+          setMailedTo(err.message);
+          resendGap.start();
+        }
         setNeedsCode(true);
         setCode("");
       } else {
@@ -96,6 +101,7 @@ export default function LoginPage() {
     } catch (err) {
       if (err instanceof TotpRequiredError && err.byEmail) {
         setMailedTo(err.message);
+        resendGap.start();
         setCode("");
       } else {
         setError(err instanceof Error ? err.message : "Login failed.");
@@ -190,10 +196,10 @@ export default function LoginPage() {
                   <button
                     type="button"
                     onClick={sendNewCode}
-                    disabled={submitting}
+                    disabled={submitting || resendGap.left > 0}
                     className="mt-1 w-full rounded-full border border-edge px-5 py-2.5 text-sm font-semibold text-zinc-200 transition hover:border-edge-strong hover:text-white disabled:opacity-60"
                   >
-                    Send a New Code
+                    {resendGap.left > 0 ? `Send a New Code (${resendGap.left}s)` : "Send a New Code"}
                   </button>
                 </>
               ) : (

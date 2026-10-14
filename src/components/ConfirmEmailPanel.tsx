@@ -97,7 +97,7 @@ export default function ConfirmEmailPanel({
 
   const [address, setAddress] = useState(pending?.email ?? user.email);
   const [expiresAt, setExpiresAt] = useState<number | null>(pending ? pending.expiresAt : (user.emailCodeExpiresAt ?? null));
-  // A code just went out at signup or a resend; the server allows the next one 30 s after the last.
+  // A code just went out at signup or a resend; the server allows the next one 60 s after the last.
   const [cooldownUntil, setCooldownUntil] = useState(() => {
     const at = pending ? pending.expiresAt : user.emailCodeExpiresAt;
     return at ? at - CODE_TTL_MS + RESEND_COOLDOWN_SECONDS * 1000 : 0;

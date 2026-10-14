@@ -4,7 +4,7 @@ import CardImage from "@/components/CardImage";
 import Sheet from "@/components/Sheet";
 import { normalizeNumber } from "@/lib/cardNumber";
 import { formatMoney, headlinePrice } from "@/lib/listing";
-import type { ScanItem } from "@/lib/types";
+import { shownDoubt, type ScanItem } from "@/lib/types";
 
 /** A read at or above this, with the printed number matching the pick, is safe to confirm in bulk. */
 const SURE = 0.85;
@@ -45,7 +45,7 @@ function Row({ item, onOpen, onRemove }: { item: ScanItem; onOpen?: (id: string)
           {card.setName}
           {card.number ? ` · #${card.number}` : ""}
         </span>
-        {item.matchDoubt && <span className="block truncate text-xs text-amber-300">{item.matchDoubt}</span>}
+        {shownDoubt(item.matchDoubt) && <span className="block truncate text-xs text-amber-300">{shownDoubt(item.matchDoubt)}</span>}
       </button>
       <p className="shrink-0 font-display text-sm font-semibold tabular-nums text-emerald-300">{market > 0 ? formatMoney(market) : "—"}</p>
       {onRemove && (

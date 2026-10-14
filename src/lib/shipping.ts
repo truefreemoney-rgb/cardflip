@@ -75,7 +75,7 @@ export function shipSteps(method: ShipMethod, price?: number | null): string[] {
     return [
       "Penny sleeve, then a toploader. Tape the top of the toploader shut.",
       "Put it in a plain white envelope with a stiff piece of cardboard, nothing thicker than a quarter inch.",
-      "Put on one Forever stamp plus 49¢ more postage (a stiff toploader counts as nonmachinable), or pay at the post office counter.",
+      "Put $1.31 in stamps on it (1 regular stamp plus 49¢), or hand it in at the post office counter.",
       "Mail it within 1 business day, then mark it shipped on eBay (Seller Hub → Orders → Mark as shipped).",
     ];
   }

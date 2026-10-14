@@ -6,6 +6,7 @@ import Link from "next/link";
 import Logo from "@/components/Logo";
 import Spinner from "@/components/Spinner";
 import { apiPath } from "@/lib/client/basePath";
+import { useResendGap } from "@/lib/client/resendGap";
 
 const FIELD =
   "rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-base text-white outline-none sm:text-sm transition placeholder:text-zinc-600 focus:border-brand-400 focus:ring-2 focus:ring-brand-500/20";
@@ -20,6 +21,7 @@ export default function AdminLoginPage() {
   // The owner's login gets a 6-digit code by email (lib/server/loginCode.ts); the server says where it went.
   const [code, setCode] = useState("");
   const [mailedTo, setMailedTo] = useState<string | null>(null);
+  const resendGap = useResendGap();
 
   /** `withCode` false = the password alone: the first step, and Send a New Code. */
   async function signIn(withCode: boolean) {
@@ -48,7 +50,10 @@ export default function AdminLoginPage() {
       if (data.codeRequired) {
         // Password was right. A code just mailed is a prompt, not an error; only a wrong code reads as one.
         if (withCode) setError(data.error ?? "That code didn't match.");
-        else setMailedTo(data.error ?? "We emailed you a 6-digit code.");
+        else {
+          setMailedTo(data.error ?? "We emailed you a 6-digit code.");
+          resendGap.start();
+        }
         setCode("");
       } else {
         setError(data.error ?? "Sign-in failed.");
@@ -131,10 +136,10 @@ export default function AdminLoginPage() {
               <button
                 type="button"
                 onClick={() => void signIn(false)}
-                disabled={submitting}
+                disabled={submitting || resendGap.left > 0}
                 className="mt-1 w-full rounded-full border border-edge px-5 py-2.5 text-sm font-semibold text-zinc-200 transition hover:border-edge-strong hover:text-white disabled:opacity-60"
               >
-                Send a New Code
+                {resendGap.left > 0 ? `Send a New Code (${resendGap.left}s)` : "Send a New Code"}
               </button>
             </div>
           )}

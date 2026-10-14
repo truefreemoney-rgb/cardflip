@@ -16,7 +16,7 @@ import GameToggle from "@/components/GameToggle";
 import PricingModeToggle from "@/components/PricingModeToggle";
 import InventoryValueChart from "@/components/InventoryValueChart";
 import { GAME_IDS, GAMES, readSavedGame, saveGame, parseGame } from "@/lib/games";
-import type { GameId, PokemonCard } from "@/lib/types";
+import { shownDoubt, type GameId, type PokemonCard } from "@/lib/types";
 import PageSkeleton from "@/components/PageSkeleton";
 import Spinner from "@/components/Spinner";
 import PriceInput from "@/components/PriceInput";
@@ -734,9 +734,9 @@ export default function CollectionPage() {
         {(card.firstEdition || card.setName.endsWith(" (1st Edition)")) && (
           <span className="rounded-full border border-brand-400/40 bg-brand-500/10 px-2.5 py-1 text-xs font-semibold text-brand-300">1st Edition</span>
         )}
-        {card.matchDoubt && (
+        {shownDoubt(card.matchDoubt) && (
           <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/30 px-2.5 py-1 text-xs text-amber-300/90">
-            <span aria-hidden>⚠</span> {card.matchDoubt}
+            <span aria-hidden>⚠</span> {shownDoubt(card.matchDoubt)}
           </span>
         )}
       </>
@@ -3161,12 +3161,12 @@ export default function CollectionPage() {
                         {!pricingOnly && !card.ebayListingUrl && card.ebayOfferId && " · draft on eBay"}
                       </span>
                     </p>
-                    {card.matchDoubt && (
+                    {shownDoubt(card.matchDoubt) && (
                       <p
                         className="mt-1 truncate text-[11px] text-amber-300/90"
                         title="The scan wasn't sure about this one — worth a close look before verifying"
                       >
-                        ⚠ {card.matchDoubt}
+                        ⚠ {shownDoubt(card.matchDoubt)}
                       </p>
                     )}
                   </div>

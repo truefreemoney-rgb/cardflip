@@ -75,8 +75,8 @@ export const FAILED_SOURCE = "email-confirm";
 export const REFUSED_SOURCE = "email-confirm-address";
 export const CODE_TTL_MS = 60 * 60 * 1000;
 export const CODE_MAX_ATTEMPTS = 5;
-/** The 30-second resend gap (LIMITS.emailCode), for the client's countdown. */
-export const RESEND_COOLDOWN_SECONDS = 30;
+/** The 60-second resend gap (LIMITS.emailCode), for the client's countdown. */
+export const RESEND_COOLDOWN_SECONDS = 60;
 /**
  * Confirmation mails per UTC day, signups and resends together. Past it,
  * signups skip the wall and report, so a script cannot burn the shared

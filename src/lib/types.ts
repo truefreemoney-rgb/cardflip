@@ -227,6 +227,15 @@ export interface VisionCardRead {
  * multi-card / unreadable-name-band shots at 0.5, so those always fall under.
  */
 export const LOW_CONFIDENCE = 0.6;
+/**
+ * The doubt line a USER sees. The model's own sureness number ("low-confidence
+ * read (40%)") is hidden (Chris 10-14: correct reads showed 20-40% and read as
+ * the app being unsure); the card still lands as Verify match, and the stored
+ * matchDoubt keeps the reason for the admin side.
+ */
+export function shownDoubt(doubt: string | null | undefined): string | null {
+  return doubt && !doubt.startsWith("low-confidence read") ? doubt : null;
+}
 /** Below this the read is noise, not a card — the scanner asks for a retake
  *  instead of matching a stray word (09-03: "Unknown" at 5% → Unknown Shores). */
 export const UNREADABLE_CONFIDENCE = 0.2;
