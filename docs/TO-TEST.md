@@ -434,7 +434,7 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 - [x] (10-14 3:10pm ET Chris phone: pass) Tap a star: it turns gold and the card is on the Watchlist; tap again removes it.
 - [x] (10-14 2:33pm ET Chris phone: $0.76 in foil colours, Buy on eBay + Watch pinned) Open a card: smaller picture, the market price in foil colours, Buy on eBay + Watch pinned at the bottom while the chart scrolls.
 - [x] (10-14 3:15pm ET Chris phone: pass) 24 cards per page with "Show 24 more"; the commission line sits in small print at the very bottom of the results.
-- [ ] Watchlist page: same new search box (game pill + field) inside its panel; adding from a search still works.
+- [x] (10-14 3:20pm ET Chris phone: pass) Watchlist page: same new search box (game pill + field) inside its panel; adding from a search still works.
 - [x] (10-14 2:40pm ET Chris phone: pass, all games) Search, before typing, for EVERY game (switch the game pill): six "Open a whole set" tiles
 - [ ] Search before typing: switch the game pill: the My Watchlist row shows ONLY that game's watched cards (Chris 10-14: the Pokémon row stayed put on Magic; fixed locally, not pushed: rows saved without a game count as Pokémon). "See all N" counts that game's cards; a game with none shows the "Tap ☆" line., each with a picture (Pokémon logo when TCGdex has one, else the set's most valuable card art). One Piece (no release dates) shows its top-value sets with "N cards".
 - [x] (10-14 2:33pm ET Chris phone) Search, open a card: the card picture is big (about two thirds of the phone width).
