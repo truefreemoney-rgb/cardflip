@@ -1,4 +1,4 @@
-# Open tests, 10-13 (ET). Total 89 = A 3 / B 30 / C 2 / D 29 / E 19 / X 6
+﻿# Open tests, 10-13 (ET). Total 89 = A 3 / B 30 / C 2 / D 29 / E 19 / X 6
 
 Built from docs/TO-TEST.md + docs/OPEN-TESTS.md. Passed and replaced checks are left out.
 
