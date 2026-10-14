@@ -16,12 +16,14 @@ const CALLS: ReadonlySet<string> = new Set(["hide", "keep", "clear"]);
 export async function POST(req: Request) {
   try {
     await requireAdminOwner();
-    const body = (await req.json().catch(() => null)) as { game?: string; cardId?: string; variant?: string; call?: string } | null;
-    const { game, cardId, variant, call } = body ?? {};
+    const body = (await req.json().catch(() => null)) as { game?: string; cardId?: string; variant?: string; call?: string; price?: number; label?: string } | null;
+    const { game, cardId, variant, call, price, label } = body ?? {};
     if (!game || !GAMES.has(game) || !cardId || typeof variant !== "string" || !call || !CALLS.has(call)) {
       return NextResponse.json({ error: "Bad request" }, { status: 400 });
     }
-    const changed = await setManualCall(game as GameId, cardId.slice(0, 120), variant.slice(0, 40), call as "hide" | "keep" | "clear");
+    // price + label: a card the referee never read (see setManualCall) gets a row for the call.
+    const fresh = typeof price === "number" && Number.isFinite(price) && price > 0 ? { price, label: typeof label === "string" ? label : cardId } : undefined;
+    const changed = await setManualCall(game as GameId, cardId.slice(0, 120), variant.slice(0, 40), call as "hide" | "keep" | "clear", undefined, fresh);
     return changed ? NextResponse.json({ ok: true }) : NextResponse.json({ error: "No such row" }, { status: 404 });
   } catch (err) {
     if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 403 });

@@ -282,6 +282,15 @@ console.log("eBay referee (10-13): the nightly ask reading, re-judged against th
   await putAsk("fine-umbreon", "pokemon", "holofoil", { n: 5, nNm: 5, median: 20, q75: 30 });
   clearTrustMemo();
   check("Cardmarket agreeing still outranks eBay asks (Umbreon)", (await siteTrust([{ cardId: "fine-umbreon", game: "pokemon", variant: "holofoil" }])).size, 0);
+
+  // 10-14: a hand call on a card the referee never read writes its own row (price + label from the caller).
+  const { setManualCall } = await import(at("lib/server/ebayReferee.ts"));
+  await db.prepare("DELETE FROM ebay_asks WHERE card_id = 'mtg-ebay'").run();
+  check("hand call without price on a card with no row: nothing to update", await setManualCall("mtg", "mtg-ebay", "nonfoil", "hide"), false);
+  check("... with the checked price it writes the row", await setManualCall("mtg", "mtg-ebay", "nonfoil", "hide", TODAY, { price: 150, label: "mtg-ebay | X" }), true);
+  check("... and the call binds on the site", (await siteTrust([{ cardId: "mtg-ebay", game: "mtg", variant: "nonfoil" }])).get(trustKey("mtg-ebay", "nonfoil"))?.reason, "checked against ebay sold: too high");
+  check("... a second call updates that row", await setManualCall("mtg", "mtg-ebay", "nonfoil", "keep"), true);
+  check("... keep shows it again", (await siteTrust([{ cardId: "mtg-ebay", game: "mtg", variant: "nonfoil" }])).size, 0);
 }
 
 console.log(failures === 0 ? "\nAll site price-guard checks passed." : `\n${failures} site price-guard check(s) FAILED.`);

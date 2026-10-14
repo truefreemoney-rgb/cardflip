@@ -339,14 +339,35 @@ export async function askCounts(today = todayUtc()): Promise<Record<RefereeVerdi
   return out;
 }
 
-/** An admin's call after an eBay sold check: hide / keep binds at the price it was made on; clear hands the card back to the nightly rule. */
-export async function setManualCall(game: GameId, cardId: string, variant: string, call: "hide" | "keep" | "clear", today = todayUtc()): Promise<boolean> {
+/**
+ * An admin's call after an eBay sold check: hide / keep binds at the price it was made on; clear hands the card back to the nightly rule.
+ * `fresh` (10-14): a card the referee never read (a "looks off" flag from the site's own price rule) has no row to update, so a
+ * hide / keep with the price it was checked at writes one: no reading (day 2000-01-01 counts as none), just the call.
+ */
+export async function setManualCall(
+  game: GameId,
+  cardId: string,
+  variant: string,
+  call: "hide" | "keep" | "clear",
+  today = todayUtc(),
+  fresh?: { price: number; label: string },
+): Promise<boolean> {
   const res =
     call === "clear"
       ? await db.prepare("UPDATE ebay_asks SET manual = NULL, manual_price = NULL, manual_day = NULL WHERE game = ? AND card_id = ? AND variant = ?").run(game, cardId, variant)
       : await db
           .prepare("UPDATE ebay_asks SET manual = ?, manual_price = price_usd, manual_day = ? WHERE game = ? AND card_id = ? AND variant = ?")
           .run(call, today, game, cardId, variant);
+  let changed = Number((res as { changes?: number }).changes ?? 0) > 0;
+  if (!changed && call !== "clear" && fresh && fresh.price > 0) {
+    await db
+      .prepare(
+        `INSERT INTO ebay_asks (card_id, game, variant, price_usd, n, n_nm, median_usd, q75_usd, vintage, verdict, reason, label, query, day, manual, manual_price, manual_day)
+         VALUES (?, ?, ?, ?, 0, 0, NULL, NULL, 0, 'none', 'hand check', ?, '', '2000-01-01', ?, ?, ?)`,
+      )
+      .run(cardId, game, variant, fresh.price, fresh.label.slice(0, 200), call, fresh.price, today);
+    changed = true;
+  }
   clearTrustMemo();
-  return Number((res as { changes?: number }).changes ?? 0) > 0;
+  return changed;
 }
