@@ -424,18 +424,18 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 - [x] (10-14 ~5:30am ET applied on Chris's yes: 18 statements, re-run dry = 0; backup backups/dup-tg-sets-prod-1791970155907.json) RIGHT AFTER THE PUSH (me): `node scripts/drop-duplicate-tg-sets.mjs --prod` (dry run: 1 customer card moved to swsh9tg, 120 en_cards + 144 price_series + 120 tcgplayer_products + 5 listing_lows deleted, 119 saved searches cleared) then the same with `--apply`. Not before the push: live code has no redirect for the old ids yet.
 - [ ] (10-14 ~6:30am ET: search PASS, 4 results, TG23 once in swsh9tg. Game page + redirect NOT yet: /cards/pokemon still lists each Trainer Gallery twice and the -brs slug serves the 30 cards; seo:sets:v1/v3:pokemon card_cache rows deleted, the 48 h page copies clear on the NEXT PUSH -> recheck then) PROD: Search "Umbreon VMAX" = 4 results, TG23 once. /cards/pokemon lists each Trainer Gallery once; /cards/pokemon/brilliant-stars-trainer-gallery-brs redirects to /cards/pokemon/brilliant-stars-trainer-gallery; an old swsh9.5tg card link redirects to the swsh9tg page.
 - [x] (10-14 curl: Evolving Skies 276 sub-$1 prices, no '1.00 and up' on game/set pages, Surging Sparks Drasna sub-$1 page = noindex, follow) PROD: a set page (e.g. /cards/pokemon/surging-sparks) lists cards down to a few cents; no "$1.00 and up" wording on /cards, the game pages or set pages; a sub-$1 card page still has robots noindex.
-- [ ] Phone: Search, open a card: Buy on eBay sits ABOVE Add to watchlist.
+- [x] (10-14 2:33pm ET Chris phone, Pikachu 30th 023/128: Buy on eBay + Watch pinned side by side at the bottom) Phone: Search, open a card: Buy on eBay sits ABOVE Add to watchlist.
 
 ## 10-14: Search redesign A-F (not pushed yet; Chris tests on the tunnel first)
 - [ ] Phone, Search before typing: game pill + big "Name or number" box pinned under the header; My Watchlist swipe row (price now, % since saved, bell when an alert is set, "See all N"); "Open a whole set" tiles with set logos (newest 6). No intro text, no Recent lookups.
-- [ ] Type a name: a "Search" button shows inside the box until you search, then a round x clears. Results: "N cards", one "Sort" pill, list/grid switch; rows show picture, name, set and number, rarity chip, price, star and Buy.
+- [x] (10-14 2:34pm ET Chris phone, "pikachu": 200 cards, Best match pill, list/grid switch, rows with picture/name/set+number/rarity chip/price/star/Buy, round x in the box) Type a name: a "Search" button shows inside the box until you search, then a round x clears. Results: "N cards", one "Sort" pill, list/grid switch; rows show picture, name, set and number, rarity chip, price, star and Buy.
 - [ ] Sort pill opens the Sort & filter panel from the bottom: Card name / Whole set, sort list, rarity chips, "Narrow these results"; "Show N cards" closes it.
 - [ ] Tap a star: it turns gold and the card is on the Watchlist; tap again removes it.
-- [ ] Open a card: smaller picture, the market price in foil colours, Buy on eBay + Watch pinned at the bottom while the chart scrolls.
+- [x] (10-14 2:33pm ET Chris phone: $0.76 in foil colours, Buy on eBay + Watch pinned) Open a card: smaller picture, the market price in foil colours, Buy on eBay + Watch pinned at the bottom while the chart scrolls.
 - [ ] 24 cards per page with "Show 24 more"; the commission line sits in small print at the very bottom of the results.
 - [ ] Watchlist page: same new search box (game pill + field) inside its panel; adding from a search still works.
 - [ ] Search, before typing, for EVERY game (switch the game pill): six "Open a whole set" tiles, each with a picture (Pokémon logo when TCGdex has one, else the set's most valuable card art). One Piece (no release dates) shows its top-value sets with "N cards".
-- [ ] Search, open a card: the card picture is big (about two thirds of the phone width).
+- [x] (10-14 2:33pm ET Chris phone) Search, open a card: the card picture is big (about two thirds of the phone width).
 - [ ] Watchlist: Total value starts as a one-line bar (tap to open, the arrow folds it again); "Add a card" panel has Hide / Show; both remembered after a reload.
 - [ ] Watchlist: Legendary Collection Pikachu 86 shows $1,574.99 "steady" (was "$6.62, down 100%": the Watchlist read a different printing than the one saved).
 - [ ] Search: 'All sets' opens a full panel of every set with pictures (newest first; One Piece by value), a 'Find a set' box narrows it, tapping a set opens all its cards.
