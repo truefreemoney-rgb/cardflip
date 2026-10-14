@@ -33,8 +33,12 @@ const { ADMIN_COOKIE, signAdminToken } = await import(at("lib/adminAuth.ts"));
 const route = await import(at("app/api/social/publish/route.ts"));
 
 const ORIGIN = "https://cardflip.io";
+// The schedule sends its key as a Bearer header (84467a80 dropped the ?key= query: it landed in access logs).
 const req = (method, { origin, key } = {}) =>
-  new NextRequest(`${ORIGIN}/api/social/publish?dry=1&force=1&day=2026-10-01${key ? `&key=${key}` : ""}`, { method, headers: origin ? { origin } : {} });
+  new NextRequest(`${ORIGIN}/api/social/publish?dry=1&force=1&day=2026-10-01`, {
+    method,
+    headers: { ...(origin ? { origin } : {}), ...(key ? { authorization: `Bearer ${key}` } : {}) },
+  });
 const allowed = (r) => r.status !== 401 && r.status !== 403 && r.status !== 503;
 
 testCookies.set(ADMIN_COOKIE, signAdminToken().token);
