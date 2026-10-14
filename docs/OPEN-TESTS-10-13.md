@@ -4,9 +4,9 @@ Built from docs/TO-TEST.md + docs/OPEN-TESTS.md. Passed and replaced checks are 
 
 ## A. You, on the phone tunnel (nothing goes live) - 3
 
-1. Card under $20 plus a card over $100 in one stack: Inventory shows plain "Postage" with the summed total. [10-12]
-2. Open "How to ship" on a $20-$100 card: it shows the stamp steps (Forever stamp plus 49 cents). [10-11]
-3. Card priced over $20 with no shipping pick yet: it is suggested as Tracked mailer, never the plain envelope. [10-11]
+1. PASS 10-14 (Chris phone): Card under $20 plus a card over $100 in one stack: Inventory shows plain "Postage" with the summed total. [10-12]
+2. REWORDED 10-14, pushed in 30615a64 -> Chris re-looks at the new stamp line on the real site: Open "How to ship" on a $20-$100 card: it shows the stamp steps (Forever stamp plus 49 cents). [10-11]
+3. PASS 10-14 (Chris phone): Card priced over $20 with no shipping pick yet: it is suggested as Tracked mailer, never the plain envelope. [10-11]
 
 ## B. You, on the real site cardflip.io - 30
 
@@ -25,7 +25,7 @@ Built from docs/TO-TEST.md + docs/OPEN-TESTS.md. Passed and replaced checks are 
 16. PASS 10-14 (me: live ex10-105 holofoil $2,500 carries untrusted hard 'flat 57d, 2.1x the cheapest listing' = the looks-off note path): Scan Lugia ex Unseen Forces 105 on a phone: "looks off, check sold listings" note, not $2,500. [10-07]
 17. PASS 10-14 (me, pane 375px: X closes and page stays at 4575px; dragging the handle down closes, page stays): Home page card peek: close with X and by dragging the handle; the page stays where it was. [10-06]
 18. Loading skeletons show on slow 4G for Inventory, card pages and set pages. [10-06]
-19. Grey text is readable in sunlight. [10-06]
+19. LATER (Chris 10-14: can't test now): Grey text is readable in sunlight. [10-06]
 20. /scan does not flash the camera button for someone who already used the free scan. [10-06]
 21. Airplane mode inside the app shows the No Signal page; push still works afterwards. [10-06]
 22. Home-screen icon long-press shows Scan and Inventory shortcuts (Android only). [10-06]
@@ -43,8 +43,8 @@ Built from docs/TO-TEST.md + docs/OPEN-TESTS.md. Passed and replaced checks are 
 
 ## C. A decision only you make - 2
 
-34. Sign-in code box: make "Send a New Code" a full-size button? (visible change, screenshot first) [10-11]
-35. Green Verify button text is cut off ("Ver...") at phone width: OK to fix it? [10-12]
+34. DONE 10-13 (60 s countdown button, shipped): Sign-in code box: make "Send a New Code" a full-size button? (visible change, screenshot first) [10-11]
+35. DONE 10-13 (Verify label fixed, Chris phone PASS 10-14): Green Verify button text is cut off ("Ver...") at phone width: OK to fix it? [10-12]
 
 ## D. Waiting on a date or event - 29
 
@@ -71,7 +71,7 @@ Built from docs/TO-TEST.md + docs/OPEN-TESTS.md. Passed and replaced checks are 
 56. Morning after the push: Magic "capped to listing" count is in the hundreds, mtg step under 800 seconds. [10-13]
 57. Magic "This price looks off" count drops from about 837 toward about 83. [10-13]
 58. Spot-check 3 capped Magic foils (e.g. Cromat Apocalypse foil about $57, not $155). [10-13]
-59. 10-14 morning: nightly new-cards log ends "done" with nothing failed; /admin/prices shows the 2am run. [10-13]
+59. PASS 10-14 (catalog-sync.log: done 2:33am ET, failed: none; /admin/prices view needs Chris's sign-in): 10-14 morning: nightly new-cards log ends "done" with nothing failed; /admin/prices shows the 2am run. [10-13]
 60. After the push: cardmarket_map rows exist on Turso and the 5:25am price run is still green. [10-13]
 61. New cards with no scan borrow another printing's picture, then switch when their own scan appears. [10-13]
 62. After tonight, /admin/prices Yu-Gi-Oh "borrowing" is about 233 and falling over time. [10-13]
@@ -92,7 +92,7 @@ Built from docs/TO-TEST.md + docs/OPEN-TESTS.md. Passed and replaced checks are 
 74. PASS 10-14 (curl, 0 storage/foreign refs): Homepage hero card, wall and games strip all load from /pics. [10-13]
 75. PASS 10-14 (curl, 0 storage/foreign refs): Card pages' pictures come from cardflip.io/pics; view-source shows no storage address. [10-12]
 76. PASS 10-14 (foreign Referer 200 + logged 1 hit; no Referer 200 no hit; past day = only my test hit): Hotlink test with curl: foreign Referer logs a firewall hit; no Referer gets 200 and no hit. [10-12]
-77. READY FOR CHRIS 10-14 (clean day: 0 outside hotlinks; my rec below in STATE): After a clean day of LOG-only hits, switch the hotlink rule to DENY. [10-12]
+77. DONE 10-14 (Chris yes: rule now DENY, allow-list + webmail live.com/outlook/office/aol/icloud + vercel.app/trycloudflare/localhost; curl: outside 403, Outlook/tunnel/own/Google/no-Referer 200): After a clean day of LOG-only hits, switch the hotlink rule to DENY. [10-12]
 78. PASS 10-14 (/api/share/card YGO Big Core + Umbreon VMAX: 200 PNG with card art): Share-card picture renders card art (art fetch reads our copy). [10-12]
 79. PASS 10-14 (live search Elsa lorcana: 32/32 thumbnails cardflip.io/pics): Lorcana header search "Elsa": result thumbnails come from our storage. [10-12]
 80. PASS 10-14 (no $213,589 anywhere: live search shows 3 printings at $5.31/$2.05, $3.70, $0.11; Turso has no other Axel row, the bad price is gone from the catalog): After push: searching "Genex Ally Axel" shows "This price looks off", not $213,589. [10-13]
