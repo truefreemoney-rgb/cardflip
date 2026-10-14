@@ -15,7 +15,7 @@ Built from docs/TO-TEST.md + docs/OPEN-TESTS.md. Passed and replaced checks are 
 6. A Google-only account typing a password sees "signs in with Google"; Forgot Password lets it set one. [10-07]
 7. Second Google signup from the same phone starts with the free scans already used. [10-07]
 8. Sign in with X, all 8 steps (buttons, shared email, no email, link, admin refused, used email, keys off). [10-10]
-9. Google One Tap: close it with the X; it never comes back on that phone. [10-11]
+9. PASS 10-14 4:00pm ET (Chris phone): Google One Tap: close it with the X; it never comes back on that phone. [10-11]
 10. PASS 10-14 (me: code allow-list = /, /pricing, /features, /help, /pokemon, /cards, /scan, /u/ only; signed in on / = no gsi script in the pane): One Tap never shows when signed in, or on /app, /admin, /login, /signup. [10-11]
 11. One Tap with the admin's Google account is refused and not linked. [10-11]
 12. One Tap on Android Chrome shows the browser-styled account picker and behaves the same. [10-11]
