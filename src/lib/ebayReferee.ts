@@ -105,7 +105,7 @@ const frontName = (name: string) => name.split(" // ")[0];
 /** Titles that are not one raw, English, undamaged copy. */
 const REJECT: RegExp[] = [
   // "PSA9" / "BGS9.5" with no space too (10-14: \b alone let them through).
-  /\b(psa|bgs|cgc|sgc|tag|ace|pcg|beckett|ags)(\b|\d)/,
+  /\b(psa|bgs|cgc|sgc|tag|ace|pcg|beckett|becket|ags)(\b|\d)/,
   /graded|pristine|gem mint|black label|slab/,
   /\b(lot|lots|playset|bundle|set of|choose|you pick|pick your)\b/,
   /\bx\s*[2-9]\b|\b[2-9]\s*x\b(?!\d)|\b\d+\s*pieces\b/,
