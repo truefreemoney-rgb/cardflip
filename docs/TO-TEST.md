@@ -418,3 +418,7 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 - [ ] Open a card: smaller picture, the market price in foil colours, Buy on eBay + Watch pinned at the bottom while the chart scrolls.
 - [ ] 24 cards per page with "Show 24 more"; the commission line sits in small print at the very bottom of the results.
 - [ ] Watchlist page: same new search box (game pill + field) inside its panel; adding from a search still works.
+- [ ] Search, before typing, for EVERY game (switch the game pill): six "Open a whole set" tiles, each with a picture (Pokémon logo when TCGdex has one, else the set's most valuable card art). One Piece (no release dates) shows its top-value sets with "N cards".
+- [ ] Search, open a card: the card picture is big (about two thirds of the phone width).
+- [ ] Watchlist: Total value starts as a one-line bar (tap to open, the arrow folds it again); "Add a card" panel has Hide / Show; both remembered after a reload.
+- [ ] Watchlist: Legendary Collection Pikachu 86 shows $1,574.99 "steady" (was "$6.62, down 100%": the Watchlist read a different printing than the one saved).

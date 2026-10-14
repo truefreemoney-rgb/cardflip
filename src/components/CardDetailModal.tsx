@@ -162,10 +162,11 @@ export default function CardDetailModal({
 
         <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-5">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-6">
-            <div className={`shrink-0 sm:w-64 ${buy ? "mx-auto w-[62%] max-w-[240px] sm:mx-0 sm:max-w-none" : "w-full"}`}>
+            <div className={`w-full shrink-0 ${buy ? "sm:w-72" : "sm:w-64"}`}>
               <MatchHero
                 photoSrc={photo ?? null}
                 centering={centering}
+                large={buy}
                 match={
                   hasImage && sealed ? (
                     // Box and tin art is landscape: show all of it on a blurred

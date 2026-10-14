@@ -368,20 +368,51 @@ function WatchRow({
   );
 }
 
-function SetLogo({ set }: { set: SetInfo }) {
-  const [failed, setFailed] = useState(false);
-  if (!set.logoUrl || failed) {
+/**
+ * A set's picture (Chris 10-14: "images for all the sets, all games"): the Pokémon logo when TCGdex has one that
+ * loads, otherwise the set's most valuable card, cropped to its art, from our own stored pictures.
+ */
+function SetArt({ set, game }: { set: SetInfo; game: GameId }) {
+  const [logoFailed, setLogoFailed] = useState(false);
+  const logo = game === "pokemon" && set.logoUrl && !logoFailed ? set.logoUrl : "";
+  if (logo) {
     return (
+      <span className="flex h-full items-center justify-center bg-[radial-gradient(120%_100%_at_50%_0%,rgba(170,180,255,0.16),transparent_70%)] px-3 py-2.5">
+        {/* eslint-disable-next-line @next/next/no-img-element -- remote set logos, any size */}
+        <img src={logo} alt="" loading="lazy" onError={() => setLogoFailed(true)} className="h-full w-full object-contain drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)]" />
+      </span>
+    );
+  }
+  if (set.coverUrl) {
+    return (
+      <span className="relative block h-full overflow-hidden">
+        {/* eslint-disable-next-line @next/next/no-img-element -- our own card tile, cropped to the art */}
+        <img src={set.coverUrl} alt="" loading="lazy" className="h-full w-full scale-110 object-cover object-[50%_28%]" />
+        <span className="absolute inset-0 bg-gradient-to-t from-[#14161f] via-transparent to-transparent" aria-hidden />
+      </span>
+    );
+  }
+  return (
+    <span className="flex h-full items-center justify-center">
       <svg viewBox="0 0 24 24" className="h-9 w-9 text-zinc-500" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
         <rect x="7" y="3.5" width="11" height="15" rx="1.8" />
         <path d="M5 6.5v12.2c0 1 .8 1.8 1.8 1.8H15" strokeLinecap="round" />
       </svg>
-    );
-  }
-  return (
-    // eslint-disable-next-line @next/next/no-img-element -- remote set logos, any size
-    <img src={set.logoUrl} alt="" loading="lazy" onError={() => setFailed(true)} className="h-full w-full object-contain drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)]" />
+    </span>
   );
+}
+
+/**
+ * The six sets offered before anything is typed: the newest released (real sets, 20+ cards), or, for a game whose
+ * catalogue carries no release dates (One Piece), the six whose top card is worth the most.
+ */
+function pickSets(list: SetInfo[]): SetInfo[] {
+  const today = new Date().toISOString().slice(0, 10);
+  // A list served before covers existed (a cached copy) has no counts: every set qualifies then.
+  const real = list.filter((s) => s.cards == null || s.cards >= 20);
+  const dated = real.filter((s) => s.releaseDate && s.releaseDate <= today);
+  if (dated.length >= SET_TILES) return [...dated].sort((a, b) => b.releaseDate.localeCompare(a.releaseDate)).slice(0, SET_TILES);
+  return [...real].sort((a, b) => (b.coverValue ?? 0) - (a.coverValue ?? 0)).slice(0, SET_TILES);
 }
 
 /** Open a whole set (mockup A): the newest released sets, one tap to every card in it. */
@@ -400,10 +431,7 @@ function SetTiles({ game, onPick, onAll }: { game: GameId; onPick: (set: SetInfo
       cancelled = true;
     };
   }, [game]);
-  const today = new Date().toISOString().slice(0, 10);
-  const newest = sets?.game === game
-    ? [...sets.list].filter((s) => s.releaseDate && s.releaseDate <= today).sort((a, b) => b.releaseDate.localeCompare(a.releaseDate)).slice(0, SET_TILES)
-    : [];
+  const newest = sets?.game === game ? pickSets(sets.list) : [];
   if (newest.length === 0) return null;
   return (
     <section>
@@ -421,12 +449,12 @@ function SetTiles({ game, onPick, onAll }: { game: GameId; onPick: (set: SetInfo
             onClick={() => onPick(set)}
             className="flex flex-col overflow-hidden rounded-2xl border border-edge bg-surface-1 text-left transition hover:border-edge-strong"
           >
-            <span className="flex h-[68px] items-center justify-center bg-[radial-gradient(120%_100%_at_50%_0%,rgba(170,180,255,0.16),transparent_70%)] px-3 py-2.5">
-              <SetLogo set={set} />
+            <span className="block h-[72px]">
+              <SetArt set={set} game={game} />
             </span>
             <span className="min-w-0 px-3 pb-2.5 pt-1">
               <span className="block truncate text-[13px] font-semibold text-white">{set.name}</span>
-              <span className="block text-[11.5px] text-zinc-500">{new Date(`${set.releaseDate}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "America/New_York" })}</span>
+              <span className="block text-[11.5px] text-zinc-500">{!set.releaseDate ? (set.cards ? `${set.cards.toLocaleString("en-US")} cards` : "") : new Date(`${set.releaseDate}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "America/New_York" })}</span>
             </span>
           </button>
         ))}

@@ -6,6 +6,8 @@ import { listMtgSets } from "@/lib/server/mtgCards";
 import { isTcgGame, listTcgSets } from "@/lib/server/tcgCards";
 import { cachedList, SET_LIST_TTL_MS } from "@/lib/server/listCache";
 import { LIMITS, clientIp, limitOrRespond } from "@/lib/server/rateLimit";
+import { setCovers } from "@/lib/server/setCovers";
+import type { GameId } from "@/lib/types";
 
 /** Same for everyone: the CDN holds it 10 min, serves stale for a day while it refreshes. */
 const CDN_CACHE = { "Cache-Control": "public, s-maxage=600, stale-while-revalidate=86400" };
@@ -38,11 +40,11 @@ async function listSets(req: NextRequest) {
   // ?game=mtg → the Scryfall mirror's sets (with their set icons).
   const game = parseGame(req.nextUrl.searchParams.get("game"));
   if (game === "mtg") {
-    return NextResponse.json({ sets: await listMtgSets() }, { headers: CDN_CACHE });
+    return NextResponse.json({ sets: await withCovers("mtg", await listMtgSets()) }, { headers: CDN_CACHE });
   }
   // Lorcana / One Piece / Yu-Gi-Oh! — the shared tcg_cards mirror.
   if (isTcgGame(game)) {
-    return NextResponse.json({ sets: await listTcgSets(game) }, { headers: CDN_CACHE });
+    return NextResponse.json({ sets: await withCovers(game, await listTcgSets(game)) }, { headers: CDN_CACHE });
   }
 
   // Memoed: the GROUP BY walks all 20k en_cards per call (Turso outage 09-06).
@@ -65,5 +67,17 @@ async function listSets(req: NextRequest) {
     }));
   });
 
-  return NextResponse.json({ sets }, { headers: CDN_CACHE });
+  return NextResponse.json({ sets: await withCovers("pokemon", sets) }, { headers: CDN_CACHE });
+}
+
+/** Each set's cover picture (its dearest card), value and size (lib/server/setCovers). A failed read leaves the list bare. */
+async function withCovers(game: GameId, sets: SetInfo[]): Promise<SetInfo[]> {
+  const covers = await setCovers(game).catch((err) => {
+    console.warn(`set covers (${game}) failed:`, err);
+    return {} as Awaited<ReturnType<typeof setCovers>>;
+  });
+  return sets.map((s) => {
+    const c = covers[s.code ?? s.name];
+    return c ? { ...s, ...c } : s;
+  });
 }

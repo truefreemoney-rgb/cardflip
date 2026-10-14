@@ -131,6 +131,10 @@ export interface SetInfo {
   logoUrl: string;
   /** MTG only: Scryfall set code ("ltr"). */
   code?: string;
+  /** The set's dearest card's picture (cardflip.io/pics), its USD value, and the set's card count (lib/server/setCovers). */
+  coverUrl?: string;
+  coverValue?: number;
+  cards?: number;
 }
 
 /**

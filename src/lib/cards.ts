@@ -44,7 +44,10 @@ export async function fetchSetCards(set: string, game: GameId = "pokemon"): Prom
 export async function fetchSets(game: GameId = "pokemon"): Promise<import("@/lib/grading").SetInfo[]> {
   const params = new URLSearchParams();
   if (game !== "pokemon") params.set("game", game);
-  const res = await fetch(apiPath(`/api/sets${params.size ? "?" + params.toString() : ""}`), {
+  // v=2: the list gained cover pictures and card counts (10-14); a new address so no browser or CDN keeps serving
+  // the old shape (stale-while-revalidate held it for a day).
+  params.set("v", "2");
+  const res = await fetch(apiPath(`/api/sets?${params.toString()}`), {
     signal: AbortSignal.timeout(20_000),
   });
   if (!res.ok) throw new Error(`Set list failed (${res.status})`);

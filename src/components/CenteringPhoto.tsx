@@ -26,6 +26,7 @@ export function MatchHero({
   match,
   photoSrc,
   centering,
+  large = false,
 }: {
   /** The catalogue art (or the no-art placeholder), filling its box. */
   match: React.ReactNode;
@@ -33,6 +34,8 @@ export function MatchHero({
   photoSrc: string | null;
   /** Run the yellow-border centering read (Pokémon only). */
   centering: boolean;
+  /** The card fills most of the stage (Search's sheet, Chris 10-14: "make the images on the expanded view larger"). */
+  large?: boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [read, setRead] = useState<Read | null>(null);
@@ -91,15 +94,15 @@ export function MatchHero({
   const dot = !done ? "bg-zinc-600" : done.psaMax >= 9 ? "bg-emerald-400" : done.psaMax >= 7 ? "bg-amber-300" : "bg-rose-400";
 
   return (
-    <div className="w-full shrink-0 sm:w-64">
+    <div className={`w-full shrink-0 ${large ? "" : "sm:w-64"}`}>
       {/* The stage: a lit surface with one card standing on it. */}
-      <div className="relative overflow-hidden rounded-2xl border border-edge bg-surface-1 px-6 pb-5 pt-6">
+      <div className={`relative overflow-hidden rounded-2xl border border-edge bg-surface-1 ${large ? "px-4 pb-4 pt-4" : "px-6 pb-5 pt-6"}`}>
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0"
           style={{ background: "radial-gradient(60% 55% at 50% 30%, rgba(170,180,255,0.16), transparent 70%)" }}
         />
-        <div className="relative mx-auto aspect-[5/7] w-[62%] overflow-hidden rounded-xl bg-black/40 shadow-2xl shadow-black/60 ring-1 ring-white/10 sm:w-[82%]">
+        <div className={`relative mx-auto aspect-[5/7] overflow-hidden rounded-xl bg-black/40 shadow-2xl shadow-black/60 ring-1 ring-white/10 ${large ? "w-[84%] sm:w-[92%]" : "w-[62%] sm:w-[82%]"}`}>
           {/* Both layers stay mounted so the centering canvas keeps its
               drawing; the switch only changes which one is visible. */}
           <div className={showPhoto ? "invisible" : ""}>{match}</div>

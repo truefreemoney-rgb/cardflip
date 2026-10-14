@@ -229,7 +229,9 @@ async function fetchCurrentPrices(items: WishlistItem[]): Promise<Repriced> {
         if (!match) return;
         resolved[item.id] = match;
         if (!item.cardId && match.id) cardIds[item.id] = match.id;
-        const usd = match.prices.find((p) => p.currency === "USD" && p.market != null);
+        // The same printing's price everywhere else quotes (pickPrice): the first USD row was the plain printing while
+        // the saved baseline came from pickPrice (10-14: a $1,574.99 reverse holo read as $6.62, "down 100%").
+        const usd = pickPrice(match);
         if (usd?.untrusted) flags[item.id] = usd.untrusted;
         else if (usd?.market != null) {
           prices[item.id] = usd.market;
@@ -243,6 +245,36 @@ async function fetchCurrentPrices(items: WishlistItem[]): Promise<Repriced> {
   );
   return { prices, cardIds, cards: resolved, flags, stale };
 }
+
+/** A panel the viewer can fold away (Chris 10-14: "make the pills for total value and search collapsable"), remembered per browser. */
+function useFold(key: string, openByDefault = true): [boolean, () => void] {
+  const storeKey = `cardflip.watchFold.${key}`;
+  const [open, setOpen] = useState(() => {
+    try {
+      const saved = typeof window === "undefined" ? null : window.localStorage.getItem(storeKey);
+      return saved === null ? openByDefault : saved === "1";
+    } catch {
+      return openByDefault;
+    }
+  });
+  function toggle() {
+    setOpen((o) => {
+      try {
+        window.localStorage.setItem(storeKey, o ? "0" : "1");
+      } catch {
+        // Private mode: the fold just isn't remembered.
+      }
+      return !o;
+    });
+  }
+  return [open, toggle];
+}
+
+const FoldChevron = ({ open }: { open: boolean }) => (
+  <svg viewBox="0 0 20 20" className={`h-4 w-4 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+    <path d="M5.5 8l4.5 4.5L14.5 8" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
 
 /** Since-saved move as a chip; quiet when under a dollar and 1%. */
 function PriceDelta({ saved, now }: { saved: number; now: number }) {
@@ -298,6 +330,9 @@ export default function WishlistPage() {
   // drop target) went 10-03 with every photo upload on the site.
   const [resultsLanguage, setResultsLanguage] = useState<ScanLanguage>("en");
   const search = useCardSearch(addLanguage, () => setResultsLanguage(addLanguage));
+  // Total value starts folded (Chris 10-14); the viewer's own choice sticks after that.
+  const [valueOpen, toggleValue] = useFold("value", false);
+  const [searchOpen, toggleSearch] = useFold("search");
   const { game } = search;
   const [addError, setAddError] = useState<string | null>(null);
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
@@ -516,7 +551,30 @@ export default function WishlistPage() {
           // takes a full row instead of a squeezed third. Auto columns, not
           // three equal tracks — equal ones size every cell to the price and
           // push the whole strip off the header row.
-          <dl className="foil-edge grid w-full grid-cols-2 rounded-2xl [--foil-fill:#0b0d13] sm:w-auto sm:grid-cols-[auto_auto_auto]">
+          !valueOpen ? (
+            <button
+              type="button"
+              onClick={toggleValue}
+              aria-expanded={false}
+              className="foil-edge flex w-full items-center gap-3 rounded-2xl px-4 py-2.5 text-left [--foil-fill:#0b0d13] sm:w-auto"
+            >
+              <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Total value</span>
+              <span className="font-display text-lg font-semibold tabular-nums text-emerald-400">{formatMoney(nowTotal)}</span>
+              <span className="text-xs text-zinc-500">· {items.length} watching</span>
+              <span className="ml-auto text-zinc-400"><FoldChevron open={false} /></span>
+            </button>
+          ) : (
+          <dl className="foil-edge relative grid w-full grid-cols-2 rounded-2xl [--foil-fill:#0b0d13] sm:w-auto sm:grid-cols-[auto_auto_auto]">
+            <button
+              type="button"
+              onClick={toggleValue}
+              aria-expanded
+              aria-label="Fold the totals away"
+              title="Fold away"
+              className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full text-zinc-500 transition hover:bg-white/5 hover:text-zinc-200"
+            >
+              <FoldChevron open />
+            </button>
             <div className="col-span-2 border-b border-white/10 px-4 py-3 sm:col-span-1 sm:border-b-0 sm:border-r sm:px-5">
               <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Total value</dt>
               <dd className="mt-0.5 flex flex-wrap items-baseline gap-2">
@@ -549,10 +607,34 @@ export default function WishlistPage() {
               </dd>
             </div>
           </dl>
+          )
         )}
       </div>
 
+      {!searchOpen ? (
+        <button
+          type="button"
+          onClick={toggleSearch}
+          aria-expanded={false}
+          className="flex items-center gap-2.5 rounded-2xl border border-edge bg-surface-1 px-5 py-3.5 text-left transition hover:border-edge-strong"
+        >
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-500/20 text-lg leading-none text-brand-300">+</span>
+          <span className="text-sm font-semibold text-white">Add a card</span>
+          <span className="ml-auto flex items-center gap-1 text-xs text-zinc-400">Show <FoldChevron open={false} /></span>
+        </button>
+      ) : (
       <div className="flex flex-col gap-4 rounded-2xl border border-edge bg-surface-1 p-5">
+        <div className="-mb-1 -mt-1 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-white">Add a card</h2>
+          <button
+            type="button"
+            onClick={toggleSearch}
+            aria-expanded
+            className="flex items-center gap-1 rounded-full px-2 py-1 text-xs text-zinc-400 transition hover:bg-white/5 hover:text-zinc-200"
+          >
+            Hide <FoldChevron open />
+          </button>
+        </div>
         <CardSearchBox
           search={search}
           hint={search.mode === "browse" ? "Every card in the set — tap any to watch it." : "Add a card by name — no need to have it in hand."}
@@ -607,6 +689,7 @@ export default function WishlistPage() {
           )}
         </CardSearchResults>
       </div>
+      )}
 
       {loading ? (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
