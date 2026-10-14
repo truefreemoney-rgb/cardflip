@@ -87,6 +87,12 @@ bad("mtg", "justoneword");
 bad("pokemon", "-leading");
 check("an encoded key is decoded", cp.parseCardKey("mtg", "sld-1001%E2%98%85"), "sld-1001\u2605");
 check("a broken escape is refused, not thrown", cp.parseCardKey("pokemon", "base1-4%E0%A4%A"), null);
+// 10-14: TCGdex's duplicate Trainer Galleries (swsh9.5tg = swsh9tg) were dropped; an old id names the kept copy.
+check("duplicate Trainer Gallery id -> kept copy", cp.keptPokemonId("swsh9.5tg-TG23"), "swsh9tg-TG23");
+check("duplicate Trainer Gallery id (Silver Tempest)", cp.keptPokemonId("swsh12.5tg-TG15"), "swsh12tg-TG15");
+check("Crown Zenith Galarian Gallery is not a duplicate", cp.keptPokemonId("swsh12.5gg-GG35"), "swsh12.5gg-GG35");
+check("an ordinary id is untouched", cp.keptPokemonId("swsh7-215"), "swsh7-215");
+check("sync-cards skips the same duplicate sets", Object.keys(cp.DUPLICATE_POKEMON_SETS).every((s) => readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "sync-cards.mjs"), "utf8").includes(`"${s}"`)), true);
 
 check("segment splits on the first --", cp.parseCardSegment("charizard--base1-4"), { nameSlug: "charizard", key: "base1-4" });
 check("a key may hold a single dash", cp.parseCardSegment("a-b--OP01-077_p1"), { nameSlug: "a-b", key: "OP01-077_p1" });

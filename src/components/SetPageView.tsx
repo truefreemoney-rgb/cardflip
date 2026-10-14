@@ -25,7 +25,7 @@ interface Loaded {
   game: GameId;
   set: SetEntry;
   slug: string;
-  /** Every card of the set at the floor or more, dearest first. */
+  /** Every card of the set with a price, dearest first. */
   cards: SetCard[];
 }
 
@@ -94,6 +94,8 @@ function Pager({ game, slug, page, pages }: { game: GameId; slug: string; page: 
 export async function SetView({ gameSlug, setSlug, page }: { gameSlug: string; setSlug: string; page: number }) {
   const l = await load(gameSlug, setSlug);
   if (!l) notFound();
+  // An old name-twin address (setBySlug) moves to the set's current one.
+  if (l.slug !== setSlug) permanentRedirect(pageHref(l.game, l.slug, page));
   const { game, set, slug, cards } = l;
   const pages = Math.max(1, Math.ceil(cards.length / SET_PAGE_CARDS));
   if (page > pages) notFound();

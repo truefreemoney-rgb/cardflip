@@ -20,6 +20,7 @@ import {
   indexDecision,
   isUnverified,
   isSetSlug,
+  keptPokemonId,
   parseCardKey,
   printingTags,
   setSlugs,
@@ -169,7 +170,7 @@ export async function setIndex(game: GameId): Promise<SetIndex> {
   if (hit && Date.now() - hit.at < MEMO_MS) return hit.index;
   let sets: SetEntry[] = [];
   try {
-    sets = await cachedList(`seo:sets:v2:${game}`, SETS_TTL_MS, () => buildSets(game));
+    sets = await cachedList(`seo:sets:v3:${game}`, SETS_TTL_MS, () => buildSets(game));
   } catch (err) {
     console.warn(`card pages: could not read the ${game} set list`, err);
   }
@@ -186,7 +187,14 @@ export async function setBySlug(game: GameId, slug: string): Promise<{ set: SetE
   if (!isSetSlug(slug)) return null;
   const index = await setIndex(game);
   const set = index.bySlug.get(slug);
-  return set ? { set, slug } : null;
+  if (set) return { set, slug };
+  // A name-twin's slug ("{name}-{code}") outlives its twin: after the duplicate Trainer Galleries left (10-14) the kept
+  // set took the plain slug, so its old "-brs" address answers with the set and its current slug (the page redirects).
+  for (const s of index.sets) {
+    const now = index.slugOf.get(s.key) ?? "";
+    if (now && slug === `${now}-${slugify(s.code || s.key, 20)}`) return { set: s, slug: now };
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -257,7 +265,7 @@ export async function loadCardRecord(game: GameId, rawKey: string): Promise<Card
                 set_release_date AS release, image_url, own_image_url, own_tile_url, NULL AS rarity, NULL AS variant
            FROM en_cards WHERE id = ?`,
       )
-      .get(key)) as CatalogRow | undefined;
+      .get(keptPokemonId(key))) as CatalogRow | undefined;
   } else if (game === "mtg") {
     const cut = key.indexOf("-");
     const r = (await db

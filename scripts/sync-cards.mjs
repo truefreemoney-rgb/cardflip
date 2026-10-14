@@ -352,6 +352,9 @@ async function recoverImages(candidates, ptcgioIds) {
   console.log(`Recovered ${recovered} images from pokemontcg.io.`);
 }
 
+/** Kept in step with DUPLICATE_POKEMON_SETS in src/lib/cardPages.ts. */
+const DUPLICATE_SETS = new Set(["swsh9.5tg", "swsh10.5tg", "swsh11.5tg", "swsh12.5tg"]);
+
 async function main() {
   console.log(`Fetching ${locale} set list...`);
   const sets = await fetchJson(`${API_BASE}/sets`);
@@ -365,6 +368,7 @@ async function main() {
   let totalCards = 0;
   let skipped = 0;
   let pocketSkipped = 0;
+  let dupSkipped = 0;
 
   // Cards with no TCGdex image whose pokemontcg.io counterpart might have one.
   const fallbackCandidates = [];
@@ -383,6 +387,16 @@ async function main() {
         db.prepare(`DELETE FROM ${table} WHERE set_id = ?`).run(set.id);
         pocketSkipped++;
         console.log("skipped (TCG Pocket — digital only)");
+        continue;
+      }
+
+      // TCGdex files four Trainer Gallery subsets twice (swsh9tg and swsh9.5tg: same cards, same set name), so
+      // Search showed each card twice (10-14). The ".5" copies stay out; DUPLICATE_POKEMON_SETS in
+      // src/lib/cardPages.ts sends old ids to the kept copy. The DELETE clears a mirror that synced them before.
+      if (locale === "en" && DUPLICATE_SETS.has(set.id)) {
+        db.prepare(`DELETE FROM ${table} WHERE set_id = ?`).run(set.id);
+        dupSkipped++;
+        console.log("skipped (duplicate of " + set.id.replace(".5tg", "tg") + ")");
         continue;
       }
 
@@ -479,7 +493,7 @@ async function main() {
     .get().c;
 
   console.log(
-    `\nDone. ${totalCards} cards across ${sets.length - skipped - pocketSkipped} sets` +
+    `\nDone. ${totalCards} cards across ${sets.length - skipped - pocketSkipped - dupSkipped} sets` +
       (skipped ? ` (${skipped} skipped)` : "") +
       (pocketSkipped ? ` (${pocketSkipped} TCG Pocket sets excluded)` : "") +
       `. ${withImages} have images, ${withTotals} have a set total, ` +

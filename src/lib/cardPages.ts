@@ -158,6 +158,18 @@ function safeDecode(s: string): string {
  * before any database read. Magic's set code folds to lowercase (a request for
  * LEA-232 is answered with a redirect to lea-232); every other key is case-sensitive.
  */
+/**
+ * TCGdex files four Trainer Gallery subsets twice (swsh9tg and swsh9.5tg, same cards, same name). The ".5" copies are
+ * dropped from the mirror (sync-cards.mjs skips them, 10-14: Search showed Umbreon VMAX TG23 twice); an old link or
+ * saved id naming one resolves to the kept copy.
+ */
+export const DUPLICATE_POKEMON_SETS: Readonly<Record<string, string>> = { "swsh9.5tg": "swsh9tg", "swsh10.5tg": "swsh10tg", "swsh11.5tg": "swsh11tg", "swsh12.5tg": "swsh12tg" };
+export function keptPokemonId(id: string): string {
+  const cut = id.lastIndexOf("-");
+  const kept = cut > 0 ? DUPLICATE_POKEMON_SETS[id.slice(0, cut)] : undefined;
+  return kept ? kept + id.slice(cut) : id;
+}
+
 export function parseCardKey(game: GameId, raw: string): string | null {
   if (raw.length > 80) return null;
   let key = safeDecode(raw);
