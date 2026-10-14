@@ -61,6 +61,12 @@ await db.prepare("UPDATE users SET created_at = ? WHERE id = ?").run(SIGNUP_CUTO
 // A live standard subscriber with 12 plan scans left and the next payment in 12 days.
 await db.prepare("UPDATE users SET plan = 'standard', sub_status = 'active', sub_period_end = ?, plan_scans = 12 WHERE id = ?").run(TUE + 12 * DAY, low.id);
 
+// Thursday's five-game list reads the Pokémon stage cards; with no mirror in the test DB that falls back to
+// pokemontcg.io, which flaked in CI (10-14: sent 0). A cached stage row keeps the test off the network.
+await db
+  .prepare("INSERT INTO card_cache (key, payload, cached_at) VALUES (?, ?, ?)")
+  .run("stage:v9:pokemon", JSON.stringify([{ name: "Charizard ex", setName: "Obsidian Flames", number: "125", imageUrl: "https://example.com/c.png", price: 48.2, lead: true }]), Date.now());
+
 const mails = [];
 const deps = (on = true, fail = false) => ({
   on: async () => on,
