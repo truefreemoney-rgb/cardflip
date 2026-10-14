@@ -6,6 +6,7 @@ import SetBrowser from "@/components/SetBrowser";
 import MissingCardReport from "@/components/MissingCardReport";
 import { useOptionalSession } from "@/components/SessionProvider";
 import { useBodyScrollLock } from "@/lib/client/useBodyScrollLock";
+import { SheetHandle, useDragToClose } from "@/components/Sheet";
 import { fetchSetCards, searchTyped } from "@/lib/cards";
 import { GAMES, GAME_IDS, readSavedGame, saveGame } from "@/lib/games";
 import { pickPrice, priceFlagOf } from "@/lib/listing";
@@ -370,6 +371,9 @@ const SheetLabel = ({ children }: { children: ReactNode }) => (
 /** Sort & filter, one sheet (10-14 redesign): how to look up, the order, rarity, and a narrowing filter. Replaced the "✕ Clear" chip row. */
 function SortSheet({ search, onClose }: { search: CardSearch; onClose: () => void }) {
   useBodyScrollLock();
+  // Chris 10-14 (phone): "the handle slide down doesn't close, just gets stuck" — the bar was drawn, not wired.
+  const panelRef = useRef<HTMLDivElement>(null);
+  const handle = useDragToClose(panelRef, onClose);
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -385,14 +389,16 @@ function SortSheet({ search, onClose }: { search: CardSearch; onClose: () => voi
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/65 backdrop-blur-[2px] sm:items-center sm:p-4" onClick={onClose}>
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-label="Sort and filter"
         onClick={(e) => e.stopPropagation()}
         className="animate-fade-up panel-solid flex max-h-[88dvh] w-full flex-col overflow-hidden rounded-t-3xl border-t border-edge-strong shadow-2xl shadow-black/60 sm:max-w-md sm:rounded-3xl sm:border"
       >
-        <div className="overflow-y-auto overscroll-contain px-5 pb-4 pt-2.5">
-          <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-white/15 sm:hidden" aria-hidden />
+        {/* Pinned above the scrolling body so it never scrolls out of reach. */}
+        <SheetHandle {...handle} />
+        <div className="overflow-y-auto overscroll-contain px-5 pb-4">
           <div className="flex items-center justify-between">
             <h2 className="font-display text-xl font-bold text-white">Sort &amp; filter</h2>
             <button

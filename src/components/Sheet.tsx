@@ -18,6 +18,61 @@ import { useFocusTrap } from "@/lib/client/useFocusTrap";
  * caller only supplies content. Portalled to <body> so no ancestor's
  * overflow/mask/transform can clip it. z-[70] sits above the bottom tab bar.
  */
+/** How far the handle must travel before letting go closes the sheet. */
+const CLOSE_DRAG_PX = 56;
+/** Dragged this far, the sheet closes at once — even if iOS never sends the pointer-up (Chris 10-14: "gets stuck"). */
+const CLOSE_NOW_PX = 120;
+
+/**
+ * Swipe-down-to-close for any bottom sheet: pointer handlers for its handle
+ * row, moving `panelRef` with the finger. Shared by Sheet and the Search page's
+ * Sort & filter sheet (10-14: that one had a drawn handle that did nothing).
+ */
+export function useDragToClose(panelRef: React.RefObject<HTMLElement | null>, onClose: () => void) {
+  const drag = useRef<{ y: number; dy: number; done: boolean } | null>(null);
+  const settle = () => {
+    const d = drag.current;
+    const el = panelRef.current;
+    drag.current = null;
+    if (!d || !el || d.done) return;
+    if (d.dy > CLOSE_DRAG_PX || d.dy === 0) onClose();
+    else el.style.transform = "";
+  };
+  return {
+    onPointerDown: (e: React.PointerEvent<HTMLElement>) => {
+      drag.current = { y: e.clientY, dy: 0, done: false };
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch {
+        /* capture is best-effort */
+      }
+    },
+    onPointerMove: (e: React.PointerEvent<HTMLElement>) => {
+      const d = drag.current;
+      const el = panelRef.current;
+      if (!d || !el || d.done) return;
+      d.dy = Math.max(0, e.clientY - d.y);
+      el.style.transform = `translateY(${d.dy}px)`;
+      if (d.dy > CLOSE_NOW_PX) {
+        d.done = true;
+        onClose();
+      }
+    },
+    onPointerUp: settle,
+    // iOS sends a cancel instead of an up when it takes the gesture: judge the drag the same way.
+    onPointerCancel: settle,
+  };
+}
+
+/** The grab bar at the top of a phone sheet; spread `useDragToClose`'s handlers onto it. Hidden on md+. */
+export function SheetHandle(props: ReturnType<typeof useDragToClose>) {
+  return (
+    <div className="flex h-7 shrink-0 cursor-grab touch-none items-center justify-center md:hidden" {...props} aria-hidden>
+      <span className="h-1.5 w-10 rounded-full bg-white/25" />
+    </div>
+  );
+}
+
 export default function Sheet({
   onClose,
   title,
@@ -101,27 +156,7 @@ export default function Sheet({
     );
   }, []);
 
-  // Swipe the handle down to close.
-  const drag = useRef<{ y: number; dy: number } | null>(null);
-  const onHandleDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    drag.current = { y: e.clientY, dy: 0 };
-    e.currentTarget.setPointerCapture(e.pointerId);
-  };
-  const onHandleMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    const d = drag.current;
-    const el = panelRef.current;
-    if (!d || !el) return;
-    d.dy = Math.max(0, e.clientY - d.y);
-    el.style.transform = `translateY(${d.dy}px)`;
-  };
-  const onHandleUp = () => {
-    const d = drag.current;
-    const el = panelRef.current;
-    drag.current = null;
-    if (!d || !el) return;
-    if (d.dy > 80 || d.dy === 0) onClose();
-    else el.style.transform = "";
-  };
+  const handle = useDragToClose(panelRef, onClose);
 
   if (typeof document === "undefined") return null;
 
@@ -161,19 +196,7 @@ export default function Sheet({
         style={kbd > 0 ? { maxHeight: `calc(100dvh - ${kbd + 8}px)` } : undefined}
         className={`panel-solid relative flex max-h-[85dvh] w-full ${maxWidth} flex-col overflow-hidden rounded-t-3xl border border-b-0 shadow-2xl shadow-black/60 outline-none md:rounded-2xl md:border-b ${panelClassName}`}
       >
-        <div
-          className="flex h-6 shrink-0 touch-none items-center justify-center md:hidden"
-          onPointerDown={onHandleDown}
-          onPointerMove={onHandleMove}
-          onPointerUp={onHandleUp}
-          onPointerCancel={() => {
-            drag.current = null;
-            if (panelRef.current) panelRef.current.style.transform = "";
-          }}
-          aria-hidden
-        >
-          <span className="h-1.5 w-10 rounded-full bg-white/25" />
-        </div>
+        <SheetHandle {...handle} />
         {title ? (
           <div className="flex shrink-0 items-start justify-between gap-3 px-5 pt-1 md:pt-5">
             <div className="min-w-0 pt-2">
