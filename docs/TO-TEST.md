@@ -7,6 +7,16 @@
 Things that shipped but were never exercised on a real phone or with real
 traffic. Tick when tested; note what you saw. Newest batch first.
 
+## 10-14 ~4:15pm ET: page review fixes (chart label, printings strip, set names, homepage Card Prices block, game tabs) (LOCAL, NOT PUSHED)
+Chris asked for a review of the homepage, /cards/pokemon and the 1st Edition Charizard page, then "yes on everything". Code: chart header prints the variant through formatVariantLabel ("Market · 1st Ed. Holofoil", was "1stEditionHolofoil"); the "Other <name> cards" strip is cached per name WITHOUT the page's own card excluded and filtered at read time (the old v2 memo excluded only the page that built it, so every sister page listed itself); a hand call on /admin/prices now drops that card's cached lists (set top, other printings, game top: dropCardLists) so a hide shows on the next page build; set names print "Trainer Kit" / "Best of Game" (tidySetName, sets memo bumped to v4); homepage games strip drops the Yu-Gi-Oh! "(Worldwide English)" qualifier; new homepage section "Know the card? Look it up." with the five game hub pills + All Card Prices + Price Movers, between Every game and Built for the pile; game hub pages get a game tab row (current lit) above the search. Local: tsc + eslint clean, cardpages 288/288, listcache, adminroutes green; pane desktop + 375px checked.
+- [ ] PROD after the push: /cards/pokemon/base-set-1st-edition/charizard--base1-4-1st chart header reads "Market · 1st Ed. Holofoil"; a reverse holo card reads "Reverse Holofoil".
+- [ ] PROD: same page, "Other Charizard cards" no longer lists the 1st Edition itself and no longer shows the hidden Base Set $968.91 (first visit rebuilds the v3 memo with the hide applied).
+- [ ] PROD: /admin/prices, hide any cheap card, then open its set page + a sister printing's page: the number is gone right away (not a day later).
+- [ ] PROD: /cards/pokemon sets list reads "SM Trainer Kit (Alolan Raichu)", "Best of Game"; the set page H1 + breadcrumb match; links still open (slug unchanged).
+- [ ] PROD, phone: homepage section after the games strip: eyebrow Card prices, "Know the card? Look it up.", five pills (Pokémon ... Yu-Gi-Oh!), "All Card Prices · Price Movers" line; pills open the hubs.
+- [ ] PROD, phone: /cards/pokemon shows the five game tabs under the intro, Pokémon lit; tapping Magic opens /cards/magic with Magic lit.
+- [ ] PROD: homepage games strip Yu-Gi-Oh! tile set name has no "(Worldwide English)".
+
 ## 10-14 ~4:10pm ET: phone nav shows How It Works / Features / Card Prices (LOCAL, NOT PUSHED)
 Chris (phone, logged out): the top nav was missing the three page links; they were hidden under sm on purpose. Now every link shows on phones and wraps into two rows (search + the three pages, then Pricing / Log In / Get Started); header about 40px taller. Pane 375px: no sideways scroll, rows balanced.
 - [ ] PROD after the push, phone, logged out: home nav row 1 = search, How It Works, Features, Card Prices; row 2 = Pricing, Log In, Get Started; nothing clipped; same on /features and a /cards page.

@@ -39,7 +39,16 @@ export function gameFromSlug(slug: string): GameId | null {
   return null;
 }
 
+/**
+ * Set names as the page prints them. TCGplayer's group names carry a few lowercase words the catalog keeps verbatim
+ * ("XY trainer Kit (Sylveon)", "Best of game"); the slug is case-free, so only the printed name changes (10-14).
+ */
+export function tidySetName(name: string): string {
+  return name.replace(/\btrainer Kit\b/g, "Trainer Kit").replace(/^Best of game$/, "Best of Game");
+}
+
 /** The pages' own name for a game ("Pokémon", "Magic: The Gathering"). */
+
 export const gameTitle = (game: GameId): string => (game === "pokemon" ? "Pokémon" : GAMES[game].fullName.replace(/ (TCG|Card Game)$/, ""));
 
 /**

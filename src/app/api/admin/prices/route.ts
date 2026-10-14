@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { AuthError, requireAdminOwner } from "@/lib/server/auth";
 import { setManualCall } from "@/lib/server/ebayReferee";
+import { dropCardLists } from "@/lib/server/cardPages";
 import type { GameId } from "@/lib/types";
 
 /**
@@ -24,6 +25,9 @@ export async function POST(req: Request) {
     // price + label: a card the referee never read (see setManualCall) gets a row for the call.
     const fresh = typeof price === "number" && Number.isFinite(price) && price > 0 ? { price, label: typeof label === "string" ? label : cardId } : undefined;
     const changed = await setManualCall(game as GameId, cardId.slice(0, 120), variant.slice(0, 40), call as "hide" | "keep" | "clear", undefined, fresh);
+    // The cached strips that print this card (its set's top, its other printings, the game's top) are dropped so the
+    // next page build shows the call, not the day-old number (10-14).
+    if (changed) await dropCardLists(game as GameId, cardId.slice(0, 120));
     return changed ? NextResponse.json({ ok: true }) : NextResponse.json({ error: "No such row" }, { status: 404 });
   } catch (err) {
     if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 403 });

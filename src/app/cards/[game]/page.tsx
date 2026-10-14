@@ -5,11 +5,11 @@ import { notFound } from "next/navigation";
 import MarketingNav from "@/components/MarketingNav";
 import Footer from "@/components/Footer";
 import JsonLd from "@/components/JsonLd";
-import { Crumbs, ScanCta, TileGrid } from "@/components/CardPagesUi";
+import { Crumbs, GameTabs, ScanCta, TileGrid } from "@/components/CardPagesUi";
 import CatalogSearch from "@/components/CatalogSearch";
 import { gamePath, gameTitle, setPath } from "@/lib/cardPages";
 import { hasMovers } from "@/lib/server/moversPage";
-import { gameTopTiles, publicCardGame, setIndex, type SetIndex, type Tile } from "@/lib/server/cardPages";
+import { gameTopTiles, publicCardGame, publicCardGames, setIndex, type SetIndex, type Tile } from "@/lib/server/cardPages";
 import { pageMetadata } from "@/lib/seo";
 import { breadcrumbGraph } from "@/lib/structuredData";
 import { etDate } from "@/lib/time";
@@ -30,6 +30,8 @@ interface Loaded {
   game: GameId;
   index: SetIndex;
   top: Tile[];
+  /** Every public game hub, for the tab row. */
+  games: GameId[];
 }
 
 /** One read shared by generateMetadata and the page; null = no such game (or not public). */
@@ -38,7 +40,8 @@ const load = cache(async (slug: string): Promise<Loaded | null> => {
   if (!game) return null;
   const index = await setIndex(game);
   if (index.sets.length === 0) return null;
-  return { game, index, top: await gameTopTiles(game) };
+  const [top, games] = await Promise.all([gameTopTiles(game), publicCardGames()]);
+  return { game, index, top, games };
 });
 
 export async function generateMetadata({ params }: PageProps<"/cards/[game]">): Promise<Metadata> {
@@ -57,7 +60,7 @@ export default async function GameHubPage({ params }: PageProps<"/cards/[game]">
   const { game: slug } = await params;
   const l = await load(slug);
   if (!l) notFound();
-  const { game, index, top } = l;
+  const { game, index, top, games } = l;
   const name = gameTitle(game);
   const sets = index.sets.filter((s) => s.priced > 0);
 
@@ -72,6 +75,7 @@ export default async function GameHubPage({ params }: PageProps<"/cards/[game]">
           Market prices for {name} cards, by set. Each card page has the price for the exact printing, how it has moved and the recorded
           history. A price that looks wrong is not shown.
         </p>
+        <GameTabs games={games} current={game} />
         <CatalogSearch game={game} />
         {hasMovers(game) && (
           <Link href={`${gamePath(game)}/movers`} className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-edge bg-surface-1 px-4 py-3 transition hover:border-edge-strong">

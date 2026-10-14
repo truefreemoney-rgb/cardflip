@@ -19,6 +19,8 @@ import { GATED_GAMES, gamePublic, magicPublic } from "@/lib/server/settings";
 import { getGameStageCards, type StageCard } from "@/lib/server/stageCards";
 import { wallCards } from "@/lib/server/wallCards";
 import { GAMES } from "@/lib/games";
+import { gamePath, gameTitle } from "@/lib/cardPages";
+import { hasMovers } from "@/lib/server/moversPage";
 import { catalogSizeLabel } from "@/lib/server/catalogStats";
 import { getPriceHistory } from "@/lib/server/priceHistory";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
@@ -159,6 +161,9 @@ function originOf(url: string | undefined): string | null {
     return null;
   }
 }
+
+/** The marketing strip drops Yu-Gi-Oh!'s edition qualifier ("Legend of Blue Eyes White Dragon (Worldwide English)"): the card pages keep it, as it tells two printings apart (10-14). */
+const stripEdition = (setName: string) => setName.replace(/\s*\((?:Worldwide|North American|European) English\)$/, "");
 
 export default async function Home() {
   const magic = await magicPublic();
@@ -522,12 +527,54 @@ export default async function Home() {
                     {card.price != null && <span className="font-display text-sm font-semibold text-white">{formatMoney(card.price)}</span>}
                   </div>
                   <p className="mt-1 truncate text-sm font-medium text-white">{card.name}</p>
-                  <p className="truncate text-xs text-zinc-500">{card.setName}</p>
+                  <p className="truncate text-xs text-zinc-500">{stripEdition(card.setName)}</p>
                 </div>
               ))}
             </div>
           </section>
         )}
+
+        {/* ============================ Card prices ======================= */}
+        {/* The public price pages (/cards, SEO sweep 09-30) had no mention on the landing page until 10-14 (Chris: yes):
+            a visitor who wants a number, not a scan, gets the game hubs and the movers list here. */}
+        <section id="card-prices" className="mx-auto w-full max-w-6xl px-6 pb-10 sm:pb-12">
+          <div className="reveal rounded-3xl border border-edge bg-surface-1 p-6 sm:p-8">
+            <div className="max-w-2xl">
+              <p className="text-sm font-semibold uppercase tracking-widest text-brand-400">Card prices</p>
+              <h2 className="mt-3 font-display text-3xl font-bold text-white sm:text-4xl">Know the card? Look it up.</h2>
+              <p className="mt-3 max-w-prose leading-relaxed text-zinc-400">
+                {catalogLabel} printings, each with its own page: today&apos;s market price, the recorded history and what a sale
+                would pay you after eBay&apos;s cut. No scan, no account.
+              </p>
+            </div>
+            <div className="mt-5 flex flex-wrap gap-2">
+              {games.map((g) => (
+                <Link
+                  key={g}
+                  href={gamePath(g)}
+                  className="rounded-full border border-edge bg-surface-2 px-4 py-2 text-sm font-semibold text-white transition hover:border-edge-strong"
+                >
+                  {gameTitle(g)}
+                </Link>
+              ))}
+            </div>
+            <p className="mt-4 text-sm text-zinc-400">
+              <Link href="/cards" className="font-medium text-brand-300 transition hover:text-brand-200">
+                All Card Prices
+              </Link>
+              {hasMovers("pokemon") && (
+                <>
+                  <span className="mx-2 text-zinc-600" aria-hidden>
+                    ·
+                  </span>
+                  <Link href="/cards/pokemon/movers" className="font-medium text-brand-300 transition hover:text-brand-200">
+                    Price Movers: Biggest Risers and Fallers
+                  </Link>
+                </>
+              )}
+            </p>
+          </div>
+        </section>
 
         {/* ============================ Bento ============================== */}
         <section className="mx-auto w-full max-w-6xl px-6 pb-10 sm:pb-12">

@@ -83,3 +83,12 @@ export async function cachedListSwr<T>(
 
 /** Set lists refresh with the daily mirror sync; six hours is plenty. */
 export const SET_LIST_TTL_MS = 6 * 60 * 60 * 1000;
+
+/** Drops memos by exact key: a hand call on /admin/prices must not keep showing the old number in a cached strip until the TTL runs out (10-14). Never throws. */
+export async function dropCachedLists(keys: string[]): Promise<void> {
+  if (keys.length === 0) return;
+  await db
+    .prepare(`DELETE FROM card_cache WHERE key IN (${keys.map(() => "?").join(",")})`)
+    .run(...keys)
+    .catch(() => {});
+}

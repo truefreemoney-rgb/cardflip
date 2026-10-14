@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { cachedList } from "@/lib/server/listCache";
+import { cachedList, dropCachedLists } from "@/lib/server/listCache";
 import { gamePublic, type GatedGame } from "@/lib/server/settings";
 import { PRICE_TRUST, REF_ALT_SOURCE, lastPriced } from "@/lib/server/priceTrust";
 import { judgeFull, judgeSeries, loadTrustData, readEbayAsks, readListingLows, type TrustData, type TrustSeries } from "@/lib/server/priceTrustSite";
@@ -25,6 +25,7 @@ import {
   printingTags,
   setSlugs,
   slugify,
+  tidySetName,
   variantLabel,
   variantPrices,
   type CardFacts,
@@ -151,7 +152,7 @@ async function buildSets(game: GameId): Promise<SetEntry[]> {
   }
   return rows
     .filter((r) => Number(r.n) > 0 && (r.name || r.code))
-    .map((r) => ({ key: r.skey, name: r.name || r.code, code: r.code ?? "", release: r.rel ?? "", count: Number(r.n), qualifying: Number(r.q), priced: Number(r.p) }))
+    .map((r) => ({ key: r.skey, name: tidySetName(r.name || r.code), code: r.code ?? "", release: r.rel ?? "", count: Number(r.n), qualifying: Number(r.q), priced: Number(r.p) }))
     .sort((a, b) => (b.release || "").localeCompare(a.release || "") || a.name.localeCompare(b.name));
 }
 
@@ -170,7 +171,7 @@ export async function setIndex(game: GameId): Promise<SetIndex> {
   if (hit && Date.now() - hit.at < MEMO_MS) return hit.index;
   let sets: SetEntry[] = [];
   try {
-    sets = await cachedList(`seo:sets:v3:${game}`, SETS_TTL_MS, () => buildSets(game));
+    sets = await cachedList(`seo:sets:v4:${game}`, SETS_TTL_MS, () => buildSets(game));
   } catch (err) {
     console.warn(`card pages: could not read the ${game} set list`, err);
   }
@@ -240,7 +241,7 @@ function factsOf(game: GameId, row: CatalogRow, setSlug: string): CardFacts {
     number: displayNumber(game, { number: row.number, setTotal: row.set_total, setCode }),
     setKey: row.set_key,
     setSlug,
-    setName: row.set_name,
+    setName: tidySetName(row.set_name),
     setCode,
     release: row.release ?? "",
     rarity,
@@ -603,12 +604,13 @@ export async function setNeighbors(game: GameId, set: SetEntry, key: string): Pr
 }
 
 /** Catalog rows that share this card's name in other sets (Pokémon reprints, Magic reprints, Yu-Gi-Oh! alternate sets). At most 40 rows before the guard. */
-function sameNameRows(game: GameId, name: string, notKey: string) {
+function sameNameRows(game: GameId, name: string) {
   // The page name of a tcg_cards row is "name - subtitle"; the lookup is by the bare name column, so sister printings with another subtitle (One Piece parallels) are found too.
+  // The page's own card is NOT excluded here: the list is cached per name and read by every printing's page, so the
+  // exclusion happens at read time (until 10-14 the first page to build the memo excluded only itself, and every other
+  // Charizard page listed itself).
   const bare = game === "pokemon" || game === "mtg" ? name : name.split(" - ")[0];
-  if (game === "pokemon") return catalogRows(game, "name = ? AND id <> ? LIMIT 40", [bare, notKey]);
-  if (game === "mtg") return catalogRows(game, "name = ? AND (set_code || '-' || collector_number) <> ? LIMIT 40", [bare, notKey]);
-  return catalogRows(game, "name = ? AND id <> ? LIMIT 40", [bare, notKey]);
+  return catalogRows(game, "name = ? LIMIT 41", [bare]);
 }
 
 /**
@@ -617,8 +619,8 @@ function sameNameRows(game: GameId, name: string, notKey: string) {
  * doubted number). Empty when the card is the only printing.
  */
 export async function otherPrintings(game: GameId, f: Pick<CardFacts, "name" | "key">, limit = TOP_TILES): Promise<Tile[]> {
-  return cachedTiles(`seo:printings:v2:${game}:${f.name}`, async () => {
-    const rows = await sameNameRows(game, f.name, f.key);
+  const all = await cachedTiles(printingsKey(game, f.name), async () => {
+    const rows = await sameNameRows(game, f.name);
     if (rows.length === 0) return [];
     const index = await setIndex(game);
     const trust = await loadTrustData(rows.map((r) => ({ cardId: r.id, game })), todayUtc());
@@ -635,8 +637,27 @@ export async function otherPrintings(game: GameId, f: Pick<CardFacts, "name" | "
       const fx = factsOf(game, r, setSlug);
       out.push({ key: r.key, name: fx.name, number: fx.number, tags: fx.tags, image: fx.image, tile: fx.tile, price: head.price, flagged: false, unverified: false, setSlug, setName: fx.setName });
     }
-    return out.sort((a, b) => (b.price ?? 0) - (a.price ?? 0)).slice(0, limit);
+    return out.sort((a, b) => (b.price ?? 0) - (a.price ?? 0)).slice(0, limit + 1);
   });
+  return all.filter((t) => t.key !== f.key).slice(0, limit);
+}
+
+const printingsKey = (game: GameId, name: string) => `seo:printings:v3:${game}:${name}`;
+
+/**
+ * The cached lists a hand call on one card can change (its set's strip, its "Other <name> cards" strip, the game's top
+ * tiles): dropped right after the call so the next page build shows the verdict, not the day-old number (10-14: the
+ * Base Set Charizard was hidden at 2:45pm and its sister pages kept printing $968.91). One indexed row read; never throws.
+ */
+export async function dropCardLists(game: GameId, cardId: string): Promise<void> {
+  try {
+    const [row] = await catalogRows(game, "id = ?", [cardId]);
+    if (!row) return;
+    const f = factsOf(game, row, "");
+    await dropCachedLists([printingsKey(game, f.name), `seo:settop:v3:${game}:${row.set_key}`, `seo:top:v3:${game}`]);
+  } catch (err) {
+    console.warn(`card pages: could not drop the lists of ${game} ${cardId}`, err);
+  }
 }
 
 /**

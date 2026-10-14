@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { formatMoney } from "@/lib/listing";
+import { formatMoney, formatVariantLabel } from "@/lib/listing";
 import type { Currency } from "@/lib/types";
 import { PRICE_FLAG_NOTE, priceStaleNote } from "@/lib/priceFlag";
 import { cache, loadSeries, pickSeries, type Series, type TrendAverages } from "@/lib/client/priceHistoryData";
@@ -288,7 +288,7 @@ export default function PriceHistoryChart({ cardId, initialSeries, preferVariant
           <div className={`flex items-baseline gap-2 ${label} text-zinc-500`}>
             <span className={`${compact ? "text-xs" : "text-sm"} font-medium text-zinc-200`}>Price history</span>
             {series && (
-              <span>{sourceLabel(series.source)}{series.variant && series.variant !== "normal" && series.variant !== "average" ? ` · ${series.variant}` : ""}</span>
+              <span>{sourceLabel(series.source)}{series.variant && series.variant !== "normal" && series.variant !== "average" ? ` · ${formatVariantLabel(series.variant)}` : ""}</span>
             )}
             {scaleLabel && (scaled || exactVariant) && (
               <span className="rounded-full bg-sky-400/10 px-2 py-0.5 font-medium text-sky-300">

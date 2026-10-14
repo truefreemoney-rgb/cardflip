@@ -1,7 +1,7 @@
 import Link from "next/link";
 import ArtImg from "@/components/ArtImg";
 import { PriceFlagText } from "@/components/PriceFlagNote";
-import { cardPath } from "@/lib/cardPages";
+import { cardPath, gamePath, gameTitle } from "@/lib/cardPages";
 import { formatMoney } from "@/lib/listing";
 import type { GameId } from "@/lib/types";
 
@@ -27,6 +27,26 @@ export function Crumbs({ items }: { items: { name: string; href?: string }[] }) 
           )}
         </span>
       ))}
+    </nav>
+  );
+}
+
+/** The public game hubs as a pill row, the current one lit: the only way between games above the sets (10-14, Chris: yes). */
+export function GameTabs({ games, current }: { games: GameId[]; current: GameId }) {
+  if (games.length < 2) return null;
+  return (
+    <nav aria-label="Games" className="mt-5 flex flex-wrap gap-2">
+      {games.map((g) =>
+        g === current ? (
+          <span key={g} aria-current="page" className="rounded-full border border-brand-400/40 bg-brand-500/15 px-4 py-1.5 text-sm font-semibold text-brand-200">
+            {gameTitle(g)}
+          </span>
+        ) : (
+          <Link key={g} href={gamePath(g)} className="rounded-full border border-edge bg-surface-1 px-4 py-1.5 text-sm font-medium text-zinc-300 transition hover:border-edge-strong hover:text-white">
+            {gameTitle(g)}
+          </Link>
+        ),
+      )}
     </nav>
   );
 }
