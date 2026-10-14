@@ -97,8 +97,10 @@ export interface SetEntry {
   release: string;
   /** Cards in the catalog with a picture. */
   count: number;
-  /** Cards priced at the index floor or more. */
+  /** Cards priced at the index floor or more (decides whether the set page is indexed and in the sitemap). */
   qualifying: number;
+  /** Cards with any price at all: what the set page lists and the game pages count (Chris 10-14: show the under-$1 cards too). */
+  priced: number;
 }
 
 /**

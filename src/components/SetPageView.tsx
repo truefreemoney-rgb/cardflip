@@ -6,9 +6,8 @@ import MarketingNav from "@/components/MarketingNav";
 import Footer from "@/components/Footer";
 import JsonLd from "@/components/JsonLd";
 import { Crumbs, ScanCta, TileGrid } from "@/components/CardPagesUi";
-import { gamePath, gameTitle, indexFloorUsd, setPath, type SetEntry } from "@/lib/cardPages";
+import { gamePath, gameTitle, setPath, type SetEntry } from "@/lib/cardPages";
 import { SET_PAGE_CARDS, loadSetCards, publicCardGame, setBySlug, type SetCard } from "@/lib/server/cardPages";
-import { formatMoney } from "@/lib/listing";
 import { pageMetadata } from "@/lib/seo";
 import { breadcrumbGraph } from "@/lib/structuredData";
 import { etDate } from "@/lib/time";
@@ -37,7 +36,7 @@ const load = cache(async (gameSlug: string, setSlug: string): Promise<Loaded | n
   const found = await setBySlug(game, setSlug);
   if (!found) return null;
   const all = await loadSetCards(game, found.set);
-  return { game, set: found.set, slug: found.slug, cards: all.filter((c) => c.price != null && c.price >= indexFloorUsd(game) && !c.unverified) };
+  return { game, set: found.set, slug: found.slug, cards: all.filter((c) => c.price != null && c.price > 0 && !c.unverified) };
 });
 
 const pageHref = (game: GameId, slug: string, n: number) => (n <= 1 ? setPath(game, slug) : `${setPath(game, slug)}/page/${n}`);
@@ -57,7 +56,8 @@ export async function setMetadata(gameSlug: string, setSlug: string, page: numbe
     absoluteTitle: true,
     description: `Market prices and price history for ${l.cards.length.toLocaleString("en-US")} ${name} cards from ${l.set.name}, most valuable first. Checked daily.${page > 1 ? ` Page ${page} of ${pages}.` : ""}`,
     path: pageHref(l.game, l.slug, page),
-    noindex: l.cards.length === 0 || page > pages,
+    // Under-$1 cards are listed but a set with none at the index floor stays out of Google (it is not in the sitemap either).
+    noindex: l.set.qualifying === 0 || page > pages,
   });
 }
 
@@ -121,13 +121,13 @@ export async function SetView({ gameSlug, setSlug, page }: { gameSlug: string; s
         </h1>
         <p className="mt-3 max-w-prose leading-relaxed text-zinc-400">
           Market prices for {name} cards from {set.name}
-          {set.release ? `, ${set.release > todayUtc() ? "out" : "released"} ${etDate(`${set.release}T12:00:00Z`)}${set.release > todayUtc() ? " (preorder prices)" : ""}` : ""}. Cards priced {formatMoney(indexFloorUsd(game))} and up, most valuable first. A price
+          {set.release ? `, ${set.release > todayUtc() ? "out" : "released"} ${etDate(`${set.release}T12:00:00Z`)}${set.release > todayUtc() ? " (preorder prices)" : ""}` : ""}. Most valuable first. A price
           that looks wrong is not shown.
         </p>
 
         {tiles.length === 0 ? (
           <p className="mt-8 rounded-2xl border border-edge bg-surface-1 px-4 py-10 text-center text-sm text-zinc-400">
-            No card in this set has a current price of {formatMoney(indexFloorUsd(game))} or more right now.
+            No card in this set has a current price right now.
           </p>
         ) : (
           <>

@@ -4,9 +4,8 @@ import Footer from "@/components/Footer";
 import JsonLd from "@/components/JsonLd";
 import { Crumbs, ScanCta } from "@/components/CardPagesUi";
 import CatalogSearch from "@/components/CatalogSearch";
-import { gamePath, gameTitle, indexFloorUsd } from "@/lib/cardPages";
+import { gamePath, gameTitle } from "@/lib/cardPages";
 import { publicCardGames, setIndex } from "@/lib/server/cardPages";
-import { formatMoney } from "@/lib/listing";
 import { pageMetadata } from "@/lib/seo";
 import { breadcrumbGraph } from "@/lib/structuredData";
 import type { GameId } from "@/lib/types";
@@ -32,8 +31,8 @@ export default async function CardsHubPage() {
     await Promise.all(
       games.map(async (game: GameId) => {
         const { sets } = await setIndex(game);
-        const priced = sets.filter((s) => s.qualifying > 0);
-        return { game, sets: priced.length, cards: priced.reduce((n, s) => n + s.qualifying, 0) };
+        const priced = sets.filter((s) => s.priced > 0);
+        return { game, sets: priced.length, cards: priced.reduce((n, s) => n + s.priced, 0) };
       }),
     )
   ).filter((t) => t.sets > 0);
@@ -47,7 +46,7 @@ export default async function CardsHubPage() {
         <h1 className="mt-4 font-display text-3xl font-bold text-white sm:text-5xl">Card prices</h1>
         <p className="mt-3 max-w-prose leading-relaxed text-zinc-400">
           What trading cards sell for, by game and set. Each page shows the market price for the exact printing, how it has moved, and the
-          price history CardFlip has recorded. Prices are checked daily, and a price that looks wrong is not shown. Each game lists cards from a small price floor up.
+          price history CardFlip has recorded. Prices are checked daily, and a price that looks wrong is not shown.
         </p>
         <CatalogSearch games={games} />
 
@@ -60,7 +59,7 @@ export default async function CardsHubPage() {
                 <Link href={gamePath(t.game)} className="flex h-full flex-col rounded-2xl border border-edge bg-surface-1 p-5 transition hover:border-edge-strong">
                   <span className="font-display text-xl font-semibold text-white">{gameTitle(t.game)}</span>
                   <span className="mt-1 text-sm text-zinc-400">
-                    {t.sets.toLocaleString("en-US")} sets, {t.cards.toLocaleString("en-US")} cards priced {formatMoney(indexFloorUsd(t.game))} and up
+                    {t.sets.toLocaleString("en-US")} sets, {t.cards.toLocaleString("en-US")} cards with prices
                   </span>
                   <span className="mt-4 text-sm font-medium text-brand-300">See Prices</span>
                 </Link>

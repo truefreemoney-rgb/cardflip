@@ -95,6 +95,7 @@ interface SetRow {
   rel: string | null;
   n: number;
   q: number;
+  p: number;
 }
 
 const MTG_SKIPPED_SET_TYPES = "('token', 'memorabilia', 'minigame', 'alchemy')";
@@ -109,24 +110,28 @@ async function buildSets(game: GameId): Promise<SetEntry[]> {
                 SUM(CASE WHEN image_url <> '' THEN 1 ELSE 0 END) AS n
            FROM en_cards WHERE set_id <> '' GROUP BY set_id`,
       )
-      .all()) as unknown as Omit<SetRow, "q">[];
-    const priced = (await db
-      .prepare(
-        `SELECT c.set_id AS skey, COUNT(*) AS q FROM en_cards c
-          WHERE c.image_url <> '' AND c.id IN (
-            SELECT card_id FROM price_series
-             WHERE game = 'pokemon' AND source = 'tcgplayer' AND currency = 'USD' AND updated_day >= ?
-               AND json_extract(prices, '$[#-1]') >= ?)
-          GROUP BY c.set_id`,
-      )
-      .all(freshCutoff(), INDEX_FLOOR_USD)) as unknown as { skey: string; q: number }[];
-    const q = new Map(priced.map((r) => [r.skey, Number(r.q)]));
-    rows = base.map((r) => ({ ...r, q: q.get(r.skey) ?? 0 }));
+      .all()) as unknown as Omit<SetRow, "q" | "p">[];
+    const pricedFrom = async (floor: number) =>
+      new Map(
+        ((await db
+          .prepare(
+            `SELECT c.set_id AS skey, COUNT(*) AS q FROM en_cards c
+              WHERE c.image_url <> '' AND c.id IN (
+                SELECT card_id FROM price_series
+                 WHERE game = 'pokemon' AND source = 'tcgplayer' AND currency = 'USD' AND updated_day >= ?
+                   AND json_extract(prices, '$[#-1]') ${floor > 0 ? ">=" : ">"} ?)
+              GROUP BY c.set_id`,
+          )
+          .all(freshCutoff(), floor)) as unknown as { skey: string; q: number }[]).map((r) => [r.skey, Number(r.q)]),
+      );
+    const [q, p] = await Promise.all([pricedFrom(INDEX_FLOOR_USD), pricedFrom(0)]);
+    rows = base.map((r) => ({ ...r, q: q.get(r.skey) ?? 0, p: p.get(r.skey) ?? 0 }));
   } else if (game === "mtg") {
     rows = (await db
       .prepare(
         `SELECT c.set_code AS skey, MAX(s.name) AS name, c.set_code AS code, MAX(s.released_at) AS rel, COUNT(*) AS n,
-                SUM(CASE WHEN c.price_usd >= ? OR c.price_usd_foil >= ? OR c.price_usd_etched >= ? THEN 1 ELSE 0 END) AS q
+                SUM(CASE WHEN c.price_usd >= ? OR c.price_usd_foil >= ? OR c.price_usd_etched >= ? THEN 1 ELSE 0 END) AS q,
+                SUM(CASE WHEN c.price_usd > 0 OR c.price_usd_foil > 0 OR c.price_usd_etched > 0 THEN 1 ELSE 0 END) AS p
            FROM mtg_cards c JOIN mtg_sets s ON s.code = c.set_code
           WHERE s.set_type NOT IN ${MTG_SKIPPED_SET_TYPES} AND c.image_url <> '' AND c.lang = 'en'
           GROUP BY c.set_code`,
@@ -136,7 +141,8 @@ async function buildSets(game: GameId): Promise<SetEntry[]> {
     rows = (await db
       .prepare(
         `SELECT set_code || '|' || set_name AS skey, set_name AS name, set_code AS code, MIN(set_release_date) AS rel, COUNT(*) AS n,
-                SUM(CASE WHEN price_usd >= ? OR price_usd_foil >= ? THEN 1 ELSE 0 END) AS q
+                SUM(CASE WHEN price_usd >= ? OR price_usd_foil >= ? THEN 1 ELSE 0 END) AS q,
+                SUM(CASE WHEN price_usd > 0 OR price_usd_foil > 0 THEN 1 ELSE 0 END) AS p
            FROM tcg_cards WHERE game = ? AND image_url <> '' AND id NOT LIKE '%#%'
           GROUP BY set_code, set_name`,
       )
@@ -144,7 +150,7 @@ async function buildSets(game: GameId): Promise<SetEntry[]> {
   }
   return rows
     .filter((r) => Number(r.n) > 0 && (r.name || r.code))
-    .map((r) => ({ key: r.skey, name: r.name || r.code, code: r.code ?? "", release: r.rel ?? "", count: Number(r.n), qualifying: Number(r.q) }))
+    .map((r) => ({ key: r.skey, name: r.name || r.code, code: r.code ?? "", release: r.rel ?? "", count: Number(r.n), qualifying: Number(r.q), priced: Number(r.p) }))
     .sort((a, b) => (b.release || "").localeCompare(a.release || "") || a.name.localeCompare(b.name));
 }
 
@@ -163,7 +169,7 @@ export async function setIndex(game: GameId): Promise<SetIndex> {
   if (hit && Date.now() - hit.at < MEMO_MS) return hit.index;
   let sets: SetEntry[] = [];
   try {
-    sets = await cachedList(`seo:sets:v1:${game}`, SETS_TTL_MS, () => buildSets(game));
+    sets = await cachedList(`seo:sets:v2:${game}`, SETS_TTL_MS, () => buildSets(game));
   } catch (err) {
     console.warn(`card pages: could not read the ${game} set list`, err);
   }
