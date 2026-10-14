@@ -1,4 +1,4 @@
-﻿# Open tests, 10-13 (ET). Total 89 = A 3 / B 30 / C 2 / D 29 / E 19 / X 6
+# Open tests, 10-13 (ET). Total 89 = A 3 / B 30 / C 2 / D 29 / E 19 / X 6
 
 Built from docs/TO-TEST.md + docs/OPEN-TESTS.md. Passed and replaced checks are left out.
 
@@ -10,7 +10,7 @@ Built from docs/TO-TEST.md + docs/OPEN-TESTS.md. Passed and replaced checks are 
 
 ## B. You, on the real site cardflip.io - 30
 
-4. Let a sign-in code expire, tap blue "Send a New Code": new email arrives, newest code works. [10-11]
+4. PASS 10-14 3:55pm ET (Chris phone): Let a sign-in code expire, tap blue "Send a New Code": new email arrives, newest code works. [10-11]
 5. Sign up with email and password, log out, tap Continue with Google with same email: same account. [10-07]
 6. A Google-only account typing a password sees "signs in with Google"; Forgot Password lets it set one. [10-07]
 7. Second Google signup from the same phone starts with the free scans already used. [10-07]

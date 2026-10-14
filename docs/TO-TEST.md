@@ -85,7 +85,7 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 - Known, not fixed: repricing a live envelope card across $20 keeps its original eBay policy (policy is picked at publish only; true before tonight too).
 
 ## 10-11 Sign-in code "Send a New Code" link after the code expires (prod /login, admin account)
-- [ ] On cardflip.io/login as truefreemoney, let the 6-digit code expire (or type a wrong one) so the red "didn't match or has expired" box shows, then tap the blue "Send a New Code" link under the code box: a new email arrives and that newest code logs in. Chris 10-11 ~8:30pm ET didn't see a button at first (the link sits small at the end of the "works for 10 minutes" line); if it does nothing on tap, that's a bug. Open question for Chris: make it a full-size button under the red box (visible change, screenshot + yes first).
+- [x] (10-14 3:55pm ET Chris phone: pass, countdown then new code worked) On cardflip.io/login as truefreemoney, let the 6-digit code expire (or type a wrong one) so the red "didn't match or has expired" box shows, then tap the blue "Send a New Code" link under the code box: a new email arrives and that newest code logs in. Chris 10-11 ~8:30pm ET didn't see a button at first (the link sits small at the end of the "works for 10 minutes" line); if it does nothing on tap, that's a bug. Open question for Chris: make it a full-size button under the red box (visible change, screenshot + yes first).
 
 ## 10-11 Every empty scan given back + no category sheet with nothing scanned (9fc403ff, pushed 10-11 night as 5e4d662b)
 - [x] 10-11 8:35pm ET, local dev with the real reader, driven from the pane: a drawn floss box read at 10% ("Couldn't read"), scans used went 0 → 1 → 0 after the give-back (POST /api/vision/scan/giveback answered refunded). Same path on prod after the push.
@@ -414,7 +414,7 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 - [ ] Vercel logs / /admin errors for 24 h after the push: no 'fx: rate refresh failed ... Dynamic server usage' and no 'Page changed from static to dynamic at runtime /cards/magic/...'. If the static-to-dynamic one remains, it has a second cause: find it with a local next build.
 
 ## 10-14 ~4am ET: code wait, envelope wording, no confidence %, backup fix (not pushed yet)
-- [ ] Phone, /login (or /admin/login) with an emailed code: right after the code mails, the button reads 'Send a New Code (60s)' and counts down, greyed out; at 0 it works again. Email-confirm wall on signup counts 60s too.
+- [x] (10-14 3:55pm ET Chris phone: pass) Phone, /login (or /admin/login) with an emailed code: right after the code mails, the button reads 'Send a New Code (60s)' and counts down, greyed out; at 0 it works again. Email-confirm wall on signup counts 60s too.
 - [ ] A scan the AI was unsure of: Scanner list and Inventory show 'Verify match' but NO 'low-confidence read (40%)' text anywhere.
 - [x] (10-14 2:17pm ET Chris phone: pass) 'How to ship' on a $20-$100 envelope card, step 3 reads: 'Postage is $1.31 total. Use $1.31 in postage stamps, or hand it in at the post office counter and they'll stamp it for you.'
 - [x] (10-14 3:50pm ET Chris phone: pass, Best Match both places) Search: every result tile has a 'Buy on eBay' button under the price, and the opened card has one under Share; both open eBay on Best Match (not cheapest first) for that card. Watchlist's Buy on eBay is Best Match too.
