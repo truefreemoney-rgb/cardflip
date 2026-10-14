@@ -672,7 +672,7 @@ console.log("\nThe chart's current-day point rebases the quote:");
   check("confirm line: stamped envelope over $20", ship.shipConfirmLine("envelope", 25),
     "Ships in a stamped envelope. Free shipping for the buyer, the postage is already in your price.");
   check("confirm line: label envelope at $20 and with no price", [ship.shipConfirmLine("envelope", 20), ship.shipConfirmLine("envelope")].every((s) => s.startsWith("Ships as an eBay Standard Envelope (tracked).")), true);
-  check("steps: stamped envelope says $1.31 in stamps, mark shipped, no warning", [ship.shipSteps("envelope", 25).length, /\$1\.31 in stamps on it \(1 regular stamp plus 49¢\)/.test(ship.shipSteps("envelope", 25)[2]), /Mark as shipped/.test(ship.shipSteps("envelope", 25)[3]), /tracking|lost/i.test(ship.shipSteps("envelope", 25).join(" "))], [4, true, true, false]);
+  check("steps: stamped envelope says $1.31 in stamps, mark shipped, no warning", [ship.shipSteps("envelope", 25).length, /^Postage is \$1\.31 total\./.test(ship.shipSteps("envelope", 25)[2]), /Mark as shipped/.test(ship.shipSteps("envelope", 25)[3]), /tracking|lost/i.test(ship.shipSteps("envelope", 25).join(" "))], [4, true, true, false]);
   check("steps: label envelope up to $20 buys the eBay label", /eBay Standard Envelope label/.test(ship.shipSteps("envelope", 20)[2]), true);
 }
 
