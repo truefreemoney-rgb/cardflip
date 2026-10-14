@@ -7,6 +7,11 @@
 Things that shipped but were never exercised on a real phone or with real
 traffic. Tick when tested; note what you saw. Newest batch first.
 
+## 10-14 ~4:10pm ET: phone nav shows How It Works / Features / Card Prices (LOCAL, NOT PUSHED)
+Chris (phone, logged out): the top nav was missing the three page links; they were hidden under sm on purpose. Now every link shows on phones and wraps into two rows (search + the three pages, then Pricing / Log In / Get Started); header about 40px taller. Pane 375px: no sideways scroll, rows balanced.
+- [ ] PROD after the push, phone, logged out: home nav row 1 = search, How It Works, Features, Card Prices; row 2 = Pricing, Log In, Get Started; nothing clipped; same on /features and a /cards page.
+- [ ] Phone, logged in: row 2 reads Pricing, Log out, Open the App.
+
 ## 10-14 ~3pm ET: suggested price follows the seller's shipping pick everywhere (LOCAL, NOT PUSHED)
 Chris on his phone: Sylveon ex 30th Celebration showed eBay asking $50.26 in the scanner but eBay Suggested Price $55.75 in Inventory ("we can't have mismatch prices"). Cause: the scanner priced the Envelope pick (stamps $1.31), while the Inventory live refresh, alerts, weekly digest, insights, inventory value, reprice nudges and the public collection all called askingPriceFor without the row's shipping_method, so they priced the tracked default ($6.07) and the refresh overwrote the scanner's $50.26. Fix: lib/fees.ts shipMethodOf(row) threaded into all seven + the Inventory cost note. Tests: liveprices (3 new checks), cardalerts, digest, inventoryvalue, profit, publiccollection, pricing green; tsc clean.
 - [ ] PROD after the push, phone: Inventory, open the Sylveon ex (Envelope pick): eBay Suggested Price reads $50.26 (same as the scanner's eBay asking) and the note says "$1.31 envelope postage".
