@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { askingPriceFor } from "@/lib/listing";
+import { shipMethodOf } from "@/lib/fees";
 import { usdSeries } from "@/lib/server/priceHistory";
 import { inventoryValueSeries } from "@/lib/server/inventoryValue";
 import { heldTrustOrOpen } from "@/lib/server/priceTrustSite";
@@ -89,6 +90,7 @@ interface Row {
   ebay_ended_at: number | null;
   verified_at: number | null;
   price_locked: number;
+  shipping_method: string | null;
 }
 
 function onDay(series: { startDay: string; prices: (number | null)[] }, day: string): number | null {
@@ -103,7 +105,7 @@ export async function collectionInsights(userId: string, game: GameId, now = Dat
   const rows = (await db
     .prepare(
       `SELECT id, card_name, set_name, image_url, kind, condition, status, price, sold_price, quantity,
-              catalog_card_id, game, ebay_ended_at, verified_at, price_locked
+              catalog_card_id, game, ebay_ended_at, verified_at, price_locked, shipping_method
        FROM cards WHERE user_id = ? AND game = ?
        ORDER BY created_at DESC LIMIT ${ROW_CAP}`,
     )
@@ -135,8 +137,8 @@ export async function collectionInsights(userId: string, game: GameId, now = Dat
     if (held && marketThen != null && marketThen > 0 && trust.flagOld(held, 7, marketThen)) marketThen = null;
     // A hand-set price is the seller's number; otherwise today's market
     // through the condition math, falling back to the stored price.
-    const price = r.price_locked ? r.price : marketNow != null && marketNow > 0 ? askingPriceFor(marketNow, r.condition) : r.price;
-    const weekAgo = !r.price_locked && marketThen != null && marketThen > 0 ? askingPriceFor(marketThen, r.condition) : null;
+    const price = r.price_locked ? r.price : marketNow != null && marketNow > 0 ? askingPriceFor(marketNow, r.condition, shipMethodOf(r)) : r.price;
+    const weekAgo = !r.price_locked && marketThen != null && marketThen > 0 ? askingPriceFor(marketThen, r.condition, shipMethodOf(r)) : null;
     cards.push({
       id: r.id,
       name: r.card_name,

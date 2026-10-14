@@ -100,6 +100,14 @@ export function formatMoneyPostage(n: number): string {
 export function isShipMethod(v: unknown): v is ShipMethod {
   return v === "envelope" || v === "tracked";
 }
+/**
+ * The seller's pick off a cards row (shipping_method), null when none — askingPriceFor then prices the
+ * suggested pick. Every server-side recompute passes it (10-14: the Inventory refresh priced a $41.89 Sylveon
+ * at the tracked $55.75 while the scanner, honouring the Envelope pick, said $50.26).
+ */
+export function shipMethodOf(row: { shipping_method?: string | null }): ShipMethod | null {
+  return isShipMethod(row.shipping_method) ? row.shipping_method : null;
+}
 /** Whether the envelope pick is allowed at this sale price ($100 or less, Chris 10-11). */
 export function envelopeAllowed(gross: number): boolean {
   return gross <= ENVELOPE_MAX_USD;

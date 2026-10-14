@@ -1,8 +1,17 @@
 ﻿# To test later
+- [ ] After push: /admin/prices 'eBay sold' and a raw card's 'check sold listings' open eBay with '-psa -bgs -cgc -sgc -graded -slab' and no slab titles; a slab item's eBay link still searches its grade (e.g. PSA 9).
+- [ ] 10-15: /cards/pokemon/crystal-guardians/charizard--ex14-4 shows $939.50 (hand keep POSTed 10-14 ~2:45pm ET; page copy was still "looks off" right after, cache).
+- [ ] Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
+# To test later
 
 Things that shipped but were never exercised on a real phone or with real
 traffic. Tick when tested; note what you saw. Newest batch first.
 
+## 10-14 ~3pm ET: suggested price follows the seller's shipping pick everywhere (LOCAL, NOT PUSHED)
+Chris on his phone: Sylveon ex 30th Celebration showed eBay asking $50.26 in the scanner but eBay Suggested Price $55.75 in Inventory ("we can't have mismatch prices"). Cause: the scanner priced the Envelope pick (stamps $1.31), while the Inventory live refresh, alerts, weekly digest, insights, inventory value, reprice nudges and the public collection all called askingPriceFor without the row's shipping_method, so they priced the tracked default ($6.07) and the refresh overwrote the scanner's $50.26. Fix: lib/fees.ts shipMethodOf(row) threaded into all seven + the Inventory cost note. Tests: liveprices (3 new checks), cardalerts, digest, inventoryvalue, profit, publiccollection, pricing green; tsc clean.
+- [ ] PROD after the push, phone: Inventory, open the Sylveon ex (Envelope pick): eBay Suggested Price reads $50.26 (same as the scanner's eBay asking) and the note says "$1.31 envelope postage".
+- [ ] PROD: a card with NO pick yet over $20 still reads the tracked number (unchanged), under $20 the $0.78 envelope number.
+- [ ] PROD: Inventory total / Market value chart (asking basis) still adds up after the refresh (sum of the rows).
 ## 10-14 ~11am: 22-commit batch (hand calls, eBay slab-free links, flaky test fix, OP SAMPLE re-check) PUSHED d3a938f2 (+ 01aa52f2 test fix)
 - [x] PROD: /cards/pokemon lists each Trainer Gallery set ONCE (10-14 10:35am: curl, 0 duplicate set links, 4 TG sets x1).
 - [x] CI: main went RED on d3a938f2 (test-social-publish-csrf still sent ?key=, dropped by 84467a80) -> fixed 01aa52f2, CI + smoke green 10:33am. test-campaigns Thursday check passed in the same run.

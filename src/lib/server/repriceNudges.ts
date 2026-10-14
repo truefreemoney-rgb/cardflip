@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { latestUsdPrices } from "@/lib/server/priceHistory";
 import { askingPriceFor } from "@/lib/listing";
+import { shipMethodOf } from "@/lib/fees";
 import { heldTrust } from "@/lib/server/priceTrustSite";
 
 /**
@@ -49,13 +50,13 @@ export interface RepriceNudge {
 export async function getRepriceNudges(userId: string, now = Date.now()): Promise<RepriceNudge[]> {
   const rows = (await db
     .prepare(
-      `SELECT id, price, catalog_card_id, game, condition FROM cards
+      `SELECT id, price, catalog_card_id, game, condition, shipping_method FROM cards
        WHERE user_id = ? AND status = 'listed' AND catalog_card_id IS NOT NULL
          AND price > 0 AND listed_at IS NOT NULL AND listed_at < ?
          AND ebay_marketplace IS NULL
        LIMIT ${CHECK_CAP}`,
     )
-    .all(userId, now - MIN_AGE_MS)) as { id: string; price: number; catalog_card_id: string; game: string | null; condition: string }[];
+    .all(userId, now - MIN_AGE_MS)) as { id: string; price: number; catalog_card_id: string; game: string | null; condition: string; shipping_method: string | null }[];
 
   // One batched series read for every listed row — the per-row lookup was
   // up to 50 round trips on each collection load (Turso bills each one).
@@ -67,7 +68,7 @@ export async function getRepriceNudges(userId: string, now = Date.now()): Promis
     const market = markets.get(row.catalog_card_id)?.price ?? null;
     if (market == null || market <= 0) continue;
     if (trust.flag({ catalog_card_id: row.catalog_card_id, variant: null, game: row.game })) continue;
-    const target = askingPriceFor(market, row.condition);
+    const target = askingPriceFor(market, row.condition, shipMethodOf(row));
     if (!(target > 0)) continue;
     const drift = (target - row.price) / row.price;
     if (Math.abs(drift) < MIN_DRIFT) continue;

@@ -4,6 +4,7 @@ import { findUserByHandle } from "@/lib/server/users";
 import { latestUsdPrices } from "@/lib/server/priceHistory";
 import { heldTrustOrOpen } from "@/lib/server/priceTrustSite";
 import { askingPriceFor } from "@/lib/listing";
+import { shipMethodOf } from "@/lib/fees";
 import { ebayListingUrl } from "@/lib/ebayInventory";
 import { formatLocalAmount, marketplaceByEbayId } from "@/lib/marketplaces";
 import type { GameId } from "@/lib/types";
@@ -103,6 +104,7 @@ interface Row {
   ebay_listing_id: string | null;
   ebay_marketplace: string | null;
   list_price_local: number | null;
+  shipping_method: string | null;
   first_edition: number | null;
   quantity: number | null;
 }
@@ -116,7 +118,7 @@ export async function publicCollection(handle: string): Promise<PublicCollection
 
   const rows = (await db
     .prepare(
-      `SELECT id, card_name, set_name, card_number, image_url, condition, game, kind, status, price, catalog_card_id, variant, price_locked, ebay_listing_id, ebay_marketplace, list_price_local, first_edition, quantity
+      `SELECT id, card_name, set_name, card_number, image_url, condition, game, kind, status, price, catalog_card_id, variant, price_locked, ebay_listing_id, ebay_marketplace, list_price_local, first_edition, quantity, shipping_method
          FROM cards
         WHERE user_id = ? AND status != 'sold'
         ORDER BY price DESC, created_at DESC
@@ -141,7 +143,7 @@ export async function publicCollection(handle: string): Promise<PublicCollection
     let judgedVariant = r.variant;
     if (price == null && r.catalog_card_id) {
       const m = market.get(r.catalog_card_id)?.price ?? 0;
-      price = m > 0 ? askingPriceFor(m, r.condition) : null;
+      price = m > 0 ? askingPriceFor(m, r.condition, shipMethodOf(r)) : null;
       judgedVariant = null;
     }
     // A price that came from a flagged market is not shown (nor counted); the seller's own price and a live ask are.

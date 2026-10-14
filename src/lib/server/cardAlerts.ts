@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { askingPriceFor } from "@/lib/listing";
+import { shipMethodOf } from "@/lib/fees";
 import { isMailConfigured, sendCardAlertEmail, type CardAlertHit } from "@/lib/server/mail";
 import { heldSeries, preferredVariants, usdSeries } from "@/lib/server/priceHistory";
 import { heldTrust } from "@/lib/server/priceTrustSite";
@@ -49,6 +50,7 @@ interface Row {
   alert_price: number | null;
   alerted_at: number | null;
   spike_alerted_at: number | null;
+  shipping_method: string | null;
 }
 
 export interface CardAlertSweepResult {
@@ -76,7 +78,7 @@ export async function sweepCardAlerts(
   const rows = (await db
     .prepare(
       `SELECT c.id, c.user_id, u.email, c.card_name, c.set_name, c.card_number, c.condition,
-              c.catalog_card_id, c.variant, c.game, c.alert_price, c.alerted_at, c.spike_alerted_at
+              c.catalog_card_id, c.variant, c.game, c.alert_price, c.alerted_at, c.spike_alerted_at, c.shipping_method
        FROM cards c JOIN users u ON u.id = c.user_id
        WHERE c.status != 'sold' AND c.catalog_card_id IS NOT NULL AND u.email_pending = 0
          AND (c.ebay_marketplace IS NULL OR c.status != 'listed')
@@ -98,7 +100,7 @@ export async function sweepCardAlerts(
     const market = onDay(s, today);
     if (market == null || !(market > 0)) continue;
     if (trust.flag(r)) continue;
-    const price = Math.round(askingPriceFor(market, r.condition) * 100) / 100;
+    const price = Math.round(askingPriceFor(market, r.condition, shipMethodOf(r)) * 100) / 100;
     const hits: Array<CardAlertHit & { rowId: string }> = [];
     if (r.alert_price != null && r.alerted_at == null && price >= r.alert_price) {
       hits.push({ rowId: r.id, name: r.card_name, set: r.set_name, number: r.card_number, price, target: r.alert_price, kind: "target" });
@@ -108,7 +110,7 @@ export async function sweepCardAlerts(
       const firstDay = firstIdx >= 0 ? addDays(s.startDay, firstIdx) : today;
       const marketBefore = firstDay > weekAgo ? null : onDay(s, weekAgo);
       if (marketBefore != null && marketBefore > 0 && !trust.flagOld(r, 7, marketBefore)) {
-        const before = Math.round(askingPriceFor(marketBefore, r.condition) * 100) / 100;
+        const before = Math.round(askingPriceFor(marketBefore, r.condition, shipMethodOf(r)) * 100) / 100;
         if (price - before >= SPIKE_MIN && (price - before) / before >= SPIKE_PCT / 100) {
           hits.push({ rowId: r.id, name: r.card_name, set: r.set_name, number: r.card_number, price, target: before, kind: "spike" });
         }

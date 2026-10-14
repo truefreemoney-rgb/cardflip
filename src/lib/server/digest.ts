@@ -2,6 +2,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { askingPriceFor } from "@/lib/listing";
+import { shipMethodOf } from "@/lib/fees";
 import { isMailConfigured, sendWeeklyDigestEmail } from "@/lib/server/mail";
 import { OWNER_EMAIL } from "@/lib/server/users";
 import { usdSeries } from "@/lib/server/priceHistory";
@@ -76,6 +77,7 @@ interface Row {
   catalog_card_id: string | null;
   game: string | null;
   price_locked: number | null;
+  shipping_method: string | null;
 }
 
 /** Series value on `day` (nearest earlier reading; the first reading when the series starts later). */
@@ -104,7 +106,7 @@ export async function buildDigest(userId: string, now = Date.now()): Promise<Dig
   const rows = (await db
     .prepare(
       `SELECT id, card_name, set_name, card_number, condition, quantity, status, price,
-              sold_price, sold_at, listed_at, catalog_card_id, game, price_locked
+              sold_price, sold_at, listed_at, catalog_card_id, game, price_locked, shipping_method
        FROM cards WHERE user_id = ? ORDER BY created_at DESC LIMIT ${ROW_CAP}`,
     )
     .all(userId)) as unknown as Row[];
@@ -152,8 +154,8 @@ export async function buildDigest(userId: string, now = Date.now()): Promise<Dig
     let marketBefore = firstDay > weekAgo ? market : (onDay(s, weekAgo) ?? market);
     // A week-ago price the guard calls junk (a plateau that just corrected) is no honest "before": unchanged.
     if (marketBefore !== market && trust.flagOld(held1, 7, marketBefore)) marketBefore = market;
-    const nowAsk = askingPriceFor(market, r.condition);
-    const beforeAsk = askingPriceFor(marketBefore, r.condition);
+    const nowAsk = askingPriceFor(market, r.condition, shipMethodOf(r));
+    const beforeAsk = askingPriceFor(marketBefore, r.condition, shipMethodOf(r));
     valueNow += nowAsk * qty;
     valueBefore += beforeAsk * qty;
     const change = round((nowAsk - beforeAsk) * qty);

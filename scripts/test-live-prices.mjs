@@ -97,6 +97,9 @@ const staleDraft = await mk({ price: 480, catalogCardId: "stale-deoxys", cardNam
 // $10,000 Charizard read "added at $8,799.99, up 13.6%").
 // Chris 10-08: fees + postage on every card (COSTS_ON_EVERY_CARD): the scanner saves the market ask (costs included) as the scan price.
 const quickScan = await mk({ price: 17.59, scanPrice: costCoveredPrice(20, "tracked"), catalogCardId: "base1-58" });
+// Chris 10-14: the Inventory refresh priced a $41.89 Sylveon at the tracked $55.75 while the scanner, honouring the
+// seller's Envelope pick, said $50.26. The pick on the row drives the ask everywhere (shipMethodOf).
+const stamped = await mk({ price: 1, catalogCardId: "base1-58", shippingMethod: "envelope" });
 
 console.log("askingPriceFor");
 // Chris 10-08: fees + postage on every card (COSTS_ON_EVERY_CARD)
@@ -112,6 +115,9 @@ const pick = (p, keys) => (p ? Object.fromEntries(keys.map((k) => [k, p[k]])) : 
 check("untouched draft rewritten to today's market", pick(by[draft.id], ["applied", "suggested", "previous"]), { applied: true, suggested: costCoveredPrice(20, "tracked"), previous: 12.5 });
 check("… and the ledger row moved", (await getCardForUser(draft.id, user.id)).price, costCoveredPrice(20, "tracked"));
 check("LP draft goes through its condition", by[played.id]?.suggested, costCoveredPrice(17, "tracked"));
+check("Envelope pick over $20: refreshed at the stamps price, not the tracked default", by[stamped.id]?.suggested, costCoveredPrice(20, "envelope"));
+check("... and the pick beats the default in askingPriceFor ($41.89 Sylveon = $50.26)", askingPriceFor(41.89, "Near Mint", "envelope"), 50.26);
+check("... no pick = the suggested (tracked) one, as before", askingPriceFor(41.89, "Near Mint", null), costCoveredPrice(41.89, "tracked"));
 check("hand-set price reported, not rewritten", pick(by[locked.id], ["applied", "market"]), { applied: false, market: 20 });
 check("… ledger untouched", (await getCardForUser(locked.id, user.id)).price, 9);
 check("listed row reported, not rewritten", pick(by[listed.id], ["applied", "suggested"]), { applied: false, suggested: costCoveredPrice(100, "tracked") });

@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { askingPriceFor, marketForCondition } from "@/lib/listing";
+import { shipMethodOf } from "@/lib/fees";
 import { heldSeries, preferredVariants, usdSeries } from "@/lib/server/priceHistory";
 import { addDays, dayIndex, todayUtc } from "@/lib/priceSeries";
 import { heldTrustOrOpen } from "@/lib/server/priceTrustSite";
@@ -38,6 +39,7 @@ interface Row {
   status: string;
   created_at: number;
   sold_at: number | null;
+  shipping_method: string | null;
 }
 
 /** Series value on `day` (nearest earlier reading; the first reading when the series starts later). */
@@ -80,7 +82,7 @@ export async function inventoryValueSeries(
   const categorySql = scope.category === undefined ? "" : scope.category === null ? "AND category IS NULL" : "AND category = ?";
   const rows = (await db
     .prepare(
-      `SELECT catalog_card_id, variant, condition, quantity, status, created_at, sold_at FROM cards
+      `SELECT catalog_card_id, variant, condition, quantity, status, created_at, sold_at, shipping_method FROM cards
        WHERE user_id = ? AND game = ? AND catalog_card_id IS NOT NULL ${categorySql} ${scope.status ? STATUS_SQL[scope.status] : ""}
        ORDER BY created_at DESC LIMIT ${ROW_CAP}`,
     )
@@ -96,6 +98,7 @@ export async function inventoryValueSeries(
     .map((r) => ({
       series: heldSeries(series, r) ?? null,
       condition: r.condition,
+      shipping: shipMethodOf(r),
       qty: r.quantity ?? 1,
       // Day of the series' first reading — the line starts at the earliest one.
       first: (() => {
@@ -120,7 +123,7 @@ export async function inventoryValueSeries(
       if (h.until && day > h.until) continue;
       const market = onDay(h.series!, day);
       if (market == null || !(market > 0)) continue;
-      value += (basis === "market" ? marketForCondition(market, h.condition) : askingPriceFor(market, h.condition)) * h.qty;
+      value += (basis === "market" ? marketForCondition(market, h.condition) : askingPriceFor(market, h.condition, h.shipping)) * h.qty;
     }
     out.push({ day, value: Math.round(value * 100) / 100 });
   }

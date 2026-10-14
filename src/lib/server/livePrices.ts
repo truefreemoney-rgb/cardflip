@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { askingPriceFor, marketForCondition } from "@/lib/listing";
+import { shipMethodOf } from "@/lib/fees";
 import { heldSeries, preferredVariants, usdSeries } from "@/lib/server/priceHistory";
 import { dayIndex } from "@/lib/priceSeries";
 import { heldTrust } from "@/lib/server/priceTrustSite";
@@ -60,6 +61,7 @@ interface Row {
   price_locked: number | null;
   scan_price: number | null;
   created_at: number;
+  shipping_method: string | null;
 }
 
 /** Latest non-null value in a series. */
@@ -80,7 +82,7 @@ function onDay(series: { startDay: string; prices: (number | null)[] }, day: str
 export async function refreshLivePrices(userId: string, now = Date.now()): Promise<LivePrice[]> {
   const rows = (await db
     .prepare(
-      `SELECT id, price, catalog_card_id, variant, game, condition, status, price_locked, scan_price, created_at FROM cards
+      `SELECT id, price, catalog_card_id, variant, game, condition, status, price_locked, scan_price, created_at, shipping_method FROM cards
        WHERE user_id = ? AND status != 'sold' AND catalog_card_id IS NOT NULL
        ORDER BY created_at DESC LIMIT ${ROW_CAP}`,
     )
@@ -109,13 +111,13 @@ export async function refreshLivePrices(userId: string, now = Date.now()): Promi
       out.push({ cardId: row.id, market: marketForCondition(market, row.condition), suggested: 0, previous: row.price, applied: blank, scanned: row.scan_price, marketThen: null, flag });
       continue;
     }
-    const suggested = askingPriceFor(market, row.condition);
+    const suggested = askingPriceFor(market, row.condition, shipMethodOf(row));
     // Scan-time price for rows from before scan_price existed: the series
     // value on the scan day through the same condition math, stored once.
     let scanned = row.scan_price;
     const then = onDay(s, new Date(row.created_at).toISOString().slice(0, 10));
     if (scanned == null) {
-      const asking = then != null ? askingPriceFor(then, row.condition) : 0;
+      const asking = then != null ? askingPriceFor(then, row.condition, shipMethodOf(row)) : 0;
       if (asking > 0) {
         scanned = asking;
         backfills.push({ id: row.id, scanned });
