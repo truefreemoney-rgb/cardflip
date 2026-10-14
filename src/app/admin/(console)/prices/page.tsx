@@ -12,7 +12,9 @@ const GAME_LABEL: Record<string, string> = { pokemon: "Pokémon", mtg: "Magic", 
 /** eBay sold listings for the row's printing: the referee's own search, plus the finish word it cannot leave out. */
 function soldUrl(r: AskListRow): string {
   const finish = r.variant === "foil" || r.variant === "etched" ? " foil" : r.variant === "reverseHolofoil" ? " reverse holo" : r.variant.startsWith("1stEdition") ? " 1st edition" : "";
-  return `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(`${r.query}${finish} ${RAW_ONLY_TERMS}`)}&LH_Sold=1&LH_Complete=1`;
+  // Rows from a hand call carry no referee query: search the card's name and set from its label instead of nothing.
+  const query = r.query || r.label.split(" | ").slice(0, 2).join(" ");
+  return `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(`${query}${finish} ${RAW_ONLY_TERMS}`)}&LH_Sold=1&LH_Complete=1`;
 }
 
 type CatalogRun = {
