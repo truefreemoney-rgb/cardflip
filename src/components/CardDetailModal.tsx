@@ -220,6 +220,8 @@ export default function CardDetailModal({
                 </div>
               )}
 
+              {/* Buy on eBay first, above Add to watchlist (Chris 10-14). */}
+              {buy && !sealed && <BuyOnEbayLink card={card} customId="search-sheet" className="mb-3 block w-full rounded-full py-2 text-sm sm:w-auto" />}
               {onWatchlist ? (
                 <>
                   <p className="inline-flex items-center gap-2 rounded-full bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-400">
@@ -251,7 +253,6 @@ export default function CardDetailModal({
                   className="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-white/5 px-4 py-2 text-sm font-semibold text-zinc-200 transition hover:bg-white/10 sm:w-auto"
                 />
               )}
-              {buy && !sealed && <BuyOnEbayLink card={card} customId="search-sheet" className="mt-3 block w-full rounded-full py-2 text-sm sm:w-auto" />}
             </div>
           </div>
 
