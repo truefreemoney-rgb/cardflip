@@ -12,6 +12,7 @@ import Price from "@/components/Price";
 import { PriceFlagText } from "@/components/PriceFlagNote";
 import { useSession } from "@/components/SessionProvider";
 import { toast } from "@/components/Toaster";
+import { useBodyScrollLock } from "@/lib/client/useBodyScrollLock";
 import { fetchCardById, fetchSets } from "@/lib/cards";
 import { displayCardNumber } from "@/lib/games";
 import { pickPrice, priceFlagOf } from "@/lib/listing";
@@ -120,7 +121,7 @@ export default function PriceCheckPage() {
       {idle && (
         <>
           <WatchRow items={watch} game={game} onOpen={(card) => void selectCard(card)} onStub={(card) => void openStub(card)} />
-          <SetTiles game={game} onPick={(set) => void search.browseSet(set.code ?? set.name, set.name)} onAll={() => search.setMode("browse")} />
+          <SetTiles game={game} onPick={(set) => void search.browseSet(set.code ?? set.name, set.name)} />
         </>
       )}
 
@@ -415,9 +416,105 @@ function pickSets(list: SetInfo[]): SetInfo[] {
   return [...real].sort((a, b) => (b.coverValue ?? 0) - (a.coverValue ?? 0)).slice(0, SET_TILES);
 }
 
-/** Open a whole set (mockup A): the newest released sets, one tap to every card in it. */
-function SetTiles({ game, onPick, onAll }: { game: GameId; onPick: (set: SetInfo) => void; onAll: () => void }) {
+function setWhen(set: SetInfo): string {
+  if (!set.releaseDate) return set.cards ? `${set.cards.toLocaleString("en-US")} cards` : "";
+  return new Date(`${set.releaseDate}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "America/New_York" });
+}
+
+function SetTile({ set, game, onPick }: { set: SetInfo; game: GameId; onPick: (set: SetInfo) => void }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onPick(set)}
+      className="flex flex-col overflow-hidden rounded-2xl border border-edge bg-surface-1 text-left transition hover:border-edge-strong"
+    >
+      <span className="block h-[72px] w-full">
+        <SetArt set={set} game={game} />
+      </span>
+      <span className="min-w-0 px-3 pb-2.5 pt-1">
+        <span className="block truncate text-[13px] font-semibold text-white">{set.name}</span>
+        <span className="block text-[11.5px] text-zinc-500">{setWhen(set)}</span>
+      </span>
+    </button>
+  );
+}
+
+/**
+ * Every set of the game, as tiles (10-14: "All sets" used to swap the box at the top into a dropdown, which did
+ * nothing a scrolled-down phone could see). Newest first, or by top card value when the game has no dates; a box
+ * narrows the list by name.
+ */
+function AllSetsSheet({ list, game, onPick, onClose }: { list: SetInfo[]; game: GameId; onPick: (set: SetInfo) => void; onClose: () => void }) {
+  useBodyScrollLock();
+  const [q, setQ] = useState("");
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  const ordered = useMemo(() => {
+    const dated = list.some((s) => s.releaseDate);
+    return [...list].sort((a, b) => (dated ? (b.releaseDate || "").localeCompare(a.releaseDate || "") : (b.coverValue ?? 0) - (a.coverValue ?? 0)) || a.name.localeCompare(b.name));
+  }, [list]);
+  const needle = q.trim().toLowerCase();
+  const shown = needle ? ordered.filter((s) => s.name.toLowerCase().includes(needle)) : ordered;
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/65 backdrop-blur-[2px] sm:items-center sm:p-4" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="All sets"
+        onClick={(e) => e.stopPropagation()}
+        className="animate-fade-up panel-solid flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl border-t border-edge-strong shadow-2xl shadow-black/60 sm:h-[85vh] sm:max-w-2xl sm:rounded-3xl sm:border"
+      >
+        <div className="border-b border-edge px-4 pb-3 pt-2.5">
+          <div className="mx-auto mb-2.5 h-1.5 w-10 rounded-full bg-white/15 sm:hidden" aria-hidden />
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="font-display text-xl font-bold text-white">
+              All sets <span className="text-sm font-medium text-zinc-500">{list.length.toLocaleString("en-US")}</span>
+            </h2>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20"
+            >
+              <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden>
+                <path d="M5.5 5.5l9 9M14.5 5.5l-9 9" strokeLinecap="round" />
+              </svg>
+            </button>
+          </div>
+          <input
+            type="search"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Find a set"
+            aria-label="Find a set by name"
+            className="mt-2.5 h-11 w-full rounded-xl border border-edge bg-black/40 px-3.5 text-base text-white outline-none transition placeholder:text-zinc-600 focus:border-brand-400"
+          />
+        </div>
+        <div className="flex-1 overflow-y-auto overscroll-contain p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+          {shown.length === 0 ? (
+            <p className="px-2 py-8 text-center text-sm text-zinc-500">No set matches that name.</p>
+          ) : (
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {shown.map((set) => (
+                <SetTile key={set.code ?? set.name} set={set} game={game} onPick={onPick} />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Open a whole set (mockup A): the newest released sets, one tap to every card in it; "All sets" opens every set. */
+function SetTiles({ game, onPick }: { game: GameId; onPick: (set: SetInfo) => void }) {
   const [sets, setSets] = useState<{ game: GameId; list: SetInfo[] } | null>(null);
+  const [all, setAll] = useState(false);
   useEffect(() => {
     let cancelled = false;
     fetchSets(game)
@@ -431,34 +528,33 @@ function SetTiles({ game, onPick, onAll }: { game: GameId; onPick: (set: SetInfo
       cancelled = true;
     };
   }, [game]);
-  const newest = sets?.game === game ? pickSets(sets.list) : [];
+  const list = sets?.game === game ? sets.list : [];
+  const newest = pickSets(list);
   if (newest.length === 0) return null;
   return (
     <section>
       <div className="mb-2.5 mt-2 flex items-baseline justify-between">
         <h2 className="font-display text-xl font-bold tracking-tight text-white">Open a whole set</h2>
-        <button type="button" onClick={onAll} className="text-sm font-medium text-brand-300 transition hover:text-brand-200">
+        <button type="button" onClick={() => setAll(true)} className="text-sm font-medium text-brand-300 transition hover:text-brand-200">
           All sets
         </button>
       </div>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {newest.map((set) => (
-          <button
-            key={set.code ?? set.name}
-            type="button"
-            onClick={() => onPick(set)}
-            className="flex flex-col overflow-hidden rounded-2xl border border-edge bg-surface-1 text-left transition hover:border-edge-strong"
-          >
-            <span className="block h-[72px]">
-              <SetArt set={set} game={game} />
-            </span>
-            <span className="min-w-0 px-3 pb-2.5 pt-1">
-              <span className="block truncate text-[13px] font-semibold text-white">{set.name}</span>
-              <span className="block text-[11.5px] text-zinc-500">{!set.releaseDate ? (set.cards ? `${set.cards.toLocaleString("en-US")} cards` : "") : new Date(`${set.releaseDate}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "America/New_York" })}</span>
-            </span>
-          </button>
+          <SetTile key={set.code ?? set.name} set={set} game={game} onPick={onPick} />
         ))}
       </div>
+      {all && (
+        <AllSetsSheet
+          list={list}
+          game={game}
+          onClose={() => setAll(false)}
+          onPick={(set) => {
+            setAll(false);
+            onPick(set);
+          }}
+        />
+      )}
     </section>
   );
 }

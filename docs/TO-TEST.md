@@ -422,3 +422,4 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 - [ ] Search, open a card: the card picture is big (about two thirds of the phone width).
 - [ ] Watchlist: Total value starts as a one-line bar (tap to open, the arrow folds it again); "Add a card" panel has Hide / Show; both remembered after a reload.
 - [ ] Watchlist: Legendary Collection Pikachu 86 shows $1,574.99 "steady" (was "$6.62, down 100%": the Watchlist read a different printing than the one saved).
+- [ ] Search: 'All sets' opens a full panel of every set with pictures (newest first; One Piece by value), a 'Find a set' box narrows it, tapping a set opens all its cards.
