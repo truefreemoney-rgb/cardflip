@@ -431,7 +431,7 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 - [x] (10-14 2:34pm ET Chris phone, "pikachu": 200 cards, Best match pill, list/grid switch, rows with picture/name/set+number/rarity chip/price/star/Buy, round x in the box) Type a name: a "Search" button shows inside the box until you search, then a round x clears. Results: "N cards", one "Sort" pill, list/grid switch; rows show picture, name, set and number, rarity chip, price, star and Buy.
 - [x] (10-14 2:40pm ET Chris phone: pass) Sort pill opens the Sort & filter panel from the bottom: Card name / Whole set, sort list, rarity chips, "Narrow these results"; "Show N cards" closes it.
 - [ ] Sort & filter sheet, phone: drag the grab bar down about a finger's length: the sheet closes (Chris 10-14: it got stuck; the bar was drawn, not wired. Fixed locally, not pushed: shared drag-to-close, closes past 56 px on release or at once past 120 px; a short drag snaps back. Pane 375px pass 10-14 3:05pm ET). Also try the home page card peek and any other sheet's bar once: same rule now.
-- [ ] Tap a star: it turns gold and the card is on the Watchlist; tap again removes it.
+- [x] (10-14 3:10pm ET Chris phone: pass) Tap a star: it turns gold and the card is on the Watchlist; tap again removes it.
 - [x] (10-14 2:33pm ET Chris phone: $0.76 in foil colours, Buy on eBay + Watch pinned) Open a card: smaller picture, the market price in foil colours, Buy on eBay + Watch pinned at the bottom while the chart scrolls.
 - [ ] 24 cards per page with "Show 24 more"; the commission line sits in small print at the very bottom of the results.
 - [ ] Watchlist page: same new search box (game pill + field) inside its panel; adding from a search still works.
