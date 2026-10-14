@@ -86,17 +86,39 @@ const verdict = ({ lift, white, mad }) => {
 };
 
 const stampCache = fs.existsSync(STAMP_CACHE) ? JSON.parse(fs.readFileSync(STAMP_CACHE, "utf8")) : {};
+// SAMPLE is temporary (Chris 10-13): stamped pictures are re-checked once a day, so a clean scan TCGplayer
+// swaps in under the same product id is picked up. The thumbnail's byte length is the cheap change test;
+// "clean" verdicts with a stamp-sized lift (the mad >= 9 shortcut, e.g. Sabo OP13-120_p2) are re-checked too.
+const TODAY = new Date().toISOString().slice(0, 10);
+const recheck = (c) => c.verdict !== "clean" || c.lift >= 7;
+const nowClean = new Set(); // product ids that turned clean this run
 /** "clean" | "stamped" | "placeholder" | "unchecked" for one TCGplayer product picture. */
 async function pictureVerdict(productId, refUrl) {
   const k = String(productId);
+  const thumbUrl = `https://tcgplayer-cdn.tcgplayer.com/product/${k}_200w.jpg`;
   // Numbers are cached; the verdict is re-derived so a rule change needs no refetch.
-  if (stampCache[k]?.lift != null) {
-    stampCache[k].verdict = verdict(stampCache[k]);
-    return stampCache[k].verdict;
+  let prefetched = null;
+  const cached = stampCache[k];
+  if (cached?.lift != null) {
+    cached.verdict = verdict(cached);
+    if (!recheck(cached) || cached.at === TODAY) return cached.verdict;
+    try {
+      prefetched = await fetchBuf(thumbUrl);
+    } catch {
+      return cached.verdict; // retry tomorrow
+    }
+    // No length yet (entries from before 10-14): this run only records it, no Bandai refetch for thousands.
+    if (cached.len == null || cached.len === prefetched.length) {
+      cached.len = prefetched.length;
+      cached.at = TODAY;
+      return cached.verdict;
+    }
   }
   for (let attempt = 0; ; attempt++) {
     try {
-      const thumb = await toGrey(await fetchBuf(`https://tcgplayer-cdn.tcgplayer.com/product/${k}_200w.jpg`));
+      const raw = prefetched ?? (await fetchBuf(thumbUrl));
+      prefetched = null;
+      const thumb = await toGrey(raw);
       const s = stampScore(thumb);
       let mad = null;
       const key = bandaiKey(refUrl);
@@ -108,7 +130,11 @@ async function pictureVerdict(productId, refUrl) {
         }
       }
       const v = verdict({ ...s, mad });
-      stampCache[k] = { verdict: v, lift: Number(s.lift.toFixed(1)), white: Number(s.white.toFixed(2)), mad: mad == null ? null : Number(mad.toFixed(1)) };
+      const lift = Number(s.lift.toFixed(1));
+      // cleanLen versions the link (?v=) so the saved copy gets a new file name, not the stamped one cached under the old.
+      const cleanLen = cached?.lift != null && recheck(cached) && v === "clean" && lift < 7 ? raw.length : cached?.cleanLen;
+      if (cleanLen && cleanLen !== cached?.cleanLen) nowClean.add(k);
+      stampCache[k] = { verdict: v, lift, white: Number(s.white.toFixed(2)), mad: mad == null ? null : Number(mad.toFixed(1)), len: raw.length, at: TODAY, ...(cleanLen ? { cleanLen } : {}) };
       return v;
     } catch (err) {
       if (attempt >= 2) {
@@ -232,7 +258,9 @@ for (const r of rows) {
   const mad = p ? stampCache[String(p.pick.id)]?.mad : null;
   const twin = p && p.exact && v === "stamped" && mad != null && mad < 5;
   // Fallback order: TCGplayer's twin copy, Bandai's picture, TCGplayer's stamped copy, whatever the row had.
-  const image = v === "clean" || twin ? p.pick.image : r.ref_image_url || (p && v !== "placeholder" ? p.pick.image : "") || r.image_url;
+  const cleanLen = p ? stampCache[String(p.pick.id)]?.cleanLen : null;
+  const tcgImage = p ? (cleanLen && v === "clean" ? `${p.pick.image}?v=${cleanLen}` : p.pick.image) : "";
+  const image = v === "clean" || twin ? tcgImage : r.ref_image_url || (p && v !== "placeholder" ? p.pick.image : "") || r.image_url;
   if (image !== r.image_url) {
     changed++;
     sample.push(`${r.id}: ${r.image_url.split("/").pop()} -> ${image}`);
@@ -240,8 +268,10 @@ for (const r of rows) {
     if (!DRY) update.run(image, now, r.id);
   }
 }
+// Pictures that turned clean this run get a versioned link above, so save-pictures re-saves them.
+const unstamped = picks.filter((p) => nowClean.has(String(p.pick.id))).length;
 if (!DRY) db.exec("COMMIT");
-console.log(`${DRY ? "[dry] would change" : "changed"} ${changed} rows`);
+console.log(`${DRY ? "[dry] would change" : "changed"} ${changed} rows; ${unstamped} stamped pictures now clean (re-save)`);
 for (const s of sample.slice(0, 8)) console.log(`  ${s}`);
 matched = tally.clean;
 stamped = tally.stamped + tally.unchecked;
