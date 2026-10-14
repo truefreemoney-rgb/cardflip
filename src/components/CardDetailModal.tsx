@@ -44,8 +44,14 @@ interface Props {
   centering?: boolean;
   /** Sealed product (box, ETB, tin): landscape art, shown whole. */
   sealed?: boolean;
-  /** Show "Buy on eBay" under Share (Search, Chris 10-14). Off in Inventory: the seller already owns the copy. */
+  /** Search's sheet (Chris 10-14, mockup E): Buy on eBay and Watch sit in a bar pinned to the bottom, the market
+   *  price is the page's one foil showpiece, and the card is smaller so the price shows without scrolling. Off in
+   *  Inventory: the seller already owns the copy. */
   buy?: boolean;
+  /** Search knows the watchlist: the bar's Watch button shows and toggles it (the page owns the rows). */
+  watched?: boolean;
+  watchBusy?: boolean;
+  onToggleWatch?: () => void;
   onClose: () => void;
 }
 
@@ -70,6 +76,9 @@ export default function CardDetailModal({
   centering = false,
   sealed = false,
   buy = false,
+  watched = false,
+  watchBusy = false,
+  onToggleWatch,
   onClose,
 }: Props) {
   const [saved, setSaved] = useState(false);
@@ -153,7 +162,7 @@ export default function CardDetailModal({
 
         <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-5">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-6">
-            <div className="w-full shrink-0 sm:w-64">
+            <div className={`shrink-0 sm:w-64 ${buy ? "mx-auto w-[62%] max-w-[240px] sm:mx-0 sm:max-w-none" : "w-full"}`}>
               <MatchHero
                 photoSrc={photo ?? null}
                 centering={centering}
@@ -200,7 +209,7 @@ export default function CardDetailModal({
                   <dl className={`grid gap-px overflow-hidden rounded-xl border border-edge bg-edge ${pricingOnly ? "grid-cols-1" : "grid-cols-2"}`}>
                     <div className="bg-black/25 px-3 py-2.5">
                       <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Market Price</dt>
-                      <dd className="mt-0.5 font-display text-2xl font-bold tracking-tight text-white">
+                      <dd className={`mt-0.5 font-display font-bold tracking-tight ${buy && marketPrice != null ? "holo-text text-3xl" : "text-2xl text-white"}`}>
                         {marketPrice != null ? formatMoney(marketPrice) : pricesLoading ? "…" : "—"}
                       </dd>
                       {marketPrice != null && <PriceConfidenceLive cardId={card.id} variant={pickPrice(card)?.variant ?? null} className="mt-1" />}
@@ -220,9 +229,7 @@ export default function CardDetailModal({
                 </div>
               )}
 
-              {/* Buy on eBay first, above Add to watchlist (Chris 10-14). */}
-              {buy && !sealed && <BuyOnEbayLink card={card} customId="search-sheet" className="mb-3 block w-full rounded-full py-2 text-sm sm:w-auto" />}
-              {onWatchlist ? (
+              {buy ? null : onWatchlist ? (
                 <>
                   <p className="inline-flex items-center gap-2 rounded-full bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-400">
                     ★ On your watchlist
@@ -250,7 +257,7 @@ export default function CardDetailModal({
                   path={`/api/share/card?game=${card.game ?? "pokemon"}&id=${encodeURIComponent(cardKey(card.game ?? "pokemon", { id: card.id, setCode: card.setCode, number: card.number }))}`}
                   fileName="cardflip-card"
                   unstyled
-                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-white/5 px-4 py-2 text-sm font-semibold text-zinc-200 transition hover:bg-white/10 sm:w-auto"
+                  className={`${buy ? "" : "mt-3 "}flex w-full items-center justify-center gap-2 rounded-full bg-white/5 px-4 py-2 text-sm font-semibold text-zinc-200 transition hover:bg-white/10 sm:w-auto`}
                 />
               )}
             </div>
@@ -318,6 +325,26 @@ export default function CardDetailModal({
             </div>
           </section>
         </div>
+
+        {/* Search's bar (mockup E): the two things a buyer does, always in reach while the chart scrolls. */}
+        {buy && !sealed && (
+          <div className="flex gap-2.5 border-t border-edge bg-background/95 px-4 pb-[calc(0.875rem+env(safe-area-inset-bottom))] pt-3 sm:px-6 sm:pb-4">
+            <BuyOnEbayLink card={card} customId="search-sheet" solid className="h-13 flex-[1.35] rounded-2xl text-base font-bold shadow-lg shadow-ebay/30" />
+            <button
+              type="button"
+              onClick={onToggleWatch ?? handleSave}
+              disabled={watchBusy || loading || (!onToggleWatch && (saving || saved))}
+              aria-pressed={watched || saved}
+              className={`flex h-13 flex-1 items-center justify-center gap-1.5 rounded-2xl border text-[15px] font-semibold transition disabled:opacity-60 ${
+                watched || saved ? "border-holo-gold/40 bg-holo-gold/10 text-white" : "border-edge-strong bg-surface-3 text-white hover:bg-white/15"
+              }`}
+            >
+              {(watchBusy || saving) && <Spinner className="h-3.5 w-3.5" />}
+              <span className={watched || saved ? "text-holo-gold" : "text-zinc-300"}>{watched || saved ? "★" : "☆"}</span>
+              {watched || saved ? "Watching" : "Watch"}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

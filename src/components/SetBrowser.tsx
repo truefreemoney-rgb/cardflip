@@ -21,6 +21,10 @@ interface Props {
   onError: (message: string | null) => void;
   /** Busy flag for the page's own spinner, if it wants one. */
   onBusy?: (busy: boolean) => void;
+  /** One field the height of the search box, no label or filter (the 10-14 search bar); the phone's own picker lists the sets. */
+  compact?: boolean;
+  /** The set already showing (a set tile opened it), so the picker names it. */
+  initial?: string;
 }
 
 function setLabel(set: SetInfo): string {
@@ -28,9 +32,9 @@ function setLabel(set: SetInfo): string {
   return year ? `${set.name} · ${year}` : set.name;
 }
 
-export default function SetBrowser({ game, onResults, onError, onBusy }: Props) {
+export default function SetBrowser({ game, onResults, onError, onBusy, compact = false, initial = "" }: Props) {
   const [list, setList] = useState<SetInfo[] | null>(null);
-  const [key, setKey] = useState("");
+  const [key, setKey] = useState(initial);
   // Type-ahead (QA leftover): hundreds of sets, so a filter box above the picker.
   const [filter, setFilter] = useState("");
   const [busy, setBusy] = useState(false);
@@ -93,6 +97,29 @@ export default function SetBrowser({ game, onResults, onError, onBusy }: Props) 
   const loading = list === null;
   const needle = filter.trim().toLowerCase();
   const sets = (list ?? []).filter((s) => !needle || s.name.toLowerCase().includes(needle) || (s.code ?? "").toLowerCase().includes(needle));
+  if (compact) {
+    return (
+      <div className="relative">
+        <select
+          value={key}
+          disabled={loading || sets.length === 0}
+          onChange={(e) => void browse(e.target.value)}
+          aria-label="Choose a set"
+          className="h-12 w-full appearance-none truncate rounded-2xl border border-edge-strong bg-black/40 pl-3.5 pr-10 text-base text-white outline-none transition focus:border-brand-400 disabled:opacity-60"
+        >
+          <option value="">{loading ? "Loading sets…" : `Choose a set (${sets.length})`}</option>
+          {sets.map((set) => (
+            <option key={set.code ?? set.name} value={set.code ?? set.name}>
+              {setLabel(set)}
+            </option>
+          ))}
+        </select>
+        <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400">
+          {busy ? <Spinner className="h-4 w-4" /> : "▾"}
+        </span>
+      </div>
+    );
+  }
   return (
     <div className="flex flex-col gap-2">
       <label className="text-xs font-medium uppercase tracking-wide text-zinc-500" htmlFor={`set-picker-${game}`}>

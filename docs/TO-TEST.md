@@ -409,3 +409,12 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 - [ ] PROD: Search "Umbreon VMAX" = 4 results, TG23 once. /cards/pokemon lists each Trainer Gallery once; /cards/pokemon/brilliant-stars-trainer-gallery-brs redirects to /cards/pokemon/brilliant-stars-trainer-gallery; an old swsh9.5tg card link redirects to the swsh9tg page.
 - [ ] PROD: a set page (e.g. /cards/pokemon/surging-sparks) lists cards down to a few cents; no "$1.00 and up" wording on /cards, the game pages or set pages; a sub-$1 card page still has robots noindex.
 - [ ] Phone: Search, open a card: Buy on eBay sits ABOVE Add to watchlist.
+
+## 10-14: Search redesign A-F (not pushed yet; Chris tests on the tunnel first)
+- [ ] Phone, Search before typing: game pill + big "Name or number" box pinned under the header; My Watchlist swipe row (price now, % since saved, bell when an alert is set, "See all N"); "Open a whole set" tiles with set logos (newest 6). No intro text, no Recent lookups.
+- [ ] Type a name: a "Search" button shows inside the box until you search, then a round x clears. Results: "N cards", one "Sort" pill, list/grid switch; rows show picture, name, set and number, rarity chip, price, star and Buy.
+- [ ] Sort pill opens the Sort & filter panel from the bottom: Card name / Whole set, sort list, rarity chips, "Narrow these results"; "Show N cards" closes it.
+- [ ] Tap a star: it turns gold and the card is on the Watchlist; tap again removes it.
+- [ ] Open a card: smaller picture, the market price in foil colours, Buy on eBay + Watch pinned at the bottom while the chart scrolls.
+- [ ] 24 cards per page with "Show 24 more"; the commission line sits in small print at the very bottom of the results.
+- [ ] Watchlist page: same new search box (game pill + field) inside its panel; adding from a search still works.
