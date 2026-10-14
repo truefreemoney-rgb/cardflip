@@ -5,6 +5,7 @@ import Spinner from "@/components/Spinner";
 import { confirmAction } from "@/components/ConfirmDialog";
 import CardImage from "@/components/CardImage";
 import CardTile from "@/components/CardTile";
+import BuyOnEbayLink from "@/components/BuyOnEbayLink";
 import { CardSearchBox, CardSearchResults, useCardSearch } from "@/components/CardSearch";
 import CardDetailModal from "@/components/CardDetailModal";
 import PageSkeleton from "@/components/PageSkeleton";
@@ -243,6 +244,7 @@ export default function PriceCheckPage() {
                   aside={card.rarity ? <span className="max-w-[45%] truncate rounded-full bg-white/5 px-2 py-0.5 text-[11px] text-zinc-400">{card.rarity}</span> : undefined}
                   selected={selected?.id === card.id}
                   onOpen={() => void selectCard(card)}
+                  footer={<BuyOnEbayLink card={card} customId="search" className="block w-full" />}
                 />
               );
             })}
@@ -256,6 +258,7 @@ export default function PriceCheckPage() {
           language={language}
           logging={logging}
           loading={selectedLoading}
+          buy
           onClose={() => { setSelected(null); setSelectedLoading(false); }}
         />
       )}

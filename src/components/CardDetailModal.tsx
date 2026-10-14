@@ -18,6 +18,7 @@ import PriceConfidenceLive from "@/components/PriceConfidenceLive";
 import { cardTrend } from "@/lib/client/priceHistoryData";
 import { displayCardNumber } from "@/lib/games";
 import ShareImageButton from "@/components/ShareImageButton";
+import BuyOnEbayLink from "@/components/BuyOnEbayLink";
 import { cardKey } from "@/lib/cardPages";
 import type { PokemonCard, ScanLanguage } from "@/lib/types";
 
@@ -43,6 +44,8 @@ interface Props {
   centering?: boolean;
   /** Sealed product (box, ETB, tin): landscape art, shown whole. */
   sealed?: boolean;
+  /** Show "Buy on eBay" under Share (Search, Chris 10-14). Off in Inventory: the seller already owns the copy. */
+  buy?: boolean;
   onClose: () => void;
 }
 
@@ -66,6 +69,7 @@ export default function CardDetailModal({
   photo,
   centering = false,
   sealed = false,
+  buy = false,
   onClose,
 }: Props) {
   const [saved, setSaved] = useState(false);
@@ -247,6 +251,7 @@ export default function CardDetailModal({
                   className="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-white/5 px-4 py-2 text-sm font-semibold text-zinc-200 transition hover:bg-white/10 sm:w-auto"
                 />
               )}
+              {buy && !sealed && <BuyOnEbayLink card={card} customId="search-sheet" className="mt-3 block w-full rounded-full py-2 text-sm sm:w-auto" />}
             </div>
           </div>
 

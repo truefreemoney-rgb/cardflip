@@ -771,7 +771,7 @@ export default function WishlistPage() {
                     </div>
 
                     <a
-                      href={withEpnParams(ebaySearchUrl(stubCard(item), {}, { sort: "lowest" }), EPN_CAMPAIGN_ID, "wishlist")}
+                      href={withEpnParams(ebaySearchUrl(stubCard(item)), EPN_CAMPAIGN_ID, "wishlist")}
                       target="_blank"
                       rel={EPN_CAMPAIGN_ID ? "noopener noreferrer sponsored" : "noopener noreferrer"}
                       onClick={(e) => e.stopPropagation()}
