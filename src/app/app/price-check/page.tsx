@@ -287,7 +287,12 @@ function WatchRow({
   onOpen: (card: PokemonCard) => void;
   onStub: (card: PokemonCard) => void;
 }) {
-  const rows = useMemo(() => [...(items ?? [])].sort((a, b) => b.addedAt - a.addedAt), [items]);
+  // Only the selected game's cards (Chris 10-14: the Pokémon row stayed put when he switched the game pill);
+  // rows saved before the game was stored count as Pokémon, as fetchCardById below assumes.
+  const rows = useMemo(
+    () => (items ?? []).filter((i) => (i.game ?? "pokemon") === game).sort((a, b) => b.addedAt - a.addedAt),
+    [items, game],
+  );
   const head = rows.slice(0, WATCH_ROW);
   const [live, setLive] = useState<Record<string, PokemonCard | null>>({});
   // Rows already asked for, so a re-render never fetches the same card twice.
