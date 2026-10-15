@@ -153,6 +153,7 @@ check("40 asks with Clear Chat in between → the 41st is still capped", await t
 // --- small actions + thumbs + admin list (10-14) ---------------------------------------------------
 const act = await createUser("A", "act@example.com", "hunter22");
 check("splitReply: card tag becomes a card action", splitReply("Here. {{card:Charizard}}"), { content: "Here.", actions: [{ type: "card", value: "Charizard" }] });
+check("splitReply: card tag keeps the name only (set in brackets dropped)", splitReply("{{card:Sylveon ex (30th Celebration 153)}}").actions, [{ type: "card", value: "Sylveon ex" }]);
 check("splitReply: a stray giveback tag is dropped", splitReply("x {{giveback}}"), { content: "x", actions: [] });
 nextReply = "Checking your last scans. {{giveback}}";
 const gb = await askHelp(act, "my scan was wasted");

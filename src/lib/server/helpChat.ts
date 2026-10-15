@@ -70,7 +70,11 @@ export function splitReply(raw: string): { content: string; actions: HelpAction[
       else if (kind === "link" && v in HELP_LINKS) actions.push({ type: "link", value: v });
       else if (kind === "ticket" && !actions.some((a) => a.type === "ticket")) actions.push({ type: "ticket", value: "" });
       else if (kind === "opened" && /^\d+$/.test(v)) actions.push({ type: "opened", value: v });
-      else if (kind === "card" && v && !actions.some((a) => a.type === "card")) actions.push({ type: "card", value: v.slice(0, 80) });
+      else if (kind === "card" && v && !actions.some((a) => a.type === "card")) {
+        // Name only: the model likes "Sylveon ex (30th Celebration 153)", and Inventory's filter is by name.
+        const name = v.replace(/\s*[(·—-].*$/, "").trim().slice(0, 80);
+        if (name) actions.push({ type: "card", value: name });
+      }
       // giveback / resend_code are consumed by askHelp before the turn is stored; a stray one is dropped.
       // open_ticket is consumed by askHelp before the turn is stored; one that
       // somehow reaches here is dropped, never acted on.
@@ -130,7 +134,7 @@ ${GUIDES.map((g) => `  {{guide:${g.id}}} — ${g.title}: use when ${g.when}.`).j
   {{open_ticket:Subject|Message}} opens the ticket for them (only after their yes, see above).
   {{giveback}} re-checks their scans from the last 15 minutes and gives back any that found no card. Use it when they say a scan failed, found nothing, was wasted, or charged for nothing. Say you are checking; the app replaces the tag with the result. It never refunds money, only scans.
   {{resend_code}} mails a fresh email confirmation code. Use it when the account facts say the email is unconfirmed and they say the code never came. The app replaces the tag with what happened.
-  {{card:Exact Name}} becomes a button that finds that card in their Inventory. Use it only with a name from the Recent cards in the account facts.
+  {{card:Exact Name}} becomes a button that finds that card in their Inventory. Use it only with a name from the Recent cards in the account facts, the card NAME alone (no set, no number, no brackets).
 - Put the tag at the very end, on its own. Never invent an id or path that isn't listed. At most one guide, one link and one of giveback / resend_code / card per reply.
 - Give the steps in words too, numbered, short — the tag is the shortcut, not a replacement.`;
 
