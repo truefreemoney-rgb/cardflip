@@ -7,7 +7,7 @@
 Things that shipped but were never exercised on a real phone or with real
 traffic. Tick when tested; note what you saw. Newest batch first.
 
-## 10-14 ~9:15pm ET: scanner Xs redesigned: row "Clear" keeps the card, delete only in the card view, top X is "Done" (LOCAL, NOT PUSHED)
+## 10-14 ~8:20pm ET: scanner Xs redesigned: row "Clear" keeps the card, delete only in the card view, top X is "Done" (PUSHED c787d5b0 10-14 8:23pm ET)
 Chris (phone screenshot, Sylveon rows): the × on each scanned row deleted the card from Inventory with a 5-second Undo, and sat under a top × that just leaves the scanner; Jenny tidied her list with them and lost all 5. Chris: "let's go with your picks". Now: (1) the row control is a small "Clear" pill (list row, the reveal chip after a scan, Verify All rows); it only takes the row off the list, the card stays in Inventory, toast "Cleared <name> — still in your Inventory" with Undo; a row cleared before its save landed still saves. (2) The only delete is the card view's "Remove from Inventory" button, which opens the in-app confirm "Remove <name> from your Inventory? Scanning it again uses another scan." / red "Remove card"; toast "Removed <name> from your Inventory" with Undo. (3) The top-right × (went to Inventory) is now a "Done" pill, same action. First version (confirm on the ×, f024dbd6) was replaced by this in the same evening.
 - [ ] PROD after the push, phone: scan a card; the row's right side reads "Clear" (no ×); tap it: row gone, toast says still in Inventory, Inventory shows the card.
 - [ ] PROD, phone: open a card, "Remove from Inventory" at the bottom: the sheet names the card; Cancel keeps it; Remove card removes the row and the Inventory card (Undo toast, 5 s).
@@ -15,13 +15,13 @@ Chris (phone screenshot, Sylveon rows): the × on each scanned row deleted the c
 - [ ] PROD, phone: top right of the scanner reads "Done" next to Connect eBay / Send to eBay and lands on Inventory; nothing wraps at 375px.
 - [ ] PROD: a "No match found" row's Clear just clears, toast "Cleared".
 
-## 10-14 ~8:40pm ET: removal log in the admin console + save-failed line (LOCAL, NOT PUSHED)
+## 10-14 ~8:15pm ET: removal log in the admin console + save-failed line (PUSHED c787d5b0 10-14 8:23pm ET)
 Chris: "why 5 trial scans but 4 cards" (Jenny jporter1421) -> later "why did her cards go to zero". Prod card_removals (live since 10-13) answered it: she deleted the Umbreon at 7:58pm ET and the other four at 8:05pm ET herself (bulk, after tapping Looks right on each). Code: /admin/users Cards cell shows "N removed" (grey) and "N save failed" (amber) under the count, phone row too; new POST /api/cards/save-failed writes a card_removals row (how = 'save-failed', card_id = the scan id) when both tries at POST /api/cards came back empty after the card showed. Charge rule unchanged. Tests: test:cards (4 new checks), test:apiauth, test:adminroutes, test:admin green; tsc + eslint clean.
 - [ ] PROD after the push: /admin/users, Jenny's row reads 0 cards with "5 removed" under it; the phone layout shows "5 removed" in the small line.
 - [ ] PROD: an account that never deleted anything shows only the count (no extra line).
 - [ ] Later: first "save failed" line on any account -> open that user's card_removals row and the matching scan_usage id; decide the refund-unkept question after a week of rows.
 
-## 10-14 ~4:15pm ET: page review fixes (chart label, printings strip, set names, homepage Card Prices block, game tabs) (LOCAL, NOT PUSHED)
+## 10-14 ~4:15pm ET: page review fixes (chart label, printings strip, set names, homepage Card Prices block, game tabs) (PUSHED c787d5b0 10-14 8:23pm ET)
 Chris asked for a review of the homepage, /cards/pokemon and the 1st Edition Charizard page, then "yes on everything". Code: chart header prints the variant through formatVariantLabel ("Market · 1st Ed. Holofoil", was "1stEditionHolofoil"); the "Other <name> cards" strip is cached per name WITHOUT the page's own card excluded and filtered at read time (the old v2 memo excluded only the page that built it, so every sister page listed itself); a hand call on /admin/prices now drops that card's cached lists (set top, other printings, game top: dropCardLists) so a hide shows on the next page build; set names print "Trainer Kit" / "Best of Game" (tidySetName, sets memo bumped to v4); homepage games strip drops the Yu-Gi-Oh! "(Worldwide English)" qualifier; new homepage section "Know the card? Look it up." with the five game hub pills + All Card Prices + Price Movers, between Every game and Built for the pile; game hub pages get a game tab row (current lit) above the search. Local: tsc + eslint clean, cardpages 288/288, listcache, adminroutes green; pane desktop + 375px checked.
 - [ ] PROD after the push: /cards/pokemon/base-set-1st-edition/charizard--base1-4-1st chart header reads "Market · 1st Ed. Holofoil"; a reverse holo card reads "Reverse Holofoil".
 - [ ] PROD: same page, "Other Charizard cards" no longer lists the 1st Edition itself and no longer shows the hidden Base Set $968.91 (first visit rebuilds the v3 memo with the hide applied).
@@ -31,12 +31,12 @@ Chris asked for a review of the homepage, /cards/pokemon and the 1st Edition Cha
 - [ ] PROD, phone: /cards/pokemon shows the five game tabs under the intro, Pokémon lit; tapping Magic opens /cards/magic with Magic lit.
 - [ ] PROD: homepage games strip Yu-Gi-Oh! tile set name has no "(Worldwide English)".
 
-## 10-14 ~4:10pm ET: phone nav shows How It Works / Features / Card Prices (LOCAL, NOT PUSHED)
+## 10-14 ~4:10pm ET: phone nav shows How It Works / Features / Card Prices (PUSHED c787d5b0 10-14 8:23pm ET)
 Chris (phone, logged out): the top nav was missing the three page links; they were hidden under sm on purpose. Now every link shows on phones and wraps into two rows (search + the three pages, then Pricing / Log In / Get Started); header about 40px taller. Pane 375px: no sideways scroll, rows balanced.
 - [ ] PROD after the push, phone, logged out: home nav row 1 = search, How It Works, Features, Card Prices; row 2 = Pricing, Log In, Get Started; nothing clipped; same on /features and a /cards page.
 - [ ] Phone, logged in: row 2 reads Pricing, Log out, Open the App.
 
-## 10-14 ~3pm ET: suggested price follows the seller's shipping pick everywhere (LOCAL, NOT PUSHED)
+## 10-14 ~3pm ET: suggested price follows the seller's shipping pick everywhere (PUSHED c787d5b0 10-14 8:23pm ET)
 Chris on his phone: Sylveon ex 30th Celebration showed eBay asking $50.26 in the scanner but eBay Suggested Price $55.75 in Inventory ("we can't have mismatch prices"). Cause: the scanner priced the Envelope pick (stamps $1.31), while the Inventory live refresh, alerts, weekly digest, insights, inventory value, reprice nudges and the public collection all called askingPriceFor without the row's shipping_method, so they priced the tracked default ($6.07) and the refresh overwrote the scanner's $50.26. Fix: lib/fees.ts shipMethodOf(row) threaded into all seven + the Inventory cost note. Tests: liveprices (3 new checks), cardalerts, digest, inventoryvalue, profit, publiccollection, pricing green; tsc clean.
 - [ ] PROD after the push, phone: Inventory, open the Sylveon ex (Envelope pick): eBay Suggested Price reads $50.26 (same as the scanner's eBay asking) and the note says "$1.31 envelope postage".
 - [ ] PROD: a card with NO pick yet over $20 still reads the tracked number (unchanged), under $20 the $0.78 envelope number.
