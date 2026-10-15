@@ -29,7 +29,7 @@ Tonight's three pushes (c787d5b0 8:23pm, 6714a500 8:33pm, 1eb76012 8:58pm), one 
 22. PASS 10-14 ~11:30pm ET (pane 375px DOM: /cards/pokemon tab row under the intro = Pokémon* (lit), Magic: The Gathering, Disney Lorcana, One Piece, Yu-Gi-Oh! wrapped on three rows; /cards/magic the same with Magic lit. NOTE: /cards/magic measures 386px wide at 375 = 11px sideways scroll, /cards/pokemon 375; cause = the set list's phone column auto-sizes to the longest nowrap name "Teenage Mutant Ninja Turtles Source Material"; fixed locally with grid-cols-1 (minmax(0,1fr)), proved in the pane DOM = 375, NOT PUSHED): 22. /cards/pokemon: the five game tabs under the intro, Pokémon lit; tap Magic: /cards/magic with Magic lit. [10-14]
 
 Older, still open:
-23. Sign up with email and password, log out, tap Continue with Google with the same email: same account. [10-07]
+23. PASS 10-15 ~11:15am ET (Chris phone, spare Gmail: email+password signup, log out, Continue with Google = same account). Sign up with email and password, log out, tap Continue with Google with the same email: same account. [10-07]
 24. A Google-only account typing a password sees "signs in with Google"; Forgot Password lets it set one. [10-07]
 25. Second Google signup from the same phone starts with the free scans already used. [10-07]
 26. Sign in with X, all 8 steps (buttons, shared email, no email, link, admin refused, used email, keys off). [10-10]
