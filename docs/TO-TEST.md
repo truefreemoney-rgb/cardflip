@@ -101,7 +101,7 @@ Since 10-08 the nav read the signed-in hint from localStorage while rendering, s
 Chris: "put in some safeguard so people cant use images hosted on our website". lib/pics.ts toPics() at the 4 readers, next.config rewrite /pics/* → Blob cards/, proxy.ts skips pics/, vision + ogArt fetch the store directly (fromPics). Local proof: Charizard 1st Ed page 19 of 19 card pictures on /pics, 200 image/webp, storage address 0 times in the HTML. Firewall rule "Card pictures: other sites' hotlinks" (Referer present and not cardflip.io/google/bing/ddg/yahoo/ebay/pinterest/facebook) added via API, action LOG.
 - [ ] PROD after the push: a card page's pictures come from https://cardflip.io/pics/..., and view-source shows no "blob.vercel-storage.com/cards".
 - [ ] PROD: `curl -I -H "Referer: https://example.com/" https://cardflip.io/pics/<a tile path>` → shows in Vercel Firewall as a LOG hit for the rule; `curl -I` with no Referer → 200 and no hit.
-- [ ] After ~1 day of LOG with no false hits (our own pages, Google Images, eBay): switch the hotlink rule to DENY.
+- [x] DONE 10-14 ~6:40am ET (rule switched to DENY, curl verified; OPEN-TESTS 10-13 E77): After ~1 day of LOG with no false hits (our own pages, Google Images, eBay): switch the hotlink rule to DENY.
 - [x] Rate-limit rule ADDED 10-13 ~8:45am ET (Chris yes after the price check: $0.50 per 1M allowed /pics requests, us ~75k/month = ~$0.04): "Card pictures: bulk download rate limit", path pre /pics/, fixed window 60 s, 600 per IP, deny for 10 min (scripts/_fw-ratelimit.mjs, untracked). Read back active via the API.
 - [ ] 10-14: game hub "most valuable" tiles and card-page "Other printings" strips still showed outside links (lorcast) on 10-13 after the push: they are 24 h DB-cached tile lists (cardPages cachedTiles, TOP_TTL_MS = 1 day) built before the deploy. Confirm they switched to /pics (curl /cards/lorcana and a Lorcana card page, count "lorcast").
 - [ ] Scan a Pokémon card on prod: the picture tiebreak still identifies (it fetches our copy straight from the store via fromPics).
@@ -124,7 +124,7 @@ Chris 10-12: "find card, save to our database and everything pulls from there." 
 ## 10-12 ~3:30pm: Inventory summary postage = each copy's real rate (LOCAL, NOT PUSHED)
 Was a flat $0.78 per copy everywhere (a $1,178.52 card read "Postage · 1 × $0.78"). Now salePostage (fees.ts): over $100 tracked $6.07 whatever was picked; otherwise the row's pick at its price (envelope $0.78 up to $20, stamps $1.31 to $100; tracked $6.07); no pick = the label up to $20, tracked above. Same rule in saleNet/saleBreakdown (sales report, CSV), the reprice sheet's "you keep", and the Listed panel. Pane 10-12: $41.12 no pick → "Postage · 1 × $6.07", fees $5.85, You Keep $29.20; hand-sold → "Postage $0.00".
 - [x] (10-12 ~3:15pm ET Chris on the tunnel: passed) Tunnel, Seller mode, Inventory summary: the $1,178.52 Pikachu (svp-085) reads "Postage · 1 × $6.07" and You Keep on eBay ≈ $1,015.90 (was $1,021.19).
-- [ ] Mixed rates (one card under $20 with Envelope + one over $100): the line is plain "Postage" with the summed total, fees line still adds up to You Keep.
+- [x] PASS 10-14 (Chris phone; OPEN-TESTS 10-13 A1): Mixed rates (one card under $20 with Envelope + one over $100): the line is plain "Postage" with the summed total, fees line still adds up to You Keep.
 - [ ] Earned ledger after a real eBay sale over $20: postage shows the sold row's pick ($1.31 stamps or $6.07 tracked), the sales report page says the same in its footnote.
 
 ## 10-12 afternoon: Inventory Market Value = chart, Sales Report moved to Account (LOCAL, NOT PUSHED)
@@ -137,8 +137,8 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 - [x] (10-12 ~2:40pm ET Chris on the tunnel: "looks fine") Tunnel, scan a card under $20: Envelope tile reads "$0.78 · eBay Standard Envelope, tracked"; Tracked mailer "$6.07". (The "$" was missing on these tiles since 10-08, fixed here.)
 - [x] (10-12 ~2:40pm ET Chris on the tunnel: "looks fine") Card between $20 and $100 (or type a price in that range): Envelope tile reads "$1.31 · Plain envelope with stamps" (no warning line, Chris 10-11); both tiles clickable.
 - [x] (10-12 ~2:40pm ET Chris on the tunnel: "looks fine") Type a price over $100: Envelope greyed out, "Over $100, use a tracked mailer".
-- [ ] "How to ship" sheet on a $20-$100 card: stamp steps (Forever stamp plus 49¢, mark shipped in eBay).
-- [ ] Before any pick, a card priced over $20 is suggested as Tracked mailer (the no-tracking envelope is never the default).
+- [x] PASS 10-14 (Chris phone; OPEN-TESTS 10-13 A2): "How to ship" sheet on a $20-$100 card: stamp steps (Forever stamp plus 49¢, mark shipped in eBay).
+- [x] PASS 10-14 (Chris phone; OPEN-TESTS 10-13 A3): Before any pick, a card priced over $20 is suggested as Tracked mailer (the no-tracking envelope is never the default).
 - [ ] PROD, first real $20.01-$100 envelope publish: eBay accepts the new "CardFlip letter" policy (Standard Shipping, free) — only tested against a fake eBay so far; if eBay refuses it the card lists on the tracked policy.
 - Known, not fixed: repricing a live envelope card across $20 keeps its original eBay policy (policy is picked at publish only; true before tonight too).
 
@@ -148,8 +148,8 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 ## 10-11 Every empty scan given back + no category sheet with nothing scanned (9fc403ff, pushed 10-11 night as 5e4d662b)
 - [x] 10-11 8:35pm ET, local dev with the real reader, driven from the pane: a drawn floss box read at 10% ("Couldn't read"), scans used went 0 → 1 → 0 after the give-back (POST /api/vision/scan/giveback answered refunded). Same path on prod after the push.
 - [x] Tap Done on the camera after only that bad scan: NO "Which category?" sheet. Inventory has no new row. PASSED 10-11 ~8:45pm ET, Chris's phone on the tunnel: floss box = no match, counter stayed 0, Done opened no sheet.
-- [ ] Scan a real card, then tap Done: the "Which category?" sheet DOES open as before.
-- [ ] Scan a Magic card with Pokémon selected: "That looks like a Magic card" and the scan is given back too.
+- [x] PASS 10-12 (Chris, tunnel; OPEN-TESTS 10-11 #1): Scan a real card, then tap Done: the "Which category?" sheet DOES open as before.
+- [x] PASS 10-12 (Chris, tunnel; OPEN-TESTS 10-11 #2): Scan a Magic card with Pokémon selected: "That looks like a Magic card" and the scan is given back too.
 
 ## 10-11 Game pills centred in the phone header (26e22043, pushed 10-11 night as 5e4d662b)
 - [x] PASSED 10-11 ~8:45pm ET (Chris, tunnel). After a scan, on the phone: the Pokémon / Magic / Lorcana / One Piece / Yu-Gi-Oh! row sits centred in the header card, not hugging the left edge; all five still fit on one line on your iPhone.
@@ -157,13 +157,13 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 ## 10-11 Faster scans: tiebreak off the critical path, price wait 2.5 s → 1.2 s (PUSHED to main 10-11 ~9:10pm ET as a40dddb4, build ~2 min)
 - [ ] Scan a card with two near-identical printings (a Trainer Gallery card like Eevee TG11, or any card with a 1st Edition twin): the card shows within ~3 s instead of waiting on the picture check; if the tiebreak later disagrees, the card swaps and a Check-match line says "the photo looks more like this printing than <set>".
 - [ ] Verify a card quickly after it shows: a late tiebreak must NOT change it afterwards (verified wins).
-- [ ] Scan 5 cards in a row and time it against yesterday: the "Reading the card" wait feels shorter; prices still appear on the card (held price first, live price fills in).
+- [x] PASS 10-12 (Chris, tunnel; OPEN-TESTS 10-11 #8): Scan 5 cards in a row and time it against yesterday: the "Reading the card" wait feels shorter; prices still appear on the card (held price first, live price fills in).
 - [x] /admin log: no new "scan: slow read" warnings beyond what was there before. (closed 10-11 ~10pm ET by Claude: PASSED, last slow-read warning 11:41am ET 10-11, none since the scanner pushes)
 
 ## 10-11 No-match scans given back (PUSHED to main 10-11 ~9:10pm ET in a40dddb4)
-- [ ] Trial account: scan something that is not a card (a book cover, a receipt) so the queue says "No match found — search by name": the header scan counter does NOT go up (or goes up and comes back within a second), and /app/account shows the same trial count as before.
-- [ ] Scan a real card right after: it still counts (the counter rises by one and stays).
-- [ ] A token or an art card (Magic) says "not accepted" and DOES still count (that is a refusal, not a miss).
+- [x] PASS 10-14 by prod data (brian: 4 no-match reads all given back, 1 of 5 used): Trial account: scan something that is not a card (a book cover, a receipt) so the queue says "No match found — search by name": the header scan counter does NOT go up (or goes up and comes back within a second), and /app/account shows the same trial count as before.
+- [x] PASS 10-14 by prod data (Jenny: 5 matched reads = 5 of 5 used): Scan a real card right after: it still counts (the counter rises by one and stays).
+- [x] CLOSED 10-12 (rule changed 10-11: refusals are given back too; OPEN-TESTS 10-11 #5 PASS): A token or an art card (Magic) says "not accepted" and DOES still count (that is a refusal, not a miss).
 - [x] /admin > the user's row after a no-match scan: trial scans used did not rise; scan_usage keeps the row with refunded_at set (the vision bill is still real money). (closed 10-11 ~10pm ET by Claude: PASSED, prod scan_usage keeps both 10-11 7:50pm no-match rows with refunded_at set, draw trial:1)
 
 ## 10-11 Scanner post-scan header (9665f726, PUSHED to main 10-11 ~9:10pm ET in a40dddb4)
@@ -181,7 +181,7 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 
 ## 10-08 Mark as Sold asks once more (c35b831c; Chris: a sold record can't be undone)
 - [x] (10-11 Chris, phone, new One Tap account: worked on the second scan; the first card had been deleted by an X tap before the save, which the old banner blamed on the connection, fixed bf433106) Inventory, a draft or ended card > Mark as Sold > price > Mark as Sold: the sheet turns into "Are you sure? This marks it sold for $X. It can't be undone." with Cancel (back to the price) and Yes, Mark as Sold. Yes records the sale.
-- [ ] Inventory bulk: select live cards > Mark sold (N): the same Are you sure sheet with the count; Cancel leaves them live; Yes marks them sold at asking price.
+- [x] PASS 10-12 (Chris, tunnel; OPEN-TESTS 10-11 #25): Inventory bulk: select live cards > Mark sold (N): the same Are you sure sheet with the count; Cancel leaves them live; Yes marks them sold at asking price.
 
 ## 10-08 TikTok caption opener rotation (10b680b3; Chris: no more exact copies of previous posts' text)
 - [x] 10-09 captions.txt (night render ~9:15pm 10-08): the three captions open with three DIFFERENT first lines, each still saying type cardflip.io in your browser; 10-10's 7am opener differs from 10-09's 7am. (closed 10-11 ~10pm ET by Claude: PASSED, 10-09 and 10-10 captions.txt: six different openers, each says type cardflip.io in your browser)
@@ -205,13 +205,13 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 - [x] Scan editor on the phone: "Shipping · pick one to post on eBay" with two tiles (Envelope $0.75 / Tracked mailer $5.00); Envelope greys out at a $100+ sale price; "? How to ship" opens the two-way sheet. (closed 10-11 ~10pm ET by Claude: OUTDATED, the $0.75/$5.00 tiles and $100 rule were replaced by $1.11/$7.00 and $20, see the real-postage block)
 - [ ] No pick → the eBay post button shows "🔒 Pick a shipping option to publish"; after a pick the confirm line says free shipping for the buyer, postage already in the price.
 - [x] (10-08 Chris: picked envelope, listing shows free shipping) First REAL publish with Envelope picked: eBay accepts the "CardFlip envelope" policy (service code US_eBayStandardEnvelope is unverified); if eBay refuses, the listing should still go out on the tracked policy.
-- [ ] Inventory: a live or sold card shows "How to ship it · <pick>" with the 4 steps; "Both ways" opens the sheet.
+- [x] PASS 10-12 (Chris, tunnel; OPEN-TESTS 10-11 #32): Inventory: a live or sold card shows "How to ship it · <pick>" with the 4 steps; "Both ways" opens the sheet.
 - [ ] After a real sale: the "Your card sold" push AND an email with the mailing steps land (daily sweep); check the email reads right on the phone.
 
 ## 10-08 scanner + inventory fixes from the test day
-- [ ] Trial account on its LAST scan: scan it, close the camera → the out-of-scans wall shows right away, no page reload (867a4b69).
+- [x] PASS 10-12 (Chris, tunnel; OPEN-TESTS 10-11 #12): Trial account on its LAST scan: scan it, close the camera → the out-of-scans wall shows right away, no page reload (867a4b69).
 - [ ] Inventory with a card open: the round X next to Subscribe Now closes the card and shows the plain list; the Share button sits inside the card panel, not on the footer note (2fe6a947).
-- [ ] Scanner result: no "Check the art … Switch" banner on a card with a pricier twin (b23829db).
+- [x] PASS 10-12 (Chris; OPEN-TESTS 10-11 #13): Scanner result: no "Check the art … Switch" banner on a card with a pricier twin (b23829db).
 - [x] (10-08 prod HTML: Search icon comes before How It Works) Marketing nav on desktop: the search icon sits left of How It Works (abe7e70c). Phone: first in the second row (Chris 10-08: leave it there for now).
 
 ## 10-08 weekly emails rebuilt (/admin/emails), SHIPPED SWITCHED OFF, nothing to users until Chris approves

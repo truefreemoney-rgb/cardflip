@@ -1,8 +1,8 @@
-# Open tests, 10-14 9:40pm ET. Total 76 = A 44 (you) / B 1 (decision) / C 22 (dates, people) / D 9 (mine)
+# Open tests, 10-14 9:40pm ET. Total 83 = A 49 (you) / B 1 (decision) / C 22 (dates, people) / D 11 (mine)
 
 Rebuilt from docs/OPEN-TESTS-10-13.md + docs/TO-TEST.md (Chris 10-14: "add all the new to-do items" / "remove anything we completed"). Everything passed, closed or superseded is gone; the 10-13 file keeps the record. Numbers restart at 1. [date] = when the item was first written.
 
-## A. You, on the real site cardflip.io (phone) - 44, easiest first
+## A. You, on the real site cardflip.io (phone) - 49, easiest first
 
 Tonight's three pushes (c787d5b0 8:23pm, 6714a500 8:33pm, 1eb76012 8:58pm), one at a time:
 1. /scan logged out: the camera button does not flash for a phone that already used its free scan. [10-06]
@@ -52,6 +52,13 @@ Older, still open:
 43. Fastmail mailbox (your login): fewer "Undelivered Mail Returned" bounces at support@ from welcome emails. [10-07]
 44. LATER (you 10-14): grey text is readable in sunlight. [10-06]
 
+Found 10-14 9:50pm in older TO-TEST blocks, never listed before:
+77. Scanner: a card with two near-identical printings (a Trainer Gallery card like Eevee TG11, or a 1st Edition twin): the card shows within ~3 s; if the picture check later disagrees, it swaps and a Check-match line says "the photo looks more like this printing than <set>". [10-11]
+78. Scanner: verify a card quickly after it shows: a late picture check must NOT change it afterwards (verified wins). [10-11]
+79. One Tap: close it with the X, open /pricing and reload home: it never comes back on that device. [10-11]
+80. One Tap: signed IN, no prompt on any public page; never on /app, /admin, /login, /signup. [10-11]
+81. Inventory with a card open: the round X next to Subscribe Now closes the card and shows the plain list; Share sits inside the card panel. [10-08]
+
 Also yours, not a test: sign into /admin in the browser pane when you have a minute, so I can do D66-D69 and D71 without you.
 
 ## B. A decision only you make - 1
@@ -83,7 +90,7 @@ Also yours, not a test: sign into /admin in the browser pane when you have a min
 75. eBay developer support reply (sign in to the inbox in the pane and I read it; slow). [10-13]
 76. PriceCharting's answer to your two questions (sent 10-14 ~2:10pm ET; their terms in BACKLOG). [10-14]
 
-## D. Mine (scripts, curl, browser pane) - 9
+## D. Mine (scripts, curl, browser pane) - 11
 
 66. NEEDS YOUR /admin SIGN-IN IN THE PANE: /admin/users, Jenny's row reads 0 with "5 removed" under it; an account that never deleted anything shows only the count. [10-14]
 67. NEEDS /admin: /admin/robot lists the week's chats thumbs-down first, threads expand, times say ET once; the overview Help chat tile links there. [10-14]
@@ -94,3 +101,5 @@ Also yours, not a test: sign into /admin in the browser pane when you have a min
 72. curl: /cards/pokemon/base-set-1st-edition/charizard--base1-4-1st "Other Charizard cards" strip no longer lists the page's own card; homepage Yu-Gi-Oh tile picture alt text still says "(Worldwide English)" (invisible; small fix). [10-14]
 73. Pane: 5 random Yu-Gi-Oh set pages show that printing's own picture on every tile (no SAMPLE stamp, no sibling art); a Yu-Gi-Oh card with only a TCGplayer ask over $20 shows no price; a serial-numbered Magic card keeps its high price; spot-check 3 capped Magic foils (e.g. Cromat Apocalypse foil ~$57). [10-13]
 74. Some day with an ANTHROPIC_API_KEY in the dev env: `npm run test:helpreplay` (Jenny's conversation against the live prompt, ~3 model calls). [10-14]
+82. curl: a Share card picture (/api/share/card?game=pokemon&id=<key>) renders the card art from our store, not a blank. [10-12]
+83. curl: header search "Elsa" on a Lorcana page: result thumbnails come from cardflip.io/pics, not lorcast. [10-12]
