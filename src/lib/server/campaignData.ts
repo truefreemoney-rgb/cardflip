@@ -374,7 +374,8 @@ async function buildBinderCards(game: GameId, now: number, limit: number): Promi
   const fresh = list.filter((m) => m.imageUrl && m.to < BINDER_MAX && !(seen[`${game}:${m.name}:${m.number}`] >= keep));
   const picked = (fresh.length >= limit ? fresh : list.filter((m) => m.imageUrl)).slice(0, limit).map((m) => moverCard(m, game));
   const links = await linksFor(picked.map((p) => ({ cardId: p.cardId, game })));
-  return picked.map(({ cardId, ...c }) => ({ ...c, url: links.get(cardId)?.url ?? `${SITE_URL}${gamePath(game)}` }));
+  // The page tile's picture is our saved copy (/pics); the mover row carries the source site's link (10-15).
+  return picked.map(({ cardId, ...c }) => ({ ...c, image: links.get(cardId)?.image ?? c.image, url: links.get(cardId)?.url ?? `${SITE_URL}${gamePath(game)}` }));
 }
 
 /** One card per game: the game's biggest guard-checked jump this week, or its lead card where the history is too young. */
@@ -409,7 +410,8 @@ async function buildFiveGameCards(now: number): Promise<MailCard[]> {
     set: l.setName,
     number: l.number,
     game: l.game,
-    image: l.imageUrl || null,
+    // Our saved copy first: Pokémon + Magic movers carry tcgdex / Scryfall links (10-15, A31 mail check).
+    image: (l.cardId && links.get(l.cardId)?.image) || l.imageUrl || null,
     url: (l.cardId && links.get(l.cardId)?.url) || `${SITE_URL}${gamePath(l.game)}`,
     price: l.price,
     before: l.from ?? null,
@@ -535,7 +537,7 @@ async function buildWeekFacts(now: number): Promise<WeekFacts> {
   const jumped = jumps.filter((j) => j.pct != null && j.from != null);
   const links = await linksFor(jumped.map((j) => ({ cardId: j.cardId ?? null, game: j.game })));
   const moves: Array<MailCard & { pct: number }> = jumped
-    .map((j) => ({ name: j.name, set: j.setName, number: j.number, game: j.game, image: j.imageUrl || null, url: (j.cardId && links.get(j.cardId)?.url) || `${SITE_URL}${gamePath(j.game)}`, price: j.price, before: j.from ?? null, pct: j.pct ?? 0 }))
+    .map((j) => ({ name: j.name, set: j.setName, number: j.number, game: j.game, image: (j.cardId && links.get(j.cardId)?.image) || j.imageUrl || null, url: (j.cardId && links.get(j.cardId)?.url) || `${SITE_URL}${gamePath(j.game)}`, price: j.price, before: j.from ?? null, pct: j.pct ?? 0 }))
     .sort((a, b) => b.pct - a.pct);
   const jump: WeekFacts["jump"] = moves[0] ?? null;
 
@@ -552,7 +554,8 @@ async function buildWeekFacts(now: number): Promise<WeekFacts> {
     const [s] = MOVER_GAMES.includes(g) ? await sleepers(g, day, { limit: 1 }) : (await youngGameMovers(g, day, { direction: "up", limit: 5, minPrice: 1, band: [1, 5] })).filter((m) => m.pct >= 15).slice(0, 1);
     if (s) {
       const links = await linksFor([{ cardId: s.cardId, game: g }]);
-      sleeper = { ...moverCard(s, g), url: links.get(s.cardId)?.url ?? `${SITE_URL}${gamePath(g)}`, pct: s.pct };
+      const mc = moverCard(s, g);
+      sleeper = { ...mc, image: links.get(s.cardId)?.image ?? mc.image, url: links.get(s.cardId)?.url ?? `${SITE_URL}${gamePath(g)}`, pct: s.pct };
       break;
     }
   }
