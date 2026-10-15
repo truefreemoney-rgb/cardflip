@@ -120,3 +120,13 @@ export function saveStrategy(strategy: PriceStrategy): void {
     // Private mode / quota — the choice just doesn't persist.
   }
 }
+
+/** One-time "open the scanner on arrival" note for an in-app jump to /app?scan=1 (A36, 10-15). */
+export const OPEN_SCAN_NOTE = "cardflip.openScan";
+export function leaveOpenScanNote(): void {
+  try {
+    window.sessionStorage.setItem(OPEN_SCAN_NOTE, "1");
+  } catch {
+    // Private mode: the ?scan=1 in the address still works on a full page load.
+  }
+}

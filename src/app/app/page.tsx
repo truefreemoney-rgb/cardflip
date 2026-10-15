@@ -21,13 +21,40 @@ import { useSession } from "@/components/SessionProvider";
 import { scanCard } from "@/lib/ocr";
 /** An item still "scanning" this long is failed by the watchdog, whatever it is waiting on (10-04). */
 const SCAN_WATCHDOG_MS = 20_000;
+
+/**
+ * "?scan=1" asked for the scanner (the /scan ad signup, the email confirm link). Kept outside the component
+ * so it survives the page being mounted again right after arrival (A36, 10-15: a brand-new account landed
+ * on /app?scan=1 with the scanner closed); cleared when the scanner closes.
+ */
+let scanOpenPending = false;
+
+/**
+ * An in-app jump (router.push from /signup) renders this page while the address bar still shows the page it
+ * came from, so window.location has no "?scan=1" yet (A36 10-15: the ad signup landed with the scanner shut).
+ * The signup page leaves this one-time note first (OPEN_SCAN_NOTE in lib/client/scanPrefs).
+ */
+function readOpenScanNote(): boolean {
+  try {
+    return sessionStorage.getItem(OPEN_SCAN_NOTE) === "1";
+  } catch {
+    return false;
+  }
+}
+function clearOpenScanNote(): void {
+  try {
+    sessionStorage.removeItem(OPEN_SCAN_NOTE);
+  } catch {
+    // nothing stored
+  }
+}
 import { fetchCardById, searchCards } from "@/lib/cards";
 import { mtgCuesOf } from "@/lib/mtgCues";
 import { isSecretRareNumber, normalizeNumber, pickPrinting, readHasPrintedKey, type PrintedNumber } from "@/lib/cardNumber";
 import { buildListing, buildSealedListing, canBeFirstEdition, isFirstEditionCard, itemFirstEdition, withListingOverrides, currentPrice, headlinePrice, describeItemCondition, effectiveVariant, formatMoney, mtgFinishOf, quotePrice, withEbayPrices, quoteForItem } from "@/lib/listing";
 import { GRADED_LOCKED, parseGradeQuery } from "@/lib/grading";
 import { GAMES, isGameId, parseGame, readSavedGame, saveGame } from "@/lib/games";
-import { readActivePackId, readSavedCategory, readSavedCondition, readSavedStrategy, saveCategory } from "@/lib/client/scanPrefs";
+import { OPEN_SCAN_NOTE, readActivePackId, readSavedCategory, readSavedCondition, readSavedStrategy, saveCategory } from "@/lib/client/scanPrefs";
 import CategorySheet, { distinctCategories } from "@/components/CategorySheet";
 import ActivePackBar from "@/components/ActivePackBar";
 import {
@@ -220,15 +247,17 @@ export default function AppPage() {
   // Lives here rather than in Uploader: the first capture swaps the page from
   // the hero layout to the queue layout, and the viewfinder must survive that.
   // ?scan=1 (10-05): the email confirm link lands here signed in, with the scanner already open.
-  const [cameraOpen, setCameraOpen] = useState(
-    () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("scan") === "1",
-  );
+  const [cameraOpen, setCameraOpen] = useState(() => {
+    if (typeof window !== "undefined" && (new URLSearchParams(window.location.search).get("scan") === "1" || readOpenScanNote())) scanOpenPending = true;
+    return scanOpenPending;
+  });
   // The gate (SubscriptionGate) keeps the scanner page up while the camera is open OR cards are still in the queue
   // (10-08, Chris: the last free scan must still be verifiable), and shows the wall on the next visit to the Scanner.
   useEffect(() => {
     window.dispatchEvent(new CustomEvent("cardflip:camera", { detail: cameraOpen || items.length > 0 }));
   }, [cameraOpen, items.length]);
   useEffect(() => {
+    clearOpenScanNote();
     if (new URLSearchParams(window.location.search).get("scan") === "1") window.history.replaceState(null, "", "/app");
   }, []);
   // Category new cards are filed under (Chris, 09-04): asked when the camera
@@ -1188,6 +1217,7 @@ export default function AppPage() {
   /** Camera closed: if this session scanned anything and hasn't been asked
    *  yet, ask "which category?" now, over the queue — never over the reveal. */
   const closeCamera = useCallback(() => {
+    scanOpenPending = false;
     setCameraOpen(false);
     // A pack scan is filed under its pack, so no "which category?" over it.
     // Only when something was actually identified (10-11, Chris: a floss box that "couldn't be read" still got

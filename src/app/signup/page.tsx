@@ -21,6 +21,7 @@ import { readReferralCode, readTouch } from "@/components/AttributionCapture";
 import { PRICING, SCANS } from "@/lib/pricing";
 import { PASSWORD_MIN, passwordProblem } from "@/lib/passwordRules";
 import { suggestEmail } from "@/lib/emailTypo";
+import { leaveOpenScanNote } from "@/lib/client/scanPrefs";
 
 const FIELD =
   "rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-base text-white outline-none sm:text-sm transition placeholder:text-zinc-600 focus:border-brand-400 focus:ring-2 focus:ring-brand-500/20";
@@ -209,6 +210,7 @@ export default function SignupPage() {
     } catch {
       // Moving on anyway: the choice can be made again from Inventory.
     }
+    if (scansLeft > 0 && fromScan) leaveOpenScanNote();
     router.push(scansLeft > 0 ? (fromScan ? "/app?scan=1" : "/app") : "/pricing");
   }
   // Came from the ad page: Seller (the normal mode) by default, no question.
