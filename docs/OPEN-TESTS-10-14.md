@@ -5,7 +5,7 @@ Rebuilt from docs/OPEN-TESTS-10-13.md + docs/TO-TEST.md (Chris 10-14: "add all t
 ## A. You, on the real site cardflip.io (phone) - 49, easiest first
 
 Tonight's three pushes (c787d5b0 8:23pm, 6714a500 8:33pm, 1eb76012 8:58pm), one at a time:
-1. FAILED 10-15 ~10:45am ET (headless prod: Scan button painted 70 ms, 600 ms at 6x CPU, then "used"), FIXED locally (inline pre-paint gate, local: 0 frames at 1x and 6x); recheck after push. /scan logged out: the camera button does not flash for a phone that already used its free scan. [10-06]
+1. PASS ON PROD 10-15 ~2:40pm ET after push 2ef5963b (headless: used visitor 0 frames with the Scan button at 1x and 6x CPU, used card shown; new visitor button from first paint). Was: FAILED 10-15 ~10:45am ET (headless prod: Scan button painted 70 ms, 600 ms at 6x CPU, then "used"), FIXED locally (inline pre-paint gate, local: 0 frames at 1x and 6x); recheck after push. /scan logged out: the camera button does not flash for a phone that already used its free scan. [10-06]
 2. PASS 10-15 ~10:45am ET (headless prod, trial API mocked so nothing spent: busy -> "The free scanner is busy right now..." + "Sign up free" link to /signup?from=scan; can't-read -> "Couldn't read that photo..." + same link): /scan logged out: the no-match and busy panels show the sign-up link. [10-06]
 3. PASS 10-15 (Chris phone): Scanner: scan a card; the row's right side reads "Clear" (no ×); tap it: row gone, toast "Cleared <name> — still in your Inventory", Inventory still has the card. [10-14]
 4. PASS 10-15 (Chris phone): Scanner: top right reads "Done" beside Connect eBay / Send to eBay; tapping lands on Inventory; nothing wraps at phone width. [10-14]
