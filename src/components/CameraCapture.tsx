@@ -27,16 +27,20 @@ import {
 import {
   CARD_ASPECT,
   HINT_TEXT,
+  cardCornerCandidates,
   findCardQuad,
   findCardQuadNear,
   frameLight,
   growQuad,
+  pickCardCorners,
   pickHint,
   shouldStraighten,
   toGray,
   warpQuad,
+  type CornerPatch,
   type Hint,
   type Point,
+  type Quad,
   type QuadTrace,
 } from "@/lib/photoQuality";
 
@@ -243,6 +247,41 @@ function guideInVideo(video: LiveSource, mode: CaptureMode = "card"): GuideRect 
   const h = vh * GUIDE_HEIGHT[mode];
   const w = Math.min(vw, h * GUIDE_RATIO[mode]);
   return { x: (vw - w) / 2, y: (vh - h) / 2, w, h };
+}
+
+/**
+ * The card's corners from the live picture (10-15): four patches round the
+ * guide's corners, each half the guide's width across and 110 px wide, so a
+ * 3 mm corner is about a dozen pixels; see findCardCorners. Null when fewer
+ * than three corners read as a card's. Corners are in the picture's pixels.
+ */
+let patchCanvas: HTMLCanvasElement | null = null;
+function cornersFromSource(video: LiveSource, g: GuideRect, vw: number, vh: number): { corners: [Point, Point, Point, Point]; angle: number; scores: number[] } | null {
+  patchCanvas ??= document.createElement("canvas");
+  const pctx = patchCanvas.getContext("2d", { willReadFrequently: true });
+  if (!pctx) return null;
+  const PATCH = 110;
+  const half = g.w * 0.25;
+  const scale = PATCH / (g.w * 0.5);
+  const patches: CornerPatch[] = [];
+  for (const [cx, cy] of [[g.x, g.y], [g.x + g.w, g.y], [g.x + g.w, g.y + g.h], [g.x, g.y + g.h]]) {
+    const left = Math.max(0, Math.round(cx - half)), top = Math.max(0, Math.round(cy - half));
+    const right = Math.min(vw, Math.round(cx + half)), bottom = Math.min(vh, Math.round(cy + half));
+    const pw = Math.max(8, Math.round((right - left) * scale)), ph = Math.max(8, Math.round((bottom - top) * scale));
+    patchCanvas.width = pw;
+    patchCanvas.height = ph;
+    pctx.drawImage(video, left, top, right - left, bottom - top, 0, 0, pw, ph);
+    let data: Uint8ClampedArray;
+    try {
+      data = pctx.getImageData(0, 0, pw, ph).data;
+    } catch {
+      return null;
+    }
+    patches.push({ gray: toGray(data, pw * ph), pw, ph, ox: left, oy: top, scale });
+  }
+  const pick = pickCardCorners(cardCornerCandidates(patches as [CornerPatch, CornerPatch, CornerPatch, CornerPatch], g.w, 6), 20, vw, vh);
+  if (!pick) return null;
+  return { corners: pick.quad.corners, angle: pick.quad.angle, scores: pick.fixes.map((f) => (f.score === -Infinity ? 0 : f.score)) };
 }
 
 const TIPS_KEY = "cf-camera-tips-opens";
@@ -594,6 +633,9 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
     let seen: [Point, Point, Point, Point] | null = null;
     let seenStreak = 0;
     let missStreak = 0;
+    // A fix far from the one shown (another box: the pocket round the card,
+    // the art frame inside it) and how many ticks running it has held.
+    let pending: { corners: [Point, Point, Point, Point]; ticks: number } | null = null;
     const id = window.setInterval(() => {
       if (document.visibilityState !== "visible" || busy.current || srcW(video) === 0) return;
       const g = guideInVideo(video, mode);
@@ -635,7 +677,28 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
       const prefer = seen
         ? (seen.map((p) => ({ x: ((p.x * g.w + g.x - sx) / sw) * w, y: ((p.y * g.h + g.y - sy) / sh) * h })) as [Point, Point, Point, Point])
         : null;
-      const quad = findCardQuadNear(gray, w, h, expect, 0.3 / grow, trace, prefer);
+      // Corners first (10-15, Chris's binder frames): the card's rounded
+      // corners, looked for in four small patches round the guide's corners
+      // at a quarter of the frame's size, where a 3 mm corner is a dozen
+      // pixels. On a binder page the pocket seams and the sleeve highlights
+      // are straighter lines than the card's own edge seen through plastic,
+      // so a finder that picks lines boxed the pocket; corners are the one
+      // thing a pocket does not have. The line finder runs only when no
+      // corners were found (a loose card with a thumb on two corners);
+      // sharpening the corner box with it measured worse (10-15 harness).
+      let quad: Quad | null = null;
+      const corners = cornersFromSource(video, g, vw, vh);
+      if (corners) {
+        const cc = corners.corners.map((p) => ({ x: ((p.x - sx) / sw) * w, y: ((p.y - sy) / sh) * h })) as [Point, Point, Point, Point];
+        const area = Math.abs(cc.reduce((s, p, i) => s + p.x * cc[(i + 1) % 4].y - cc[(i + 1) % 4].x * p.y, 0)) / 2 / (w * h);
+        quad = { corners: cc, area, angle: corners.angle };
+        if (trace) {
+          trace.reason = `corners ${corners.scores.map((s) => s.toFixed(0)).join("/")}`;
+          trace.sides = "";
+        }
+      } else {
+        quad = findCardQuadNear(gray, w, h, expect, 0.3 / grow, trace, prefer);
+      }
       // The card-size check only when nothing more pressing is wrong.
       const next = pickHint(light, null, null) ?? pickHint(light, null, quad ? quad.area * grow : null);
       if (trace && debugCanvas.current) {
@@ -716,21 +779,43 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
         })) as [Point, Point, Point, Point];
         // A move under 1.5 % of the guide is finder jitter, not the card:
         // the fix stays put. A real move is taken halfway (a little inertia).
+        // A jump of 8 % or more at some corner is the finder switching to
+        // another box (10-15, Chris's binder frames: the pocket round the
+        // card one tick, the card the next; "the outline is very twitchy"),
+        // so it is held back until the same box comes three ticks running
+        // (450 ms): a card that really moved that far gets there, a flicker
+        // between two boxes never does.
         const last = seen;
-        const moved = last ? Math.max(...fresh.map((p, i) => Math.hypot(p.x - last[i].x, p.y - last[i].y))) : Infinity;
-        seen = !last
-          ? fresh
-          : moved < 0.015
-            ? last
-            : (last.map((p, i) => ({ x: (p.x + fresh[i].x) / 2, y: (p.y + fresh[i].y) / 2 })) as [Point, Point, Point, Point]);
+        const apart = (a: [Point, Point, Point, Point], b: [Point, Point, Point, Point]) => Math.max(...a.map((p, i) => Math.hypot(p.x - b[i].x, p.y - b[i].y)));
+        const moved = last ? apart(fresh, last) : Infinity;
+        let held = false;
+        if (!last) seen = fresh;
+        else if (moved < 0.015) {
+          seen = last;
+          pending = null;
+        } else if (moved < 0.08) {
+          seen = last.map((p, i) => ({ x: (p.x + fresh[i].x) / 2, y: (p.y + fresh[i].y) / 2 })) as [Point, Point, Point, Point];
+          pending = null;
+        } else {
+          pending = pending && apart(fresh, pending.corners) < 0.03 ? { corners: fresh, ticks: pending.ticks + 1 } : { corners: fresh, ticks: 1 };
+          if (pending.ticks >= 3) {
+            seen = fresh;
+            pending = null;
+          } else {
+            seen = last;
+            held = true;
+          }
+        }
         missStreak = 0;
         seenStreak++;
         // Ready = the card roughly in the guide (it may poke out 12 % a
         // side), roughly square (8°), and nothing wrong with the light or
         // the distance. Loose on purpose (Chris 10-15: "leave some room").
+        // While a jump is held back, the colour stays as it was: the fix on
+        // screen is not the one just measured.
         const inGuide = seen.every((p) => p.x > -0.12 && p.x < 1.12 && p.y > -0.12 && p.y < 1.12);
         const ready = inGuide && Math.abs(quad.angle) <= 8 && next === null;
-        if (seenStreak >= 2) {
+        if (seenStreak >= 2 && !held) {
           // The drawn line starts where the card is, then glides to each
           // new fix (the frame loop below); React only hears about shows,
           // hides and colour changes.
@@ -741,11 +826,15 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
       } else {
         seenStreak = 0;
         missStreak++;
-        // One lost tick keeps the shape (no blink) but never the green: an
+        pending = null;
+        // A lost tick keeps the shape (no blink) but never the green: an
         // edge out of the frame means a photo would cut the card (10-15,
-        // Chris: "cut the top off while green").
+        // Chris: "cut the top off while green"). The shape goes after four
+        // lost ticks (600 ms): on a binder page the finder loses a soft
+        // card edge for a tick or two at a time, and dropping the outline
+        // each time read as twitching.
         if (missStreak === 1 && seen) setOutline((cur) => (cur?.ready ? { ready: false } : cur));
-        if (missStreak >= 2 && seen) {
+        if (missStreak >= 4 && seen) {
           seen = null;
           outlineTarget.current = null;
           setOutline(null);

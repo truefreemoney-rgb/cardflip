@@ -498,6 +498,221 @@ export function findCardQuadNear(
   return best;
 }
 
+/** A small greyscale patch of the frame round one of the guide's corners, for findCardCorners. */
+export interface CornerPatch {
+  gray: Uint8Array;
+  pw: number;
+  ph: number;
+  /** The patch's top-left in frame pixels, and patch pixels per frame pixel. */
+  ox: number;
+  oy: number;
+  scale: number;
+}
+
+/** One corner as found: where (frame pixels), how card-like it looked, and the radius that fitted. */
+export interface CornerFix {
+  x: number;
+  y: number;
+  score: number;
+  r: number;
+}
+
+/**
+ * The card's four corners, from four patches round the guide's corners
+ * (10-15, Chris's binder frames). A card's corners are rounded, about 3 mm
+ * (4.5 % of its width), and on a binder page that is the one thing nothing
+ * else has: the pocket seams cross at sharp T-junctions, the pocket's top is
+ * open, the highlights on the sleeve have no corners, and the art frame's
+ * corners are smaller. Each patch is searched for the best quarter-circle
+ * joining two straight edges: strong steps along the arc and along both
+ * edges past the tangent points, and none along the straight lines inside
+ * the rounding (a sharp corner has them) or past the corner (a seam does).
+ * Patch k is corner k: top-left, top-right, bottom-right, bottom-left.
+ * `expectWidth` is the card's expected width in frame pixels (the guide's).
+ */
+export function findCardCorners(patches: [CornerPatch, CornerPatch, CornerPatch, CornerPatch], expectWidth: number): [CornerFix, CornerFix, CornerFix, CornerFix] {
+  return cardCornerCandidates(patches, expectWidth, 1).map((c) => c[0] ?? { x: 0, y: 0, score: -Infinity, r: 0 }) as [CornerFix, CornerFix, CornerFix, CornerFix];
+}
+
+/**
+ * The best `keep` candidates per corner (strongest first, at least a radius
+ * apart), for pickCardCorners: on a binder page a pocket's corner or a
+ * neighbour's can outscore the card's in one patch, but not in all four at
+ * card spacing.
+ */
+export function cardCornerCandidates(patches: [CornerPatch, CornerPatch, CornerPatch, CornerPatch], expectWidth: number, keep = 6): [CornerFix[], CornerFix[], CornerFix[], CornerFix[]] {
+  // Inward unit vectors per corner: along the top/bottom edge, along the side.
+  const dirs: Array<[Point, Point]> = [
+    [{ x: 1, y: 0 }, { x: 0, y: 1 }],
+    [{ x: -1, y: 0 }, { x: 0, y: 1 }],
+    [{ x: -1, y: 0 }, { x: 0, y: -1 }],
+    [{ x: 1, y: 0 }, { x: 0, y: -1 }],
+  ];
+  return patches.map((patch, k) => {
+    const { gray, pw, ph, ox, oy, scale } = patch;
+    const [u, v] = dirs[k];
+    const g = blur3(gray, pw, ph);
+    // The signed step across a point, along `n` (two pixels either side, so
+    // a sample a pixel off the edge still reads most of it). Signed, because
+    // a card's edge steps the same way all along an edge and round its
+    // corner (the card inside, the sleeve outside), so the steps add up,
+    // while a stitched weld seam (a dotted line) or grain cancels out.
+    const across = (x: number, y: number, n: Point): number | null => {
+      const x0 = Math.round(x - 2 * n.x), y0 = Math.round(y - 2 * n.y), x1 = Math.round(x + 2 * n.x), y1 = Math.round(y + 2 * n.y);
+      if (x0 < 0 || y0 < 0 || x1 < 0 || y1 < 0 || x0 >= pw || x1 >= pw || y0 >= ph || y1 >= ph) return null;
+      return g[y1 * pw + x1] - g[y0 * pw + x0];
+    };
+    const r0 = expectWidth * scale * 0.045;
+    // The best score at each pixel over the radii, then the local maxima.
+    const bestAt = new Float32Array(pw * ph).fill(-Infinity);
+    const radiusAt = new Float32Array(pw * ph);
+    // Radii 0.8-1.25x the 3 mm expected: a sleeve's corners are cut rounder
+    // (they fitted 5 mm when offered it, 10-15) and are not wanted.
+    for (const rf of [0.8, 1, 1.25]) {
+      const r = r0 * rf;
+      // Samples as offsets from the corner point (where the two straight
+      // edges would meet), each with the normal pointing into the card.
+      type S = { x: number; y: number; n: Point };
+      const edges: S[] = [], far: S[] = [], arc: S[] = [], inside: S[] = [], past: S[] = [];
+      for (let i = 0; i < 6; i++) {
+        // Along both edges past the tangent points.
+        const d = r * (1.15 + i * 0.35);
+        edges.push({ x: u.x * d, y: u.y * d, n: v }, { x: v.x * d, y: v.y * d, n: u });
+        // And well along both edges: a card's edge runs the length of the
+        // card, a rounded box printed on it (its text box, an attack box)
+        // has sides that stop a few per cent on (10-15, Chris's frames:
+        // both bottom corners snapped up to the text box's corners).
+        const e = r * (3.3 + i * 0.9);
+        far.push({ x: u.x * e, y: u.y * e, n: v }, { x: v.x * e, y: v.y * e, n: u });
+        // Inside the rounding along the straight lines: a sharp corner's edges run here, a card's do not.
+        if (i < 4) {
+          const e = r * (0.12 + i * 0.2);
+          inside.push({ x: u.x * e, y: u.y * e, n: v }, { x: v.x * e, y: v.y * e, n: u });
+          // Past the corner along both lines: a seam, a highlight or a bezel runs on, a card stops.
+          const f = r * (0.5 + i * 0.5);
+          past.push({ x: -u.x * f, y: -u.y * f, n: v }, { x: -v.x * f, y: -v.y * f, n: u });
+        }
+      }
+      const cx = (u.x + v.x) * r, cy = (u.y + v.y) * r;
+      for (let i = 1; i <= 7; i++) {
+        const th = (Math.PI / 2) * (i / 8);
+        const nx = u.x * Math.cos(th) + v.x * Math.sin(th), ny = u.y * Math.cos(th) + v.y * Math.sin(th);
+        arc.push({ x: cx - r * nx, y: cy - r * ny, n: { x: nx, y: ny } });
+      }
+      const sum = (x: number, y: number, list: S[]): { s: number; n: number } => {
+        let s = 0, n = 0;
+        for (const o of list) {
+          const d = across(x + o.x, y + o.y, o.n);
+          if (d === null) continue;
+          s += d;
+          n++;
+        }
+        return { s, n };
+      };
+      const margin = Math.ceil(r) + 3;
+      for (let y = margin; y < ph - margin; y++) {
+        for (let x = margin; x < pw - margin; x++) {
+          const e = sum(x, y, edges), a = sum(x, y, arc);
+          if (e.n < 8 || a.n < 5) continue;
+          // The edges and the arc must step the same way; each contributes its mean signed step.
+          const sign = e.s + a.s >= 0 ? 1 : -1;
+          const eMean = (sign * e.s) / e.n, aMean = (sign * a.s) / a.n;
+          if (eMean <= 0 || aMean <= 0) continue;
+          const i = sum(x, y, inside), p = sum(x, y, past);
+          const bad = (i.n ? Math.abs(i.s) / i.n : 0) + (p.n ? Math.abs(p.s) / p.n : 0);
+          // The far edge counts as much as the near one; off the patch it is taken on trust.
+          const f = sum(x, y, far);
+          const fMean = f.n >= 4 ? Math.max(0, (sign * f.s) / f.n) : eMean;
+          const score = Math.min(eMean, aMean * 1.5) + 0.5 * Math.min(eMean, aMean) + 0.5 * Math.min(eMean, fMean) - bad;
+          if (score > bestAt[y * pw + x]) {
+            bestAt[y * pw + x] = score;
+            radiusAt[y * pw + x] = r;
+          }
+        }
+      }
+    }
+    // Local maxima, strongest first, each at least r0 from a stronger one.
+    const peaks: CornerFix[] = [];
+    for (let y = 1; y < ph - 1; y++) for (let x = 1; x < pw - 1; x++) {
+      const s = bestAt[y * pw + x];
+      if (s <= 0) continue;
+      let top = true;
+      for (let dy = -1; dy <= 1 && top; dy++) for (let dx = -1; dx <= 1; dx++) if ((dx || dy) && bestAt[(y + dy) * pw + x + dx] > s) { top = false; break; }
+      if (top) peaks.push({ x, y, score: s, r: radiusAt[y * pw + x] });
+    }
+    peaks.sort((a, b) => b.score - a.score);
+    const kept: CornerFix[] = [];
+    for (const p of peaks) {
+      if (kept.length >= keep) break;
+      if (kept.some((q) => Math.hypot(q.x - p.x, q.y - p.y) < r0)) continue;
+      kept.push(p);
+    }
+    return kept.map((p) => ({ x: ox + p.x / scale, y: oy + p.y / scale, score: p.score, r: p.r / scale }));
+  }) as [CornerFix[], CornerFix[], CornerFix[], CornerFix[]];
+}
+
+/**
+ * The card from the corner candidates: the four (or three, with the fourth
+ * completed) that make a card-shaped box with the highest summed score. A
+ * three-corner box needs each of its corners to be clearly strong (1.5x
+ * `minScore`), a four-corner one each at least `minScore`.
+ */
+export function pickCardCorners(cands: [CornerFix[], CornerFix[], CornerFix[], CornerFix[]], minScore: number, w: number, h: number): { quad: Quad; fixes: [CornerFix, CornerFix, CornerFix, CornerFix]; score: number } | null {
+  let best: { quad: Quad; fixes: [CornerFix, CornerFix, CornerFix, CornerFix]; score: number } | null = null;
+  const none: CornerFix = { x: 0, y: 0, score: -Infinity, r: 0 };
+  const lists = cands.map((c) => [...c.filter((f) => f.score >= minScore), none]);
+  for (const a of lists[0]) for (const b of lists[1]) for (const c of lists[2]) for (const d of lists[3]) {
+    const fixes: [CornerFix, CornerFix, CornerFix, CornerFix] = [a, b, c, d];
+    const missing = fixes.filter((f) => f === none).length;
+    if (missing > 1) continue;
+    if (missing === 1 && fixes.some((f) => f !== none && f.score < minScore * 1.5)) continue;
+    // One card, one corner radius (within 1.6x): a pocket's corner is rounder.
+    const radii = fixes.filter((f) => f !== none).map((f) => f.r);
+    if (Math.max(...radii) > Math.min(...radii) * 1.6) continue;
+    const quad = quadFromCorners(fixes, minScore, w, h);
+    if (!quad) continue;
+    const score = fixes.reduce((s, f) => s + (f === none ? 0 : f.score), 0) * (missing ? 0.85 : 1);
+    if (!best || score > best.score) best = { quad, fixes, score };
+  }
+  return best;
+}
+
+/**
+ * The card from its four corners (frame pixels): each corner must have
+ * scored at least `minScore`, or three must and the fourth is completed as
+ * the parallelogram; the box must be card-shaped (63:88 within 9 %),
+ * its opposite sides parallel within 8° and even within 22 %. Null otherwise.
+ */
+export function quadFromCorners(fixes: [CornerFix, CornerFix, CornerFix, CornerFix], minScore: number, w: number, h: number): Quad | null {
+  const good = fixes.map((f) => f.score >= minScore);
+  const n = good.filter(Boolean).length;
+  if (n < 3) return null;
+  const pts: Point[] = fixes.map((f) => ({ x: f.x, y: f.y }));
+  if (n === 3) {
+    // The missing corner from the other three: opposite corners of a parallelogram share a midpoint.
+    const m = good.indexOf(false);
+    const prev = pts[(m + 3) % 4], next = pts[(m + 1) % 4], opp = pts[(m + 2) % 4];
+    pts[m] = { x: prev.x + next.x - opp.x, y: prev.y + next.y - opp.y };
+  }
+  const c = pts as [Point, Point, Point, Point];
+  const len = (a: Point, b: Point) => Math.hypot(b.x - a.x, b.y - a.y);
+  const ang = (a: Point, b: Point) => (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI;
+  // Opposite sides even within 10 % and parallel within 5°: a hand-held
+  // phone keystones a card a few per cent; a box stitched from a card's
+  // corners and a pocket's is a trapezoid (10-15, Chris's binder frames).
+  const top = len(c[0], c[1]), bottom = len(c[3], c[2]), left = len(c[0], c[3]), right = len(c[1], c[2]);
+  if (Math.min(top, bottom) / Math.max(top, bottom) < 0.9 || Math.min(left, right) / Math.max(left, right) < 0.9) return null;
+  // 63:88 within 15 %: a phone held at a slant foreshortens the card to
+  // 0.78-0.80 in Chris's binder frames (10-15); a pocket is 0.85-0.95.
+  const aspect = (top + bottom) / (left + right);
+  if (Math.abs(aspect / CARD_ASPECT - 1) > 0.15) return null;
+  const turn = (a: number) => ((a + 180) % 360 + 360) % 360 - 180;
+  if (Math.abs(turn(ang(c[0], c[1]) - ang(c[3], c[2]))) > 5 || Math.abs(turn(ang(c[0], c[3]) - ang(c[1], c[2]))) > 5) return null;
+  const angle = ang(c[0], c[1]);
+  if (Math.abs(angle) > 12) return null;
+  return { corners: c, area: polygonArea(c) / (w * h), angle };
+}
+
 function polygonArea(p: Point[]): number {
   let s = 0;
   for (let i = 0; i < p.length; i++) {

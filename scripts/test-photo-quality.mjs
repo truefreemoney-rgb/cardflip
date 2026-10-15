@@ -96,6 +96,53 @@ console.log("card edges near the guide (live outline)");
   check("noise finds no card near the guide", pq.findCardQuadNear(noise, w, h, guide, 0.1) == null);
 }
 
+console.log("card corners (binder pages)");
+{
+  // A frame with a card whose corners are rounded (4.5 % of its width, a
+  // real card's 3 mm) on a plain grey table, and the same card with sharp
+  // corners. Patches round the guide's corners, as CameraCapture cuts them.
+  const FW = 480, FH = 560;
+  const cardW = 240, cardH = Math.round(cardW / pq.CARD_ASPECT);
+  const cx0 = (FW - cardW) / 2 + 9, cy0 = (FH - cardH) / 2 - 7;
+  const frame = (rounded) => {
+    const g = new Uint8Array(FW * FH);
+    const r = cardW * 0.045;
+    for (let y = 0; y < FH; y++) for (let x = 0; x < FW; x++) {
+      const u = x - cx0, v = y - cy0;
+      let inside = u >= 0 && v >= 0 && u < cardW && v < cardH;
+      if (inside && rounded) {
+        const dx = Math.max(0, Math.max(r - u, u - (cardW - r))), dy = Math.max(0, Math.max(r - v, v - (cardH - r)));
+        if (dx > 0 && dy > 0 && Math.hypot(dx, dy) > r) inside = false;
+      }
+      g[y * FW + x] = inside ? 200 - ((Math.floor(u / 9) + Math.floor(v / 9)) % 2) * 40 : 70 + ((x * 7 + y * 13) % 5);
+    }
+    return g;
+  };
+  const guide = { x: (FW - cardW * 1.06) / 2, y: (FH - cardH * 1.06) / 2, w: cardW * 1.06, h: cardH * 1.06 };
+  const patchesOf = (g) => {
+    const PATCH = 110, half = guide.w * 0.25, scale = PATCH / (guide.w * 0.5);
+    return [[guide.x, guide.y], [guide.x + guide.w, guide.y], [guide.x + guide.w, guide.y + guide.h], [guide.x, guide.y + guide.h]].map(([cx, cy]) => {
+      const left = Math.max(0, Math.round(cx - half)), top = Math.max(0, Math.round(cy - half));
+      const right = Math.min(FW, Math.round(cx + half)), bottom = Math.min(FH, Math.round(cy + half));
+      const pw = Math.round((right - left) * scale), ph = Math.round((bottom - top) * scale);
+      const gray = new Uint8Array(pw * ph);
+      for (let y = 0; y < ph; y++) for (let x = 0; x < pw; x++) gray[y * pw + x] = g[Math.min(FH - 1, top + Math.floor(y / scale)) * FW + Math.min(FW - 1, left + Math.floor(x / scale))];
+      return { gray, pw, ph, ox: left, oy: top, scale };
+    });
+  };
+  const rounded = pq.pickCardCorners(pq.cardCornerCandidates(patchesOf(frame(true)), guide.w, 6), 20, FW, FH);
+  check("a card with rounded corners is found from its corners", rounded != null);
+  if (rounded) {
+    const want = [[cx0, cy0], [cx0 + cardW, cy0], [cx0 + cardW, cy0 + cardH], [cx0, cy0 + cardH]];
+    const off = Math.max(...rounded.quad.corners.map((p, i) => Math.hypot(p.x - want[i][0], p.y - want[i][1])));
+    check("each corner within 2 % of the card's width", off <= cardW * 0.02, `worst ${off.toFixed(1)} px`);
+    check("it is square", Math.abs(rounded.quad.angle) < 1.5, `got ${rounded.quad.angle.toFixed(2)}`);
+  }
+  const sharp = pq.pickCardCorners(pq.cardCornerCandidates(patchesOf(frame(false)), guide.w, 6), 20, FW, FH);
+  // The template's margin, measured 10-15: a sharp corner scores about 60 % of a rounded one.
+  check("a box with sharp corners scores under three quarters of the rounded card", !sharp || sharp.score < (rounded?.score ?? Infinity) * 0.75, sharp ? `sharp ${sharp.score.toFixed(0)} vs rounded ${rounded?.score.toFixed(0)}` : "");
+}
+
 console.log("warp");
 {
   const w = 20, h = 28;
