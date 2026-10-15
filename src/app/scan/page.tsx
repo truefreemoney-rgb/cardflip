@@ -52,6 +52,15 @@ export default async function ScanLandingPage({ searchParams }: { searchParams: 
   );
   return (
     <div className="flex min-h-dvh flex-col">
+      {/* A1 (10-15): before the first paint, a visitor whose free scan is used gets a style that hides the
+          [data-trial-gate] scan block until TrialScanner swaps in the "used" card (it flashed for 0.1-0.6 s). */}
+      {!signedIn && (
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{if(localStorage.getItem("cardflip.trialDone")==="1"){var s=document.createElement("style");s.textContent="[data-trial-gate]{display:none!important}";document.head.appendChild(s)}}catch(e){}`,
+          }}
+        />
+      )}
       <header className="mx-auto flex w-full max-w-md items-center justify-between px-4 pt-4">
         <Logo />
         {/* 10-06 (Chris): a signed-in visitor was shown "Log In", and /login bounced him straight to /app. */}

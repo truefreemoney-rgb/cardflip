@@ -378,7 +378,9 @@ export default function TrialScanner({
           </Link>
         </section>
       ) : (
-        <>
+        // data-trial-gate (A1, 10-15): a visitor whose free scan is used gets this block hidden from the first paint by the
+        // /scan page's head check, until the "used" card replaces it. No flash of a Scan button that cannot scan.
+        <div className="contents" data-trial-gate={signedIn ? undefined : ""}>
           {/* 10-06: the real button from the first paint. The old grey placeholder looked dead on a slow TikTok
               webview; a returning "used" visitor swaps to the used card a beat later, a fair trade. */}
           {signedIn ? (
@@ -479,12 +481,12 @@ export default function TrialScanner({
               </Link>
             </>
           )}
-        </>
+        </div>
       )}
 
       {footer}
       {idle && ex && (
-        <section aria-label="Example" className="flex items-center gap-4 rounded-2xl border border-edge bg-surface-1 p-3">
+        <section aria-label="Example" data-trial-gate={signedIn ? undefined : ""} className="flex items-center gap-4 rounded-2xl border border-edge bg-surface-1 p-3">
           <div className="aspect-[5/7] w-24 shrink-0 overflow-hidden rounded-lg bg-black/30">
             <ArtImg src={ex.image} alt={`${ex.name}, ${ex.setName}`} loading="lazy" width={500} height={700} className="h-full w-full object-cover" />
           </div>
