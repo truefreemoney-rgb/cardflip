@@ -11,7 +11,7 @@ Tonight's three pushes (c787d5b0 8:23pm, 6714a500 8:33pm, 1eb76012 8:58pm), one 
 4. PASS 10-15 (Chris phone): Scanner: top right reads "Done" beside Connect eBay / Send to eBay; tapping lands on Inventory; nothing wraps at phone width. [10-14]
 5. PASS 10-15 (Chris phone): Scanner: open a card, "Remove from Inventory" at the bottom: the sheet names the card; Cancel keeps it; Remove card removes the row AND the Inventory card, Undo toast 5 s. [10-14]
 6. PASS 10-15 (Chris phone): Scanner: the reveal chip right after a scan and the Verify All rows say "Clear" and only clear. [10-14]
-7. Scanner: a "No match found" row's Clear just clears, toast "Cleared". [10-14]
+7. PASS 10-15 ~7:45am ET (Chris phone, floss box: no row is made at all, just the "Couldn't read this card" bar, so there is nothing to Clear; its "(0% sure)" removed in 521bcbbb, unpushed): Scanner: a "No match found" row's Clear just clears, toast "Cleared". [10-14]
 8. PASS 10-14 ~10:50pm ET (code: shownDoubt() hides any "low-confidence read…" doubt; it is the only doubt renderer in QueueRow, VerifyAllSheet and the Inventory card; no live unsure scan tried): Scanner: a scan the AI was unsure of shows "Verify match" but NO "low-confidence read (40%)" text anywhere (Scanner list or Inventory). [10-14 4am]
 9. PASS 10-14 ~11:00pm ET (pane 375px, your Inventory ?q=Sylveon, first Sylveon ex 30th Celebration 153: MARKET $41.89, EBAY SUGGESTED PRICE $50.26, "Card value $41.89 plus eBay fees and $1.31 envelope postage"): Inventory: open the Sylveon ex (Envelope pick): eBay Suggested Price $50.26 (same as the scanner's eBay asking), note "$1.31 envelope postage". [10-14]
 10. Inventory total / Market value chart (asking basis) still adds up after the refresh. [10-14]
