@@ -66,6 +66,17 @@ Chris on his phone: Sylveon ex 30th Celebration showed eBay asking $50.26 in the
 - [ ] 10-15 2am log: One Piece SAMPLE-stamped pictures re-checked daily (45ee7180), line present.
 - [x] PROD: Search "Buy" link excludes slabs (-psa -bgs -cgc -sgc -graded -slab) (10-14 10:40am, /app/price-check "Charizard 4").
 
+## 10-13 (added to this list 10-14 9:15pm ET, was missing): Yu-Gi-Oh exact-printing pictures + Magic TCGplayer-only run + backup during writes
+Commits 4057fc76 (1,426 Yu-Gi-Oh rows TCGplayer has no scan of get exact-printing pictures from Yugipedia + CardTrader, screened by eye; PUSHED 83ddd479 10-13), d92fd959 (189 more, 44 still borrow a sibling's picture and retry nightly; PUSHED 30615a64 10-14 ~5:20am), ca474dfe (the Magic picture run is TCGplayer-only, no Scryfall fallback; PUSHED 83ddd479), cd3b08ff (the nightly backup survives live writes during the copy; PUSHED 83ddd479).
+- [ ] PROD: open 5 random Yu-Gi-Oh set pages (/cards/yugioh/...): every tile is a picture of THAT printing (set code on the card matches the set), none a SAMPLE stamp or a sibling's art.
+- [ ] 10-15 2am log: the nightly run's Yu-Gi-Oh line shows the 44 borrowers retried (count went down or "0 failed").
+- [ ] PC backup log (nightly): one run completed while the catalog run was writing, no "database is locked" line.
+
+## 10-13 ~6:45am ET (added to this list 10-14 9:15pm ET, was missing): asking-only TCGplayer prices over $20 blank; serial-numbered cards skip the 15x guard (4d494331, PUSHED 83ddd479 10-13)
+Chris's rule (memory cardflip-odd-prices-check-ebay): a price that is only an asking price, over $20, shows nothing rather than the ask. Applied to the Yu-Gi-Oh daily + weekly fills and the Magic fill; serial-numbered Magic cards (1/500 style) are allowed to be 15x their printing without being blanked.
+- [ ] PROD: a Yu-Gi-Oh card with no sold data and a TCGplayer ask over $20 shows no price (card page says the price is unsure / blank), under $20 still shows the ask.
+- [ ] PROD: a serial-numbered Magic card (e.g. a 1/500 Secret Lair serialized) keeps its high price instead of being blanked by the 15x guard.
+
 ## 10-13 ~3pm: every card picture from our storage (PUSHED 83ddd479)
 Chris saw blank One Piece hub tiles: the hubs' "most valuable" lists were cached 10-12 7pm ET (before pictures) with optcgapi links, which lists hide. Fixed: 22,946 stale card_cache tile lists deleted on Turso (seo:top/settop/printings/movers/namelist); 3,636 One Piece prod rows still had the optcgapi image_url (10-12 twin-first change was local only) -> copied from local; code (ee70b040): set completion, Magic big picture (scanner tiebreak keeps Scryfall via mtgReferenceImage), homepage featured card + wall, scan stage cards, email movers; 83ddd479: saves (cards, edits, watchlist, price checks) store our copy (ownPictureUrl); 143 old prod user rows rewritten to cardflip.io/pics (12 left: 11 blank no-id rows, 1 Japanese card). Dev: hubs, homepage, /scan, movers = 0 outside pictures, 0 blank; 100/100 tests.
 - [ ] PROD after the build: /cards/one-piece, /cards/pokemon, /cards/lorcana: 12 of 12 tiles show, all src cardflip.io/pics (curl count of outside hosts = 0).
@@ -74,7 +85,7 @@ Chris saw blank One Piece hub tiles: the hubs' "most valuable" lists were cached
 - [ ] PROD: scan a Magic card: the tiebreak still identifies (now reads mtgReferenceImage).
 - [ ] Open: One Piece top tiles are SAMPLE-stamped alt-art scans (TCGplayer has nothing cleaner); retry for clean scans in the auto new-cards job.
 
-## 10-13: nightly eBay referee + /admin/prices "Price checks" (LOCAL, NOT PUSHED)
+## 10-13: nightly eBay referee + /admin/prices "Price checks" (PUSHED 83ddd479 10-13 ~1:30pm ET)
 Chris 10-13: "make the daily price check against eBay automatic". Every $100+ printing (4,550 on 10-13: Magic 1,801, Pokemon 1,527, YGO 640, One Piece 424, Lorcana 158) is read against eBay's ACTIVE fixed-price listings (Browse API; sold data is denied) up to 900 calls a night, 8:15am + 8:45am ET (cron /api/cron/ebay-referee, 12:15 + 12:45 UTC). lib/ebayReferee.ts = printing-aware matcher + rule (hide at 1.5x the upper NM asks with 3+ asks; vintage pre-2010 needs 3x; 100x one ask); table ebay_asks; priceTrust test 0 (admin call) + 1b (eBay high). Prize sets, unknown rare tags, One Piece special versions and Lorcana/OP promo sets are never auto-hidden (>= $2,000 they go to the hand-check list). Calibrated on 58 eBay-SOLD-checked cards: 4 of 17 bad caught, 0 of 27 good hidden. Local run (366 read, 500 calls, 85 s): 13 hidden (Genex Axel $213,589, Bujingi Crane $199,379, Green Baboon $194,450, Tower of Babel $5,020, foil Llanowar Elves $954 ...), 91 to hand check. Pane: /admin/prices renders desktop + phone (folds, no side scroll); "Right, keep" moved Mewtwo Star to Your calls and the guard showed it; Undo put it back.
 - [ ] PROD after the push: Vercel cron list shows /api/cron/ebay-referee twice; the next morning /admin/prices says "Last run ... read" with ~400-450 cards and ~900 calls, 0 failed.
 - [ ] PROD: the /admin Overview "eBay API limits today" tile stays under the Browse cap (referee 900 + comps).
@@ -441,39 +452,39 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 - [ ] Old Yu-Gi-Oh borrowers retry nightly (sync-yugioh no longer repoints dead links, 10-13): first run already swapped 186 to real TCGplayer scans (99 from the old dead list, sheet checked by eye, all clean BETB scans); 233 still 403 keep their borrowed copy. After tonight /admin/prices Yu-Gi-Oh "borrowing" ~233 and falling over time.
 
 
-## 10-13 ~7pm ET: Magic euro fill + One Piece reprints (after the push)
+## 10-13 ~7pm ET: Magic euro fill + One Piece reprints (PUSHED 30615a64 10-14 ~5:20am ET)
 - [ ] Next 5am mtg-prices run: cron result shows cardmarketFilled ~400; Black Lotus (Alpha) card page shows a dollar price labeled Cardmarket; /admin/prices eBay check reviews the new $100+ ones over the week.
 - [ ] One Piece ST31-36 reprints (e.g. OP12-090_r1 Belo Betty) show their original's price after the 5:25am tcg-prices run.
 
 
 
-## 10-13 ~7:45pm ET: Send a New Code button + Verify label (76660b68, after the push)
+## 10-13 ~7:45pm ET: Send a New Code button + Verify label (76660b68, PUSHED 30615a64 10-14 ~5:20am ET)
 - [ ] Phone, /login with an emailed code: under the code box a full-width outline 'Send a New Code' button (not a small blue link); tapping it mails a new code. Same on /admin/login.
 - [ ] Phone scanner after a scan with 'Not this card?' showing: green button reads 'Verify 1 Scan  $0.85' in full, no 'Ver...' cut.
 
 
-## 10-13 ~7:45pm ET: scanner match tile + card removal log (after the push)
+## 10-13 ~7:45pm ET: scanner match tile + card removal log (PUSHED 30615a64 10-14 ~5:20am ET; the log answered Jenny's case 10-14 8pm)
 - [ ] /admin analytics Scanner 'Matched a card' = paid scans not given back / paid scans (tiebreak calls no longer count). Today's 6 scans read ~33% (2 of 6: the 4 refunded by hand count as given back), not 25%.
 - [ ] Turso has table card_removals after deploy; remove a test card on prod (one, then a bulk select) -> two rows (how one/bulk) with name, set, status, match_doubt, created_at.
 
 
-## 10-13 ~7:50pm ET: fx fetch no longer no-store (after the push)
+## 10-13 ~7:50pm ET: fx fetch no longer no-store (PUSHED 30615a64 10-14 ~5:20am ET)
 - [ ] Vercel logs / /admin errors for 24 h after the push: no 'fx: rate refresh failed ... Dynamic server usage' and no 'Page changed from static to dynamic at runtime /cards/magic/...'. If the static-to-dynamic one remains, it has a second cause: find it with a local next build.
 
-## 10-14 ~4am ET: code wait, envelope wording, no confidence %, backup fix (not pushed yet)
+## 10-14 ~4am ET: code wait, envelope wording, no confidence %, backup fix (PUSHED 30615a64 10-14 ~5:20am ET)
 - [x] (10-14 3:55pm ET Chris phone: pass) Phone, /login (or /admin/login) with an emailed code: right after the code mails, the button reads 'Send a New Code (60s)' and counts down, greyed out; at 0 it works again. Email-confirm wall on signup counts 60s too.
 - [ ] A scan the AI was unsure of: Scanner list and Inventory show 'Verify match' but NO 'low-confidence read (40%)' text anywhere.
 - [x] (10-14 2:17pm ET Chris phone: pass) 'How to ship' on a $20-$100 envelope card, step 3 reads: 'Postage is $1.31 total. Use $1.31 in postage stamps, or hand it in at the post office counter and they'll stamp it for you.'
 - [x] (10-14 3:50pm ET Chris phone: pass, Best Match both places) Search: every result tile has a 'Buy on eBay' button under the price, and the opened card has one under Share; both open eBay on Best Match (not cheapest first) for that card. Watchlist's Buy on eBay is Best Match too.
 - [ ] Nightly backup (cardflip-backups repo) goes green the night after the push (foreign keys off in the copy; local run 10-14 passed, 552,343 rows).
 
-## 10-14 morning: set pages show under-$1 cards, Buy above Watchlist, duplicate Trainer Galleries gone (not pushed yet)
+## 10-14 morning: set pages show under-$1 cards, Buy above Watchlist, duplicate Trainer Galleries gone (PUSHED 30615a64 10-14 ~5:20am ET)
 - [x] (10-14 ~5:30am ET applied on Chris's yes: 18 statements, re-run dry = 0; backup backups/dup-tg-sets-prod-1791970155907.json) RIGHT AFTER THE PUSH (me): `node scripts/drop-duplicate-tg-sets.mjs --prod` (dry run: 1 customer card moved to swsh9tg, 120 en_cards + 144 price_series + 120 tcgplayer_products + 5 listing_lows deleted, 119 saved searches cleared) then the same with `--apply`. Not before the push: live code has no redirect for the old ids yet.
 - [x] (10-14 10:35am ET after the d3a938f2 push: /cards/pokemon lists each Trainer Gallery once, curl 0 duplicates; earlier 6:30am: search PASS, 4 results, TG23 once in swsh9tg. Game page + redirect was NOT yet: /cards/pokemon still lists each Trainer Gallery twice and the -brs slug serves the 30 cards; seo:sets:v1/v3:pokemon card_cache rows deleted, the 48 h page copies clear on the NEXT PUSH -> recheck then) PROD: Search "Umbreon VMAX" = 4 results, TG23 once. /cards/pokemon lists each Trainer Gallery once; /cards/pokemon/brilliant-stars-trainer-gallery-brs redirects to /cards/pokemon/brilliant-stars-trainer-gallery; an old swsh9.5tg card link redirects to the swsh9tg page.
 - [x] (10-14 curl: Evolving Skies 276 sub-$1 prices, no '1.00 and up' on game/set pages, Surging Sparks Drasna sub-$1 page = noindex, follow) PROD: a set page (e.g. /cards/pokemon/surging-sparks) lists cards down to a few cents; no "$1.00 and up" wording on /cards, the game pages or set pages; a sub-$1 card page still has robots noindex.
 - [x] (10-14 2:33pm ET Chris phone, Pikachu 30th 023/128: Buy on eBay + Watch pinned side by side at the bottom) Phone: Search, open a card: Buy on eBay sits ABOVE Add to watchlist.
 
-## 10-14: Search redesign A-F (not pushed yet; Chris tests on the tunnel first)
+## 10-14: Search redesign A-F (PUSHED 30615a64 10-14 ~5:20am ET; all 16 phone checks PASSED by Chris 10-14 ~2:30pm, see the s165 note in STATE)
 - [x] (10-14 2:40pm ET Chris phone: pass) Phone, Search before typing: game pill + big "Name or number" box pinned under the header; My Watchlist swipe row (price now, % since saved, bell when an alert is set, "See all N"); "Open a whole set" tiles with set logos (newest 6). No intro text, no Recent lookups.
 - [x] (10-14 2:34pm ET Chris phone, "pikachu": 200 cards, Best match pill, list/grid switch, rows with picture/name/set+number/rarity chip/price/star/Buy, round x in the box) Type a name: a "Search" button shows inside the box until you search, then a round x clears. Results: "N cards", one "Sort" pill, list/grid switch; rows show picture, name, set and number, rarity chip, price, star and Buy.
 - [x] (10-14 2:40pm ET Chris phone: pass) Sort pill opens the Sort & filter panel from the bottom: Card name / Whole set, sort list, rarity chips, "Narrow these results"; "Show N cards" closes it.
