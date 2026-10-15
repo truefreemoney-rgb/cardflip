@@ -647,7 +647,12 @@ export function headlinePrice(item: ScanItem): number {
   if (item.status === "sold" || item.status === "listed") return currentPrice(item);
   if (!item.card || item.kind === "sealed" || item.grading) return currentPrice(item);
   if (marketFlagOf(item.card, effectiveVariant(item), item.currentPoint)) return 0;
-  return tcgPriceOf(item.card, effectiveVariant(item), item.currentPoint) ?? currentPrice(item);
+  const market = tcgPriceOf(item.card, effectiveVariant(item), item.currentPoint);
+  // For this copy's condition (10-15): Inventory already shows the market
+  // through the condition multiplier (livePrices, inventoryValue), and the
+  // scanner's "This copy" sheet promises "Lightly Played $87.79", so the
+  // scanner's own number follows the same rule. Near Mint is unchanged.
+  return market != null ? marketForCondition(market, item.condition) : currentPrice(item);
 }
 
 /**

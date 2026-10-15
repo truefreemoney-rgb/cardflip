@@ -1452,6 +1452,12 @@ export default function AppPage() {
         setSelectedId(id);
         closeCamera();
       }}
+      onEdit={editCopy}
+      onApplyConditionToAll={
+        items.filter((i) => i.kind !== "sealed" && !i.grading && i.status !== "listed" && i.status !== "sold").length > 1
+          ? applyConditionToAll
+          : undefined
+      }
     />
   );
 
@@ -1476,7 +1482,26 @@ export default function AppPage() {
   // "Apply to every card in the queue" under the condition select: one grade
   // for the whole box. Finished (listed/sold) and graded-slab items keep
   // theirs; ledger rows sync like a single edit would.
-  const applyConditionToAll = (condition: Condition) => {
+  /**
+   * The result card's "This copy" sheet (10-15): a condition or printing
+   * change from the camera. Same as the editor's: the item, and when the card
+   * is already on the server its ledger condition + re-quoted price.
+   */
+  // Hoisted (function, not const): the camera element above refers to it.
+  function editCopy(id: string, patch: Partial<ScanItem>) {
+    const item = itemsRef.current.find((i) => i.id === id);
+    if (!item) return;
+    patchItem(id, patch);
+    if (!item.serverId) return;
+    const next = { ...item, ...patch } as ScanItem;
+    const requote = !next.grading ? quoteForItem({ ...next, priceOverride: null })?.suggested : undefined;
+    void updateServerCard(item.serverId, {
+      condition: describeItemCondition(next),
+      ...(requote ? { price: requote, priceLocked: false } : {}),
+    });
+  }
+
+  function applyConditionToAll(condition: Condition) {
     let touched = 0;
     const next = itemsRef.current.map((item) => {
       if (item.kind === "sealed" || item.grading) return item;
@@ -1498,7 +1523,7 @@ export default function AppPage() {
       commit(next);
       toast(`${condition} set on ${touched} card${touched === 1 ? "" : "s"}`);
     }
-  };
+  }
 
   return (
     <>

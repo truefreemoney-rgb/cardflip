@@ -11,10 +11,11 @@ import { mirrorPossible, startCameraMirror } from "@/lib/client/cameraMirror";
 import { inAppBrowserName, isIosWebView } from "@/lib/client/inAppBrowser";
 import CardImage from "@/components/CardImage";
 import CandidatePicker from "@/components/CandidatePicker";
+import CopyEditSheet from "@/components/CopyEditSheet";
 import VerifyAllSheet from "@/components/VerifyAllSheet";
 import { effectiveVariant, formatMoney, formatVariantLabel, headlinePrice, marketFlagOf, pickPrice } from "@/lib/listing";
 import { fxCapture, fxMatch, fxMiss, revealTier, type RevealTier } from "@/lib/client/scanFx";
-import type { PokemonCard, ScanItem } from "@/lib/types";
+import type { Condition, PokemonCard, ScanItem } from "@/lib/types";
 import {
   SHARPNESS_BAND,
   SHARPNESS_SAMPLE_WIDTH,
@@ -155,6 +156,10 @@ interface Props {
   onCamera?: (state: string) => void;
   /** "Not this card?": swap the item to a card the seller picked. No new scan is spent. */
   onSwap?: (id: string, card: PokemonCard, candidates: PokemonCard[]) => void;
+  /** The result card's details pill: change this copy's condition or printing without leaving the camera (10-15). */
+  onEdit?: (id: string, patch: Partial<ScanItem>) => void;
+  /** Same condition on every waiting scan, from that sheet; absent when there is only one. */
+  onApplyConditionToAll?: (condition: Condition) => void;
 }
 
 export type CaptureMode = "card" | "page";
@@ -257,12 +262,14 @@ const TIPS_MAX_OPENS = 3;
  * a real desk — keyboard, hand, monitor — each costing a paid scan. Chris:
  * "capture button is where it's at for speed". Don't rebuild without asking.
  */
-export default function CameraCapture({ game, onGameChange, lastScan, queue, onRemove, quotaNote, onCapture, onClose, onOpen, onSwap: onPick, onCamera }: Props) {
+export default function CameraCapture({ game, onGameChange, lastScan, queue, onRemove, quotaNote, onCapture, onClose, onOpen, onSwap: onPick, onCamera, onEdit, onApplyConditionToAll }: Props) {
   const onCameraRef = useRef(onCamera);
   useEffect(() => {
     onCameraRef.current = onCamera;
   });
   const [picking, setPicking] = useState(false);
+  // The "This copy" sheet (condition / printing) over the result card.
+  const [editing, setEditing] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   // One card fills the guide. The Binder Page mode (09-27) went 10-03 with
@@ -1224,7 +1231,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
               {blurNote}
             </p>
           ) : lastScan ? (
-            <ScanToast key={lastScan.id} item={lastScan} onOpen={onOpen} onRemove={onRemove} onSwap={onPick ? () => setPicking(true) : undefined} onPickSibling={onPick ? (c) => onPick(lastScan.id, c, lastScan.candidates) : undefined} verify={verify} />
+            <ScanToast key={lastScan.id} item={lastScan} onOpen={onOpen} onRemove={onRemove} onSwap={onPick ? () => setPicking(true) : undefined} onPickSibling={onPick ? (c) => onPick(lastScan.id, c, lastScan.candidates) : undefined} onEdit={onEdit ? () => setEditing(true) : undefined} verify={verify} />
           ) : nativeCam ? null : (
             <div className="w-full text-center text-sm leading-snug text-zinc-400">
               Fill the guide with one card, then tap Capture.
@@ -1279,6 +1286,15 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
           )}
         </div>
       </div>
+      {editing && lastScan?.card && onEdit && (
+        <CopyEditSheet
+          item={lastScan}
+          onChange={(patch) => onEdit(lastScan.id, patch)}
+          onApplyConditionToAll={onApplyConditionToAll}
+          waiting={waiting.length}
+          onClose={() => setEditing(false)}
+        />
+      )}
       {picking && lastScan?.card && onPick && (
         <CandidatePicker
           item={lastScan}
@@ -1308,8 +1324,8 @@ export function verifyLabel(count: number, value: number, narrow = false): strin
   const noun = count === 1 ? "Scan" : "Scans";
   // narrow: "Not this card?" shares the row and the long label cut to "Ver…" at phone width (10-12).
   // Two digits or a four-figure total cut it again ("Verify 12 S…", Chris 10-15), so there it is
-  // "Verify All": the header pill above already says "12 cards".
-  if (narrow) return count >= 10 || value >= 1000 ? "Verify All" : `Verify ${count} ${noun}`;
+  // "Verify All": the header pill above already says "12 cards". One $10,000 card is "Verify Scan", not "All" (Chris 10-15).
+  if (narrow) return count >= 10 || value >= 1000 ? (count === 1 ? "Verify Scan" : "Verify All") : `Verify ${count} ${noun}`;
   const long = count >= 10 || value >= 1000;
   return `${count} ${noun} ${long ? "To Verify" : "Waiting To Verify"}`;
 }
@@ -1326,11 +1342,13 @@ interface ToastProps {
   onSwap?: () => void;
   /** One-tap switch to a candidate the variant warning named. */
   onPickSibling?: (card: PokemonCard) => void;
+  /** The details pill: open the "This copy" sheet. Falls back to onOpen when absent. */
+  onEdit?: () => void;
   /** The chip button's numbers: scans waiting and their market total. */
   verify: { count: number; value: number } | null;
 }
 
-function ScanToast({ item, onOpen, onRemove, onSwap, onPickSibling, verify }: ToastProps) {
+function ScanToast({ item, onOpen, onRemove, onSwap, onPickSibling, onEdit, verify }: ToastProps) {
   const scanning = item.status === "queued" || item.status === "scanning";
 
   if (scanning) {
@@ -1364,7 +1382,7 @@ function ScanToast({ item, onOpen, onRemove, onSwap, onPickSibling, verify }: To
     );
   }
 
-  return <RevealChip item={item} onOpen={onOpen} onRemove={onRemove} onSwap={onSwap} onPickSibling={onPickSibling} verify={verify} />;
+  return <RevealChip item={item} onOpen={onOpen} onRemove={onRemove} onSwap={onSwap} onPickSibling={onPickSibling} onEdit={onEdit} verify={verify} />;
 }
 
 /**
@@ -1441,7 +1459,7 @@ function revealMarket(item: ScanItem): number | null {
   return price > 0 ? price : null;
 }
 
-function RevealChip({ item, onOpen, onRemove, onSwap, verify }: ToastProps) {
+function RevealChip({ item, onOpen, onRemove, onSwap, onEdit, verify }: ToastProps) {
   const card = item.card!;
   // A look-alike printing worth much more (Special Illustration vs regular): say so, never switch by itself.
   // The "Check the art … Switch" nudge for a pricier twin is gone (Chris 10-08: "i don't like this switch option, remove that").
@@ -1526,10 +1544,10 @@ function RevealChip({ item, onOpen, onRemove, onSwap, verify }: ToastProps) {
           the name and the price (Chris 10-15: "in a weird place"). */}
       {(onOpen || onRemove) && (
         <div className="flex w-full items-center justify-between gap-2">
-          {onOpen ? (
+          {onEdit || onOpen ? (
             <button
               type="button"
-              onClick={() => onOpen(item.id)}
+              onClick={() => (onEdit ? onEdit() : onOpen!(item.id))}
               aria-label={`Change condition or printing: ${copyBits.join(", ")}`}
               className="flex min-w-0 items-center gap-2 rounded-full border border-white/15 bg-white/5 py-1 pl-2.5 pr-2 text-xs font-medium text-zinc-200 transition hover:border-white/30 hover:bg-white/10"
             >
