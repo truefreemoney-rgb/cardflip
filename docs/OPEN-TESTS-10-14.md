@@ -37,7 +37,7 @@ Older, still open:
 28. SKIPPED 10-15 (Chris: no Android). One Tap on Android Chrome shows the browser-styled account picker and behaves the same. [10-11]
 29. PASS 10-15 ~12:00pm ET (pane, your account: /api/billing/checkout pack -> checkout.stripe.com live session, page "CardFlip Booster $4.99, Total due $4.99", Live mode; nothing entered; the unused session expires on its own). Out-of-scans wall: the Booster button opens live checkout for $4.99. [10-07]
 30. PASS 10-15 ~12:00pm ET (same way: "Subscribe to CardFlip $9.99 per month", Live mode). Out-of-scans wall: the Subscribe button opens live checkout for $9.99 a month. [10-07]
-31. Each "Send Test To Me" on /admin/emails: [TEST] mail arrives; pictures, prices, buttons, Stop link all right on the phone. [10-08]
+31. PASS 10-15 ~12:20pm ET (Chris signed me into /admin + his Gmail in the pane: all 9 [TEST] mails arrived in truefreemoney; every picture loaded (Gmail spacer aside), prices present, all 13 button/card targets 200, Stop link = /api/digest/unsubscribe with the token, one-click and covered by test:digest; not clicked so he stays subscribed). Each "Send Test To Me" on /admin/emails: [TEST] mail arrives; pictures, prices, buttons, Stop link all right on the phone. [10-08]
 32. Loading skeletons show on slow 4G for Inventory, card pages and set pages. [10-06]
 33. Airplane mode inside the app shows the No Signal page; push still works afterwards. [10-06]
 34. Home-screen icon long-press shows Scan and Inventory shortcuts (Android only). [10-06]
