@@ -61,6 +61,41 @@ console.log("card edges");
   check("noise finds no card", pq.findCardQuad(noise, w, h) == null);
 }
 
+console.log("card edges near the guide (live outline)");
+{
+  // A wider frame than the guide, with clutter: a lighter "bezel" band down
+  // the left of the frame and a bar across the top, the card near the
+  // guide. findCardQuad stops at the bezel for some rows; the near finder
+  // must still land on the card.
+  const w = 240, h = 335;
+  const cardH = h * 0.6, cardW = cardH * pq.CARD_ASPECT;
+  const clutter = (g) => {
+    for (let y = 0; y < h; y++) for (let x = 0; x < 14; x++) g[y * w + x] = 95;
+    for (let y = 0; y < 12; y++) for (let x = 0; x < w; x++) g[y * w + x] = 110;
+    return g;
+  };
+  // Guide = the card grown 8 % (card sits a little small in it).
+  const guide = { x: w / 2 - cardW * 0.54, y: h / 2 - cardH * 0.54, w: cardW * 1.08, h: cardH * 1.08 };
+  const near = pq.findCardQuadNear(clutter(scene(w, h, cardH, 0)), w, h, guide, 0.1);
+  check("card in a cluttered frame is found near the guide", near != null);
+  if (near) {
+    const expectArea = (cardW * cardH) / (w * h);
+    check("its size is the card's", Math.abs(near.area - expectArea) < 0.03, `got ${near.area.toFixed(3)} want ${expectArea.toFixed(3)}`);
+    check("it is square", Math.abs(near.angle) < 1.5, `got ${near.angle.toFixed(2)}`);
+  }
+  const turned = pq.findCardQuadNear(clutter(scene(w, h, cardH, 6)), w, h, guide, 0.1);
+  check("a turned card in clutter is found", turned != null && Math.abs(turned.angle - 6) < 1.5, turned ? `angle ${turned.angle.toFixed(2)}` : "null");
+  // Card poking out of the guide (guide 7 % smaller than the card): still the border, not the art.
+  const small = { x: w / 2 - cardW * 0.465, y: h / 2 - cardH * 0.465, w: cardW * 0.93, h: cardH * 0.93 };
+  const poking = pq.findCardQuadNear(clutter(scene(w, h, cardH, 0)), w, h, small, 0.1);
+  check("a card poking out of the guide still finds its border", poking != null && Math.abs(poking.area - (cardW * cardH) / (w * h)) < 0.03, poking ? `area ${poking.area.toFixed(3)}` : "null");
+  // Real noise (xorshift), not the periodic pattern above: that one has straight stripes in it.
+  let seed = 2463534242;
+  const rnd = () => { seed ^= seed << 13; seed >>>= 0; seed ^= seed >>> 17; seed ^= seed << 5; seed >>>= 0; return seed % 256; };
+  const noise = new Uint8Array(w * h).map(() => rnd());
+  check("noise finds no card near the guide", pq.findCardQuadNear(noise, w, h, guide, 0.1) == null);
+}
+
 console.log("warp");
 {
   const w = 20, h = 28;

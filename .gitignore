@@ -70,3 +70,4 @@ stripe2.txt
 scripts/.*-tmp.*
 scripts/.*.cache.json
 scripts/.don-sheets/
+.outline-dumps/

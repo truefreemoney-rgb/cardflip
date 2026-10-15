@@ -26,6 +26,7 @@ import {
   CARD_ASPECT,
   HINT_TEXT,
   findCardQuad,
+  findCardQuadNear,
   frameLight,
   growQuad,
   pickHint,
@@ -33,6 +34,8 @@ import {
   toGray,
   warpQuad,
   type Hint,
+  type Point,
+  type QuadTrace,
 } from "@/lib/photoQuality";
 
 /** Frames taken per tap; the sharpest one is sent (10-04: a shaky hand loses the collector number first). */
@@ -344,6 +347,25 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
   const [guide, setGuide] = useState<GuideRect | null>(null);
   // Live photo hint above the guide (10-04): too dark, glare, hold still, move closer. Advisory, never a gate.
   const [hint, setHint] = useState<Hint | null>(null);
+  // Live card outline (10-15, Chris, after TCGplayer's scanner): the four
+  // corners the edge finder sees, as fractions of the guide (0..1), smoothed
+  // so a hand-held phone draws a steady frame. Null = no card-shaped thing
+  // near the guide right now. `ready` = lined up for a clean scan (in the
+  // guide, square, lit, no glare): the outline and brackets go green; until
+  // then the outline is blue, a "move it here" guide.
+  const [outline, setOutline] = useState<{ ready: boolean } | null>(null);
+  // The latest fix, the corners drawn right now (gliding toward it), and the polygon they are drawn on.
+  const outlineTarget = useRef<[Point, Point, Point, Point] | null>(null);
+  const outlineShown = useRef<[Point, Point, Point, Point] | null>(null);
+  const outlinePoly = useRef<SVGPolygonElement | null>(null);
+  // ?dbg=outline shows what the edge finder sees and why it said no (dev only).
+  const [debugOutline] = useState(
+    () => process.env.NODE_ENV !== "production" && typeof window !== "undefined" && new URLSearchParams(window.location.search).get("dbg") === "outline",
+  );
+  const debugCanvas = useRef<HTMLCanvasElement | null>(null);
+  const [debugText, setDebugText] = useState("");
+  const lastDump = useRef(0);
+  const dumped = useRef(0);
   // A capture (the burst) is running: no second tap, and the hint sampler rests.
   const busy = useRef(false);
   // Android: the camera takes focus points (tap-to-focus); iPhones don't expose focus to web pages.
@@ -537,14 +559,32 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
     if (!ctx) return;
     let last: Hint | null = null;
     let streak = 0;
+    // The outline: shown after two sightings in a row, dropped after two
+    // misses (one lost frame doesn't blink it).
+    let seen: [Point, Point, Point, Point] | null = null;
+    let seenStreak = 0;
+    let missStreak = 0;
     const id = window.setInterval(() => {
       if (document.visibilityState !== "visible" || busy.current || srcW(video) === 0) return;
       const g = guideInVideo(video, mode);
-      const w = 120;
-      const h = Math.max(40, Math.round((w * g.h) / g.w));
+      // Look a quarter-guide past the guide on every side (clamped to the
+      // frame): a card lined up to fill the guide has its edges ON the guide,
+      // and the edge finder walks in from the frame's border, so a guide-only
+      // crop never found it (10-04: 1 of 123 real scans). The wider look
+      // finds a card that fills the guide, sits small in it, or pokes out.
+      const vw = srcW(video);
+      const vh = srcH(video);
+      const sx = Math.max(0, g.x - g.w * 0.25);
+      const sy = Math.max(0, g.y - g.h * 0.25);
+      const sw = Math.min(vw, g.x + g.w * 1.25) - sx;
+      const sh = Math.min(vh, g.y + g.h * 1.25) - sy;
+      // 224 wide (was 160; 10-15 Chris: the line "bleeds into the card"):
+      // a pixel here is under half a percent of the card.
+      const w = 224;
+      const h = Math.max(40, Math.round((w * sh) / sw));
       c.width = w;
       c.height = h;
-      ctx.drawImage(video, g.x, g.y, g.w, g.h, 0, 0, w, h);
+      ctx.drawImage(video, sx, sy, sw, sh, 0, 0, w, h);
       let data: Uint8ClampedArray;
       try {
         data = ctx.getImageData(0, 0, w, h).data;
@@ -553,19 +593,169 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
       }
       const gray = toGray(data, w * h);
       const light = frameLight(data, w, h);
-      // The card-size check only when nothing more pressing is wrong.
+      // How much bigger the look is than the guide: the card-size floor and
+      // the "move closer" hint are both stated against the guide.
+      const grow = (sw / g.w) * (sh / g.h);
       // No live "Hold still" (10-04, Chris's phone: a hand-held phone over a binder page never reads as still,
       // so it stuck on). Shake is handled at the tap: the sharpest of the burst, then the blur gate.
-      const next = pickHint(light, null, null) ?? pickHint(light, null, findCardQuad(gray, w, h)?.area ?? null);
+      const trace: QuadTrace | undefined = debugOutline ? { reason: "", T: 0, maxStep: 0, sides: "" } : undefined;
+      // The guide, in the crop's pixels: where the card is expected.
+      const expect = { x: ((g.x - sx) / sw) * w, y: ((g.y - sy) / sh) * h, w: (g.w / sw) * w, h: (g.h / sh) * h };
+      // Last tick's corners back in this crop's pixels, so the pick sticks.
+      const prefer = seen
+        ? (seen.map((p) => ({ x: ((p.x * g.w + g.x - sx) / sw) * w, y: ((p.y * g.h + g.y - sy) / sh) * h })) as [Point, Point, Point, Point])
+        : null;
+      const quad = findCardQuadNear(gray, w, h, expect, 0.3 / grow, trace, prefer);
+      // The card-size check only when nothing more pressing is wrong.
+      const next = pickHint(light, null, null) ?? pickHint(light, null, quad ? quad.area * grow : null);
+      if (trace && debugCanvas.current) {
+        const dc = debugCanvas.current;
+        const dctx = dc.getContext("2d");
+        if (dctx) {
+          dc.width = w;
+          dc.height = h;
+          dctx.drawImage(c, 0, 0);
+          // The guide, in the crop.
+          dctx.strokeStyle = "#a78bfa";
+          dctx.lineWidth = 1;
+          dctx.strokeRect(((g.x - sx) / sw) * w, ((g.y - sy) / sh) * h, (g.w / sw) * w, (g.h / sh) * h);
+          if (quad) {
+            dctx.strokeStyle = "#34d399";
+            dctx.lineWidth = 2;
+            dctx.beginPath();
+            quad.corners.forEach((p, i) => (i ? dctx.lineTo(p.x, p.y) : dctx.moveTo(p.x, p.y)));
+            dctx.closePath();
+            dctx.stroke();
+          }
+        }
+        setDebugText(
+          `${trace.reason} · ${trace.sides} · T ${trace.T} max ${trace.maxStep} · luma ${Math.round(light.luma)} blown ${light.blown.toFixed(3)} · hint ${next ?? "none"} · ${mirror ? "mirror" : "video"} ${vw}x${vh} · el ${video.clientWidth}x${video.clientHeight} · dumps ${dumped.current}`,
+        );
+        // Every 2 s, the whole frame + the geometry to the dev server
+        // (api/dev/outline-dump), to tune the finder on real frames offline.
+        if (Date.now() - lastDump.current > 2000) {
+          lastDump.current = Date.now();
+          try {
+            const full = document.createElement("canvas");
+            full.width = vw;
+            full.height = vh;
+            full.getContext("2d")?.drawImage(video, 0, 0);
+            const rect = video.getBoundingClientRect();
+            const track = streamRef.current?.getVideoTracks()[0];
+            const meta = {
+              at: new Date().toISOString(),
+              ua: navigator.userAgent,
+              mirror,
+              src: { vw, vh },
+              element: { clientWidth: video.clientWidth, clientHeight: video.clientHeight, rect: { x: rect.x, y: rect.y, w: rect.width, h: rect.height } },
+              trackSettings: track?.getSettings() ?? null,
+              geometry: guideGeometry(video, mode),
+              crop: { sx, sy, sw, sh, w, h },
+              expect,
+              quad,
+              trace,
+              outlineTarget: outlineTarget.current,
+            };
+            void fetch("/api/dev/outline-dump", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ frame: full.toDataURL("image/jpeg", 0.85), meta }),
+            }).then((r) => {
+              if (r.ok) dumped.current++;
+            });
+          } catch {
+            // Debug only; never in the way.
+          }
+        }
+      }
       if (next === last) streak++;
       else {
         last = next;
         streak = 1;
       }
       if (streak === 2) setHint(next);
-    }, 350);
-    return () => window.clearInterval(id);
-  }, [ready, mode, mirror]);
+
+      if (quad) {
+        // Corners back to guide fractions (a card poking out of the guide
+        // lands a little outside 0..1, and the outline draws there too).
+        const fresh = quad.corners.map((p) => ({
+          x: (sx + (p.x / w) * sw - g.x) / g.w,
+          y: (sy + (p.y / h) * sh - g.y) / g.h,
+        })) as [Point, Point, Point, Point];
+        // A move under 1.5 % of the guide is finder jitter, not the card:
+        // the fix stays put. A real move is taken halfway (a little inertia).
+        const last = seen;
+        const moved = last ? Math.max(...fresh.map((p, i) => Math.hypot(p.x - last[i].x, p.y - last[i].y))) : Infinity;
+        seen = !last
+          ? fresh
+          : moved < 0.015
+            ? last
+            : (last.map((p, i) => ({ x: (p.x + fresh[i].x) / 2, y: (p.y + fresh[i].y) / 2 })) as [Point, Point, Point, Point]);
+        missStreak = 0;
+        seenStreak++;
+        // Ready = the card roughly in the guide (it may poke out 12 % a
+        // side), roughly square (8°), and nothing wrong with the light or
+        // the distance. Loose on purpose (Chris 10-15: "leave some room").
+        const inGuide = seen.every((p) => p.x > -0.12 && p.x < 1.12 && p.y > -0.12 && p.y < 1.12);
+        const ready = inGuide && Math.abs(quad.angle) <= 8 && next === null;
+        if (seenStreak >= 2) {
+          // The drawn line starts where the card is, then glides to each
+          // new fix (the frame loop below); React only hears about shows,
+          // hides and colour changes.
+          if (!outlineTarget.current) outlineShown.current = seen;
+          outlineTarget.current = seen;
+          setOutline((cur) => (cur?.ready === ready ? cur : { ready }));
+        }
+      } else {
+        seenStreak = 0;
+        missStreak++;
+        // One lost tick keeps the shape (no blink) but never the green: an
+        // edge out of the frame means a photo would cut the card (10-15,
+        // Chris: "cut the top off while green").
+        if (missStreak === 1 && seen) setOutline((cur) => (cur?.ready ? { ready: false } : cur));
+        if (missStreak >= 2 && seen) {
+          seen = null;
+          outlineTarget.current = null;
+          setOutline(null);
+        }
+      }
+    }, 150);
+    return () => {
+      window.clearInterval(id);
+      outlineTarget.current = null;
+      setOutline(null);
+    };
+  }, [ready, mode, mirror, debugOutline]);
+
+  // The outline glides: every frame the drawn corners move a quarter of the
+  // way to the latest fix, so a 6-a-second finder reads as smooth tracking
+  // (Chris 10-15: "the lines stutter really bad"). Writes the SVG directly;
+  // no React render per frame.
+  useEffect(() => {
+    if (!outline) return;
+    let raf = 0;
+    const tick = () => {
+      const target = outlineTarget.current;
+      const poly = outlinePoly.current;
+      if (target && poly) {
+        const shown = outlineShown.current ?? target;
+        const next = shown.map((p, i) => ({
+          x: p.x + (target[i].x - p.x) * 0.25,
+          y: p.y + (target[i].y - p.y) * 0.25,
+        })) as [Point, Point, Point, Point];
+        outlineShown.current = next;
+        // Drawn a touch outside the edge (2 % of the guide, Chris 10-15: "a few
+        // pixel boundary so it's not tight against the card"), so the stroke
+        // sits beside the card instead of on it.
+        const cx = (next[0].x + next[1].x + next[2].x + next[3].x) / 4;
+        const cy = (next[0].y + next[1].y + next[2].y + next[3].y) / 4;
+        poly.setAttribute("points", next.map((p) => `${cx + (p.x - cx) * 1.02},${cy + (p.y - cy) * 1.02}`).join(" "));
+      }
+      raf = window.requestAnimationFrame(tick);
+    };
+    raf = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(raf);
+  }, [outline]);
 
   // Tap the picture to focus there (Android); the ring shows only when the camera took it.
   const tapToFocus = (e: React.PointerEvent<HTMLVideoElement>) => {
@@ -610,11 +800,19 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
     const vw = srcW(video);
     const vh = srcH(video);
     const { x: gx, y: gy, w: gw, h: gh } = guideInVideo(video, mode);
-    const pad = 0;
-    const sx = Math.max(0, gx - pad);
-    const sy = Math.max(0, gy - pad);
-    const sw = Math.min(vw - sx, gw + pad * 2);
-    const sh = Math.min(vh - sy, gh + pad * 2);
+    // 10-15: when the live outline has the card and it pokes past the guide,
+    // the crop grows to take the whole card (plus 2 %) — a set number under
+    // the bottom bracket was being cut off the photo. Inside the guide
+    // nothing changes: the crop is the guide, 1:1.
+    const seen = outlineTarget.current;
+    const reachX = seen ? Math.max(0, -Math.min(...seen.map((p) => p.x)), Math.max(...seen.map((p) => p.x)) - 1) + 0.02 : 0;
+    const reachY = seen ? Math.max(0, -Math.min(...seen.map((p) => p.y)), Math.max(...seen.map((p) => p.y)) - 1) + 0.02 : 0;
+    const padX = seen ? Math.min(gw * 0.25, gw * reachX) : 0;
+    const padY = seen ? Math.min(gh * 0.25, gh * reachY) : 0;
+    const sx = Math.max(0, gx - padX);
+    const sy = Math.max(0, gy - padY);
+    const sw = Math.min(vw - sx, gw + padX * 2);
+    const sh = Math.min(vh - sy, gh + padY * 2);
 
     const grab = () => {
       const c = document.createElement("canvas");
@@ -716,12 +914,16 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
     [onCapture],
   );
 
-  const bracket = "border-brand-400";
   // Sweep while the last capture is still identifying; off once a match is
   // showing, so the chip gets the eye.
   const identifying =
     lastScan?.status === "queued" || lastScan?.status === "scanning";
   const sweeping = ready && identifying;
+  // The outline is for lining up the next card: it rests while a scan is
+  // being read so it never fights the sweep, strike or stamp.
+  const tracked = outline && !identifying ? outline : null;
+  // Brackets go green once the card is lined up for a clean scan.
+  const bracket = tracked?.ready ? "border-emerald-400" : "border-brand-400";
 
   // The moment of the match: chime + haptic once per scan, sized to the
   // card's value. A grail also blooms a holo burst behind the guide — the
@@ -913,6 +1115,29 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
                     <span className="scan-sweep" />
                   </span>
                 )}
+                {/* The live outline: the card's own four edges, drawn where
+                    the edge finder sees them. Blue = seen, bring it into the
+                    guide; green = lined up, tap Capture. Fractions of the
+                    guide, so it needs no remeasure when the guide moves; the
+                    stroke keeps its width under the uneven scale. */}
+                {tracked && (
+                  <svg
+                    className={`card-outline absolute inset-0 h-full w-full overflow-visible ${tracked.ready ? "is-ready" : ""}`}
+                    viewBox="0 0 1 1"
+                    preserveAspectRatio="none"
+                    aria-hidden
+                  >
+                    {/* No points from React: the frame loop above writes them (the first frame lands before the fade-in shows anything). */}
+                    <polygon
+                      ref={outlinePoly}
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={3}
+                      strokeLinejoin="round"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  </svg>
+                )}
                 <span className={`absolute -left-px -top-px h-8 w-8 rounded-tl-xl border-l-3 border-t-3 transition-colors ${bracket}`} />
                 <span className={`absolute -right-px -top-px h-8 w-8 rounded-tr-xl border-r-3 border-t-3 transition-colors ${bracket}`} />
                 <span className={`absolute -bottom-px -left-px h-8 w-8 rounded-bl-xl border-b-3 border-l-3 transition-colors ${bracket}`} />
@@ -931,6 +1156,12 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
 
           {flash && (
             <div className="absolute inset-0 bg-white/70" aria-hidden />
+          )}
+          {debugOutline && (
+            <div className="pointer-events-none absolute left-1 top-1 z-30 max-w-[60%] rounded bg-black/80 p-1 text-[10px] leading-tight text-lime-300">
+              <canvas ref={debugCanvas} className="block w-32 border border-zinc-600" />
+              <p className="mt-1 break-words">{debugText || "sampling…"}</p>
+            </div>
           )}
           {!ready && !error && !nativeCam && (
             <p className="absolute inset-0 flex items-center justify-center text-sm text-zinc-400">
@@ -992,9 +1223,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
                     Got It
                   </button>
                 </span>
-              ) : (
-                <span className="block text-xs text-zinc-500">Keep going for a whole stack.</span>
-              )}
+              ) : null}
             </div>
           )}
         </div>

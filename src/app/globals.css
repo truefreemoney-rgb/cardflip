@@ -450,6 +450,28 @@ p {
   animation: scan-sweep 2.2s cubic-bezier(0.4, 0.1, 0.6, 0.9) infinite;
 }
 
+/* Live card outline (10-15): the edge finder's four corners. Blue while the
+   card is seen but not lined up, green once it is (tap Capture). A soft glow
+   so it reads over a bright card face; fades in rather than popping. */
+.card-outline {
+  color: #38bdf8;
+  filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.75));
+  transition: color 160ms ease-out, filter 160ms ease-out;
+  animation: card-outline-in 180ms ease-out both;
+}
+.card-outline.is-ready {
+  color: #34d399;
+  filter: drop-shadow(0 0 6px rgba(52, 211, 153, 0.75));
+}
+@keyframes card-outline-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 .scan-sweep::after {
   /* the bright leading edge itself */
   content: "";

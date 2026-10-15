@@ -156,10 +156,26 @@ export interface Quad {
  * by walking in from that edge of the frame along 32 lines and stopping at the
  * first strong change (the table ending and the card starting), then fitting
  * a straight line. Null when any side is unsure or the result is not
- * card-shaped.
+ * card-shaped. `minArea` = the smallest share of the frame that counts as the
+ * card (0.3 for a guide crop; lower when the frame is wider than the guide,
+ * as the live outline's is).
  */
-export function findCardQuad(gray: Uint8Array, w: number, h: number): Quad | null {
-  if (w < 40 || h < 40) return null;
+/** Why findCardQuad said no (debug overlays only); filled in when passed. */
+export interface QuadTrace {
+  reason: string;
+  T: number;
+  maxStep: number;
+  sides: string;
+  /** Per side, the lines considered: position, inlier share, strength (findCardQuadNear only). */
+  detail?: string;
+}
+
+export function findCardQuad(gray: Uint8Array, w: number, h: number, minArea = 0.3, trace?: QuadTrace): Quad | null {
+  const fail = (reason: string) => {
+    if (trace) trace.reason = reason;
+    return null;
+  };
+  if (w < 40 || h < 40) return fail("tiny frame");
   const g = blur3(gray, w, h);
   const at = (x: number, y: number) => g[y * w + x];
   const SAMPLES = 32;
@@ -198,14 +214,32 @@ export function findCardQuad(gray: Uint8Array, w: number, h: number): Quad | nul
   };
 
   const L = side("left"), R = side("right"), Tp = side("top"), B = side("bottom");
-  if (!L || !R || !Tp || !B) return null;
+  if (trace) {
+    trace.T = Math.round(T);
+    trace.maxStep = Math.round(maxStep);
+    trace.sides = `L${L ? "+" : "-"} R${R ? "+" : "-"} T${Tp ? "+" : "-"} B${B ? "+" : "-"}`;
+  }
+  return quadFromSides(L, R, Tp, B, w, h, minArea, trace);
+}
+
+/** The four side lines → a card quad, or null (with the reason) when they don't make a card. */
+/** `evenness` = how close opposite sides must be in length (0.85 for a capture crop; 0.78 for the live outline, where a hand-held phone keystones the card). */
+function quadFromSides(
+  L: Line | null, R: Line | null, Tp: Line | null, B: Line | null,
+  w: number, h: number, minArea: number, trace?: QuadTrace, evenness = 0.85,
+): Quad | null {
+  const fail = (reason: string) => {
+    if (trace) trace.reason = reason;
+    return null;
+  };
+  if (!L || !R || !Tp || !B) return fail("side missing");
   // Intersect x = aV*y + bV with y = aH*x + bH.
   const meet = (v: Line, hz: Line): Point => {
     const y = (hz.a * v.b + hz.b) / (1 - hz.a * v.a);
     return { x: v.a * y + v.b, y };
   };
   const corners: [Point, Point, Point, Point] = [meet(L, Tp), meet(R, Tp), meet(R, B), meet(L, B)];
-  for (const c of corners) if (!(c.x > -2 && c.x < w + 2 && c.y > -2 && c.y < h + 2)) return null;
+  for (const c of corners) if (!(c.x > -2 && c.x < w + 2 && c.y > -2 && c.y < h + 2)) return fail("corner off frame");
   const area = polygonArea(corners) / (w * h);
   const dist = (p: Point, q: Point) => Math.hypot(p.x - q.x, p.y - q.y);
   const wTop = dist(corners[0], corners[1]), wBot = dist(corners[3], corners[2]);
@@ -214,11 +248,254 @@ export function findCardQuad(gray: Uint8Array, w: number, h: number): Quad | nul
   // Card-shaped: 63:88 within 9 %, opposite sides close in length (a phone held
   // a little off square, not a trapezoid from a wrong edge), and big enough to
   // be the card rather than a box drawn on it.
-  if (Math.abs(aspect / CARD_ASPECT - 1) > 0.09) return null;
-  if (Math.min(wTop, wBot) / Math.max(wTop, wBot) < 0.85 || Math.min(hL, hR) / Math.max(hL, hR) < 0.85) return null;
-  if (area < 0.3 || area > 1.02) return null;
+  if (Math.abs(aspect / CARD_ASPECT - 1) > 0.09) return fail(`aspect ${aspect.toFixed(2)}`);
+  if (Math.min(wTop, wBot) / Math.max(wTop, wBot) < evenness || Math.min(hL, hR) / Math.max(hL, hR) < evenness) return fail("sides uneven");
+  if (area < minArea || area > 1.02) return fail(`area ${area.toFixed(2)}`);
+  if (trace) trace.reason = "found";
   const angle = (Math.atan2(corners[1].y - corners[0].y, corners[1].x - corners[0].x) * 180) / Math.PI;
   return { corners, area, angle };
+}
+
+/** Where the card is expected in the frame (the guide), in the frame's pixels. */
+export interface ExpectRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/**
+ * The live outline's edge finder (10-15): the card's four edges in a frame
+ * that is wider than the guide, with clutter around the card (a monitor
+ * bezel, a browser bar, the edge of a binder). findCardQuad stops at the
+ * first strong step walking in from the frame's border, which on a cluttered
+ * frame lands on the clutter for some rows and the card for others, so no
+ * side ever fits. Here every strong step along each row is kept, straight
+ * lines are found among them (two-point trials, then least squares over the
+ * agreeing points), and the OUTERMOST strong line near the expected edge
+ * wins: the card's border beats the art frame inside it, and a faint bezel
+ * further out loses on strength. `expect` = the guide in frame pixels.
+ */
+export function findCardQuadNear(
+  gray: Uint8Array, w: number, h: number, expect: ExpectRect, minArea = 0.3, trace?: QuadTrace,
+  /** Last tick's corners (frame pixels): the finder sticks to them, so the outline doesn't flip between near-identical lines. */
+  prefer?: [Point, Point, Point, Point] | null,
+): Quad | null {
+  if (w < 40 || h < 40) {
+    if (trace) trace.reason = "tiny frame";
+    return null;
+  }
+  const g = blur3(gray, w, h);
+  const at = (x: number, y: number) => g[y * w + x];
+  const SAMPLES = 32;
+  let maxStep = 0;
+  for (let y = 1; y < h - 1; y += 2) for (let x = 1; x < w - 1; x += 2) {
+    const s = Math.max(Math.abs(at(x + 1, y) - at(x - 1, y)), Math.abs(at(x, y + 1) - at(x, y - 1)));
+    if (s > maxStep) maxStep = s;
+  }
+  // A lower bar than findCardQuad's 30 %: a dark card edge on a dark table
+  // (10-15, Chris's Pikachu VMAX on a monitor: three sides found, the dark
+  // top missed) is a faint step next to the card's own bright art, and the
+  // straight-line test below is what keeps the grain out, not the bar.
+  const T = Math.max(14, maxStep * 0.18);
+  const tol = Math.max(2, Math.min(w, h) * 0.012);
+
+  // A candidate edge point: `across` the side, `pos` along it, and how strong the step was.
+  type Cand = { across: number; pos: number; s: number };
+
+  // A line one side could be, with how good it looked: the share of sampled
+  // rows that sat on it (the real edge of a card scores 0.8-1.0; a line
+  // stitched from two different edges scrapes the 0.7 floor), the mean step
+  // on it, its tilt, and where it crosses the side's middle.
+  type Fit = { line: Line; share: number; strength: number; where: number; tilt: number };
+
+  // Each side's best few lines. The combination step below picks the set
+  // that makes a card.
+  const side = (dir: "left" | "right" | "top" | "bottom"): Fit[] => {
+    const vertical = dir === "left" || dir === "right";
+    // Rows (or columns) to sample: the middle 80 % of the guide's extent along the side.
+    const a0 = vertical ? expect.y + expect.h * 0.1 : expect.x + expect.w * 0.1;
+    const a1 = vertical ? expect.y + expect.h * 0.9 : expect.x + expect.w * 0.9;
+    // Where to look along the row: 30 % of the guide outside the expected
+    // edge, 35 % inside (a card held off to one side). Deeper inside is the card's art, which is full of
+    // straight lines of its own (10-15, Chris's frames: text-box rules and
+    // the inner edge of the border were winning).
+    const edge = dir === "left" ? expect.x : dir === "right" ? expect.x + expect.w : dir === "top" ? expect.y : expect.y + expect.h;
+    const dim = vertical ? expect.w : expect.h;
+    const outward = dir === "left" || dir === "top" ? -1 : 1;
+    const limit = (vertical ? w : h) - 2;
+    const p0 = Math.max(1, Math.floor(edge + (outward < 0 ? -dim * 0.3 : -dim * 0.35)));
+    const p1 = Math.min(limit, Math.ceil(edge + (outward < 0 ? dim * 0.35 : dim * 0.3)));
+    const rows: Cand[][] = [];
+    for (let k = 0; k < SAMPLES; k++) {
+      const across = Math.round(a0 + ((a1 - a0) * k) / (SAMPLES - 1));
+      if (across < 1 || across > (vertical ? h : w) - 2) continue;
+      const cands: Cand[] = [];
+      let prev = 0, prev2 = 0;
+      let rising = false;
+      let stepSum = 0, stepN = 0;
+      // Peaks only, and never on the frame's own border: the blur runs
+      // short there and reads as a straight "edge" the length of the frame
+      // (10-15, Chris's phone: the outline's bottom sat on the picture's
+      // bottom, below the card).
+      // 4 % of the frame in from its border: the blur runs short there and a
+      // patterned table fits straight lines along it.
+      const margin = Math.max(3, Math.round((vertical ? w : h) * 0.04));
+      // And never at the search band's own ends: on a grainy table the
+      // outermost peaks kept per row would all sit on the band's edge and
+      // line up into a phantom edge.
+      const inner0 = Math.max(margin, p0 + 2), inner1 = Math.min(limit + 1 - margin, p1 - 2);
+      for (let p = p0; p <= p1; p++) {
+        const s = vertical ? Math.abs(at(p + 1, across) - at(p - 1, across)) : Math.abs(at(across, p + 1) - at(across, p - 1));
+        stepSum += s;
+        stepN++;
+        // Keep the peaks: a step that is strong and stops rising. The peak's
+        // place is refined between pixels from its two neighbours (a
+        // parabola through three samples), so the line sits on the edge,
+        // not a pixel in.
+        if (s < prev && rising && prev >= T && p - 1 >= inner0 && p - 1 <= inner1) {
+          const denom = prev2 - 2 * prev + s;
+          const sub = denom < 0 ? Math.max(-0.5, Math.min(0.5, (0.5 * (prev2 - s)) / denom)) : 0;
+          cands.push({ across, pos: p - 1 + sub, s: prev });
+        }
+        rising = s >= prev;
+        prev2 = prev;
+        prev = s;
+      }
+      // Per row: the eight strongest peaks, plus any that stand out from the
+      // row's own grain (1.5x its mean step), so a soft outer border edge
+      // next to bright art is never crowded out. Grain throws up many weak
+      // peaks, and a line that only agrees with those is not an edge. (An
+      // earlier "keep the two outermost" rule lined up along the search
+      // band's clip in noise and faked an edge.)
+      let keep = cands;
+      if (cands.length > 8) {
+        const bar = (stepSum / Math.max(1, stepN)) * 1.5;
+        const byStrength = [...cands].sort((p, q) => q.s - p.s);
+        keep = [...byStrength.slice(0, 8), ...byStrength.slice(8).filter((c) => c.s >= bar).slice(0, 3)];
+      }
+      rows.push(keep);
+    }
+    const all = rows.flat();
+    if (all.length < 4) return [];
+    // Two-point trials between rows well apart; a trial wins its inliers (at
+    // most one per row, within `tol`) and must agree with 70 % of the rows
+    // (60 % let a monitor bezel stand in for a card bottom that was off the
+    // picture, 10-15).
+    const need = Math.ceil(rows.length * 0.7);
+    const trials: Array<{ a: number; b: number }> = [];
+    for (let i = 0; i < rows.length; i++) {
+      for (let j = i + 8; j < rows.length; j += 4) {
+        for (const p of rows[i]) for (const q of rows[j]) {
+          const a = (q.pos - p.pos) / (q.across - p.across);
+          trials.push({ a, b: p.pos - a * p.across });
+        }
+      }
+    }
+    const fits: Fit[] = [];
+    const mid = (a0 + a1) / 2;
+    for (const t of trials) {
+      const inliers: Cand[] = [];
+      for (const cands of rows) {
+        let best: Cand | null = null;
+        for (const c of cands) {
+          const d = Math.abs(t.a * c.across + t.b - c.pos);
+          if (d <= tol && (!best || d < Math.abs(t.a * best.across + t.b - best.pos))) best = c;
+        }
+        if (best) inliers.push(best);
+      }
+      if (inliers.length < need) continue;
+      const line = fitLine(inliers.map((c) => [c.across, c.pos] as [number, number]), 0.7, tol, inliers.length);
+      if (!line) continue;
+      const strength = inliers.reduce((sum, c) => sum + c.s, 0) / inliers.length;
+      fits.push({ line, share: inliers.length / rows.length, strength, where: line.a * mid + line.b, tilt: (Math.atan(line.a) * 180) / Math.PI });
+    }
+    if (!fits.length) return [];
+    // One line per position (many trials land on the same edge: keep the
+    // one most rows agree with), the best four by agreement, then strength.
+    const ranked = fits.sort((p, q) => q.share - p.share || q.strength - p.strength);
+    const distinct: Fit[] = [];
+    for (const f of ranked) if (!distinct.some((d) => Math.abs(d.where - f.where) <= tol)) distinct.push(f);
+    const picked = distinct.slice(0, 4);
+    if (trace) {
+      trace.detail = `${trace.detail ?? ""}${dir[0].toUpperCase()}[${picked
+        .map((f) => `${f.where.toFixed(1)}/${f.share.toFixed(2)}/${f.strength.toFixed(0)}/${f.tilt.toFixed(1)}°`)
+        .join(" ")}] `;
+    }
+    return picked;
+  };
+
+  const L = side("left"), R = side("right"), Tp = side("top"), B = side("bottom");
+  if (trace) {
+    trace.T = Math.round(T);
+    trace.maxStep = Math.round(maxStep);
+    trace.sides = `L${L.length} R${R.length} T${Tp.length} B${B.length}`;
+  }
+  if (!L.length || !R.length || !Tp.length || !B.length) {
+    if (trace) trace.reason = "side missing";
+    return null;
+  }
+  const want: Point[] = prefer ?? [
+    { x: expect.x, y: expect.y },
+    { x: expect.x + expect.w, y: expect.y },
+    { x: expect.x + expect.w, y: expect.y + expect.h },
+    { x: expect.x, y: expect.y + expect.h },
+  ];
+  // Every combination that makes a card: card-shaped (quadFromSides), not
+  // turned past 20°, opposite sides parallel within 12° and neighbours
+  // square within 8° (10-15, Chris's frames: a hand-held phone keystones
+  // the card so its left and right edges differ by 8°; a line stitched from
+  // two different edges tilts far more than that against its neighbours).
+  const PARALLEL = 12, SQUARE = 8;
+  const found: Array<{ q: Quad; off: number; quality: number }> = [];
+  let lastReason = "";
+  for (const l of L) for (const r of R) for (const t of Tp) for (const b of B) {
+    if (Math.abs(t.tilt - b.tilt) > PARALLEL || Math.abs(l.tilt - r.tilt) > PARALLEL) {
+      lastReason = "not parallel";
+      continue;
+    }
+    // A rectangle turned by θ has top tilt θ and left tilt -θ (x = a·y + b).
+    if (Math.abs(t.tilt + l.tilt) > SQUARE || Math.abs(b.tilt + r.tilt) > SQUARE) {
+      lastReason = "not square";
+      continue;
+    }
+    const q = quadFromSides(l.line, r.line, t.line, b.line, w, h, minArea, trace, 0.78);
+    if (!q) {
+      if (trace) lastReason = trace.reason;
+      continue;
+    }
+    if (Math.abs(q.angle) > 20) {
+      lastReason = `turned ${q.angle.toFixed(0)}`;
+      continue;
+    }
+    found.push({
+      q,
+      off: q.corners.reduce((sum, c, i) => sum + Math.hypot(c.x - want[i].x, c.y - want[i].y), 0),
+      quality: l.share + r.share + t.share + b.share,
+    });
+  }
+  if (!found.length) {
+    if (trace) trace.reason = lastReason;
+    return null;
+  }
+  // With last tick's corners to go on, stay near them (a few pixels of
+  // drift), so the pick sticks instead of flipping between edges.
+  let pool = found;
+  if (prefer) {
+    const nearest = Math.min(...found.map((f) => f.off));
+    pool = found.filter((f) => f.off <= nearest + (expect.w + expect.h) * 0.03);
+  }
+  // Best agreement first (within 0.3 summed over four sides counts as the
+  // same), then nearest the guide (a bezel line past the card is as straight
+  // as the card's edge but further from where the user put it), then of the
+  // ones about as near the biggest: the outer edge of a border is softer
+  // than its inner edge but it is the card.
+  const bestQuality = Math.max(...pool.map((f) => f.quality));
+  const good = pool.filter((f) => f.quality >= bestQuality - 0.3);
+  const nearest = Math.min(...good.map((f) => f.off));
+  const best = good.filter((f) => f.off <= nearest + (expect.w + expect.h) * 0.1).sort((p, q) => q.q.area - p.q.area)[0].q;
+  if (trace) trace.reason = "found";
+  return best;
 }
 
 function polygonArea(p: Point[]): number {

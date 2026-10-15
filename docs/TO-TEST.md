@@ -510,3 +510,9 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 
 ## 10-14 ~7am ET: eBay links leave slabs out (Chris: 'any title with PSA is a slab')
 - [ ] After push: /admin/prices 'eBay sold' and a raw card's 'check sold listings' open eBay with '-psa -bgs -cgc -sgc -graded -slab' and no slab titles; a slab item's eBay link still searches its grade (e.g. PSA 9).
+
+## 10-15 ~7:05am ET — scanner live outline (local, UNPUSHED)
+- [ ] Scanner: a blue line hugs the card's edges as soon as it is in front of the camera; green (with green brackets) once the whole card is in the picture, lit, no glare; blue again the moment an edge leaves; gone when the card is gone. PASS on Chris's phone 10-15 ~7am (Spidops + Pikachu VMAX, tunnel). Re-check on prod after the push.
+- [ ] Scanner: with the card poking out of the box a little and the line green, Capture: the photo has the whole card (crop grows to the outline, +2%). Not yet confirmed by eye on a saved photo.
+- [ ] Scanner: "Keep going for a whole stack." line is gone under the camera.
+- [ ] Dev only: /app?dbg=outline shows the finder's view + posts frames to /api/dev/outline-dump (404 on prod; .outline-dumps/ gitignored).
