@@ -16,6 +16,8 @@ interface Props {
   block?: boolean;
   /** Block row inside a p-3 card: bleed to the card's border, not the screen edge. */
   inCard?: boolean;
+  /** Block row that wraps onto more lines instead of scrolling sideways (the scanner options sheet, 10-15). */
+  wrap?: boolean;
 }
 
 /**
@@ -23,7 +25,7 @@ interface Props {
  * prompt runs, which words go in the listing. Items already in the queue keep
  * the game they were added under.
  */
-export default function GameToggle({ game, onChange, compact = false, counts, block = false, inCard = false }: Props) {
+export default function GameToggle({ game, onChange, compact = false, counts, block = false, inCard = false, wrap = false }: Props) {
   // Magic admins-only (09-04): the toggle vanishes for sellers and a saved
   // "mtg" preference snaps back to Pokémon, so nothing downstream sees it.
   // Every game after Pokémon is admins-only until its switch is flipped
@@ -43,7 +45,15 @@ export default function GameToggle({ game, onChange, compact = false, counts, bl
   // row bleeds to the screen edge so the cut-off last chip says "scroll".
   if (block) {
     return (
-      <div role="radiogroup" aria-label="Card game" className={`${inCard ? "-mx-3 px-3" : "-mx-4 px-4"} flex gap-1.5 overflow-x-auto text-xs [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}>
+      <div
+        role="radiogroup"
+        aria-label="Card game"
+        className={
+          wrap
+            ? "flex flex-wrap gap-2 text-sm"
+            : `${inCard ? "-mx-3 px-3" : "-mx-4 px-4"} flex gap-1.5 overflow-x-auto text-xs [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`
+        }
+      >
         {visible.map((id) => {
           const n = counts?.[id];
           return (

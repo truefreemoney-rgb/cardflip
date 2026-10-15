@@ -12,6 +12,7 @@ import { inAppBrowserName, isIosWebView } from "@/lib/client/inAppBrowser";
 import CardImage from "@/components/CardImage";
 import CandidatePicker from "@/components/CandidatePicker";
 import CopyEditSheet from "@/components/CopyEditSheet";
+import ScannerOptionsSheet from "@/components/ScannerOptionsSheet";
 import VerifyAllSheet from "@/components/VerifyAllSheet";
 import { effectiveVariant, formatMoney, formatVariantLabel, headlinePrice, marketFlagOf, pickPrice } from "@/lib/listing";
 import { fxCapture, fxMatch, fxMiss, revealTier, type RevealTier } from "@/lib/client/scanFx";
@@ -268,6 +269,8 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
     onCameraRef.current = onCamera;
   });
   const [picking, setPicking] = useState(false);
+  // The "⋯" sheet in the top bar (10-15): game, starting condition, light, tips, share, help.
+  const [options, setOptions] = useState(false);
   // The "This copy" sheet (condition / printing) over the result card.
   const [editing, setEditing] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -320,6 +323,15 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
       // nothing to remember it with
     }
   }, []);
+  // "Tips under the camera" switched back on in the options sheet: the next opens count from zero again.
+  function showTips() {
+    setTipsOn(true);
+    try {
+      localStorage.setItem(TIPS_KEY, "0");
+    } catch {
+      // nothing to remember it with
+    }
+  }
   function dismissTips() {
     setTipsOn(false);
     try {
@@ -1052,6 +1064,20 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
               </svg>
             </button>
           )}
+          {/* Options (10-15, after TCGplayer's menu, ours): game, starting condition, light, tips, share, help. */}
+          <button
+            type="button"
+            onClick={() => setOptions(true)}
+            aria-label="Scanner options"
+            aria-haspopup="dialog"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-edge bg-surface-2 text-zinc-200 transition hover:border-edge-strong"
+          >
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
+              <circle cx="5" cy="12" r="2" />
+              <circle cx="12" cy="12" r="2" />
+              <circle cx="19" cy="12" r="2" />
+            </svg>
+          </button>
         </div>
 
         <div className="relative min-h-0 flex-1 overflow-hidden bg-black sm:flex-none sm:rounded-2xl">
@@ -1293,6 +1319,17 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
           onApplyConditionToAll={onApplyConditionToAll}
           waiting={waiting.length}
           onClose={() => setEditing(false)}
+        />
+      )}
+      {options && (
+        <ScannerOptionsSheet
+          game={game ?? null}
+          onGameChange={onGameChange}
+          torch={torch}
+          onToggleTorch={toggleTorch}
+          tipsOn={tipsOn}
+          onTips={(on) => (on ? showTips() : dismissTips())}
+          onClose={() => setOptions(false)}
         />
       )}
       {picking && lastScan?.card && onPick && (
