@@ -67,9 +67,9 @@ Also yours, not a test: sign into /admin in the browser pane when you have a min
 
 ## C. Waiting on a date, an event or a reply - 22
 
-46. (10-14 11:20pm ET reading: 10-13 = 158 GB, 10-14 not in the charges feed yet) 10-15: Vercel Function Storage recheck (157.6 GB on 10-13, slow slide, $0 billed). [10-13]
-47. 10-15 2am log: "One Piece SAMPLE pictures re-checked" line present (45ee7180). [10-14]
-48. 10-15 2am log: the nightly run's Yu-Gi-Oh line shows the 44 picture borrowers retried (count down or 0 failed). [10-13]
+46. PASS 10-15 ~11:05am ET (charges feed: 10-12 167.1 GB, 10-13 157.6 GB, 10-14 10.3 GB / $0.03 billed; the 1-day retention landed, storage down ~94%). (10-14 11:20pm ET reading: 10-13 = 158 GB, 10-14 not in the charges feed yet) 10-15: Vercel Function Storage recheck (157.6 GB on 10-13, slow slide, $0 billed). [10-13]
+47. PASS 10-15 ~11:05am ET (backups/catalog-sync.log 2:00am run: "changed 0 rows; 0 stamped pictures now clean (re-save)"; 2 thumbs 403 fell back to stamped; run done 2:33am, failed: none). 10-15 2am log: "One Piece SAMPLE pictures re-checked" line present (45ee7180). [10-14]
+48. PASS on the retry, NOT resolved 10-15 ~11:05am ET (70 to save = the 44 borrowers + 26 new; 26 new saved, the same 44 failed again, all TCGplayer 403; stand-ins 44 -> 45, borrowed copies kept as designed). 10-15 2am log: the nightly run's Yu-Gi-Oh line shows the 44 picture borrowers retried (count down or 0 failed). [10-13]
 49. 10-15: nightly backup (cardflip-backups repo) green with foreign keys off, and one run completed while the catalog run was writing (no "database is locked"). [10-14]
 50. (10-14 10:40pm ET: still Holofoil $1,026.33, no "looks off") 10-15: /cards/pokemon/crystal-guardians/charizard--ex14-4 shows the hand-kept $939.50 (showed $1,026.33 at 8:30pm 10-14; page copies are cached). [10-14]
 51. (10-14 10:40pm ET: no reply yet, ticket open, only your note) 10-15: Jenny's reply on ticket #1001 (you answered 8:29pm ET; mail went out, she is Google-verified). [10-14]
