@@ -4,6 +4,13 @@
 - [ ] Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
 
+## 10-15 ~2:00pm ET: fixes found while working the open-tests list (in the 10-15 batch push)
+- [ ] Ad signup (A36): from cardflip.io/scan, Sign Up, finish: you land in the app with the SCANNER OPEN (it landed shut since 10-06). Close it, go to Inventory and back: it stays shut. (No new account for Chris and none made by me on prod: proven on local dev; on prod watch the next real ad signups reach a scan in the /admin funnel.)
+- [ ] Insights (A10): your Magic Insights headline equals the chart's last number; Opposition Agent shows its foil price there too. (Mine, pane.)
+- [ ] /scan used visitor (A1): no flash of the Scan button before "Your free scan is used". (Mine, headless on prod.)
+- [ ] Failed scan message reads "Couldn't read this card — retake..." with no "(0% sure)".
+- [ ] /api/dev/outline-dump answers 404 on cardflip.io. (Mine, curl.)
+
 ## 10-15 ~9:45am ET: scanner options button, game + card + scanner options in ONE sheet (NOT PUSHED, 3e8e0caa; Chris: keep them combined)
 Phone steps: 1) Open the scanner. 2) Tap the "..." circle top right. You should see "Scanner options": Game chips (all five fit), New scans start as (5 conditions), Camera (Light on phones with one, Tips switch), Share, Help. 3) Tap Lightly Played, Done, scan a card: it starts as Lightly Played. 4) Tap Share: the phone share sheet opens with cardflip.io. 5) Help > Open lands on the help page.
 - [ ] Sheet opens from the "..." button, nothing cut off at phone width

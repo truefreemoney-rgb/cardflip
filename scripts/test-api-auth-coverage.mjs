@@ -32,6 +32,7 @@ const AUTH_CALLS = [
 
 /** Public on purpose. Key = route path under /api (as printed below), value = why. */
 const ALLOWLIST = {
+  "/dev/outline-dump": "dev-only frame recorder for tuning the live outline: both methods return 404 when NODE_ENV is production",
   "/admin/logout": "clears the caller's own cookie; nothing to protect",
   "/auth/confirm-email": "emailed one-time link token is the credential; IP rate limited",
   "/auth/forgot": "password-reset request: public by design, IP and account rate limited",
