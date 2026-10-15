@@ -12,7 +12,7 @@ import { inAppBrowserName, isIosWebView } from "@/lib/client/inAppBrowser";
 import CardImage from "@/components/CardImage";
 import CandidatePicker from "@/components/CandidatePicker";
 import VerifyAllSheet from "@/components/VerifyAllSheet";
-import { effectiveVariant, formatMoney, headlinePrice, marketFlagOf } from "@/lib/listing";
+import { effectiveVariant, formatMoney, formatVariantLabel, headlinePrice, marketFlagOf, pickPrice } from "@/lib/listing";
 import { fxCapture, fxMatch, fxMiss, revealTier, type RevealTier } from "@/lib/client/scanFx";
 import type { PokemonCard, ScanItem } from "@/lib/types";
 import {
@@ -1161,6 +1161,18 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
             <div className="pointer-events-none absolute left-1 top-1 z-30 max-w-[60%] rounded bg-black/80 p-1 text-[10px] leading-tight text-lime-300">
               <canvas ref={debugCanvas} className="block w-32 border border-zinc-600" />
               <p className="mt-1 break-words">{debugText || "sampling…"}</p>
+              {/* Dev only: a photo fed in by hand runs the real scan where there is no camera (the browser pane). */}
+              <input
+                type="file"
+                accept="image/*"
+                data-dbg-capture
+                className="pointer-events-auto mt-1 block w-full text-[10px]"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = "";
+                  if (f) onCapture(f);
+                }}
+              />
             </div>
           )}
           {!ready && !error && !nativeCam && (
@@ -1294,9 +1306,10 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
 /** "5 Scans Waiting To Verify": the chip button's label; shorter once the numbers get long so the money keeps its room. */
 export function verifyLabel(count: number, value: number, narrow = false): string {
   const noun = count === 1 ? "Scan" : "Scans";
-  // narrow: "Not this card?" shares the row and the long label cut to "Ver…" at phone width (10-12);
-  // "Verify 12 Scans" + $1,234.56 fits a 375px phone (measured 10-13).
-  if (narrow) return `Verify ${count} ${noun}`;
+  // narrow: "Not this card?" shares the row and the long label cut to "Ver…" at phone width (10-12).
+  // Two digits or a four-figure total cut it again ("Verify 12 S…", Chris 10-15), so there it is
+  // "Verify All": the header pill above already says "12 cards".
+  if (narrow) return count >= 10 || value >= 1000 ? "Verify All" : `Verify ${count} ${noun}`;
   const long = count >= 10 || value >= 1000;
   return `${count} ${noun} ${long ? "To Verify" : "Waiting To Verify"}`;
 }
@@ -1444,100 +1457,144 @@ function RevealChip({ item, onOpen, onRemove, onSwap, verify }: ToastProps) {
   // A doubtful match is not a "match found" (Chris's phone 10-01: green MATCH FOUND at 40% sure on the wrong card).
   const style = item.matchDoubt ? { ...TIER_STYLE.plain, border: "border-amber-400/40", label: "text-amber-300", labelText: "CHECK MATCH" } : TIER_STYLE[tier];
   const counted = useCountUp(market);
-  const confidence = item.vision?.confidence;
+  // The second row's pill: what this copy is (condition, printing, language
+  // when not English), with a dot in the condition's colour. Tapping it opens
+  // the card, where all three change (10-15, after TCGplayer's "NM, EN,
+  // Holofoil" pill, done our way).
+  // The printing: the seller's pick, else the one the headline price came
+  // from (never an eBay comps row). One Piece / Yu-Gi-Oh! have no printings
+  // to speak of ("normal" only), so the pill skips it there.
+  const picked = pickPrice(card);
+  const variant = effectiveVariant(item) ?? (picked && !/^eBay/i.test(picked.label) ? picked.variant : undefined);
+  const printing = variant && !(variant === "normal" && (item.game === "onepiece" || item.game === "yugioh")) ? formatVariantLabel(variant) : null;
+  const copyBits = [item.condition, printing, LANGUAGE_WORD[item.language]].filter(Boolean);
 
   return (
     <div
       className={`animate-fade-up flex w-full flex-col gap-2 rounded-2xl border bg-black/80 px-3 py-2.5 backdrop-blur-md ${style.border}`}
     >
-    <div className="flex w-full items-center gap-3">
-      <div className="reveal-art relative h-16 w-[46px] shrink-0 overflow-hidden rounded-md shadow-lg shadow-black/60 ring-1 ring-white/15">
-        {card.imageSmall ? (
-          <CardImage src={card.imageSmall} alt="" className="h-full w-full" />
-        ) : (
-          <span className="flex h-full w-full items-center justify-center bg-gradient-to-br from-holo-violet/40 to-holo-pink/40 text-white">
-            ✓
-          </span>
-        )}
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className={`text-[10px] font-semibold tracking-[0.2em] ${style.label}`}>
-          {style.labelText}
-          {typeof confidence === "number" && (
-            <span className="ml-2 font-normal tracking-normal text-zinc-500">
-              {(confidence * 100).toFixed(0)}% sure
+      {/* Row 1: art, label + name + set, price. The set line may wrap to two
+          lines: a truncated "Lost Origin Trainer Gallery · #…" was the first
+          thing Chris flagged (10-15), and the number is what a seller checks. */}
+      <div className="flex w-full items-start gap-3">
+        <div className="reveal-art relative h-16 w-[46px] shrink-0 overflow-hidden rounded-md shadow-lg shadow-black/60 ring-1 ring-white/15">
+          {card.imageSmall ? (
+            <CardImage src={card.imageSmall} alt="" className="h-full w-full" />
+          ) : (
+            <span className="flex h-full w-full items-center justify-center bg-gradient-to-br from-holo-violet/40 to-holo-pink/40 text-white">
+              ✓
             </span>
           )}
-        </p>
-        <p className="truncate font-display text-base font-semibold leading-tight text-white">
-          {card.name}
-        </p>
-        <p className="truncate text-xs text-zinc-400">
-          {card.setName}
-          {card.number ? ` · #${card.number}` : ""}
-        </p>
-      </div>
-      {/* Clear this scan off the list on the spot (Chris 10-02): most unwanted scans are the last one.
-          A word, not an X (10-14): the card stays in Inventory; deleting is in the card view behind a confirm. */}
-      {onRemove && (
-        <button
-          type="button"
-          onClick={() => onRemove(item.id)}
-          aria-label={`Clear ${card.name} from the list (it stays in your Inventory)`}
-          title="Clear from this list. The card stays in your Inventory."
-          className="-mt-0.5 flex h-7 shrink-0 items-center self-start rounded-full border border-white/15 px-2 text-[11px] font-medium text-zinc-400 transition hover:bg-white/10 hover:text-white"
-        >
-          Clear
-        </button>
-      )}
-      <div className="reveal-price shrink-0 text-right">
-        {counted != null ? (
-          <>
-            <p className={`font-display text-xl font-semibold leading-none tabular-nums ${style.price}`}>
-              {counted >= 10
-                ? formatMoney(Math.round(counted), "USD").replace(/.00$/, "")
-                : formatMoney(counted, "USD")}
-            </p>
-            <p className="mt-1 text-[10px] uppercase tracking-[0.15em] text-zinc-500">market price</p>
-          </>
-        ) : (
-          <p className={`text-[10px] uppercase tracking-[0.15em] ${flagged ? "text-amber-300" : "text-zinc-500"} ${settled ? "" : "animate-pulse"}`}>
-            {flagged ? "price looks off" : settled ? "no price yet" : "pricing…"}
+        </div>
+        <div className="min-w-0 flex-1">
+          {/* No "75% sure" beside the label (Chris 10-15: "I want the users to
+              have confidence in the scanner"); a doubtful read still says
+              CHECK MATCH. */}
+          <p className={`text-[10px] font-semibold tracking-[0.2em] ${style.label}`}>
+            {style.labelText}
           </p>
-        )}
+          <p className="truncate font-display text-base font-semibold leading-tight text-white">
+            {card.name}
+          </p>
+          <p className="line-clamp-2 text-xs leading-snug text-zinc-400">
+            {card.setName}
+            {card.rarity ? ` · ${card.rarity}` : ""}
+            {card.number ? ` · #${card.number}` : ""}
+          </p>
+        </div>
+        <div className="reveal-price shrink-0 text-right">
+          {counted != null ? (
+            <>
+              <p className={`font-display text-xl font-semibold leading-none tabular-nums ${style.price}`}>
+                {counted >= 10
+                  ? formatMoney(Math.round(counted), "USD").replace(/.00$/, "")
+                  : formatMoney(counted, "USD")}
+              </p>
+              <p className="mt-1 text-[10px] uppercase tracking-[0.15em] text-zinc-500">market price</p>
+            </>
+          ) : (
+            <p className={`text-[10px] uppercase tracking-[0.15em] ${flagged ? "text-amber-300" : "text-zinc-500"} ${settled ? "" : "animate-pulse"}`}>
+              {flagged ? "price looks off" : settled ? "no price yet" : "pricing…"}
+            </p>
+          )}
+        </div>
       </div>
-    </div>
-      {/* The next step lives on the result (Chris, 09-04): one button, names
-          the outcome. Keeps scanning if ignored. 10-02: it counts the scans
-          waiting and carries their total ("5 Scans Waiting To Verify · $23.40"),
-          the label shortens once the numbers get long, and the words truncate
-          before the money ever would. */}
+      {/* Row 2: this copy's details on the left, Clear on the right. Clear
+          takes the scan off the list on the spot (Chris 10-02); a word, not
+          an X (10-14): the card stays in Inventory. It had floated between
+          the name and the price (Chris 10-15: "in a weird place"). */}
+      {(onOpen || onRemove) && (
+        <div className="flex w-full items-center justify-between gap-2">
+          {onOpen ? (
+            <button
+              type="button"
+              onClick={() => onOpen(item.id)}
+              aria-label={`Change condition or printing: ${copyBits.join(", ")}`}
+              className="flex min-w-0 items-center gap-2 rounded-full border border-white/15 bg-white/5 py-1 pl-2.5 pr-2 text-xs font-medium text-zinc-200 transition hover:border-white/30 hover:bg-white/10"
+            >
+              <span className={`h-2 w-2 shrink-0 rounded-full ${CONDITION_DOT[item.condition] ?? "bg-zinc-400"}`} aria-hidden />
+              <span className="truncate">{copyBits.join(" · ")}</span>
+              <span className="shrink-0 text-zinc-500" aria-hidden>✎</span>
+            </button>
+          ) : (
+            <span />
+          )}
+          {onRemove && (
+            <button
+              type="button"
+              onClick={() => onRemove(item.id)}
+              aria-label={`Clear ${card.name} from the list (it stays in your Inventory)`}
+              title="Clear from this list. The card stays in your Inventory."
+              className="flex h-7 shrink-0 items-center rounded-full border border-white/15 px-2.5 text-[11px] font-medium text-zinc-400 transition hover:bg-white/10 hover:text-white"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      )}
+      {/* Row 3: the next step lives on the result (Chris, 09-04): one button,
+          names the outcome. Keeps scanning if ignored. 10-02: it counts the
+          scans waiting and carries their total ("5 Scans Waiting To Verify ·
+          $23.40"), the label shortens once the numbers get long, and the
+          words truncate before the money ever would. */}
       {(onOpen || onSwap) && (
         <div className="flex w-full items-center gap-2">
-      {onOpen && (
-        <button
-          type="button"
-          onClick={() => onOpen(item.id)}
-          className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-full bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-400"
-        >
-          <span className="min-w-0 truncate">{verify ? verifyLabel(verify.count, verify.value, !!onSwap) : "Verify Your Scan"}</span>
-          {verify && verify.value > 0 && <span className="shrink-0 tabular-nums">{formatMoney(verify.value)}</span>}
-        </button>
-      )}
-      {onSwap && (
-        <button
-          type="button"
-          onClick={onSwap}
-          className="shrink-0 rounded-full border border-edge px-3 py-2.5 text-sm font-medium text-zinc-200 transition hover:border-edge-strong hover:text-white"
-        >
-          Not this card?
-        </button>
-      )}
-    </div>
+          {onOpen && (
+            <button
+              type="button"
+              onClick={() => onOpen(item.id)}
+              className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-full bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-400"
+            >
+              <span className="min-w-0 truncate">{verify ? verifyLabel(verify.count, verify.value, !!onSwap) : "Verify Your Scan"}</span>
+              {verify && verify.value > 0 && <span className="shrink-0 tabular-nums">{formatMoney(verify.value)}</span>}
+            </button>
+          )}
+          {onSwap && (
+            <button
+              type="button"
+              onClick={onSwap}
+              className="shrink-0 rounded-full border border-edge px-3 py-2.5 text-sm font-medium text-zinc-200 transition hover:border-edge-strong hover:text-white"
+            >
+              Not this card?
+            </button>
+          )}
+        </div>
       )}
     </div>
   );
 }
+
+/** The dot on the result card's details pill: the condition's colour (same ladder as the editor's chips). */
+const CONDITION_DOT: Record<string, string> = {
+  "Near Mint": "bg-emerald-400",
+  "Lightly Played": "bg-sky-400",
+  "Moderately Played": "bg-amber-400",
+  "Heavily Played": "bg-orange-400",
+  Damaged: "bg-red-400",
+};
+
+/** Language on the details pill: only when it is not English. */
+const LANGUAGE_WORD: Record<string, string | null> = { en: null, ja: "Japanese", zh: "Chinese" };
 
 const STAMP: Record<RevealTier, { text: string; className: string; ring: string }> = {
   plain: { text: "Found!", className: "text-white", ring: "text-emerald-400" },

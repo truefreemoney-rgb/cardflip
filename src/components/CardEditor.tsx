@@ -770,7 +770,8 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
                     {item.visionStatus === "done" &&
                       item.vision &&
                       item.vision.confidence < LOW_CONFIDENCE &&
-                      ` The photo was hard to read (${Math.round(item.vision.confidence * 100)}% sure).`}
+                      // No percentage (Chris 10-15: no "% sure" anywhere; users should trust the scanner).
+                      " The photo was hard to read."}
                   </p>
                 </div>
                 {/* Yu-Gi-Oh!: one set code, several foils — the photo can't
