@@ -1,8 +1,8 @@
-# Open tests, 10-14 9:30pm ET. Total 74 = B 44 / C 1 / D 20 / E 9
+# Open tests, 10-14 9:40pm ET. Total 74 = A 44 (you) / B 1 (decision) / C 20 (dates) / D 9 (mine)
 
 Rebuilt from docs/OPEN-TESTS-10-13.md + docs/TO-TEST.md (Chris 10-14: "add all the new to-do items" / "remove anything we completed"). Everything passed, closed or superseded is gone; the 10-13 file keeps the record. Numbers restart at 1. [date] = when the item was first written.
 
-## B. You, on the real site cardflip.io (phone) - 44, easiest first
+## A. You, on the real site cardflip.io (phone) - 44, easiest first
 
 Tonight's three pushes (c787d5b0 8:23pm, 6714a500 8:33pm, 1eb76012 8:58pm), one at a time:
 1. /scan logged out: the camera button does not flash for a phone that already used its free scan. [10-06]
@@ -52,13 +52,13 @@ Older, still open:
 43. Fastmail mailbox (your login): fewer "Undelivered Mail Returned" bounces at support@ from welcome emails. [10-07]
 44. LATER (you 10-14): grey text is readable in sunlight. [10-06]
 
-Also yours, not a test: sign into /admin in the browser pane when you have a minute, so I can do E1-E4 and E6-E7 without you.
+Also yours, not a test: sign into /admin in the browser pane when you have a minute, so I can do D66-D69 and D71 without you.
 
-## C. A decision only you make - 1
+## B. A decision only you make - 1
 
 45. Trial size: 5 free scans today, about 2 cents each to us. Jenny hit the wall after 5 and left. 10 or 15 would still be under 30 cents a signup. Leave at 5, or raise? (No change until you say.) [10-14]
 
-## D. Waiting on a date or event - 20
+## C. Waiting on a date or event - 20
 
 46. 10-15: Vercel Function Storage recheck (157.6 GB on 10-13, slow slide, $0 billed). [10-13]
 47. 10-15 2am log: "One Piece SAMPLE pictures re-checked" line present (45ee7180). [10-14]
@@ -81,7 +81,7 @@ Also yours, not a test: sign into /admin in the browser pane when you have a min
 64. eBay reconnect warning appears 30 days before the link expires (first ones about 2028). [10-06]
 65. /admin funnel shows ad-page signups as landing /scan (no ad has landed there yet). [10-06]
 
-## E. Mine (scripts, curl, browser pane) - 9
+## D. Mine (scripts, curl, browser pane) - 9
 
 66. NEEDS YOUR /admin SIGN-IN IN THE PANE: /admin/users, Jenny's row reads 0 with "5 removed" under it; an account that never deleted anything shows only the count. [10-14]
 67. NEEDS /admin: /admin/robot lists the week's chats thumbs-down first, threads expand, times say ET once; the overview Help chat tile links there. [10-14]
