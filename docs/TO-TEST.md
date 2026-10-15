@@ -4,6 +4,11 @@
 - [ ] Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
 
+## 10-15 ~9:00am ET: scanner "Select Your Card" picker restyled (NOT PUSHED, 69f340c5 on top of the 5 scanner commits)
+Phone steps: 1) Scan any card. 2) On the result card tap "Not this card?". You should see a sheet titled "Select Your Card" with a "Find matches" box and a Search button on top, then two columns of big card pictures with the name, set and number under each. 3) Tap one: the sheet closes and the result card swaps to it. 4) Open it again, type a name (e.g. "charizard"), tap Search: the grid fills with that name's printings. 5) Swipe the handle down: it closes.
+- [ ] Picker opens, pictures big and sharp, names/sets wrap (no cut-off text) at phone width
+- [ ] Tap a picture swaps the card; search by name fills the grid; swipe-down closes
+
 Things that shipped but were never exercised on a real phone or with real
 traffic. Tick when tested; note what you saw. Newest batch first.
 
