@@ -271,6 +271,25 @@ export async function createServerCard(
   }
 }
 
+/**
+ * Both tries at POST /api/cards came back empty after the card was on screen (10-14): tell the server so
+ * the account's log says "save failed" instead of a scan that led nowhere. Fire and forget.
+ */
+export function reportSaveFailed(input: CreateCardInput, scanId: string | null): void {
+  void apiFetch("/api/cards/save-failed", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      scanId,
+      game: input.game ?? null,
+      cardName: input.cardName,
+      setName: input.setName ?? null,
+      cardNumber: input.cardNumber ?? null,
+      catalogCardId: input.catalogCardId ?? null,
+    }),
+  }).catch(() => undefined);
+}
+
 export async function updateServerCard(
   id: string,
   patch: UpdateCardInput,

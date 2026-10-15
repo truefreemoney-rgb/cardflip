@@ -744,6 +744,27 @@ async function logRemovals(where: string, args: string[], how: "one" | "bulk"): 
   }
 }
 
+/**
+ * The scanner showed a card but POST /api/cards never made a row (10-14, Jenny: 5 trial scans, 4 cards,
+ * nothing said why). Same log, how = 'save-failed'; card_id carries the scan id so the row ties back to
+ * scan_usage. Never throws.
+ */
+export async function logSaveFailed(
+  userId: string,
+  info: { scanId: string | null; game: string | null; cardName: string; setName: string | null; cardNumber: string | null; catalogCardId: string | null },
+): Promise<void> {
+  try {
+    await db
+      .prepare(
+        `INSERT INTO card_removals (card_id, user_id, at, how, game, card_name, set_name, card_number, catalog_card_id, status, match_doubt, verified_at, created_at)
+         VALUES (?, ?, ?, 'save-failed', ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL)`,
+      )
+      .run(info.scanId ?? "", userId, Date.now(), info.game, info.cardName, info.setName, info.cardNumber, info.catalogCardId);
+  } catch (err) {
+    console.warn("card_removals: save-failed log failed", err instanceof Error ? err.message : err);
+  }
+}
+
 export async function deleteCard(id: string, userId: string): Promise<void> {
   await logRemovals("id = ? AND user_id = ?", [id, userId], "one");
   await db.prepare("DELETE FROM cards WHERE id = ? AND user_id = ?").run(id, userId);

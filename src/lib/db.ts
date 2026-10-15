@@ -427,7 +427,8 @@ const SCHEMA = `
   CREATE INDEX IF NOT EXISTS idx_ebay_asks_verdict ON ebay_asks(verdict, day);
   -- A seller removed a card (10-13, Chris: "add the log"): a trial user's 4 of 5 scans matched and were
   -- then gone with no trace of why. What the row was when it went: a wrong match removed seconds after
-  -- the scan reads differently from a tidy-up days later. how = 'one' | 'bulk'.
+  -- the scan reads differently from a tidy-up days later. how = 'one' | 'bulk' | 'save-failed'
+  -- (10-14: the card showed but no row was ever made; card_id then holds the scan_usage id).
   CREATE TABLE IF NOT EXISTS card_removals (
     card_id TEXT NOT NULL,
     user_id TEXT NOT NULL,

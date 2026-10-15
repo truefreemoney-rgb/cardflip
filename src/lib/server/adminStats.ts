@@ -93,6 +93,10 @@ export interface UserRollup {
   sold: number;
   revenue: number;
   wishlist: number;
+  /** Cards the seller deleted (card_removals, 10-13 on): "4 kept · 5 removed" answers "why 5 scans but 4 cards". */
+  removed: number;
+  /** Scans that showed a card the ledger never saved (card_removals how = 'save-failed', 10-14 on). */
+  saveFailed: number;
   lastActive: number | null;
   /** Two-letter signup country (signup_log, 09-29 on); null before that. */
   country: string | null;
@@ -218,6 +222,8 @@ export async function getAdminOverview(now = Date.now()): Promise<AdminOverview>
               (SELECT COUNT(*) FROM cards c WHERE c.user_id = u.id AND c.status = 'sold') AS sold,
               (SELECT COALESCE(SUM(sold_price), 0) FROM cards c WHERE c.user_id = u.id AND c.status = 'sold') AS revenue,
               (SELECT COUNT(*) FROM wishlist_items w WHERE w.user_id = u.id) AS wishlist,
+              (SELECT COUNT(*) FROM card_removals x WHERE x.user_id = u.id AND x.how != 'save-failed') AS removed,
+              (SELECT COUNT(*) FROM card_removals x WHERE x.user_id = u.id AND x.how = 'save-failed') AS saveFailed,
               -- Last app open or last saved card, whichever is later (09-30).
               -- Not cards.updated_at: the daily price jobs write it for sellers
               -- who never open the app. Scalar MAX() is NULL if either side is,

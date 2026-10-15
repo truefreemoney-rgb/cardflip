@@ -36,6 +36,7 @@ import {
   deleteServerCard,
   fetchServerCards,
   fetchCategories,
+  reportSaveFailed,
   updateServerCard,
 } from "@/lib/client/cardsApi";
 import { toast } from "@/components/Toaster";
@@ -820,6 +821,8 @@ export default function AppPage() {
               void deleteServerCard(server.id);
             } else if (!server) {
               patchItem(next.id, { status: "error", error: "Couldn't save — tap Scan again" });
+              // The scan was charged and the card showed; the account log should say so (10-14).
+              reportSaveFailed(input, vision.scanId ?? null);
             } else {
               patchItem(next.id, { serverId: server.id });
               // Verified before the row existed (fast tap): sync it now.

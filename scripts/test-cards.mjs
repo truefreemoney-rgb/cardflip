@@ -28,7 +28,7 @@ process.once("exit", () => {
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
 const { estimatedEbayFees, netAfterFees, EBAY_FEE_RATE, EBAY_FLAT_FEE } = await import(at("lib/fees.ts"));
 const {
-  createCard, getCardForUser, updateCard, deleteCard, deleteCards, listCardsForUser,
+  createCard, getCardForUser, updateCard, deleteCard, deleteCards, listCardsForUser, logSaveFailed,
   recordCopiesSold, setCardSoldFees, setCardListingEnded, getPlatformStats,
   renameCategory, clearCategory, addCategory, listCategories,
 } = await import(at("lib/server/cards.ts"));
@@ -78,6 +78,21 @@ check("wrong user reads null", await getCardForUser(card.id, mallory.id), null);
 check("wrong user updates nothing", await updateCard(card.id, mallory.id, { price: 1 }), null);
 await deleteCard(card.id, mallory.id);
 check("wrong user deletes nothing", (await getCardForUser(card.id, alice.id))?.price, 420);
+check("wrong user's delete logs no removal", (await db.prepare("SELECT COUNT(*) AS n FROM card_removals").get()).n, 0);
+
+// --- the removal log (10-13/10-14): deletes snapshot the row, a failed save writes its own line ---
+const gone = await createCard(alice.id, { ...CHARIZARD, cardName: "Umbreon", setName: "30th Celebration", cardNumber: "091", catalogCardId: "30th-091" });
+await deleteCard(gone.id, alice.id);
+const removedRow = await db.prepare("SELECT card_id, user_id, how, card_name, set_name, card_number, catalog_card_id, status FROM card_removals WHERE card_id = ?").get(gone.id);
+check("deleteCard snapshots the row into card_removals",
+  removedRow, { card_id: gone.id, user_id: alice.id, how: "one", card_name: "Umbreon", set_name: "30th Celebration", card_number: "091", catalog_card_id: "30th-091", status: "ready" });
+await logSaveFailed(alice.id, { scanId: "scan-1", game: "pokemon", cardName: "Darkrai", setName: "Darkness Ablaze", cardNumber: "105", catalogCardId: "swsh3-105" });
+const failedRow = await db.prepare("SELECT card_id, how, game, card_name, card_number, status FROM card_removals WHERE how = 'save-failed'").get();
+check("logSaveFailed writes a 'save-failed' line keyed by the scan id",
+  failedRow, { card_id: "scan-1", how: "save-failed", game: "pokemon", card_name: "Darkrai", card_number: "105", status: null });
+check("the admin split: removed counts deletes only, saveFailed the rest",
+  await db.prepare("SELECT SUM(how != 'save-failed') AS removed, SUM(how = 'save-failed') AS saveFailed FROM card_removals WHERE user_id = ?").get(alice.id),
+  { removed: 1, saveFailed: 1 });
 
 // --- updateCard's cleanup rules ------------------------------------------
 await setCardListingEnded(card.id, alice.id, 111);

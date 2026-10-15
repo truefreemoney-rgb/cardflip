@@ -299,6 +299,8 @@ export default function AdminUsersTable({ users, rollups }: { users: AdminUserRo
                       <span className="block truncate text-xs text-zinc-500">{u.email}</span>
                       <span className="mt-0.5 flex flex-wrap gap-x-3 text-[11px] text-zinc-500 md:hidden">
                         <span>{r?.cards ?? 0} cards</span>
+                        {(r?.removed ?? 0) > 0 && <span>{r!.removed} removed</span>}
+                        {(r?.saveFailed ?? 0) > 0 && <span className="text-amber-300">{r!.saveFailed} save failed</span>}
                         <span>{r?.sold ?? 0} sold</span>
                         <span className="text-emerald-400">{formatMoney(r?.revenue ?? 0)}</span>
                       </span>
@@ -307,7 +309,13 @@ export default function AdminUsersTable({ users, rollups }: { users: AdminUserRo
                       </span>
                     </span>
                   </span>
-                  <span className="hidden text-right tabular-nums text-zinc-300 md:block">{r?.cards ?? 0}</span>
+                  {/* Kept vs gone (10-14): a seller who scans, reads the price and deletes shows "0" here
+                      with "5 removed" under it, so the scans-used line next to it stops looking wrong. */}
+                  <span className="hidden text-right tabular-nums text-zinc-300 md:block">
+                    {r?.cards ?? 0}
+                    {(r?.removed ?? 0) > 0 && <span className="block whitespace-nowrap text-[10px] font-normal text-zinc-500">{r!.removed} removed</span>}
+                    {(r?.saveFailed ?? 0) > 0 && <span className="block whitespace-nowrap text-[10px] font-normal text-amber-300">{r!.saveFailed} save failed</span>}
+                  </span>
                   <span className="hidden text-right tabular-nums text-zinc-300 md:block">{r?.listed ?? 0}</span>
                   <span className="hidden text-right tabular-nums text-zinc-300 md:block">{r?.sold ?? 0}</span>
                   <span className={`hidden text-right tabular-nums md:block ${r?.revenue ? "text-emerald-400" : "text-zinc-600"}`}>{formatMoney(r?.revenue ?? 0)}</span>
