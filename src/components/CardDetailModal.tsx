@@ -19,7 +19,8 @@ import { cardTrend } from "@/lib/client/priceHistoryData";
 import { displayCardNumber } from "@/lib/games";
 import ShareImageButton from "@/components/ShareImageButton";
 import BuyOnEbayLink from "@/components/BuyOnEbayLink";
-import { cardKey } from "@/lib/cardPages";
+import Link from "next/link";
+import { cardKey, cardPath, slugify } from "@/lib/cardPages";
 import type { PokemonCard, ScanLanguage } from "@/lib/types";
 
 interface Props {
@@ -266,7 +267,20 @@ export default function CardDetailModal({
 
           {/* Market: the history chart and today's table, one section. */}
           <section className="mt-5 border-t border-edge pt-4">
-            <h3 className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Market</h3>
+            <div className="flex items-baseline justify-between gap-3">
+              <h3 className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Market</h3>
+              {/* The public price page (10-14, Chris: signed-in sellers had no way to reach it but the
+                  homepage): history, every printing, Buy on eBay. The set slug is a best guess; the
+                  page 308s to the exact one. */}
+              {!sealed && card.id && card.setName && (
+                <Link
+                  href={cardPath(card.game ?? "pokemon", slugify(card.setName), card.name, cardKey(card.game ?? "pokemon", { id: card.id, setCode: card.setCode, number: card.number }))}
+                  className="text-[11px] font-medium text-brand-300 transition hover:text-white"
+                >
+                  Full price page →
+                </Link>
+              )}
+            </div>
             <PriceHistoryChart
               cardId={card.id}
               preferVariant={pickPrice(card)?.variant ?? null}

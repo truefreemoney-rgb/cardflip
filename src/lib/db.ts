@@ -1205,6 +1205,12 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
     "password_resets",
     ["email TEXT"],
   ],
+  [
+    // Thumbs on a robot reply (10-14, Chris: "we really depend on that thing"): 1 = helpful,
+    // -1 = not helpful, NULL = unrated. /admin/robot sorts the thumbs-down chats first.
+    "help_messages",
+    ["rating INTEGER"],
+  ],
 ];
 
 /**

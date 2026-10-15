@@ -1,0 +1,21 @@
+{
+  "name": "Jenny, ticket #1001 (10-14): trial account, 5 of 5 scans used, wants free scans to value a binder",
+  "user": { "trialScansUsed": 5 },
+  "turns": [
+    {
+      "say": "Why can't I just have free scans",
+      "mustSay": ["(?i)search cards", "(?i)free"],
+      "mustNotSay": ["(?i)other apps", "(?i)same model", "(?i)that's enough", "(?i)enough to try"]
+    },
+    {
+      "say": "but is it possible to get my whole binder scanned without paying",
+      "mustSay": ["(?i)search|name"],
+      "mustNotSay": ["(?i)other apps", "(?i)same model", "\\$9\\.99.*\\$9\\.99"]
+    },
+    {
+      "say": "but why, if my whole goal is to make money and not lose it",
+      "mustSay": ["(?i)ticket|human|person"],
+      "mustNotSay": ["(?i)other apps", "(?i)same model", "(?i)costs us money|costs CardFlip|not free to run"]
+    }
+  ]
+}

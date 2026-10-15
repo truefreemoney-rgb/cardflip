@@ -27,7 +27,9 @@ export interface Msg {
   id: string;
   role: "user" | "assistant";
   content: string;
-  actions?: { type: "guide" | "link" | "ticket" | "opened"; value: string }[];
+  actions?: { type: "guide" | "link" | "ticket" | "opened" | "card"; value: string }[];
+  /** Thumbs on a robot reply: 1 helpful, -1 not, null unrated (10-14). */
+  rating?: number | null;
 }
 
 interface Ticket {
@@ -214,6 +216,16 @@ export default function HelpPanel({ mode, active, onClose, onBusy }: Props) {
   // One send path for the typed draft and the starter chips. The chips used
   // to set the draft and `requestSubmit()` on a timer — older iOS Safari has
   // no requestSubmit and threw.
+  // Thumbs on a robot reply (10-14): optimistic, fire and forget.
+  const rate = useCallback((id: string, rating: 1 | -1 | 0) => {
+    setMessages((m) => (m ?? []).map((x) => (x.id === id ? { ...x, rating: rating === 0 ? null : rating } : x)));
+    void fetch(apiPath("/api/help/chat/rate"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, rating }),
+    }).catch(() => undefined);
+  }, []);
+
   const sendText = useCallback(
     async (raw: string) => {
       const text = raw.trim();
@@ -605,12 +617,44 @@ export default function HelpPanel({ mode, active, onClose, onBusy }: Props) {
           const link = m.actions?.find((a) => a.type === "link")?.value ?? parsed.link;
           const ticket = m.actions?.some((a) => a.type === "ticket") || parsed.ticket;
           const opened = m.actions?.find((a) => a.type === "opened")?.value;
+          const card = m.actions?.find((a) => a.type === "card")?.value;
           const g = guideId ? guideById(guideId) : null;
+          const rated = !m.id.startsWith("local-");
           return (
             <div key={m.id} className="flex flex-col items-start gap-1.5">
               <Bubble role="assistant">{text}</Bubble>
-              {(g || link || ticket || opened) && (
+              {/* Thumbs (10-14): one tap, stored with the chat, read on /admin/robot. */}
+              {rated && (
+                <div className="flex items-center gap-1 pl-1 text-[11px] text-zinc-600">
+                  <button
+                    type="button"
+                    onClick={() => rate(m.id, m.rating === 1 ? 0 : 1)}
+                    aria-pressed={m.rating === 1}
+                    className={`rounded-full px-2 py-0.5 transition hover:text-zinc-300 ${m.rating === 1 ? "bg-emerald-400/15 text-emerald-300" : ""}`}
+                  >
+                    Helpful
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => rate(m.id, m.rating === -1 ? 0 : -1)}
+                    aria-pressed={m.rating === -1}
+                    className={`rounded-full px-2 py-0.5 transition hover:text-zinc-300 ${m.rating === -1 ? "bg-red-400/15 text-red-300" : ""}`}
+                  >
+                    Not helpful
+                  </button>
+                </div>
+              )}
+              {(g || link || ticket || opened || card) && (
                 <div className="flex flex-wrap gap-1.5 pl-1">
+                  {card && (
+                    <Link
+                      href={`/app/collection?q=${encodeURIComponent(card)}`}
+                      onClick={sheet ? onClose : undefined}
+                      className="rounded-full border border-edge px-3 py-1.5 text-xs font-medium text-zinc-200 transition hover:border-edge-strong hover:text-white"
+                    >
+                      Find {card} in Inventory
+                    </Link>
+                  )}
                   {opened && (
                     <button
                       onClick={() => setView("tickets")}

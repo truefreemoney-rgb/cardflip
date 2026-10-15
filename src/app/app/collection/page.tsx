@@ -524,6 +524,21 @@ export default function CollectionPage() {
   }
   const [toolsOpen, setToolsOpen] = useState(false);
   const [query, setQuery] = useState("");
+  // ?q=<name> opens Inventory already filtered (10-14): the help robot's "Find <card> in Inventory"
+  // button. Read once on mount from the address bar, not useSearchParams (no Suspense dance); the
+  // timer keeps the setState out of the effect body (lint) and after hydration.
+  useEffect(() => {
+    let q: string | null = null;
+    try {
+      q = new URLSearchParams(window.location.search).get("q");
+    } catch {
+      // No address bar to read (tests).
+    }
+    if (!q) return;
+    const value = q.slice(0, 80);
+    const t = setTimeout(() => setQuery(value), 0);
+    return () => clearTimeout(t);
+  }, []);
   const [sort, setSort] = useState<SortKey>("newest");
   const [quick, setQuick] = useState<QuickFilter>("all");
   // Bulk Set condition / Set price: which little form is open, and its value.

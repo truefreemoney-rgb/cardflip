@@ -41,7 +41,7 @@ delete process.env.ANTHROPIC_API_KEY;
 
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
 const { createUser } = await import(at("lib/server/users.ts"));
-const { HELP_DAILY_CAP, HelpCapError, HelpNotConfiguredError, askHelp, clearHelpHistory, helpHistory, splitReply } = await import(at("lib/server/helpChat.ts"));
+const { HELP_DAILY_CAP, HelpCapError, HelpNotConfiguredError, askHelp, clearHelpHistory, helpHistory, listRobotChats, rateHelpMessage, splitReply } = await import(at("lib/server/helpChat.ts"));
 const { db } = await import(at("lib/db.ts"));
 
 let failures = 0;
@@ -78,11 +78,11 @@ check("reply carries the guide action", reply.actions, [{ type: "guide", value: 
 check("reply role", reply.role, "assistant");
 
 const req1 = requests[0];
-check("model is Haiku 4.5", req1.model, "claude-haiku-4-5");
-check("three system blocks: voice, articles, account", req1.system.length, 3);
-check("articles block is cached", req1.system[1].cache_control, { type: "ephemeral" });
+check("model is Sonnet 5.5 at low effort (10-14)", [req1.model, req1.output_config?.effort], ["claude-sonnet-5-5", "low"]);
+check("four system blocks: voice, articles, objections, account", req1.system.length, 4);
+check("the objections block closes the cached prefix", [req1.system[1].cache_control, req1.system[2].cache_control], [undefined, { type: "ephemeral" }]);
 check("articles block carries the help articles", req1.system[1].text.startsWith("# Help articles"));
-check("account facts name the seller and tier", req1.system[2].text.includes("Name: S") && req1.system[2].text.includes("Access tier:"));
+check("account facts name the seller and tier", req1.system[3].text.includes("Name: S") && req1.system[3].text.includes("Access tier:"));
 check("first ask sends just the new message", req1.messages, [{ role: "user", content: "how do I connect ebay" }]);
 
 const history = await helpHistory(seller.id);
@@ -149,6 +149,27 @@ for (let i = 0; i < HELP_DAILY_CAP; i++) {
 }
 await clearHelpHistory(looper.id);
 check("40 asks with Clear Chat in between → the 41st is still capped", await throwsWith(() => askHelp(looper, "one more"), HelpCapError));
+
+// --- small actions + thumbs + admin list (10-14) ---------------------------------------------------
+const act = await createUser("A", "act@example.com", "hunter22");
+check("splitReply: card tag becomes a card action", splitReply("Here. {{card:Charizard}}"), { content: "Here.", actions: [{ type: "card", value: "Charizard" }] });
+check("splitReply: a stray giveback tag is dropped", splitReply("x {{giveback}}"), { content: "x", actions: [] });
+nextReply = "Checking your last scans. {{giveback}}";
+const gb = await askHelp(act, "my scan was wasted");
+check("giveback runs and the tag becomes the result line", [gb.content.includes("{{"), /no scans in the last 15 minutes/.test(gb.content)], [false, true]);
+nextReply = "Sending a code. {{resend_code}}";
+const rc = await askHelp(act, "the code never came");
+check("resend_code on a confirmed account says so, no tag left", [rc.content.includes("{{"), /already confirmed/.test(rc.content)], [false, true]);
+check("rate: the seller's own robot turn takes a thumbs down", await rateHelpMessage(act.id, rc.id, -1), true);
+check("rate: another user's turn is refused", await rateHelpMessage(seller.id, rc.id, -1), false);
+check("rate: a user turn is refused", await rateHelpMessage(act.id, (await helpHistory(act.id)).find((m) => m.role === "user").id, 1), false);
+check("history carries the rating", (await helpHistory(act.id)).find((m) => m.id === rc.id).rating, -1);
+const chats = await listRobotChats(7);
+check("admin list: the thumbs-down chat sorts first with its count", [chats[0].userId, chats[0].thumbsDown], [act.id, 1]);
+check("admin list: every chat has the user's name and the turns in order", [chats[0].name, chats[0].messages[0].role, chats[0].messages.length], ["A", "user", 4]);
+check("rate: 0 clears", [await rateHelpMessage(act.id, rc.id, 0), (await helpHistory(act.id)).find((m) => m.id === rc.id).rating], [true, null]);
+check("askHelp sends the objections sheet as a system block", requests.at(-1).system.some((b) => b.text.startsWith("# Objections sheet")));
+check("askHelp sends recent cards in the account facts", requests.at(-1).system.at(-1).text.includes("Recent cards in Inventory"));
 
 server.close();
 console.log(failures ? `\n${failures} failure(s)` : "\nall passed");

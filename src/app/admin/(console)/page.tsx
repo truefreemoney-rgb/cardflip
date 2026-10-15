@@ -95,7 +95,7 @@ export default async function AdminOverviewPage() {
         <Tile>
           <Big>{num(p.support.helpMessages24h)}</Big>
           <Label>Help chat questions</Label>
-          <Sub>last 24h, answered by the robot</Sub>
+          <Sub>last 24h · <Link href="/admin/robot" className="text-brand-300 hover:text-white">read the chats</Link></Sub>
         </Tile>
         <Tile className="col-span-2 md:col-span-4">
           {p.support.recent.length === 0 ? (

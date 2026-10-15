@@ -34,6 +34,7 @@
     "test:sitetrustroutes": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-next-stubs.mjs scripts/test-price-trust-routes.mjs",
     "test:webhook": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-stripe-webhook.mjs",
     "test:helpchat": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-help-chat.mjs",
+    "test:helpreplay": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-help-replay.mjs",
     "test:supporttickets": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-support-tickets.mjs",
     "test:settings": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-settings.mjs",
     "test:rollovercopy": "node --experimental-strip-types --no-warnings --import ./scripts/lib/register-alias.mjs scripts/test-rollover-copy.mjs",

@@ -13,6 +13,7 @@ import { PriceFlagText } from "@/components/PriceFlagNote";
 import { useSession } from "@/components/SessionProvider";
 import { toast } from "@/components/Toaster";
 import { useBodyScrollLock } from "@/lib/client/useBodyScrollLock";
+import { gamePath } from "@/lib/cardPages";
 import { fetchCardById, fetchSets } from "@/lib/cards";
 import { displayCardNumber } from "@/lib/games";
 import { pickPrice, priceFlagOf } from "@/lib/listing";
@@ -122,6 +123,14 @@ export default function PriceCheckPage() {
         <>
           <WatchRow items={watch} game={game} onOpen={(card) => void selectCard(card)} onStub={(card) => void openStub(card)} />
           <SetTiles game={game} onPick={(set) => void search.browseSet(set.code ?? set.name, set.name)} />
+          {/* The public Card Prices pages (10-14, Chris: no way there from inside the app but the homepage). */}
+          <p className="text-center text-xs text-zinc-500">
+            Want to wander by set? Browse the{" "}
+            <Link href={gamePath(game)} className="font-medium text-brand-300 transition hover:text-white">
+              Card Prices pages
+            </Link>
+            .
+          </p>
         </>
       )}
 

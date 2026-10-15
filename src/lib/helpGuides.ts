@@ -123,4 +123,5 @@ export const HELP_LINKS: Record<string, string> = {
  * an open_ticket into {{opened:1000}} before storing, so a replay never
  * opens a second one. Parsed by the chat.
  */
-export const TAG_RE = /\{\{(guide|link|ticket|open_ticket|opened)(?::([^}]*))?\}\}/g;
+// card / giveback / resend_code (10-14): the robot's small safe actions; see helpChat.ts.
+export const TAG_RE = /\{\{(guide|link|ticket|open_ticket|opened|card|giveback|resend_code)(?::([^}]*))?\}\}/g;
