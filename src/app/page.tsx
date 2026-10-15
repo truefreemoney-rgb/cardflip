@@ -520,7 +520,7 @@ export default async function Home() {
               {gameCards.map(({ game, card }) => (
                 <div key={game} className="reveal flex flex-col rounded-3xl border border-edge bg-surface-1 p-3 last:odd:col-span-2 sm:last:odd:col-span-1">
                   <div className="mx-auto w-full max-w-[11rem]">
-                    <HoloCard src={card.imageUrl} alt={`${card.name} — ${card.setName}`} className="aspect-[5/7] w-full" lazy />
+                    <HoloCard src={card.imageUrl} alt={`${card.name} — ${stripEdition(card.setName)}`} className="aspect-[5/7] w-full" lazy />
                   </div>
                   <div className="mt-3 flex items-baseline justify-between gap-2">
                     <span className="text-xs font-semibold uppercase tracking-wider text-brand-300">{GAMES[game].label}</span>

@@ -1,4 +1,4 @@
-﻿# To test later
+# To test later
 - [ ] After push: /admin/prices 'eBay sold' and a raw card's 'check sold listings' open eBay with '-psa -bgs -cgc -sgc -graded -slab' and no slab titles; a slab item's eBay link still searches its grade (e.g. PSA 9).
 - [ ] 10-15: /cards/pokemon/crystal-guardians/charizard--ex14-4 shows $939.50 (hand keep POSTed 10-14 ~2:45pm ET; page copy was still "looks off" right after, cache).
 - [ ] Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
@@ -42,12 +42,12 @@ Chris: "why 5 trial scans but 4 cards" (Jenny jporter1421) -> later "why did her
 ## 10-14 ~4:15pm ET: page review fixes (chart label, printings strip, set names, homepage Card Prices block, game tabs) (PUSHED c787d5b0 10-14 8:23pm ET)
 Chris asked for a review of the homepage, /cards/pokemon and the 1st Edition Charizard page, then "yes on everything". Code: chart header prints the variant through formatVariantLabel ("Market · 1st Ed. Holofoil", was "1stEditionHolofoil"); the "Other <name> cards" strip is cached per name WITHOUT the page's own card excluded and filtered at read time (the old v2 memo excluded only the page that built it, so every sister page listed itself); a hand call on /admin/prices now drops that card's cached lists (set top, other printings, game top: dropCardLists) so a hide shows on the next page build; set names print "Trainer Kit" / "Best of Game" (tidySetName, sets memo bumped to v4); homepage games strip drops the Yu-Gi-Oh! "(Worldwide English)" qualifier; new homepage section "Know the card? Look it up." with the five game hub pills + All Card Prices + Price Movers, between Every game and Built for the pile; game hub pages get a game tab row (current lit) above the search. Local: tsc + eslint clean, cardpages 288/288, listcache, adminroutes green; pane desktop + 375px checked.
 - [x] PASS 10-14 8:30pm ET (curl: "1st Ed. Holofoil" in the page, no raw 1stEditionHolofoil in text): PROD after the push: /cards/pokemon/base-set-1st-edition/charizard--base1-4-1st chart header reads "Market · 1st Ed. Holofoil"; a reverse holo card reads "Reverse Holofoil".
-- [ ] PROD: same page, "Other Charizard cards" no longer lists the 1st Edition itself and no longer shows the hidden Base Set $968.91 (first visit rebuilds the v3 memo with the hide applied).
+- [x] PASS 10-14 ~10:10pm ET (curl: 12 sister links, no self, no Base Set link, no $968.91): PROD: same page, "Other Charizard cards" no longer lists the 1st Edition itself and no longer shows the hidden Base Set $968.91 (first visit rebuilds the v3 memo with the hide applied).
 - [ ] PROD: /admin/prices, hide any cheap card, then open its set page + a sister printing's page: the number is gone right away (not a day later).
 - [x] PASS 10-14 8:30pm ET (curl: both names present; H1/breadcrumb not yet eyeballed): PROD: /cards/pokemon sets list reads "SM Trainer Kit (Alolan Raichu)", "Best of Game"; the set page H1 + breadcrumb match; links still open (slug unchanged).
 - [ ] PROD, phone: homepage section after the games strip: eyebrow Card prices, "Know the card? Look it up.", five pills (Pokémon ... Yu-Gi-Oh!), "All Card Prices · Price Movers" line; pills open the hubs.
 - [ ] PROD, phone: /cards/pokemon shows the five game tabs under the intro, Pokémon lit; tapping Magic opens /cards/magic with Magic lit.
-- [ ] PROD: homepage games strip Yu-Gi-Oh! tile set name has no "(Worldwide English)".
+- [x] PASS 10-14 ~10:10pm ET (curl: visible text clean; only the picture alt text still had it, fixed locally, not pushed): PROD: homepage games strip Yu-Gi-Oh! tile set name has no "(Worldwide English)".
 
 ## 10-14 ~4:10pm ET: phone nav shows How It Works / Features / Card Prices (PUSHED c787d5b0 10-14 8:23pm ET)
 Chris (phone, logged out): the top nav was missing the three page links; they were hidden under sm on purpose. Now every link shows on phones and wraps into two rows (search + the three pages, then Pricing / Log In / Get Started); header about 40px taller. Pane 375px: no sideways scroll, rows balanced.
@@ -68,14 +68,14 @@ Chris on his phone: Sylveon ex 30th Celebration showed eBay asking $50.26 in the
 
 ## 10-13 (added to this list 10-14 9:15pm ET, was missing): Yu-Gi-Oh exact-printing pictures + Magic TCGplayer-only run + backup during writes
 Commits 4057fc76 (1,426 Yu-Gi-Oh rows TCGplayer has no scan of get exact-printing pictures from Yugipedia + CardTrader, screened by eye; PUSHED 83ddd479 10-13), d92fd959 (189 more, 44 still borrow a sibling's picture and retry nightly; PUSHED 30615a64 10-14 ~5:20am), ca474dfe (the Magic picture run is TCGplayer-only, no Scryfall fallback; PUSHED 83ddd479), cd3b08ff (the nightly backup survives live writes during the copy; PUSHED 83ddd479).
-- [ ] PROD: open 5 random Yu-Gi-Oh set pages (/cards/yugioh/...): every tile is a picture of THAT printing (set code on the card matches the set), none a SAMPLE stamp or a sibling's art.
+- [x] PASS 10-14 ~10:25pm ET (5 random sets, 284 tiles keyed to their own id, 20 eyeballed, no SAMPLE): PROD: open 5 random Yu-Gi-Oh set pages (/cards/yugioh/...): every tile is a picture of THAT printing (set code on the card matches the set), none a SAMPLE stamp or a sibling's art.
 - [ ] 10-15 2am log: the nightly run's Yu-Gi-Oh line shows the 44 borrowers retried (count went down or "0 failed").
 - [ ] PC backup log (nightly): one run completed while the catalog run was writing, no "database is locked" line.
 
 ## 10-13 ~6:45am ET (added to this list 10-14 9:15pm ET, was missing): asking-only TCGplayer prices over $20 blank; serial-numbered cards skip the 15x guard (4d494331, PUSHED 83ddd479 10-13)
 Chris's rule (memory cardflip-odd-prices-check-ebay): a price that is only an asking price, over $20, shows nothing rather than the ask. Applied to the Yu-Gi-Oh daily + weekly fills and the Magic fill; serial-numbered Magic cards (1/500 style) are allowed to be 15x their printing without being blanked.
-- [ ] PROD: a Yu-Gi-Oh card with no sold data and a TCGplayer ask over $20 shows no price (card page says the price is unsure / blank), under $20 still shows the ask.
-- [ ] PROD: a serial-numbered Magic card (e.g. a 1/500 Secret Lair serialized) keeps its high price instead of being blanked by the 15x guard.
+- [x] PASS 10-14 ~10:25pm ET (Hamon Unlimited, TCGplayer ask $350 no market, and B.E.S. Covered Core $99.99: no price; Uria 1st keeps $999.97, real market price): PROD: a Yu-Gi-Oh card with no sold data and a TCGplayer ask over $20 shows no price (card page says the price is unsure / blank), under $20 still shows the ask.
+- [x] PASS 10-14 ~10:25pm ET (Bitterbloom Bearer Lorwyn Eclipsed #352 serialized foil $2,964.84 vs $13-31 normal): PROD: a serial-numbered Magic card (e.g. a 1/500 Secret Lair serialized) keeps its high price instead of being blanked by the 15x guard.
 
 ## 10-13 ~3pm: every card picture from our storage (PUSHED 83ddd479)
 Chris saw blank One Piece hub tiles: the hubs' "most valuable" lists were cached 10-12 7pm ET (before pictures) with optcgapi links, which lists hide. Fixed: 22,946 stale card_cache tile lists deleted on Turso (seo:top/settop/printings/movers/namelist); 3,636 One Piece prod rows still had the optcgapi image_url (10-12 twin-first change was local only) -> copied from local; code (ee70b040): set completion, Magic big picture (scanner tiebreak keeps Scryfall via mtgReferenceImage), homepage featured card + wall, scan stage cards, email movers; 83ddd479: saves (cards, edits, watchlist, price checks) store our copy (ownPictureUrl); 143 old prod user rows rewritten to cardflip.io/pics (12 left: 11 blank no-id rows, 1 Japanese card). Dev: hubs, homepage, /scan, movers = 0 outside pictures, 0 blank; 100/100 tests.
@@ -435,7 +435,7 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 ## Magic cheapest-listing cap + listing beats Cardmarket (10-13)
 - [ ] Morning after the push: daily_last_result mtg.cappedToListing is in the hundreds (not 0, not tens of thousands); mtg step still finishes under the 800 s cap.
 - [ ] Magic "This price looks off" count drops from ~837 toward ~83 (rerun the sweep script pattern, s154 scratchpad).
-- [ ] Spot-check 3 capped foils on the card page (e.g. Cromat Apocalypse foil ~$57, not $155).
+- [x] PASS 10-14 ~10:25pm ET (Cromat $57.30, Spiritmonger $57.65, Vindicate $163.20): Spot-check 3 capped foils on the card page (e.g. Cromat Apocalypse foil ~$57, not $155).
 
 ## 10-13 ~2:30pm ET: US tracked = Ground Advantage (USPSParcel), eSE carrier EBAY_SEND
 - [ ] First real US publish after the push: the seller's "CardFlip shipping" policy reads USPS Ground Advantage (not Priority), still free (Seller Hub > Business policies).
