@@ -4,6 +4,12 @@
 - [ ] Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
 
+## 10-15 ~9:45am ET: scanner options button, game + card + scanner options in ONE sheet (NOT PUSHED, 3e8e0caa; Chris: keep them combined)
+Phone steps: 1) Open the scanner. 2) Tap the "..." circle top right. You should see "Scanner options": Game chips (all five fit), New scans start as (5 conditions), Camera (Light on phones with one, Tips switch), Share, Help. 3) Tap Lightly Played, Done, scan a card: it starts as Lightly Played. 4) Tap Share: the phone share sheet opens with cardflip.io. 5) Help > Open lands on the help page.
+- [ ] Sheet opens from the "..." button, nothing cut off at phone width
+- [ ] Starting condition sticks on the next scan; Light switch turns the light on; Tips switch brings the tips back
+- [ ] Share opens the phone share sheet; Help opens the help page
+
 ## 10-15 ~9:00am ET: scanner "Select Your Card" picker restyled (NOT PUSHED, 69f340c5 on top of the 5 scanner commits)
 Phone steps: 1) Scan any card. 2) On the result card tap "Not this card?". You should see a sheet titled "Select Your Card" with a "Find matches" box and a Search button on top, then two columns of big card pictures with the name, set and number under each. 3) Tap one: the sheet closes and the result card swaps to it. 4) Open it again, type a name (e.g. "charizard"), tap Search: the grid fills with that name's printings. 5) Swipe the handle down: it closes.
 - [ ] Picker opens, pictures big and sharp, names/sets wrap (no cut-off text) at phone width
