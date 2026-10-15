@@ -24,7 +24,10 @@ import { toast } from "@/components/Toaster";
  * is not open. The open pages stay open on purpose (Account to fix the
  * address, Help for a ticket when the mail never comes).
  */
-const OPEN_PATHS = ["/app/account", "/app/help", "/app/collection"];
+// /app/price-check (10-14, Jenny's ticket "why do we all need to buy it if we just want to see the prices"):
+// looking a card up by name costs nothing to run, so it stays open when the scans are gone; only the camera
+// scan is paid. Saving a card from Search still refuses on the server (402) like everything else.
+const OPEN_PATHS = ["/app/account", "/app/help", "/app/collection", "/app/price-check"];
 
 export default function SubscriptionGate({ children }: { children: React.ReactNode }) {
   const { user, status, setUser, refresh } = useSession();

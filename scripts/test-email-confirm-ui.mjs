@@ -329,7 +329,7 @@ assert.match(signupPage, /trialScansLeft/, "the You're-in step reads the confirm
 assert.match(signupPage, /SCANS\.trial/);
 
 const gate = read("src/components/SubscriptionGate.tsx");
-assert.match(gate, /OPEN_PATHS = \["\/app\/account", "\/app\/help", "\/app\/collection"\]/, "the open pages are unchanged");
+assert.match(gate, /OPEN_PATHS = \["\/app\/account", "\/app\/help", "\/app\/collection", "\/app\/price-check"\]/, "the open pages are unchanged");
 assert.match(gate, /mustConfirmEmail/);
 
 const header = read("src/components/AppHeader.tsx");

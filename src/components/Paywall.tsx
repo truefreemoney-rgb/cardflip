@@ -74,6 +74,21 @@ export default function Paywall() {
         </p>
       </div>
 
+      {/* Prices are free (10-14, Jenny's ticket: she thought seeing a price meant paying). Said before the plans,
+          with the way there, so a seller who only wants a number is not sold a Booster for it. */}
+      {!lapsed && (
+        <div className="mt-5 w-full max-w-md rounded-2xl border border-brand-400/40 bg-brand-500/10 p-4 text-center">
+          <p className="font-semibold text-white">Just want a price? That&apos;s free.</p>
+          <p className="mt-1 text-sm text-zinc-300">Type the card&apos;s name in Search Cards. No scan used, no plan needed.</p>
+          <Link
+            href="/app/price-check"
+            className="mt-3 inline-flex items-center justify-center rounded-full border border-brand-400/60 px-4 py-2 text-sm font-semibold text-brand-200 transition hover:bg-brand-500/20 hover:text-white"
+          >
+            Search Cards
+          </Link>
+        </div>
+      )}
+
       {paused > 0 && (
         <p role="status" className="mt-5 w-full max-w-md rounded-lg bg-emerald-400/10 px-3 py-2 text-center text-sm text-emerald-200">
           Your {paused.toLocaleString("en-US")} banked {paused === 1 ? "scan is" : "scans are"} paused. {paused === 1 ? "It comes" : "They come"} back when you resubscribe.
