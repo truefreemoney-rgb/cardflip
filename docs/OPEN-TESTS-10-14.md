@@ -34,7 +34,7 @@ Older, still open:
 25. CLOSED 10-15 ~11:45am ET, covered by the automated test (Chris: "i cant keep making random gmail accounts"). NOT TESTABLE ON HOME WIFI 10-15 ~11:40am ET (Chris phone: 2nd Google signup shows 5/5 free scans, BY DESIGN: TRIAL_TEST_IP_HASHES gives every signup on his network the trial, checked before the device cookie). Automated test PASSES ("repeat device: account made, free scans already spent"). Real check = cell data, Wi-Fi OFF, a 3rd never-used Gmail: should start 0/5. Second Google signup from the same phone starts with the free scans already used. [10-07]
 26. CLOSED 10-15 (no new accounts for Chris): the 76 automated X sign-in checks pass (shared email link, no email, admin refused, used email, keys off). Sign in with X, all 8 steps (buttons, shared email, no email, link, admin refused, used email, keys off). [10-10]
 27. CLOSED 10-15: automated "admin / two-step by google id refused" + "callback: admin account refused" pass. One Tap with the admin's Google account is refused and not linked. [10-11]
-28. One Tap on Android Chrome shows the browser-styled account picker and behaves the same. [10-11]
+28. SKIPPED 10-15 (Chris: no Android). One Tap on Android Chrome shows the browser-styled account picker and behaves the same. [10-11]
 29. Out-of-scans wall: the Booster button opens live checkout for $4.99. [10-07]
 30. Out-of-scans wall: the Subscribe button opens live checkout for $9.99 a month. [10-07]
 31. Each "Send Test To Me" on /admin/emails: [TEST] mail arrives; pictures, prices, buttons, Stop link all right on the phone. [10-08]
