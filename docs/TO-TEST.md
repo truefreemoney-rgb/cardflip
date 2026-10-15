@@ -7,7 +7,7 @@
 Things that shipped but were never exercised on a real phone or with real
 traffic. Tick when tested; note what you saw. Newest batch first.
 
-## 10-14 ~8:50pm ET: "Prices are free" on the out-of-scans wall, Search Cards open after the trial, robot says it first (LOCAL, NOT PUSHED)
+## 10-14 ~8:50pm ET: "Prices are free" on the out-of-scans wall, Search Cards open after the trial, robot says it first (PUSHED 6714a500 10-14 8:33pm ET)
 Jenny's ticket #1001 ("why do we all need to buy it if we just want to see the prices"): she hit the wall after 5 scans and nothing told her lookup by name is free; the robot repeated the prices three times and said "same model most apps use". Chris: "make your recommended changes also". Code: SubscriptionGate opens /app/price-check for a walled account (server still 402s a save); Paywall (trial, not lapsed) gets a "Just want a price? That's free." box with a Search Cards button above the plans; robot rule: prices free / scans paid, say once, link Search Cards, never argue or compare to other apps; scan-limits help article gets the same sentence. Tests: emailconfirmui (gate pin updated), helpchat, quota green; tsc + eslint clean.
 - [ ] PROD after the push, phone, an account with 0 trial scans (Jenny's view): /app shows the wall with the "Just want a price? That's free." box first; Search Cards button opens Search and it works (name search, prices); Scanner still walled.
 - [ ] PROD: the same wall for a LAPSED subscriber has no free-price box (plans only).
