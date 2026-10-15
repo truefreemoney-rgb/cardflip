@@ -378,13 +378,24 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
   const outlineShown = useRef<[Point, Point, Point, Point] | null>(null);
   const outlinePoly = useRef<SVGPolygonElement | null>(null);
   // ?dbg=outline shows what the edge finder sees and why it said no (dev only).
-  const [debugOutline] = useState(
-    () => process.env.NODE_ENV !== "production" && typeof window !== "undefined" && new URLSearchParams(window.location.search).get("dbg") === "outline",
-  );
+  // Sticky (10-15): the login redirect drops the query, so once seen it stays on in this browser; ?dbg=off clears it.
+  const [debugOutline] = useState(() => {
+    if (process.env.NODE_ENV === "production" || typeof window === "undefined") return false;
+    const dbg = new URLSearchParams(window.location.search).get("dbg");
+    try {
+      if (dbg === "outline") localStorage.setItem("cf:dbg", "outline");
+      else if (dbg === "off") localStorage.removeItem("cf:dbg");
+      return localStorage.getItem("cf:dbg") === "outline";
+    } catch {
+      return dbg === "outline";
+    }
+  });
   const debugCanvas = useRef<HTMLCanvasElement | null>(null);
   const [debugText, setDebugText] = useState("");
   const lastDump = useRef(0);
   const dumped = useRef(0);
+  // Every tick's result between two dumps (debug): the twitch lives between frames, not in them.
+  const ticks = useRef<unknown[]>([]);
   // A capture (the burst) is running: no second tap, and the hint sampler rests.
   const busy = useRef(false);
   // Android: the camera takes focus points (tap-to-focus); iPhones don't expose focus to web pages.
@@ -650,6 +661,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
         setDebugText(
           `${trace.reason} · ${trace.sides} · T ${trace.T} max ${trace.maxStep} · luma ${Math.round(light.luma)} blown ${light.blown.toFixed(3)} · hint ${next ?? "none"} · ${mirror ? "mirror" : "video"} ${vw}x${vh} · el ${video.clientWidth}x${video.clientHeight} · dumps ${dumped.current}`,
         );
+        ticks.current.push({ t: Date.now(), reason: trace.reason, quad: quad?.corners ?? null, target: outlineTarget.current, shown: outlineShown.current });
         // Every 2 s, the whole frame + the geometry to the dev server
         // (api/dev/outline-dump), to tune the finder on real frames offline.
         if (Date.now() - lastDump.current > 2000) {
@@ -674,6 +686,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
               quad,
               trace,
               outlineTarget: outlineTarget.current,
+              ticks: ticks.current.splice(0),
             };
             void fetch("/api/dev/outline-dump", {
               method: "POST",

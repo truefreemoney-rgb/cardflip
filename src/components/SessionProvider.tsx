@@ -62,7 +62,8 @@ export default function SessionProvider({ children }: { children: React.ReactNod
       if (!current) {
         setUserState(null);
         setStatus("anon");
-        router.replace(loginPathFor(pathnameRef.current));
+        // Keep the query too (10-15: the scanner's ?dbg=outline was lost on the login bounce).
+        router.replace(loginPathFor(pathnameRef.current + (typeof window === "undefined" ? "" : window.location.search)));
         return;
       }
       setUserState(current);
