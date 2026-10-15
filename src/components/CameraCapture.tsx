@@ -1493,7 +1493,8 @@ function RevealChip({ item, onOpen, onRemove, onSwap, verify }: ToastProps) {
           <p className={`text-[10px] font-semibold tracking-[0.2em] ${style.label}`}>
             {style.labelText}
           </p>
-          <p className="truncate font-display text-base font-semibold leading-tight text-white">
+          {/* The name may take two lines too ("Team Rocket's Spidops"): nothing on this card is cut. */}
+          <p className="line-clamp-2 font-display text-base font-semibold leading-tight text-white">
             {card.name}
           </p>
           <p className="line-clamp-2 text-xs leading-snug text-zinc-400">
