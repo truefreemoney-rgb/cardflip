@@ -1,4 +1,4 @@
-# Open tests, 10-14 9:40pm ET. Total 74 = A 44 (you) / B 1 (decision) / C 20 (dates) / D 9 (mine)
+# Open tests, 10-14 9:40pm ET. Total 76 = A 44 (you) / B 1 (decision) / C 22 (dates, people) / D 9 (mine)
 
 Rebuilt from docs/OPEN-TESTS-10-13.md + docs/TO-TEST.md (Chris 10-14: "add all the new to-do items" / "remove anything we completed"). Everything passed, closed or superseded is gone; the 10-13 file keeps the record. Numbers restart at 1. [date] = when the item was first written.
 
@@ -58,7 +58,7 @@ Also yours, not a test: sign into /admin in the browser pane when you have a min
 
 45. Trial size: 5 free scans today, about 2 cents each to us. Jenny hit the wall after 5 and left. 10 or 15 would still be under 30 cents a signup. Leave at 5, or raise? (No change until you say.) [10-14]
 
-## C. Waiting on a date or event - 20
+## C. Waiting on a date, an event or a reply - 22
 
 46. 10-15: Vercel Function Storage recheck (157.6 GB on 10-13, slow slide, $0 billed). [10-13]
 47. 10-15 2am log: "One Piece SAMPLE pictures re-checked" line present (45ee7180). [10-14]
@@ -80,6 +80,8 @@ Also yours, not a test: sign into /admin in the browser pane when you have a min
 63. First Booster or plan purchase from an ad signup shows in /admin; first ad sign-up shows in Google Ads Goals > Sign-up (~48 h); first Stripe purchase in Goals > Purchase. [10-07]
 64. eBay reconnect warning appears 30 days before the link expires (first ones about 2028). [10-06]
 65. /admin funnel shows ad-page signups as landing /scan (no ad has landed there yet). [10-06]
+75. eBay developer support reply (sign in to the inbox in the pane and I read it; slow). [10-13]
+76. PriceCharting's answer to your two questions (sent 10-14 ~2:10pm ET; their terms in BACKLOG). [10-14]
 
 ## D. Mine (scripts, curl, browser pane) - 9
 
