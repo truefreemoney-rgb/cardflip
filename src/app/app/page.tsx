@@ -562,7 +562,7 @@ export default function AppPage() {
               nameCandidates = [];
               printed = null;
             } else if (typeof read.confidence === "number" && read.confidence < UNREADABLE_CONFIDENCE && read.kind !== "art") {
-              readError = `Couldn't read this card (${Math.round(read.confidence * 100)}% sure) — retake with the whole card in the guide and no glare`;
+              readError = "Couldn't read this card — retake with the whole card in the guide and no glare"; // no "% sure" anywhere (Chris 10-15)
               nameCandidates = [];
               printed = null;
             } else if (read.slab && GRADED_LOCKED) {
