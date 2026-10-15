@@ -40,6 +40,7 @@ import {
   updateServerCard,
 } from "@/lib/client/cardsApi";
 import { toast } from "@/components/Toaster";
+import { confirmAction } from "@/components/ConfirmDialog";
 import { apiPath } from "@/lib/client/basePath";
 import { EBAY_DRAFTS_URL, fetchEbayComps, sendEbayDraft } from "@/lib/client/ebayApi";
 import { uploadCardPhoto } from "@/lib/client/cardPhotoApi";
@@ -1231,7 +1232,19 @@ export default function AppPage() {
   }, []);
 
   const removeItem = useCallback(
-    (id: string) => {
+    async (id: string) => {
+      const target0 = itemsRef.current.find((i) => i.id === id);
+      if (!target0) return;
+      // A matched card is already in Inventory: the × deletes it there too, which is not what the row's ×
+      // says (10-14, Jenny: 5 scans, cleared the list, 0 cards). Ask first. A no-match row is just a tile.
+      if (target0.card) {
+        const name0 = target0.card.englishName || target0.card.name;
+        const ok = await confirmAction({
+          message: `Remove ${name0}? It will be removed from your Inventory too. Scanning it again uses another scan.`,
+          confirmLabel: "Remove card",
+        });
+        if (!ok) return;
+      }
       const index = itemsRef.current.findIndex((i) => i.id === id);
       const target = itemsRef.current[index];
       if (!target) return;

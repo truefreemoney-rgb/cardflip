@@ -7,6 +7,12 @@
 Things that shipped but were never exercised on a real phone or with real
 traffic. Tick when tested; note what you saw. Newest batch first.
 
+## 10-14 ~8:55pm ET: scanner × asks before removing a matched card (LOCAL, NOT PUSHED)
+Chris (phone screenshot, Sylveon rows): the × next to a scanned card deletes it from Inventory with only a 5-second Undo; Jenny probably cleared her scan list and lost all 5. Now a matched card's × opens the in-app confirm: "Remove <name>? It will be removed from your Inventory too. Scanning it again uses another scan." with a red "Remove card" button; Cancel keeps it. No-match / error rows still clear with no question. Undo toast unchanged after a yes.
+- [ ] PROD after the push, phone: scan a card, tap its × in the list: the sheet shows with that card's name; Cancel leaves the row and the Inventory card; Remove card removes both (Undo toast still shows).
+- [ ] PROD, phone: the × on the big card view and in Verify All ask the same question.
+- [ ] PROD: a "No match found" row's × clears at once, no sheet.
+
 ## 10-14 ~8:40pm ET: removal log in the admin console + save-failed line (LOCAL, NOT PUSHED)
 Chris: "why 5 trial scans but 4 cards" (Jenny jporter1421) -> later "why did her cards go to zero". Prod card_removals (live since 10-13) answered it: she deleted the Umbreon at 7:58pm ET and the other four at 8:05pm ET herself (bulk, after tapping Looks right on each). Code: /admin/users Cards cell shows "N removed" (grey) and "N save failed" (amber) under the count, phone row too; new POST /api/cards/save-failed writes a card_removals row (how = 'save-failed', card_id = the scan id) when both tries at POST /api/cards came back empty after the card showed. Charge rule unchanged. Tests: test:cards (4 new checks), test:apiauth, test:adminroutes, test:admin green; tsc + eslint clean.
 - [ ] PROD after the push: /admin/users, Jenny's row reads 0 cards with "5 removed" under it; the phone layout shows "5 removed" in the small line.
