@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPath } from "@/lib/client/basePath";
 
@@ -97,8 +97,18 @@ export function EmailTestButton({ id }: { id: string }) {
   const router = useRouter();
   const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
+  // A mail whose facts are not built yet (the Sunday one) builds them on the click, a minute or more:
+  // the button counts so it is plainly still working (10-15: it read as stuck on "Sending…").
+  const [secs, setSecs] = useState(0);
+  useEffect(() => {
+    if (state !== "sending") return;
+    const t0 = Date.now();
+    const iv = window.setInterval(() => setSecs(Math.round((Date.now() - t0) / 1000)), 1000);
+    return () => window.clearInterval(iv);
+  }, [state]);
 
   async function send() {
+    setSecs(0);
     setState("sending");
     setError(null);
     try {
@@ -115,7 +125,7 @@ export function EmailTestButton({ id }: { id: string }) {
     <div className="flex items-center gap-2">
       {error && <span className="text-xs text-red-300">{error}</span>}
       <button onClick={send} disabled={state === "sending"} className="rounded-full border border-edge px-3 py-1 text-sm text-zinc-200 hover:text-white disabled:opacity-50">
-        {state === "sending" ? "Sending…" : state === "sent" ? "Sent To You" : "Send Test To Me"}
+        {state === "sending" ? (secs >= 3 ? `Building and sending… ${secs}s` : "Sending…") : state === "sent" ? "Sent To You" : "Send Test To Me"}
       </button>
     </div>
   );
