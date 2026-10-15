@@ -2,7 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { askingPriceFor } from "@/lib/listing";
 import { shipMethodOf } from "@/lib/fees";
-import { usdSeries } from "@/lib/server/priceHistory";
+import { heldSeries, preferredVariants, usdSeries } from "@/lib/server/priceHistory";
 import { inventoryValueSeries } from "@/lib/server/inventoryValue";
 import { heldTrustOrOpen } from "@/lib/server/priceTrustSite";
 import { addDays, dayIndex, todayUtc } from "@/lib/priceSeries";
@@ -86,6 +86,7 @@ interface Row {
   sold_price: number | null;
   quantity: number | null;
   catalog_card_id: string | null;
+  variant: string | null;
   game: string | null;
   ebay_ended_at: number | null;
   verified_at: number | null;
@@ -105,26 +106,31 @@ export async function collectionInsights(userId: string, game: GameId, now = Dat
   const rows = (await db
     .prepare(
       `SELECT id, card_name, set_name, image_url, kind, condition, status, price, sold_price, quantity,
-              catalog_card_id, game, ebay_ended_at, verified_at, price_locked, shipping_method
+              catalog_card_id, variant, game, ebay_ended_at, verified_at, price_locked, shipping_method
        FROM cards WHERE user_id = ? AND game = ?
        ORDER BY created_at DESC LIMIT ${ROW_CAP}`,
     )
     .all(userId, game)) as unknown as Row[];
 
   const ids = [...new Set(rows.filter((r) => r.status !== "sold" && r.catalog_card_id).map((r) => r.catalog_card_id!))];
-  const series = ids.length ? await usdSeries(ids) : new Map<string, { variant: string; startDay: string; prices: (number | null)[] }>();
+  // Each copy is priced on its OWN printing's line (a foil on the foil line), the same as the value
+  // chart and Inventory. Pricing everything on the card's default line made the hero number disagree
+  // with the chart under it (Chris's Magic 10-15: $137.14 hero vs $165.18 chart end).
+  const own = (r: Row) => ({ catalog_card_id: r.catalog_card_id!, variant: r.variant });
+  const unsold = rows.filter((r) => r.status !== "sold" && r.catalog_card_id);
+  const series = ids.length ? await usdSeries(ids, preferredVariants(unsold.map(own))) : new Map<string, { variant: string; startDay: string; prices: (number | null)[] }>();
   const today = todayUtc(now);
   const lastWeek = addDays(today, -7);
 
-  // Judged on the default series, the one `series` above reads.
-  const trust = await heldTrustOrOpen(rows.flatMap((r) => (r.status !== "sold" && r.catalog_card_id ? [{ catalog_card_id: r.catalog_card_id, variant: null, game: r.game }] : [])), today);
+  // Judged on each copy's own printing, like the series above.
+  const trust = await heldTrustOrOpen(unsold.map((r) => ({ ...own(r), game: r.game })), today);
   let leftOut = 0;
   const cards: (InsightCard & { status: string; ended: boolean; verified: boolean })[] = [];
   for (const r of rows) {
     if (r.status === "sold") continue;
     const qty = r.quantity ?? 1;
-    const s = r.catalog_card_id ? series.get(r.catalog_card_id) : undefined;
-    const held = r.catalog_card_id ? { catalog_card_id: r.catalog_card_id, variant: null, game: r.game } : null;
+    const s = r.catalog_card_id ? heldSeries(series, own(r)) : undefined;
+    const held = r.catalog_card_id ? { ...own(r), game: r.game } : null;
     // A flagged market never prices a copy: the seller's own price still counts (below, as always), anything else is left out.
     // A live listing's price is the seller's real ask, typed or suggested, so it counts like a typed one.
     const junkMarket = held != null && s != null && trust.flag(held) != null;

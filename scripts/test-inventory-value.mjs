@@ -109,5 +109,22 @@ console.log("\nthe price guard");
   check("a seller with no flagged card has leftOut 0", (await collectionInsights(bob.id, "pokemon", now)).leftOut, 0);
 }
 
+console.log("\na foil copy: the insights hero and the value line price the same printing");
+{
+  // Normal $10, foil $40 (Chris's Magic 10-15: Opposition Agent hero $30.96 vs Inventory $40.39, hero $137.14 vs chart $165.18).
+  const carol = await createUser("Carol", "carol@example.com", "hunter22");
+  for (const back of [2, 1, 0]) {
+    await recordPoint("mtg-foil", "mtg", "normal", "tcgplayer", "USD", 10, day(back));
+    await recordPoint("mtg-foil", "mtg", "foil", "tcgplayer", "USD", 40, day(back));
+  }
+  const foil = await createCard(carol.id, { ...base, cardName: "Opposition Agent", condition: "Near Mint", catalogCardId: "mtg-foil" });
+  await db.prepare("UPDATE cards SET game = 'mtg', variant = 'foil', created_at = ? WHERE id = ?").run(msOn(2), foil.id);
+  const line = await inventoryValueSeries(carol.id, "mtg", 10, now);
+  const ins = await collectionInsights(carol.id, "mtg", now);
+  check("the value line prices the foil line", line.at(-1)?.value, r2(nmAt(40)));
+  check("insights hero = the line's last point (the foil, not the normal)", ins.holding, line.at(-1)?.value);
+  check("insights' 7-day change starts from the same number", ins.value.now, ins.holding);
+}
+
 console.log(failures === 0 ? "\nall inventory value checks passed" : `\n${failures} FAILED`);
 process.exit(failures === 0 ? 0 : 1);
