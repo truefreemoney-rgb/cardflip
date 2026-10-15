@@ -41,10 +41,10 @@ Chris: "why 5 trial scans but 4 cards" (Jenny jporter1421) -> later "why did her
 
 ## 10-14 ~4:15pm ET: page review fixes (chart label, printings strip, set names, homepage Card Prices block, game tabs) (PUSHED c787d5b0 10-14 8:23pm ET)
 Chris asked for a review of the homepage, /cards/pokemon and the 1st Edition Charizard page, then "yes on everything". Code: chart header prints the variant through formatVariantLabel ("Market · 1st Ed. Holofoil", was "1stEditionHolofoil"); the "Other <name> cards" strip is cached per name WITHOUT the page's own card excluded and filtered at read time (the old v2 memo excluded only the page that built it, so every sister page listed itself); a hand call on /admin/prices now drops that card's cached lists (set top, other printings, game top: dropCardLists) so a hide shows on the next page build; set names print "Trainer Kit" / "Best of Game" (tidySetName, sets memo bumped to v4); homepage games strip drops the Yu-Gi-Oh! "(Worldwide English)" qualifier; new homepage section "Know the card? Look it up." with the five game hub pills + All Card Prices + Price Movers, between Every game and Built for the pile; game hub pages get a game tab row (current lit) above the search. Local: tsc + eslint clean, cardpages 288/288, listcache, adminroutes green; pane desktop + 375px checked.
-- [ ] PROD after the push: /cards/pokemon/base-set-1st-edition/charizard--base1-4-1st chart header reads "Market · 1st Ed. Holofoil"; a reverse holo card reads "Reverse Holofoil".
+- [x] PASS 10-14 8:30pm ET (curl: "1st Ed. Holofoil" in the page, no raw 1stEditionHolofoil in text): PROD after the push: /cards/pokemon/base-set-1st-edition/charizard--base1-4-1st chart header reads "Market · 1st Ed. Holofoil"; a reverse holo card reads "Reverse Holofoil".
 - [ ] PROD: same page, "Other Charizard cards" no longer lists the 1st Edition itself and no longer shows the hidden Base Set $968.91 (first visit rebuilds the v3 memo with the hide applied).
 - [ ] PROD: /admin/prices, hide any cheap card, then open its set page + a sister printing's page: the number is gone right away (not a day later).
-- [ ] PROD: /cards/pokemon sets list reads "SM Trainer Kit (Alolan Raichu)", "Best of Game"; the set page H1 + breadcrumb match; links still open (slug unchanged).
+- [x] PASS 10-14 8:30pm ET (curl: both names present; H1/breadcrumb not yet eyeballed): PROD: /cards/pokemon sets list reads "SM Trainer Kit (Alolan Raichu)", "Best of Game"; the set page H1 + breadcrumb match; links still open (slug unchanged).
 - [ ] PROD, phone: homepage section after the games strip: eyebrow Card prices, "Know the card? Look it up.", five pills (Pokémon ... Yu-Gi-Oh!), "All Card Prices · Price Movers" line; pills open the hubs.
 - [ ] PROD, phone: /cards/pokemon shows the five game tabs under the intro, Pokémon lit; tapping Magic opens /cards/magic with Magic lit.
 - [ ] PROD: homepage games strip Yu-Gi-Oh! tile set name has no "(Worldwide English)".
@@ -453,23 +453,23 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 
 
 ## 10-13 ~7pm ET: Magic euro fill + One Piece reprints (PUSHED 30615a64 10-14 ~5:20am ET)
-- [ ] Next 5am mtg-prices run: cron result shows cardmarketFilled ~400; Black Lotus (Alpha) card page shows a dollar price labeled Cardmarket; /admin/prices eBay check reviews the new $100+ ones over the week.
-- [ ] One Piece ST31-36 reprints (e.g. OP12-090_r1 Belo Betty) show their original's price after the 5:25am tcg-prices run.
+- [x] PASS 10-14 (list item 63: Black Lotus Alpha $37,780.37 from EUR): Next 5am mtg-prices run: cron result shows cardmarketFilled ~400; Black Lotus (Alpha) card page shows a dollar price labeled Cardmarket; /admin/prices eBay check reviews the new $100+ ones over the week.
+- [x] PASS 10-14 (list item 64: ST30-ST36 all priced): One Piece ST31-36 reprints (e.g. OP12-090_r1 Belo Betty) show their original's price after the 5:25am tcg-prices run.
 
 
 
 ## 10-13 ~7:45pm ET: Send a New Code button + Verify label (76660b68, PUSHED 30615a64 10-14 ~5:20am ET)
-- [ ] Phone, /login with an emailed code: under the code box a full-width outline 'Send a New Code' button (not a small blue link); tapping it mails a new code. Same on /admin/login.
-- [ ] Phone scanner after a scan with 'Not this card?' showing: green button reads 'Verify 1 Scan  $0.85' in full, no 'Ver...' cut.
+- [x] PASS 10-14 ~3:55pm ET (Chris phone, sign-in code + Send a New Code): Phone, /login with an emailed code: under the code box a full-width outline 'Send a New Code' button (not a small blue link); tapping it mails a new code. Same on /admin/login.
+- [x] PASS 10-14 (Chris phone, list item 35): Phone scanner after a scan with 'Not this card?' showing: green button reads 'Verify 1 Scan  $0.85' in full, no 'Ver...' cut.
 
 
 ## 10-13 ~7:45pm ET: scanner match tile + card removal log (PUSHED 30615a64 10-14 ~5:20am ET; the log answered Jenny's case 10-14 8pm)
 - [ ] /admin analytics Scanner 'Matched a card' = paid scans not given back / paid scans (tiebreak calls no longer count). Today's 6 scans read ~33% (2 of 6: the 4 refunded by hand count as given back), not 25%.
-- [ ] Turso has table card_removals after deploy; remove a test card on prod (one, then a bulk select) -> two rows (how one/bulk) with name, set, status, match_doubt, created_at.
+- [x] PASS 10-14 8:10pm ET (Jenny's 5 bulk rows with name/set/status/match_doubt/created_at; 'one' path untested on prod): Turso has table card_removals after deploy; remove a test card on prod (one, then a bulk select) -> two rows (how one/bulk) with name, set, status, match_doubt, created_at.
 
 
 ## 10-13 ~7:50pm ET: fx fetch no longer no-store (PUSHED 30615a64 10-14 ~5:20am ET)
-- [ ] Vercel logs / /admin errors for 24 h after the push: no 'fx: rate refresh failed ... Dynamic server usage' and no 'Page changed from static to dynamic at runtime /cards/magic/...'. If the static-to-dynamic one remains, it has a second cause: find it with a local next build.
+- [x] PASS 10-14 (list item 65: Vercel logs past day 0 static-to-dynamic, 0 fx): Vercel logs / /admin errors for 24 h after the push: no 'fx: rate refresh failed ... Dynamic server usage' and no 'Page changed from static to dynamic at runtime /cards/magic/...'. If the static-to-dynamic one remains, it has a second cause: find it with a local next build.
 
 ## 10-14 ~4am ET: code wait, envelope wording, no confidence %, backup fix (PUSHED 30615a64 10-14 ~5:20am ET)
 - [x] (10-14 3:55pm ET Chris phone: pass) Phone, /login (or /admin/login) with an emailed code: right after the code mails, the button reads 'Send a New Code (60s)' and counts down, greyed out; at 0 it works again. Email-confirm wall on signup counts 60s too.
@@ -502,7 +502,7 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 - [x] (10-14 3:40pm ET Chris phone: pass) Search: 'All sets' opens a full panel of every set with pictures (newest first; One Piece by value), a 'Find a set' box narrows it, tapping a set opens all its cards.
 
 ## 10-14 ~6:30am ET: owner eBay reconnected (link dropped 10-13 10:10pm ET by invalid_grant 'issued to another client', cause unknown)
-- [ ] After ~8:30am ET (first token refresh on prod): /api/ebay/status from the pane still connected:true, and /admin/errors has no new 'eBay refresh rejected'. NEVER verify via a local script calling ebayAuth (deletes the link: local key).
+- [x] PASS 10-14 ~8:50am ET (s163: still connected, no new refresh rejected): After ~8:30am ET (first token refresh on prod): /api/ebay/status from the pane still connected:true, and /admin/errors has no new 'eBay refresh rejected'. NEVER verify via a local script calling ebayAuth (deletes the link: local key).
 
 ## 10-14 ~7am ET: eBay links leave slabs out (Chris: 'any title with PSA is a slab')
 - [ ] After push: /admin/prices 'eBay sold' and a raw card's 'check sold listings' open eBay with '-psa -bgs -cgc -sgc -graded -slab' and no slab titles; a slab item's eBay link still searches its grade (e.g. PSA 9).
