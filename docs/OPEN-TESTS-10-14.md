@@ -30,7 +30,7 @@ Tonight's three pushes (c787d5b0 8:23pm, 6714a500 8:33pm, 1eb76012 8:58pm), one 
 
 Older, still open:
 23. PASS 10-15 ~11:15am ET (Chris phone, spare Gmail: email+password signup, log out, Continue with Google = same account). Sign up with email and password, log out, tap Continue with Google with the same email: same account. [10-07]
-24. A Google-only account typing a password sees "signs in with Google"; Forgot Password lets it set one. [10-07]
+24. PASS 10-15 ~11:30am ET (Chris phone: Google-only account, typed password, Forgot Password set one; Safari offered "Save Password?" on the way to /forgot-password because a password had just been typed on /login, that is iOS, not ours). A Google-only account typing a password sees "signs in with Google"; Forgot Password lets it set one. [10-07]
 25. Second Google signup from the same phone starts with the free scans already used. [10-07]
 26. Sign in with X, all 8 steps (buttons, shared email, no email, link, admin refused, used email, keys off). [10-10]
 27. One Tap with the admin's Google account is refused and not linked. [10-11]
