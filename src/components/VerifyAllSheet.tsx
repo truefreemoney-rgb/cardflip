@@ -52,10 +52,11 @@ function Row({ item, onOpen, onRemove }: { item: ScanItem; onOpen?: (id: string)
         <button
           type="button"
           onClick={() => onRemove(item.id)}
-          aria-label={`Remove ${card.name}`}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-400 transition hover:bg-white/10 hover:text-white"
+          aria-label={`Clear ${card.name} from the list (it stays in your Inventory)`}
+          title="Clear from this list. The card stays in your Inventory."
+          className="flex h-8 shrink-0 items-center rounded-full border border-edge px-2.5 text-[11px] font-medium text-zinc-400 transition hover:bg-white/10 hover:text-white"
         >
-          ×
+          Clear
         </button>
       )}
     </li>

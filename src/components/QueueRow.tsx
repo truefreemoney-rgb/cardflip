@@ -73,14 +73,15 @@ export default function QueueRow({ item, selected, onSelect, onRemove }: Props) 
         </span>
       </button>
 
+      {/* A word, not an X (10-14, Jenny tidied her list with the Xs and lost every card): this only takes the
+          row off the list, the card stays in Inventory. Deleting lives in the card view, behind a confirm. */}
       <button
         onClick={onRemove}
-        aria-label={`Remove ${item.card ? item.card.englishName || item.card.name : "card"}`}
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-zinc-600 transition hover:bg-white/5 hover:text-zinc-300 focus-visible:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
+        aria-label={`Clear ${item.card ? item.card.englishName || item.card.name : "card"} from the list (it stays in your Inventory)`}
+        title="Clear from this list. The card stays in your Inventory."
+        className="flex h-8 shrink-0 items-center rounded-full border border-edge px-2.5 text-[11px] font-medium text-zinc-500 transition hover:border-edge-strong hover:text-zinc-200 focus-visible:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
       >
-        <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
-          <path d="M6 6l8 8M14 6l-8 8" strokeLinecap="round" />
-        </svg>
+        Clear
       </button>
     </div>
   );

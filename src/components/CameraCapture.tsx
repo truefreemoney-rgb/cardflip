@@ -1248,15 +1248,17 @@ function RevealChip({ item, onOpen, onRemove, onSwap, verify }: ToastProps) {
           {card.number ? ` · #${card.number}` : ""}
         </p>
       </div>
-      {/* Remove this scan on the spot (Chris 10-02): most unwanted scans are the last one. */}
+      {/* Clear this scan off the list on the spot (Chris 10-02): most unwanted scans are the last one.
+          A word, not an X (10-14): the card stays in Inventory; deleting is in the card view behind a confirm. */}
       {onRemove && (
         <button
           type="button"
           onClick={() => onRemove(item.id)}
-          aria-label={`Remove ${card.name}`}
-          className="-mr-1 -mt-1 flex h-8 w-8 shrink-0 items-center justify-center self-start rounded-full text-zinc-500 transition hover:bg-white/10 hover:text-white"
+          aria-label={`Clear ${card.name} from the list (it stays in your Inventory)`}
+          title="Clear from this list. The card stays in your Inventory."
+          className="-mt-0.5 flex h-7 shrink-0 items-center self-start rounded-full border border-white/15 px-2 text-[11px] font-medium text-zinc-400 transition hover:bg-white/10 hover:text-white"
         >
-          ×
+          Clear
         </button>
       )}
       <div className="reveal-price shrink-0 text-right">

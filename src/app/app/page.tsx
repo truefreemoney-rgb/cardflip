@@ -814,11 +814,12 @@ export default function AppPage() {
             };
             // Without a server row the card can't be published or appear in
             // the collection — one retry covers the usual flaky-network blip.
-            // The watchdog gave up on it, or the seller removed it meanwhile: no ghost row in Inventory.
-            if (abandoned.current.has(next.id) || !itemsRef.current.some((i) => i.id === next.id)) continue;
+            // The watchdog gave up on it, or the seller deleted it meanwhile: no ghost row in Inventory.
+            // A row merely CLEARED from the list still saves (10-14): clearing promises the card stays.
+            if (abandoned.current.has(next.id) || deleted.current.has(next.id)) continue;
             const server = (await createServerCard(input)) ?? (await createServerCard(input));
-            if (server && (abandoned.current.has(next.id) || !itemsRef.current.some((i) => i.id === next.id))) {
-              // Abandoned or removed while the row was being created: delete the orphan.
+            if (server && (abandoned.current.has(next.id) || deleted.current.has(next.id))) {
+              // Abandoned or deleted while the row was being created: delete the orphan.
               void deleteServerCard(server.id);
             } else if (!server) {
               patchItem(next.id, { status: "error", error: "Couldn't save — tap Scan again" });
@@ -1207,16 +1208,22 @@ export default function AppPage() {
   // delete (and preview-URL revoke) waits out the undo window; Undo just
   // puts the captured item back. Pending deletes are flushed if the page
   // unmounts before their timers fire, so nothing silently survives.
+  // Two ways off the list (10-14, Jenny: 5 scans, tapped the row ×s to tidy up, 0 cards left):
+  //   clear  = the row leaves the scanner only; the card stays in Inventory. The row × and the chip ×.
+  //   delete = the card leaves Inventory too, after the in-app confirm. Only the card view's button.
+  // `del` on the pending entry says which; the undo window is the same for both.
   const pendingRemovals = useRef(
-    new Map<string, { item: ScanItem; index: number; timer: ReturnType<typeof setTimeout> }>(),
+    new Map<string, { item: ScanItem; index: number; del: boolean; timer: ReturnType<typeof setTimeout> }>(),
   );
+  /** Scan ids the seller deleted (not just cleared): the pump never saves these or keeps their ledger row. */
+  const deleted = useRef(new Set<string>());
   const finalizeRemoval = useCallback((id: string) => {
     const pending = pendingRemovals.current.get(id);
     if (!pending) return;
     pendingRemovals.current.delete(id);
     clearTimeout(pending.timer);
     URL.revokeObjectURL(pending.item.previewUrl);
-    if (pending.item.serverId) void deleteServerCard(pending.item.serverId);
+    if (pending.del && pending.item.serverId) void deleteServerCard(pending.item.serverId);
   }, []);
   useEffect(() => {
     const removals = pendingRemovals.current;
@@ -1226,29 +1233,18 @@ export default function AppPage() {
         removals.delete(id);
         clearTimeout(pending.timer);
         URL.revokeObjectURL(pending.item.previewUrl);
-        if (pending.item.serverId) void deleteServerCard(pending.item.serverId);
+        if (pending.del && pending.item.serverId) void deleteServerCard(pending.item.serverId);
       }
     };
   }, []);
 
-  const removeItem = useCallback(
-    async (id: string) => {
-      const target0 = itemsRef.current.find((i) => i.id === id);
-      if (!target0) return;
-      // A matched card is already in Inventory: the × deletes it there too, which is not what the row's ×
-      // says (10-14, Jenny: 5 scans, cleared the list, 0 cards). Ask first. A no-match row is just a tile.
-      if (target0.card) {
-        const name0 = target0.card.englishName || target0.card.name;
-        const ok = await confirmAction({
-          message: `Remove ${name0}? It will be removed from your Inventory too. Scanning it again uses another scan.`,
-          confirmLabel: "Remove card",
-        });
-        if (!ok) return;
-      }
+  const takeOffList = useCallback(
+    (id: string, del: boolean) => {
       const index = itemsRef.current.findIndex((i) => i.id === id);
       const target = itemsRef.current[index];
       if (!target) return;
 
+      if (del) deleted.current.add(id);
       const remaining = itemsRef.current.filter((i) => i.id !== id);
       commit(remaining);
       setSelectedId((current) =>
@@ -1258,15 +1254,18 @@ export default function AppPage() {
       pendingRemovals.current.set(id, {
         item: target,
         index,
+        del,
         timer: setTimeout(() => finalizeRemoval(id), 5500),
       });
       const name = target.card ? target.card.englishName || target.card.name : "card";
-      toast(`Removed ${name}`, "info", {
+      // The clear toast says where the card still is, so a tidy-up never reads as a loss.
+      toast(del ? `Removed ${name} from your Inventory` : target.card ? `Cleared ${name} — still in your Inventory` : "Cleared", "info", {
         label: "Undo",
         onClick: () => {
           const pending = pendingRemovals.current.get(id);
           if (!pending) return;
           pendingRemovals.current.delete(id);
+          deleted.current.delete(id);
           clearTimeout(pending.timer);
           const next = [...itemsRef.current];
           next.splice(Math.min(pending.index, next.length), 0, pending.item);
@@ -1276,6 +1275,27 @@ export default function AppPage() {
       });
     },
     [commit, finalizeRemoval],
+  );
+
+  /** Row × / chip ×: off the list, card kept. */
+  const clearItem = useCallback((id: string) => takeOffList(id, false), [takeOffList]);
+
+  /** Card view "Remove from Inventory": asks first, then the card goes from the ledger too. */
+  const deleteItem = useCallback(
+    async (id: string) => {
+      const target = itemsRef.current.find((i) => i.id === id);
+      if (!target) return;
+      if (target.card) {
+        const name = target.card.englishName || target.card.name;
+        const ok = await confirmAction({
+          message: `Remove ${name} from your Inventory? Scanning it again uses another scan.`,
+          confirmLabel: "Remove card",
+        });
+        if (!ok) return;
+      }
+      takeOffList(id, true);
+    },
+    [takeOffList],
   );
 
   /**
@@ -1423,7 +1443,7 @@ export default function AppPage() {
       lastScan={items.find((item) => item.id === cameraItemId) ?? null}
       // Verified cards are not waiting (Chris 10-12: one verified + one new scan said "2 Scans To Verify").
       queue={items.filter((item) => item.card && !item.verifiedAt && item.status !== "listed" && item.status !== "sold")}
-      onRemove={removeItem}
+      onRemove={clearItem}
       quotaNote={quotaNote ?? (outOfScans ? "You're out of scans. Tap Capture to get more." : null)}
       onSwap={swapCard}
       onCapture={onCameraCapture}
@@ -1651,14 +1671,14 @@ export default function AppPage() {
                   // The X closes the scan and lands on Inventory (Chris 10-08: "it just blanks out the card below").
                   // The card stays on screen until Inventory is up (Chris 10-12: clearing it first made the X vanish
                   // and the panel blank for a beat before the page changed, which read as lag).
+                  // A word, not an X (10-14, Jenny): the top X and the row Xs read as the same thing, and the row
+                  // ones deleted cards. "Done" says what this one does: finished scanning, go to Inventory.
                   onClick={() => router.push("/app/collection")}
-                  aria-label="Close card"
-                  title="Close card"
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-edge text-zinc-300 transition hover:border-brand-400 hover:text-white sm:order-last sm:h-9 sm:w-9"
+                  aria-label="Done, go to Inventory"
+                  title="Done, go to Inventory"
+                  className="flex h-8 shrink-0 items-center whitespace-nowrap rounded-full border border-edge px-3 text-xs font-semibold text-zinc-200 transition hover:border-brand-400 hover:text-white sm:order-last sm:h-9 sm:px-4 sm:text-sm"
                 >
-                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
-                    <path d="M6 6l12 12M18 6L6 18" />
-                  </svg>
+                  Done
                 </button>
               )}
               </div>
@@ -1729,7 +1749,7 @@ export default function AppPage() {
                   item={item}
                   selected={item.id === selectedId}
                   onSelect={() => setSelectedId(item.id)}
-                  onRemove={() => removeItem(item.id)}
+                  onRemove={() => clearItem(item.id)}
                 />
               ))}
             </aside>
@@ -1773,7 +1793,7 @@ export default function AppPage() {
                       }
                     }}
                     onNext={selectNext}
-                    onRemove={() => removeItem(selected.id)}
+                    onRemove={() => void deleteItem(selected.id)}
                     onApplyConditionToAll={
                       items.filter(
                         (i) =>

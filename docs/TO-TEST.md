@@ -7,11 +7,13 @@
 Things that shipped but were never exercised on a real phone or with real
 traffic. Tick when tested; note what you saw. Newest batch first.
 
-## 10-14 ~8:55pm ET: scanner × asks before removing a matched card (LOCAL, NOT PUSHED)
-Chris (phone screenshot, Sylveon rows): the × next to a scanned card deletes it from Inventory with only a 5-second Undo; Jenny probably cleared her scan list and lost all 5. Now a matched card's × opens the in-app confirm: "Remove <name>? It will be removed from your Inventory too. Scanning it again uses another scan." with a red "Remove card" button; Cancel keeps it. No-match / error rows still clear with no question. Undo toast unchanged after a yes.
-- [ ] PROD after the push, phone: scan a card, tap its × in the list: the sheet shows with that card's name; Cancel leaves the row and the Inventory card; Remove card removes both (Undo toast still shows).
-- [ ] PROD, phone: the × on the big card view and in Verify All ask the same question.
-- [ ] PROD: a "No match found" row's × clears at once, no sheet.
+## 10-14 ~9:15pm ET: scanner Xs redesigned: row "Clear" keeps the card, delete only in the card view, top X is "Done" (LOCAL, NOT PUSHED)
+Chris (phone screenshot, Sylveon rows): the × on each scanned row deleted the card from Inventory with a 5-second Undo, and sat under a top × that just leaves the scanner; Jenny tidied her list with them and lost all 5. Chris: "let's go with your picks". Now: (1) the row control is a small "Clear" pill (list row, the reveal chip after a scan, Verify All rows); it only takes the row off the list, the card stays in Inventory, toast "Cleared <name> — still in your Inventory" with Undo; a row cleared before its save landed still saves. (2) The only delete is the card view's "Remove from Inventory" button, which opens the in-app confirm "Remove <name> from your Inventory? Scanning it again uses another scan." / red "Remove card"; toast "Removed <name> from your Inventory" with Undo. (3) The top-right × (went to Inventory) is now a "Done" pill, same action. First version (confirm on the ×, f024dbd6) was replaced by this in the same evening.
+- [ ] PROD after the push, phone: scan a card; the row's right side reads "Clear" (no ×); tap it: row gone, toast says still in Inventory, Inventory shows the card.
+- [ ] PROD, phone: open a card, "Remove from Inventory" at the bottom: the sheet names the card; Cancel keeps it; Remove card removes the row and the Inventory card (Undo toast, 5 s).
+- [ ] PROD, phone: the reveal chip right after a scan and the Verify All rows show "Clear", same behavior.
+- [ ] PROD, phone: top right of the scanner reads "Done" next to Connect eBay / Send to eBay and lands on Inventory; nothing wraps at 375px.
+- [ ] PROD: a "No match found" row's Clear just clears, toast "Cleared".
 
 ## 10-14 ~8:40pm ET: removal log in the admin console + save-failed line (LOCAL, NOT PUSHED)
 Chris: "why 5 trial scans but 4 cards" (Jenny jporter1421) -> later "why did her cards go to zero". Prod card_removals (live since 10-13) answered it: she deleted the Umbreon at 7:58pm ET and the other four at 8:05pm ET herself (bulk, after tapping Looks right on each). Code: /admin/users Cards cell shows "N removed" (grey) and "N save failed" (amber) under the count, phone row too; new POST /api/cards/save-failed writes a card_removals row (how = 'save-failed', card_id = the scan id) when both tries at POST /api/cards came back empty after the card showed. Charge rule unchanged. Tests: test:cards (4 new checks), test:apiauth, test:adminroutes, test:admin green; tsc + eslint clean.

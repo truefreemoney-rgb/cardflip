@@ -735,14 +735,15 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
                 {wishlisting && <Spinner className="h-3 w-3" />}
                 {wishlisted ? "★ Watching" : "☆ Watch"}
               </button>
-              {/* Delete from the listing screen (Chris, 09-03) — same
-                  remove-with-undo as the queue row, so no confirm dialog. */}
+              {/* Delete from the listing screen (Chris, 09-03). Since 10-14 this is the ONLY delete in the
+                  scanner (the row buttons just clear the list), so it says where the card goes and the page
+                  asks before it does. */}
               {onRemove && (
                 <button
                   onClick={onRemove}
-                  className="rounded-full border border-edge px-3 py-1.5 text-xs font-medium text-zinc-500 transition hover:border-red-400/40 hover:text-red-300"
+                  className="whitespace-nowrap rounded-full border border-edge px-3 py-1.5 text-xs font-medium text-zinc-500 transition hover:border-red-400/40 hover:text-red-300"
                 >
-                  Delete
+                  Remove from Inventory
                 </button>
               )}
             </div>
