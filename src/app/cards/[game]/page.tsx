@@ -94,7 +94,9 @@ export default async function GameHubPage({ params }: PageProps<"/cards/[game]">
         <section className="mt-10">
           <h2 className="font-display text-2xl font-semibold text-white">Sets</h2>
           <p className="mt-1 text-sm text-zinc-500">Newest first. The count is cards with a price.</p>
-          <ul className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {/* grid-cols-1 = minmax(0,1fr): without it the phone column is auto-sized and one long nowrap set name
+              (Magic, 10-14: 386px wide at 375) pushes the list past the screen edge and the page scrolls sideways. */}
+          <ul className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {sets.map((s) => (
               <li key={s.key}>
                 <Link
