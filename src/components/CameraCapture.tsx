@@ -38,6 +38,7 @@ import {
   toGray,
   warpQuad,
   type CornerPatch,
+  type CropGray,
   type Hint,
   type Point,
   type Quad,
@@ -256,7 +257,13 @@ function guideInVideo(video: LiveSource, mode: CaptureMode = "card"): GuideRect 
  * than three corners read as a card's. Corners are in the picture's pixels.
  */
 let patchCanvas: HTMLCanvasElement | null = null;
-function cornersFromSource(video: LiveSource, g: GuideRect, vw: number, vh: number): { corners: [Point, Point, Point, Point]; angle: number; scores: number[] } | null {
+function cornersFromSource(
+  video: LiveSource, g: GuideRect, vw: number, vh: number,
+  /** Last tick's corners (frame px): the box is carried over through the candidates near them, so it moves with the card instead of flipping between near-identical boxes (10-16). */
+  prefer: [Point, Point, Point, Point] | null,
+  /** The working crop, for the edge check along each side of a box. */
+  support: CropGray,
+): { corners: [Point, Point, Point, Point]; angle: number; scores: number[]; tracked: boolean } | null {
   patchCanvas ??= document.createElement("canvas");
   const pctx = patchCanvas.getContext("2d", { willReadFrequently: true });
   if (!pctx) return null;
@@ -279,9 +286,12 @@ function cornersFromSource(video: LiveSource, g: GuideRect, vw: number, vh: numb
     }
     patches.push({ gray: toGray(data, pw * ph), pw, ph, ox: left, oy: top, scale });
   }
-  const pick = pickCardCorners(cardCornerCandidates(patches as [CornerPatch, CornerPatch, CornerPatch, CornerPatch], g.w, 6), 20, vw, vh);
+  // Ten candidates a corner (was six): on a binder page the card's own corner
+  // ranks fourth or fifth behind seam and sleeve corners, and the tracked box
+  // needs it in the list (10-16, bench: shift move 5 % -> 0.9 % median).
+  const pick = pickCardCorners(cardCornerCandidates(patches as [CornerPatch, CornerPatch, CornerPatch, CornerPatch], g.w, 10), 20, vw, vh, { prefer, support });
   if (!pick) return null;
-  return { corners: pick.quad.corners, angle: pick.quad.angle, scores: pick.fixes.map((f) => (f.score === -Infinity ? 0 : f.score)) };
+  return { corners: pick.quad.corners, angle: pick.quad.angle, scores: pick.fixes.map((f) => (f.score === -Infinity ? 0 : f.score)), tracked: pick.tracked === true };
 }
 
 const TIPS_KEY = "cf-camera-tips-opens";
@@ -687,13 +697,16 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
       // corners were found (a loose card with a thumb on two corners);
       // sharpening the corner box with it measured worse (10-15 harness).
       let quad: Quad | null = null;
-      const corners = cornersFromSource(video, g, vw, vh);
+      // Last tick's corners in frame pixels, for the corner finder to track.
+      const preferFrame = seen ? (seen.map((p) => ({ x: g.x + p.x * g.w, y: g.y + p.y * g.h })) as [Point, Point, Point, Point]) : null;
+      const corners = cornersFromSource(video, g, vw, vh, preferFrame, { gray, w, h, sx, sy, sw, sh });
       if (corners) {
         const cc = corners.corners.map((p) => ({ x: ((p.x - sx) / sw) * w, y: ((p.y - sy) / sh) * h })) as [Point, Point, Point, Point];
         const area = Math.abs(cc.reduce((s, p, i) => s + p.x * cc[(i + 1) % 4].y - cc[(i + 1) % 4].x * p.y, 0)) / 2 / (w * h);
         quad = { corners: cc, area, angle: corners.angle };
         if (trace) {
-          trace.reason = `corners ${corners.scores.map((s) => s.toFixed(0)).join("/")}`;
+          // "T" = carried over from last tick (tracked), "F" = found afresh.
+          trace.reason = `corners ${corners.scores.map((s) => s.toFixed(0)).join("/")} ${corners.tracked ? "T" : "F"}`;
           trace.sides = "";
         }
       } else {
@@ -781,14 +794,15 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
         })) as [Point, Point, Point, Point];
         // A move under 1.5 % of the guide is finder jitter, not the card:
         // the fix stays put. A real move is taken halfway (a little inertia).
-        // A jump of 8 % or more at some corner is the finder switching to
+        // A jump of 5 % or more at some corner is the finder switching to
         // another box (10-15, Chris's binder frames: the pocket round the
         // card one tick, the card the next; "the outline is very twitchy"),
         // so it is held back until the same box comes three ticks running
         // (450 ms): a card that really moved that far gets there, a flicker
-        // between two boxes never does. "The same box" is within 8 %: the
-        // corner finder's own tick-to-tick spread on Chris's binder frames is
-        // ~12 % (median), so 3 % never matched and the outline froze.
+        // between two boxes never does. "The same box" is within 5 %. (Was
+        // 8 % while the finder picked afresh each tick and its own spread was
+        // ~12 %; it now tracks last tick's box, spread 0.9 % median in the
+        // harness, 10-16.)
         // Nothing on screen yet = nothing to protect: the first fix shows
         // (10-15 night: a slightly-off first box held every later one back,
         // 20 s with the card found every tick and no outline).
@@ -800,11 +814,11 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
         else if (moved < 0.015) {
           seen = last;
           pending = null;
-        } else if (moved < 0.08) {
+        } else if (moved < 0.05) {
           seen = last.map((p, i) => ({ x: (p.x + fresh[i].x) / 2, y: (p.y + fresh[i].y) / 2 })) as [Point, Point, Point, Point];
           pending = null;
         } else {
-          pending = pending && apart(fresh, pending.corners) < 0.08 ? { corners: fresh, ticks: pending.ticks + 1 } : { corners: fresh, ticks: 1 };
+          pending = pending && apart(fresh, pending.corners) < 0.05 ? { corners: fresh, ticks: pending.ticks + 1 } : { corners: fresh, ticks: 1 };
           if (pending.ticks >= 3) {
             seen = fresh;
             pending = null;

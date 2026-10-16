@@ -140,7 +140,9 @@ console.log("card corners (binder pages)");
   }
   const sharp = pq.pickCardCorners(pq.cardCornerCandidates(patchesOf(frame(false)), guide.w, 6), 20, FW, FH);
   // The template's margin, measured 10-15: a sharp corner scores about 60 % of a rounded one.
-  check("a box with sharp corners scores under three quarters of the rounded card", !sharp || sharp.score < (rounded?.score ?? Infinity) * 0.75, sharp ? `sharp ${sharp.score.toFixed(0)} vs rounded ${rounded?.score.toFixed(0)}` : "");
+  // (The corners' own scores: the box score caps each corner, 10-16.)
+  const raw = (p) => p.fixes.reduce((s, f) => s + (f.score === -Infinity ? 0 : f.score), 0);
+  check("a box with sharp corners scores under three quarters of the rounded card", !sharp || raw(sharp) < (rounded ? raw(rounded) : Infinity) * 0.75, sharp ? `sharp ${raw(sharp).toFixed(0)} vs rounded ${rounded ? raw(rounded).toFixed(0) : "-"}` : "");
 }
 
 console.log("warp");

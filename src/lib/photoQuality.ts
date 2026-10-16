@@ -509,12 +509,13 @@ export interface CornerPatch {
   scale: number;
 }
 
-/** One corner as found: where (frame pixels), how card-like it looked, and the radius that fitted. */
+/** One corner as found: where (frame pixels), how card-like it looked, the radius that fitted, and which way its edges step (1 = the card brighter than what is round it, -1 darker, 0 unknown). */
 export interface CornerFix {
   x: number;
   y: number;
   score: number;
   r: number;
+  sign: number;
 }
 
 /**
@@ -531,16 +532,33 @@ export interface CornerFix {
  * `expectWidth` is the card's expected width in frame pixels (the guide's).
  */
 export function findCardCorners(patches: [CornerPatch, CornerPatch, CornerPatch, CornerPatch], expectWidth: number): [CornerFix, CornerFix, CornerFix, CornerFix] {
-  return cardCornerCandidates(patches, expectWidth, 1).map((c) => c[0] ?? { x: 0, y: 0, score: -Infinity, r: 0 }) as [CornerFix, CornerFix, CornerFix, CornerFix];
+  return cardCornerCandidates(patches, expectWidth, 1).map((c) => c[0] ?? { x: 0, y: 0, score: -Infinity, r: 0, sign: 0 }) as [CornerFix, CornerFix, CornerFix, CornerFix];
 }
 
-/**
- * The best `keep` candidates per corner (strongest first, at least a radius
- * apart), for pickCardCorners: on a binder page a pocket's corner or a
- * neighbour's can outscore the card's in one patch, but not in all four at
- * card spacing.
- */
-export function cardCornerCandidates(patches: [CornerPatch, CornerPatch, CornerPatch, CornerPatch], expectWidth: number, keep = 6): [CornerFix[], CornerFix[], CornerFix[], CornerFix[]] {
+/** One of the corner template's samples: an offset from the corner point, with the normal pointing into the card. */
+interface CornerSample {
+  x: number;
+  y: number;
+  n: Point;
+}
+
+/** The corner template for one radius: where to read the steps, as offsets from the corner point. */
+interface CornerTemplate {
+  r: number;
+  /** Along both edges past the tangent points. */
+  edges: CornerSample[];
+  /** Well along both edges: a card's edge runs the length of the card, a box printed on it stops. */
+  far: CornerSample[];
+  /** Round the quarter circle. */
+  arc: CornerSample[];
+  /** Inside the rounding along the straight lines: a sharp corner's edges run here, a card's do not. */
+  inside: CornerSample[];
+  /** Past the corner along both lines: a seam, a highlight or a bezel runs on, a card stops. */
+  past: CornerSample[];
+}
+
+/** The template for corner k (0 top-left, 1 top-right, 2 bottom-right, 3 bottom-left) at radius r (patch px). */
+function cornerTemplate(k: number, r: number): CornerTemplate {
   // Inward unit vectors per corner: along the top/bottom edge, along the side.
   const dirs: Array<[Point, Point]> = [
     [{ x: 1, y: 0 }, { x: 0, y: 1 }],
@@ -548,85 +566,122 @@ export function cardCornerCandidates(patches: [CornerPatch, CornerPatch, CornerP
     [{ x: -1, y: 0 }, { x: 0, y: -1 }],
     [{ x: 1, y: 0 }, { x: 0, y: -1 }],
   ];
+  const [u, v] = dirs[k];
+  const edges: CornerSample[] = [], far: CornerSample[] = [], arc: CornerSample[] = [], inside: CornerSample[] = [], past: CornerSample[] = [];
+  for (let i = 0; i < 6; i++) {
+    const d = r * (1.15 + i * 0.35);
+    edges.push({ x: u.x * d, y: u.y * d, n: v }, { x: v.x * d, y: v.y * d, n: u });
+    // (10-15, Chris's frames: both bottom corners snapped up to the text box's corners without the far samples.)
+    const e = r * (3.3 + i * 0.9);
+    far.push({ x: u.x * e, y: u.y * e, n: v }, { x: v.x * e, y: v.y * e, n: u });
+    if (i < 4) {
+      const e = r * (0.12 + i * 0.2);
+      inside.push({ x: u.x * e, y: u.y * e, n: v }, { x: v.x * e, y: v.y * e, n: u });
+      const f = r * (0.5 + i * 0.5);
+      past.push({ x: -u.x * f, y: -u.y * f, n: v }, { x: -v.x * f, y: -v.y * f, n: u });
+    }
+  }
+  const cx = (u.x + v.x) * r, cy = (u.y + v.y) * r;
+  for (let i = 1; i <= 7; i++) {
+    const th = (Math.PI / 2) * (i / 8);
+    const nx = u.x * Math.cos(th) + v.x * Math.sin(th), ny = u.y * Math.cos(th) + v.y * Math.sin(th);
+    arc.push({ x: cx - r * nx, y: cy - r * ny, n: { x: nx, y: ny } });
+  }
+  return { r, edges, far, arc, inside, past };
+}
+
+/** What the corner template read at one spot: the score and the mean signed steps that made it (the offline harness looks at these). */
+export interface CornerReading {
+  score: number;
+  r: number;
+  sign: number;
+  edge: number;
+  arc: number;
+  far: number;
+  inside: number;
+  past: number;
+}
+
+/**
+ * The template's score at patch pixel (x, y) on the blurred patch `g`, or
+ * -Infinity when too few samples fit or the edges and the arc do not step
+ * one way. The mean signed step across each sample group is taken (signed,
+ * because a card's edge steps the same way all along an edge and round its
+ * corner, so the steps add up, while a stitched weld seam or grain cancels
+ * out); `out`, when given, receives the parts.
+ */
+function readCorner(g: Float32Array, pw: number, ph: number, t: CornerTemplate, x: number, y: number, out?: CornerReading): number {
+  // The signed step across a point, along `n` (two pixels either side, so a sample a pixel off the edge still reads most of it).
+  let s = 0, n = 0;
+  const sum = (list: CornerSample[]): void => {
+    s = 0;
+    n = 0;
+    for (const o of list) {
+      const px = x + o.x, py = y + o.y;
+      const x0 = Math.round(px - 2 * o.n.x), y0 = Math.round(py - 2 * o.n.y), x1 = Math.round(px + 2 * o.n.x), y1 = Math.round(py + 2 * o.n.y);
+      if (x0 < 0 || y0 < 0 || x1 < 0 || y1 < 0 || x0 >= pw || x1 >= pw || y0 >= ph || y1 >= ph) continue;
+      s += g[y1 * pw + x1] - g[y0 * pw + x0];
+      n++;
+    }
+  };
+  sum(t.edges);
+  const eS = s, eN = n;
+  sum(t.arc);
+  const aS = s, aN = n;
+  if (eN < 8 || aN < 5) return -Infinity;
+  const sign = eS + aS >= 0 ? 1 : -1;
+  const eMean = (sign * eS) / eN, aMean = (sign * aS) / aN;
+  if (eMean <= 0 || aMean <= 0) return -Infinity;
+  sum(t.inside);
+  const insideMean = n ? Math.abs(s) / n : 0;
+  sum(t.past);
+  const pastMean = n ? Math.abs(s) / n : 0;
+  // The far edge counts as much as the near one; off the patch it is taken on trust.
+  sum(t.far);
+  const fMean = n >= 4 ? Math.max(0, (sign * s) / n) : eMean;
+  const score = Math.min(eMean, aMean * 1.5) + 0.5 * Math.min(eMean, aMean) + 0.5 * Math.min(eMean, fMean) - insideMean - pastMean;
+  if (out) {
+    out.score = score;
+    out.r = t.r;
+    out.sign = sign;
+    out.edge = eMean;
+    out.arc = aMean;
+    out.far = fMean;
+    out.inside = insideMean;
+    out.past = pastMean;
+  }
+  return score;
+}
+
+/** The radii the template is tried at, as multiples of the expected 3 mm: a sleeve's corners are cut rounder (they fitted 5 mm when offered it, 10-15) and are not wanted. */
+const CORNER_RADII = [0.8, 1, 1.25];
+
+/**
+ * The best `keep` candidates per corner (strongest first, at least `apart`
+ * radii from a stronger one), for pickCardCorners: on a binder page a
+ * pocket's corner or a neighbour's can outscore the card's in one patch,
+ * but not in all four at card spacing.
+ */
+export function cardCornerCandidates(patches: [CornerPatch, CornerPatch, CornerPatch, CornerPatch], expectWidth: number, keep = 6, apart = 1): [CornerFix[], CornerFix[], CornerFix[], CornerFix[]] {
   return patches.map((patch, k) => {
     const { gray, pw, ph, ox, oy, scale } = patch;
-    const [u, v] = dirs[k];
     const g = blur3(gray, pw, ph);
-    // The signed step across a point, along `n` (two pixels either side, so
-    // a sample a pixel off the edge still reads most of it). Signed, because
-    // a card's edge steps the same way all along an edge and round its
-    // corner (the card inside, the sleeve outside), so the steps add up,
-    // while a stitched weld seam (a dotted line) or grain cancels out.
-    const across = (x: number, y: number, n: Point): number | null => {
-      const x0 = Math.round(x - 2 * n.x), y0 = Math.round(y - 2 * n.y), x1 = Math.round(x + 2 * n.x), y1 = Math.round(y + 2 * n.y);
-      if (x0 < 0 || y0 < 0 || x1 < 0 || y1 < 0 || x0 >= pw || x1 >= pw || y0 >= ph || y1 >= ph) return null;
-      return g[y1 * pw + x1] - g[y0 * pw + x0];
-    };
     const r0 = expectWidth * scale * 0.045;
     // The best score at each pixel over the radii, then the local maxima.
     const bestAt = new Float32Array(pw * ph).fill(-Infinity);
     const radiusAt = new Float32Array(pw * ph);
-    // Radii 0.8-1.25x the 3 mm expected: a sleeve's corners are cut rounder
-    // (they fitted 5 mm when offered it, 10-15) and are not wanted.
-    for (const rf of [0.8, 1, 1.25]) {
-      const r = r0 * rf;
-      // Samples as offsets from the corner point (where the two straight
-      // edges would meet), each with the normal pointing into the card.
-      type S = { x: number; y: number; n: Point };
-      const edges: S[] = [], far: S[] = [], arc: S[] = [], inside: S[] = [], past: S[] = [];
-      for (let i = 0; i < 6; i++) {
-        // Along both edges past the tangent points.
-        const d = r * (1.15 + i * 0.35);
-        edges.push({ x: u.x * d, y: u.y * d, n: v }, { x: v.x * d, y: v.y * d, n: u });
-        // And well along both edges: a card's edge runs the length of the
-        // card, a rounded box printed on it (its text box, an attack box)
-        // has sides that stop a few per cent on (10-15, Chris's frames:
-        // both bottom corners snapped up to the text box's corners).
-        const e = r * (3.3 + i * 0.9);
-        far.push({ x: u.x * e, y: u.y * e, n: v }, { x: v.x * e, y: v.y * e, n: u });
-        // Inside the rounding along the straight lines: a sharp corner's edges run here, a card's do not.
-        if (i < 4) {
-          const e = r * (0.12 + i * 0.2);
-          inside.push({ x: u.x * e, y: u.y * e, n: v }, { x: v.x * e, y: v.y * e, n: u });
-          // Past the corner along both lines: a seam, a highlight or a bezel runs on, a card stops.
-          const f = r * (0.5 + i * 0.5);
-          past.push({ x: -u.x * f, y: -u.y * f, n: v }, { x: -v.x * f, y: -v.y * f, n: u });
-        }
-      }
-      const cx = (u.x + v.x) * r, cy = (u.y + v.y) * r;
-      for (let i = 1; i <= 7; i++) {
-        const th = (Math.PI / 2) * (i / 8);
-        const nx = u.x * Math.cos(th) + v.x * Math.sin(th), ny = u.y * Math.cos(th) + v.y * Math.sin(th);
-        arc.push({ x: cx - r * nx, y: cy - r * ny, n: { x: nx, y: ny } });
-      }
-      const sum = (x: number, y: number, list: S[]): { s: number; n: number } => {
-        let s = 0, n = 0;
-        for (const o of list) {
-          const d = across(x + o.x, y + o.y, o.n);
-          if (d === null) continue;
-          s += d;
-          n++;
-        }
-        return { s, n };
-      };
-      const margin = Math.ceil(r) + 3;
+    const signAt = new Int8Array(pw * ph);
+    const reading: CornerReading = { score: 0, r: 0, sign: 0, edge: 0, arc: 0, far: 0, inside: 0, past: 0 };
+    for (const rf of CORNER_RADII) {
+      const t = cornerTemplate(k, r0 * rf);
+      const margin = Math.ceil(t.r) + 3;
       for (let y = margin; y < ph - margin; y++) {
         for (let x = margin; x < pw - margin; x++) {
-          const e = sum(x, y, edges), a = sum(x, y, arc);
-          if (e.n < 8 || a.n < 5) continue;
-          // The edges and the arc must step the same way; each contributes its mean signed step.
-          const sign = e.s + a.s >= 0 ? 1 : -1;
-          const eMean = (sign * e.s) / e.n, aMean = (sign * a.s) / a.n;
-          if (eMean <= 0 || aMean <= 0) continue;
-          const i = sum(x, y, inside), p = sum(x, y, past);
-          const bad = (i.n ? Math.abs(i.s) / i.n : 0) + (p.n ? Math.abs(p.s) / p.n : 0);
-          // The far edge counts as much as the near one; off the patch it is taken on trust.
-          const f = sum(x, y, far);
-          const fMean = f.n >= 4 ? Math.max(0, (sign * f.s) / f.n) : eMean;
-          const score = Math.min(eMean, aMean * 1.5) + 0.5 * Math.min(eMean, aMean) + 0.5 * Math.min(eMean, fMean) - bad;
+          const score = readCorner(g, pw, ph, t, x, y, reading);
           if (score > bestAt[y * pw + x]) {
             bestAt[y * pw + x] = score;
-            radiusAt[y * pw + x] = r;
+            radiusAt[y * pw + x] = t.r;
+            signAt[y * pw + x] = reading.sign;
           }
         }
       }
@@ -638,29 +693,296 @@ export function cardCornerCandidates(patches: [CornerPatch, CornerPatch, CornerP
       if (s <= 0) continue;
       let top = true;
       for (let dy = -1; dy <= 1 && top; dy++) for (let dx = -1; dx <= 1; dx++) if ((dx || dy) && bestAt[(y + dy) * pw + x + dx] > s) { top = false; break; }
-      if (top) peaks.push({ x, y, score: s, r: radiusAt[y * pw + x] });
+      if (top) peaks.push({ x, y, score: s, r: radiusAt[y * pw + x], sign: signAt[y * pw + x] });
     }
     peaks.sort((a, b) => b.score - a.score);
     const kept: CornerFix[] = [];
     for (const p of peaks) {
       if (kept.length >= keep) break;
-      if (kept.some((q) => Math.hypot(q.x - p.x, q.y - p.y) < r0)) continue;
+      if (kept.some((q) => Math.hypot(q.x - p.x, q.y - p.y) < r0 * apart)) continue;
       kept.push(p);
     }
-    return kept.map((p) => ({ x: ox + p.x / scale, y: oy + p.y / scale, score: p.score, r: p.r / scale }));
+    return kept.map((p) => ({ x: ox + p.x / scale, y: oy + p.y / scale, score: p.score, r: p.r / scale, sign: p.sign }));
   }) as [CornerFix[], CornerFix[], CornerFix[], CornerFix[]];
 }
 
 /**
- * The card from the corner candidates: the four (or three, with the fourth
- * completed) that make a card-shaped box with the highest summed score. A
- * three-corner box needs each of its corners to be clearly strong (1.5x
+ * For the offline harness: the template's best reading over the radii at
+ * frame position (x, y) in patch k, searched within `reach` patch px of it
+ * (the label is read off by hand, a pixel or two out). Null when nothing there reads as a corner.
+ */
+export function cornerReadingAt(patch: CornerPatch, k: number, expectWidth: number, x: number, y: number, reach = 2, where = false): (CornerReading & { x: number; y: number }) | null {
+  const { gray, pw, ph, ox, oy, scale } = patch;
+  const g = blur3(gray, pw, ph);
+  const r0 = expectWidth * scale * 0.045;
+  const px = Math.round((x - ox) * scale), py = Math.round((y - oy) * scale);
+  let best: (CornerReading & { x: number; y: number }) | null = null;
+  const reading: CornerReading = { score: 0, r: 0, sign: 0, edge: 0, arc: 0, far: 0, inside: 0, past: 0 };
+  for (const rf of CORNER_RADII) {
+    const t = cornerTemplate(k, r0 * rf);
+    const margin = Math.ceil(t.r) + 3;
+    for (let dy = -reach; dy <= reach; dy++) for (let dx = -reach; dx <= reach; dx++) {
+      const qx = px + dx, qy = py + dy;
+      if (qx < margin || qy < margin || qx >= pw - margin || qy >= ph - margin) continue;
+      const score = readCorner(g, pw, ph, t, qx, qy, reading);
+      // The best spot in frame px (`where`), else the reading alone.
+      if (score > -Infinity && (!best || score > best.score)) best = { ...reading, x: where ? ox + qx / scale : x, y: where ? oy + qy / scale : y };
+    }
+  }
+  return best;
+}
+
+/** The scanner's working crop (grey, w x h) and where it sits in the frame (frame pixels), for the edge check along a box's sides. */
+export interface CropGray {
+  gray: Uint8Array;
+  w: number;
+  h: number;
+  sx: number;
+  sy: number;
+  sw: number;
+  sh: number;
+}
+
+/**
+ * How pickCardCorners scores a box. The defaults are the ones measured on
+ * Chris's binder frames (scripts/outline-eval/bench.mjs, 10-16); the harness
+ * varies them through PickOpts.tune, the scanner never does.
+ */
+export interface PickTuning {
+  /** A corner's score counts up to this: one bright corner (a seam's, 120+) must not carry a box. */
+  cap: number;
+  /** The signed step (blurred crop grey, 4 px apart) that counts as the card's edge along a side. */
+  stepMin: number;
+  /** How far either side of a box's side the edge may sit (crop px): a card's edge seen through a sleeve scatters a few px. */
+  band: number;
+  /** A side with an edge along less than this share of its length throws the box out. */
+  sideMin: number;
+  /** Penalties, in score points: per 1 % of aspect error, per 1 % uneven (opposite sides), per degree out of parallel, per corner whose edges step the other way from the rest. */
+  wAspect: number;
+  wEven: number;
+  wPar: number;
+  wSign: number;
+  /** The bonus for sitting where the last box was: this share of the score, times the overlap (IoU) with it. */
+  wPrior: number;
+  /** Boxes within this share of the best score are alike: the nested rule and the last box decide between them. */
+  tie: number;
+  /** Of two alike boxes one inside the other: "inner" takes the card inside its pocket, "outer" the other way, "off" leaves it to the score. */
+  nested: "inner" | "outer" | "off";
+  /** Hard limits a card never passes: aspect error (share), unevenness (share), degrees out of parallel. */
+  maxAspect: number;
+  maxEven: number;
+  maxPar: number;
+  /** Tracking: with the last box given, each corner's candidates within this share of the box's width of the last corner make the tracked box... */
+  trackReach: number;
+  /** ...and a box found afresh only replaces it when its score is this many times the tracked box's. */
+  switchRatio: number;
+  /** Tracking takes the candidate nearest each last corner first (the box only moves with the card), the best-scoring ones within reach only when those make no box. */
+  trackNearest: boolean;
+}
+
+export const PICK_TUNING: PickTuning = {
+  cap: 60,
+  stepMin: 10,
+  band: 3,
+  sideMin: 0.5,
+  wAspect: 1,
+  wEven: 1,
+  wPar: 2,
+  wSign: 0,
+  wPrior: 0.15,
+  tie: 0.1,
+  nested: "inner",
+  maxAspect: 0.2,
+  maxEven: 0.15,
+  maxPar: 8,
+  trackReach: 0.08,
+  // Never while the track holds: the card's own box is usually the WEAKER
+  // one on a binder page (its edge through a sleeve reads 2.5x fainter than
+  // the seams and sleeve edges round it, 10-16), so a switch to a "clearly
+  // better" box would mostly be a switch off the card. A wrong lock ends
+  // when the track is lost (the card leaves the guide) and the outline drops.
+  switchRatio: Infinity,
+  trackNearest: true,
+};
+
+export interface PickOpts {
+  /** Last tick's box (frame px): a box that overlaps it earns a bonus, and of alike boxes the nearest wins, so the pick does not flip between near-identical boxes tick to tick. */
+  prefer?: [Point, Point, Point, Point] | null;
+  /** The working crop: each side of a box must have an edge along it (a box stitched from a card's corner and a pocket's has sides that run through nothing). */
+  support?: CropGray | null;
+  /** Scoring knobs for the offline harness; see PickTuning. */
+  tune?: Partial<PickTuning>;
+}
+
+export interface Pick {
+  quad: Quad;
+  fixes: [CornerFix, CornerFix, CornerFix, CornerFix];
+  score: number;
+  /** The mean share of the four sides' length with an edge along it (1 when no crop was given). */
+  support: number;
+  /** True when the box was carried over from last tick's corners (see PickTuning.trackReach), false when found afresh. */
+  tracked?: boolean;
+}
+
+/** One box pickCardCorners weighed, with everything that went into its score (the offline harness reads these). */
+export interface ScoredBox extends Pick {
+  /** Each side's share with an edge along it (top, right, bottom, left). */
+  sides: [number, number, number, number];
+  /** The corners' scores summed, each capped. */
+  cornerSum: number;
+  aspectErr: number;
+  evenErr: number;
+  parErr: number;
+  /** Corners whose edges step the other way from the rest. */
+  odd: number;
+  /** The box's bounding box in frame px: left, right, top, bottom. */
+  box: [number, number, number, number];
+}
+
+const boxOf = (q: Point[]): [number, number, number, number] => {
+  let l = Infinity, r = -Infinity, t = Infinity, b = -Infinity;
+  for (const p of q) {
+    if (p.x < l) l = p.x;
+    if (p.x > r) r = p.x;
+    if (p.y < t) t = p.y;
+    if (p.y > b) b = p.y;
+  }
+  return [l, r, t, b];
+};
+const iouBox = ([l, r, t, b]: [number, number, number, number], [L, R, T, B]: [number, number, number, number]): number => {
+  const ix = Math.max(0, Math.min(r, R) - Math.max(l, L)), iy = Math.max(0, Math.min(b, B) - Math.max(t, T));
+  const inter = ix * iy;
+  const union = (r - l) * (b - t) + (R - L) * (B - T) - inter;
+  return union > 0 ? inter / union : 0;
+};
+
+/**
+ * The share of a side's length (from a to b, crop px, the box clockwise so
+ * the card is on the right of the walk) with the card's edge along it: at
+ * 24 points between the rounded corners, the signed step across the side
+ * (inside minus outside, 4 px apart, the strongest within `band` px of the
+ * side) must step the way `sign` says (or, with sign unknown, the way most
+ * of the side does) by at least `stepMin`.
+ */
+function sideSupport(g: Float32Array, w: number, h: number, a: Point, b: Point, sign: number, stepMin: number, band: number): number {
+  const len = Math.hypot(b.x - a.x, b.y - a.y);
+  if (len < 8) return 0;
+  const dx = (b.x - a.x) / len, dy = (b.y - a.y) / len;
+  const nx = -dy, ny = dx;
+  const K = 24;
+  const steps: number[] = [];
+  const offsets = [0, -band / 2, band / 2, -band, band];
+  for (let k = 0; k < K; k++) {
+    const along = (0.08 + (0.84 * k) / (K - 1)) * len;
+    const px = a.x + dx * along, py = a.y + dy * along;
+    let best = 0;
+    for (const o of offsets) {
+      const ix = Math.round(px + nx * (o + 2)), iy = Math.round(py + ny * (o + 2));
+      const ox = Math.round(px + nx * (o - 2)), oy = Math.round(py + ny * (o - 2));
+      if (ix < 0 || iy < 0 || ox < 0 || oy < 0 || ix >= w || ox >= w || iy >= h || oy >= h) continue;
+      const s = g[iy * w + ix] - g[oy * w + ox];
+      if (Math.abs(s) > Math.abs(best)) best = s;
+    }
+    steps.push(best);
+  }
+  if (!steps.length) return 0;
+  const way = sign || (steps.reduce((s, v) => s + v, 0) >= 0 ? 1 : -1);
+  return steps.filter((s) => s * way >= stepMin).length / steps.length;
+}
+
+/**
+ * The card from the corner candidates (10-16, measured on Chris's binder
+ * frames with scripts/outline-eval/bench.mjs): every four candidates (or
+ * three, with the fourth completed as the parallelogram) that make a box
+ * roughly card-shaped is scored, and the best wins.
+ *
+ * - Corner scores count up to `cap` each: on a binder page a pocket's seam
+ *   corner scores 120+ and used to carry a box stitched from it and three
+ *   of the card's corners.
+ * - With the working crop given, each side must have an edge along at least
+ *   `sideMin` of its length, and the score is scaled by the mean share: a
+ *   stitched box has sides that cross nothing.
+ * - Aspect, unevenness and parallelism are penalties, not just gates, so a
+ *   box does not fall in and out of favour as it crosses a threshold from
+ *   tick to tick.
+ * - With last tick's box given, overlap with it earns a bonus and breaks ties.
+ * A three-corner box needs each of its corners to be clearly strong (1.5x
  * `minScore`), a four-corner one each at least `minScore`.
  */
-export function pickCardCorners(cands: [CornerFix[], CornerFix[], CornerFix[], CornerFix[]], minScore: number, w: number, h: number): { quad: Quad; fixes: [CornerFix, CornerFix, CornerFix, CornerFix]; score: number } | null {
-  let best: { quad: Quad; fixes: [CornerFix, CornerFix, CornerFix, CornerFix]; score: number } | null = null;
-  const none: CornerFix = { x: 0, y: 0, score: -Infinity, r: 0 };
+export function pickCardCorners(cands: [CornerFix[], CornerFix[], CornerFix[], CornerFix[]], minScore: number, w: number, h: number, opts: PickOpts = {}): Pick | null {
+  const t: PickTuning = { ...PICK_TUNING, ...opts.tune };
+  // Every box, scored, only when it is needed: a tracked tick with no switching skips the 10^4 combinations.
+  let all: ScoredBox[] | null = null;
+  const scoredAll = (): ScoredBox[] => (all ??= scoreCardBoxes(cands, minScore, w, h, opts));
+  const prefer = opts.prefer ? boxOf(opts.prefer) : null;
+  // Tracking (10-16, measured with scripts/outline-eval/bench.mjs PRIOR=1):
+  // the candidates near last tick's corners make a box of their own, and
+  // it holds unless a box found afresh clearly beats it. Picked afresh each
+  // tick, the box flipped between near-identical boxes as the hand moved a
+  // few pixels (the candidate list changes under it); held, it only moves
+  // with the card.
+  if (opts.prefer && prefer) {
+    const reach = (prefer[1] - prefer[0]) * t.trackReach;
+    const last = opts.prefer;
+    const near = cands.map((list, k) => list.filter((f) => Math.hypot(f.x - last[k].x, f.y - last[k].y) <= reach).sort((p, q) => Math.hypot(p.x - last[k].x, p.y - last[k].y) - Math.hypot(q.x - last[k].x, q.y - last[k].y))) as [CornerFix[], CornerFix[], CornerFix[], CornerFix[]];
+    if (near.filter((l) => l.length).length >= 3) {
+      let tracked: ScoredBox | undefined;
+      if (t.trackNearest) tracked = scoreCardBoxes(near.map((l) => l.slice(0, 1)) as [CornerFix[], CornerFix[], CornerFix[], CornerFix[]], minScore, w, h, opts)[0];
+      tracked ??= scoreCardBoxes(near, minScore, w, h, opts)[0];
+      if (tracked && !(Number.isFinite(t.switchRatio) && scoredAll().length && scoredAll()[0].score > tracked.score * t.switchRatio)) {
+        return { quad: tracked.quad, fixes: tracked.fixes, score: tracked.score, support: tracked.support, tracked: true };
+      }
+    }
+  }
+  const scored = scoredAll();
+  if (!scored.length) return null;
+  const top = scored[0].score;
+  let alike = scored.filter((s) => s.score >= top - Math.abs(top) * t.tie);
+  if (t.nested !== "off" && alike.length > 1) {
+    // Of two alike boxes one inside the other (every corner of the inner
+    // within the outer, 2 % of the width of play), keep the one the rule says.
+    const inside = (inner: ScoredBox, outer: ScoredBox): boolean => {
+      const [l, r, tp, bt] = outer.box;
+      const slack = (r - l) * 0.02;
+      return inner !== outer && inner.box[0] >= l - slack && inner.box[1] <= r + slack && inner.box[2] >= tp - slack && inner.box[3] <= bt + slack && (inner.box[1] - inner.box[0]) < (r - l);
+    };
+    alike = alike.filter((s) => !alike.some((o) => (t.nested === "inner" ? inside(o, s) : inside(s, o))));
+  }
+  let best = alike[0];
+  if (prefer && alike.length > 1) {
+    let bestIou = -1;
+    for (const s of alike) {
+      const iou = iouBox(s.box, prefer);
+      if (iou > bestIou) {
+        bestIou = iou;
+        best = s;
+      }
+    }
+  }
+  return { quad: best.quad, fixes: best.fixes, score: best.score, support: best.support, tracked: false };
+}
+
+/** Every card-shaped box the candidates make, scored as pickCardCorners scores them, best first. */
+export function scoreCardBoxes(cands: [CornerFix[], CornerFix[], CornerFix[], CornerFix[]], minScore: number, w: number, h: number, opts: PickOpts = {}): ScoredBox[] {
+  const t: PickTuning = { ...PICK_TUNING, ...opts.tune };
+  const none: CornerFix = { x: 0, y: 0, score: -Infinity, r: 0, sign: 0 };
   const lists = cands.map((c) => [...c.filter((f) => f.score >= minScore), none]);
+  const crop = opts.support ?? null;
+  const cg = crop ? blur3(crop.gray, crop.w, crop.h) : null;
+  const toCrop = (p: Point): Point => (crop ? { x: ((p.x - crop.sx) / crop.sw) * crop.w, y: ((p.y - crop.sy) / crop.sh) * crop.h } : p);
+  const prefer = opts.prefer ? boxOf(opts.prefer) : null;
+  // A side's support depends only on its two end points; the same pair comes up in many boxes.
+  const sideCache = new Map<string, number>();
+  const supportOf = (a: Point, b: Point, sign: number): number => {
+    const key = `${a.x.toFixed(1)},${a.y.toFixed(1)}|${b.x.toFixed(1)},${b.y.toFixed(1)}|${sign}`;
+    let s = sideCache.get(key);
+    if (s === undefined) {
+      s = sideSupport(cg as Float32Array, (crop as CropGray).w, (crop as CropGray).h, toCrop(a), toCrop(b), sign, t.stepMin, t.band);
+      sideCache.set(key, s);
+    }
+    return s;
+  };
+  const scored: ScoredBox[] = [];
   for (const a of lists[0]) for (const b of lists[1]) for (const c of lists[2]) for (const d of lists[3]) {
     const fixes: [CornerFix, CornerFix, CornerFix, CornerFix] = [a, b, c, d];
     const missing = fixes.filter((f) => f === none).length;
@@ -669,12 +991,37 @@ export function pickCardCorners(cands: [CornerFix[], CornerFix[], CornerFix[], C
     // One card, one corner radius (within 1.6x): a pocket's corner is rounder.
     const radii = fixes.filter((f) => f !== none).map((f) => f.r);
     if (Math.max(...radii) > Math.min(...radii) * 1.6) continue;
-    const quad = quadFromCorners(fixes, minScore, w, h);
-    if (!quad) continue;
-    const score = fixes.reduce((s, f) => s + (f === none ? 0 : f.score), 0) * (missing ? 0.85 : 1);
-    if (!best || score > best.score) best = { quad, fixes, score };
+    const geo = boxFromCorners(fixes, minScore, w, h, t.maxAspect, t.maxEven, t.maxPar);
+    if (!geo) continue;
+    // The way the card's edges step, by majority; corners that step the other way cost `wSign` each.
+    let signSum = 0;
+    for (const f of fixes) if (f !== none) signSum += f.sign;
+    const sign = signSum > 0 ? 1 : signSum < 0 ? -1 : 0;
+    let odd = 0;
+    for (const f of fixes) if (f !== none && f.sign && f.sign !== sign) odd++;
+    let support = 1;
+    const sides: [number, number, number, number] = [1, 1, 1, 1];
+    if (cg) {
+      let sum = 0, bad = false;
+      for (let i = 0; i < 4 && !bad; i++) {
+        const s = supportOf(geo.quad.corners[i], geo.quad.corners[(i + 1) % 4], sign);
+        sides[i] = s;
+        if (s < t.sideMin) bad = true;
+        sum += s;
+      }
+      if (bad) continue;
+      support = sum / 4;
+    }
+    let cornerSum = 0;
+    for (const f of fixes) if (f !== none) cornerSum += Math.min(f.score, t.cap);
+    const base = cornerSum * support * (missing ? 0.85 : 1);
+    const penalty = t.wAspect * geo.aspectErr * 100 + t.wEven * geo.evenErr * 100 + t.wPar * geo.parErr + t.wSign * odd;
+    const box = boxOf(geo.quad.corners);
+    const bonus = prefer ? t.wPrior * base * iouBox(box, prefer) : 0;
+    scored.push({ quad: geo.quad, fixes, score: base - penalty + bonus, support, sides, cornerSum, aspectErr: geo.aspectErr, evenErr: geo.evenErr, parErr: geo.parErr, odd, box });
   }
-  return best;
+  scored.sort((p, q) => q.score - p.score);
+  return scored;
 }
 
 /**
@@ -684,6 +1031,16 @@ export function pickCardCorners(cands: [CornerFix[], CornerFix[], CornerFix[], C
  * its opposite sides parallel within 8° and even within 22 %. Null otherwise.
  */
 export function quadFromCorners(fixes: [CornerFix, CornerFix, CornerFix, CornerFix], minScore: number, w: number, h: number): Quad | null {
+  return boxFromCorners(fixes, minScore, w, h, 0.15, 0.1, 5)?.quad ?? null;
+}
+
+/**
+ * quadFromCorners with the limits as arguments, and how far the box is from
+ * a perfect card: aspect error and unevenness as shares, parallelism in
+ * degrees (the worst of the two pairs of sides). pickCardCorners turns these
+ * into penalties.
+ */
+function boxFromCorners(fixes: [CornerFix, CornerFix, CornerFix, CornerFix], minScore: number, w: number, h: number, maxAspect: number, maxEven: number, maxPar: number): { quad: Quad; aspectErr: number; evenErr: number; parErr: number } | null {
   const good = fixes.map((f) => f.score >= minScore);
   const n = good.filter(Boolean).length;
   if (n < 3) return null;
@@ -697,20 +1054,24 @@ export function quadFromCorners(fixes: [CornerFix, CornerFix, CornerFix, CornerF
   const c = pts as [Point, Point, Point, Point];
   const len = (a: Point, b: Point) => Math.hypot(b.x - a.x, b.y - a.y);
   const ang = (a: Point, b: Point) => (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI;
-  // Opposite sides even within 10 % and parallel within 5°: a hand-held
-  // phone keystones a card a few per cent; a box stitched from a card's
-  // corners and a pocket's is a trapezoid (10-15, Chris's binder frames).
+  // Opposite sides even and parallel: a hand-held phone keystones a card a
+  // few per cent; a box stitched from a card's corners and a pocket's is a
+  // trapezoid (10-15, Chris's binder frames).
   const top = len(c[0], c[1]), bottom = len(c[3], c[2]), left = len(c[0], c[3]), right = len(c[1], c[2]);
-  if (Math.min(top, bottom) / Math.max(top, bottom) < 0.9 || Math.min(left, right) / Math.max(left, right) < 0.9) return null;
-  // 63:88 within 15 %: a phone held at a slant foreshortens the card to
-  // 0.78-0.80 in Chris's binder frames (10-15); a pocket is 0.85-0.95.
+  if (Math.min(top, bottom, left, right) <= 0) return null;
+  const evenErr = Math.max(1 - Math.min(top, bottom) / Math.max(top, bottom), 1 - Math.min(left, right) / Math.max(left, right));
+  if (evenErr > maxEven) return null;
+  // 63:88: a phone held at a slant foreshortens the card to 0.78-0.80 in
+  // Chris's binder frames (10-15); a pocket is 0.85-0.95.
   const aspect = (top + bottom) / (left + right);
-  if (Math.abs(aspect / CARD_ASPECT - 1) > 0.15) return null;
+  const aspectErr = Math.abs(aspect / CARD_ASPECT - 1);
+  if (aspectErr > maxAspect) return null;
   const turn = (a: number) => ((a + 180) % 360 + 360) % 360 - 180;
-  if (Math.abs(turn(ang(c[0], c[1]) - ang(c[3], c[2]))) > 5 || Math.abs(turn(ang(c[0], c[3]) - ang(c[1], c[2]))) > 5) return null;
+  const parErr = Math.max(Math.abs(turn(ang(c[0], c[1]) - ang(c[3], c[2]))), Math.abs(turn(ang(c[0], c[3]) - ang(c[1], c[2]))));
+  if (parErr > maxPar) return null;
   const angle = ang(c[0], c[1]);
   if (Math.abs(angle) > 12) return null;
-  return { corners: c, area: polygonArea(c) / (w * h), angle };
+  return { quad: { corners: c, area: polygonArea(c) / (w * h), angle }, aspectErr, evenErr, parErr };
 }
 
 function polygonArea(p: Point[]): number {

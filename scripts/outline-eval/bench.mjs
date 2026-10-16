@@ -6,12 +6,15 @@
 // Patches are built exactly as CameraCapture.cornersFromSource does (PATCH
 // 110 px for half a guide width). Run from the repo root:
 //   node --experimental-strip-types scripts/outline-eval/bench.mjs [filter]
-// Labeled frames only unless a filter is given. env: MIN (20), KEEP (6),
-// PATCH (110), SPAN (0.5), PRIOR=1 (hand the unshifted pick to the shifted
-// runs as the previous box, once pickCardCorners takes one), VERBOSE=1 (a
-// line per frame), NOSHIFT=1 (skip the stability runs, 7x faster).
+// Labeled frames only unless a filter is given. env: MIN (20), KEEP (6; the
+// phone uses 10), PATCH (110), SPAN (0.5), PRIOR=1 (hand the unshifted pick
+// to the shifted runs as last tick's box, as the phone does: the tracking
+// path), SUPPORT=0 (no working crop), TUNE (JSON over PickTuning), VERBOSE=1
+// (a line per frame), NOSHIFT=1 (skip the stability runs, 7x faster).
 // Baselines (10-15 night): 10 noon frames 2/10 correct, mean IoU 0.818,
-// shift move median 13.3 %; see docs/STATE.md for the 18-frame numbers.
+// shift move median 13.3 %; 18 frames 3/18, 0.732, 10.6 %. 10-16 (new picker,
+// KEEP=10 PRIOR=1): 4/18, 0.756, shift move median 0.9 % p75 3.0 %, 39 ms;
+// see docs/STATE.md.
 import { createRequire } from "node:module";
 import { readdir, readFile } from "node:fs/promises";
 import { readFileSync } from "node:fs";
@@ -29,6 +32,9 @@ const SPAN = +(process.env.SPAN ?? 0.5);
 const MIN = +(process.env.MIN ?? 20);
 const KEEP = +(process.env.KEEP ?? 6);
 const PRIOR = process.env.PRIOR === "1";
+// SUPPORT=0 leaves the working crop out (corner scores + geometry only); TUNE='{"cap":60,...}' overrides PickTuning knobs.
+const SUPPORT = process.env.SUPPORT !== "0";
+const TUNE = process.env.TUNE ? JSON.parse(process.env.TUNE) : {};
 const SHIFTS = [[-4, 0], [4, 0], [0, -4], [0, 4], [-8, 0], [8, 0]];
 const files = (await readdir(DUMPS)).filter((f) => f.endsWith(".json") && f.includes(filter) && (filter || labels[f.slice(11, 23)])).sort();
 
@@ -66,13 +72,19 @@ for (const f of files) {
   const img = sharp(path.join(DUMPS, `${stamp}.jpg`));
   const { width: FW, height: FH } = await img.metadata();
   const toCrop = (c) => ({ x: ((c.x - sx) / sw) * w, y: ((c.y - sy) / sh) * h });
+  // The working crop as CameraCapture draws it (224 wide, a quarter-guide past the guide each side).
+  let support = null;
+  if (SUPPORT) {
+    const rgba = await img.clone().extract({ left: Math.round(sx), top: Math.round(sy), width: Math.round(sw), height: Math.round(sh) }).resize(w, h, { fit: "fill" }).ensureAlpha().raw().toBuffer();
+    support = { gray: pq.toGray(rgba, w * h), w, h, sx, sy, sw, sh };
+  }
   const run = async (dx, dy, prefer) => {
     const patches = await patchesFor(img, FW, FH, g, dx, dy);
     const t0 = performance.now();
     const cands = pq.cardCornerCandidates(patches, g.w, KEEP);
-    const pick = pq.pickCardCorners(cands, MIN, FW, FH, prefer ?? undefined);
+    const pick = pq.pickCardCorners(cands, MIN, FW, FH, { prefer: prefer ?? null, support, tune: TUNE });
     const ms = performance.now() - t0;
-    return { ms, pick: pick ? { corners: pick.quad.corners.map(toCrop), frame: pick.quad.corners, scores: pick.fixes.map((x) => (x.score === -Infinity ? 0 : x.score)) } : null };
+    return { ms, pick: pick ? { corners: pick.quad.corners.map(toCrop), frame: pick.quad.corners, scores: pick.fixes.map((x) => (x.score === -Infinity ? 0 : x.score)), support: pick.support } : null };
   };
   const base = await run(0, 0, null);
   n++; msSum += base.ms;
@@ -81,7 +93,7 @@ for (const f of files) {
   let line = `${short}  ${base.ms.toFixed(0).padStart(3)}ms  `;
   if (base.pick) {
     found++;
-    line += `scores ${base.pick.scores.map((s) => s.toFixed(0)).join("/").padEnd(14)}`;
+    line += `scores ${base.pick.scores.map((s) => s.toFixed(0)).join("/").padEnd(14)} sup ${base.pick.support.toFixed(2)}`;
   } else line += "none".padEnd(21);
   if (lab) {
     labeled++;
