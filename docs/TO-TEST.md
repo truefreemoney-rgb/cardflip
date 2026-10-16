@@ -14,6 +14,9 @@
 - [x] PASS 10-16 local: /api/ebay/comps with id base1-4 + name "Magikarp" searches "Charizard 4" (audit #1).
 - [x] PASS 10-16 local: /api/cron/emails?force=1 and /api/cron/social-video without a key -> 403 (audit #4).
 
+## 10-16: duplicate-email fix, audit #9 (NOT PUSHED, eb95dd75). Local: test:campaigns + test:digest green incl. two overlapping runs
+- [ ] After push: next Sunday 10-18 digest + 6:30pm ET week mail: /admin/emails log shows one "sent" per person, no repeats; `SELECT COUNT(*) FROM email_claims` > 0. (Mine.)
+
 ## 10-16 ~9:30am ET: site-audit fixes (NOT PUSHED, ddea8db2..36c2e6a5; docs/AUDIT-2026-10-16.md)
 Mostly server guards, proven by local tests; these are the prod checks after the push.
 - [ ] eBay comps (#1): on a card page / scan result, "eBay listings" still loads comps for a Pokémon and a Magic card (catalog lookup in front of the cache). (Mine, pane.)
