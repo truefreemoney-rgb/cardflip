@@ -784,12 +784,17 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
         // card one tick, the card the next; "the outline is very twitchy"),
         // so it is held back until the same box comes three ticks running
         // (450 ms): a card that really moved that far gets there, a flicker
-        // between two boxes never does.
+        // between two boxes never does. "The same box" is within 8 %: the
+        // corner finder's own tick-to-tick spread on Chris's binder frames is
+        // ~12 % (median), so 3 % never matched and the outline froze.
+        // Nothing on screen yet = nothing to protect: the first fix shows
+        // (10-15 night: a slightly-off first box held every later one back,
+        // 20 s with the card found every tick and no outline).
         const last = seen;
         const apart = (a: [Point, Point, Point, Point], b: [Point, Point, Point, Point]) => Math.max(...a.map((p, i) => Math.hypot(p.x - b[i].x, p.y - b[i].y)));
         const moved = last ? apart(fresh, last) : Infinity;
         let held = false;
-        if (!last) seen = fresh;
+        if (!last || !outlineTarget.current) seen = fresh;
         else if (moved < 0.015) {
           seen = last;
           pending = null;
@@ -797,7 +802,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
           seen = last.map((p, i) => ({ x: (p.x + fresh[i].x) / 2, y: (p.y + fresh[i].y) / 2 })) as [Point, Point, Point, Point];
           pending = null;
         } else {
-          pending = pending && apart(fresh, pending.corners) < 0.03 ? { corners: fresh, ticks: pending.ticks + 1 } : { corners: fresh, ticks: 1 };
+          pending = pending && apart(fresh, pending.corners) < 0.08 ? { corners: fresh, ticks: pending.ticks + 1 } : { corners: fresh, ticks: 1 };
           if (pending.ticks >= 3) {
             seen = fresh;
             pending = null;
