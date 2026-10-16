@@ -30,7 +30,7 @@ export function renderComeback(firstName: string, unsubUrl: string): ComebackMai
   const hi = first ? `Hey ${first},` : "Hey there,";
   const link = `${SITE_URL}/app?code=${COMEBACK_CODE}`;
   const account = `${SITE_URL}/app/account`;
-  const subject = "Your cards called. They want to know what they're worth 👀";
+  const subject = "Your CardFlip code is inside: 10 scans on us";
   const text = [
     hi,
     "",
