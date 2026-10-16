@@ -733,7 +733,17 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
       // across two cards did). Green needs it: a doubtful box stays blue
       // (Chris, 10-16: "green ... well above, below and side to side of the
       // card"). The line finder's box (no corners) is taken as it was.
-      const sure = corners ? Math.min(...corners.scores) >= 30 && corners.support >= 0.7 : true;
+      // Loosened 10-16 ~1:10am (Chris's second round: "so much harder to get
+      // it to go green ... with the ceiling light, i was never able to"; 84
+      // dumps): all-four-at-30 failed on one weak corner most ticks (weakest
+      // corner median 26 under the ceiling light), green in 2 of 17 dumps
+      // there. Now 3 of 4 corners at 25+, the weakest at 10+, edge along
+      // 60 %+: green in 15 of 17 ceiling-light dumps, 74 of 86 overall. Costs:
+      // a few half-card boxes pass too (3 of 5 on the labels); green is only
+      // a hint, the capture re-finds the card on the full frame.
+      const sure = corners
+        ? corners.scores.filter((s) => s >= 25).length >= 3 && Math.min(...corners.scores) >= 10 && corners.support >= 0.6
+        : true;
       if (corners) {
         const cc = corners.corners.map((p) => ({ x: ((p.x - sx) / sw) * w, y: ((p.y - sy) / sh) * h })) as [Point, Point, Point, Point];
         const area = Math.abs(cc.reduce((s, p, i) => s + p.x * cc[(i + 1) % 4].y - cc[(i + 1) % 4].x * p.y, 0)) / 2 / (w * h);
@@ -760,7 +770,11 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
           dctx.lineWidth = 1;
           dctx.strokeRect(((g.x - sx) / sw) * w, ((g.y - sy) / sh) * h, (g.w / sw) * w, (g.h / sh) * h);
           if (quad) {
-            dctx.strokeStyle = "#34d399";
+            // Green only when this box passes the sure gate, amber when it
+            // does not (Chris 10-16: the preview was always green, so it
+            // looked like it disagreed with the blue outline on screen; the
+            // on-screen green also needs steady + in the guide).
+            dctx.strokeStyle = sure ? "#34d399" : "#fbbf24";
             dctx.lineWidth = 2;
             dctx.beginPath();
             quad.corners.forEach((p, i) => (i ? dctx.lineTo(p.x, p.y) : dctx.moveTo(p.x, p.y)));
@@ -842,8 +856,9 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
         const last = seen;
         const apart = (a: [Point, Point, Point, Point], b: [Point, Point, Point, Point]) => Math.max(...a.map((p, i) => Math.hypot(p.x - b[i].x, p.y - b[i].y)));
         const moved = last ? apart(fresh, last) : Infinity;
-        // Steady = three fixes running within 3 % of each other (450 ms):
-        // green waits for it, a box still settling is blue.
+        // Steady = two fixes running within 3 % of each other (300 ms; was
+        // three, loosened 10-16 with the sure gate): green waits for it, a
+        // box still settling is blue.
         steady = moved < 0.03 ? steady + 1 : 0;
         let held = false;
         if (!last || !outlineTarget.current) seen = fresh;
@@ -871,7 +886,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
         // While a jump is held back, the colour stays as it was: the fix on
         // screen is not the one just measured.
         const inGuide = seen.every((p) => p.x > -0.12 && p.x < 1.12 && p.y > -0.12 && p.y < 1.12);
-        const ready = inGuide && Math.abs(quad.angle) <= 8 && next === null && sure && steady >= 2;
+        const ready = inGuide && Math.abs(quad.angle) <= 8 && next === null && sure && steady >= 1;
         readyNow = ready;
         if (seenStreak >= 2 && !held) {
           // The drawn line starts where the card is, then glides to each
