@@ -555,3 +555,9 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 - [ ] Card pages: Buy on eBay under the price + commission line; name pages (e.g. /pokemon/mewtwo-card-value) Buy under each card. customid card-page / name-page / cards-search.
 - [ ] /cards/pokemon search: full grid + count + Show more + Buy (Mewtwo = 95, same as the app).
 - Decided 10-16 (Chris): NO "Which one is yours?" picker when the name reads but the number doesn't exist. Keep "No match" (never guess a printing).
+
+## 10-16 ~4am ET push (s178 second batch)
+- [ ] Morning after: daily_last_result mtg now shows cardmarketFilled (number, ~400ish) next to cappedToListing.
+- [ ] Morning after: soft cap live. Spot-check: an Alpha/Beta capped card (e.g. Beta Shivan Dragon, was $1,998.97 = cheapest listing) now ~1.45x its listing; a cheap modern foil (Cromat Apocalypse foil ~$57) unchanged; none of the soft-capped ones flagged "looks off".
+- [ ] Ancient Mew (miscp-001) card page shows ~$122 after the next daily price run.
+- [ ] Homepage hero line reads "...adds up what your whole binder is worth. Selling? It writes the eBay listing. You tap Post." (Chris yes 10-16).

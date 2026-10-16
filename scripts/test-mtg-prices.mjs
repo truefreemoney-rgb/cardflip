@@ -160,6 +160,23 @@ console.warn = warn;
     [1, [[3, 57.3], [null, 60], [9, null], [90, null]], ["cromat|foil|57.3", "drum|foil|41.99"]]);
 }
 {
+  // 10-16: soft cap. Pre-1996 printings and $100+ listings take 1.45x the listing; cheap modern ones still take the listing.
+  const { capToListing } = await import("../src/lib/server/mtgPriceRefresh.ts");
+  const rows = [
+    { id: "blaze", usd: 900, foil: null, etched: null, eur: null, eurFoil: null }, // Alpha, listing $400
+    { id: "jace", usd: null, foil: 300, etched: null, eur: null, eurFoil: null }, // 2010 foil, listing $134
+    { id: "cromat", usd: null, foil: 155.59, etched: null, eur: null, eurFoil: null }, // 2001 foil, listing $57.30
+    { id: "bog", usd: 70, foil: null, etched: null, eur: null, eurFoil: null }, // Alpha, $55 listing, 1.27x: no cap
+  ];
+  const ids = new Map([["blaze", 1], ["jace", 2], ["cromat", 3], ["bog", 4]]);
+  const lows = new Map([[1, { Normal: 400 }], [2, { Foil: 134 }], [3, { Foil: 57.3 }], [4, { Normal: 55 }]]);
+  const released = new Map([["blaze", "1993-08-05"], ["jace", "2010-02-05"], ["cromat", "2001-06-04"], ["bog", "1993-08-05"]]);
+  const r = capToListing(rows, ids, lows, released);
+  check("soft cap: Alpha $900 -> $580 (1.45x $400), Jace foil $300 -> $194.30, Cromat foil -> $57.30, Bog $70 untouched",
+    [r.capped, rows.map((x) => x.usd ?? x.foil)],
+    [3, [580, 194.3, 57.3, 70]]);
+}
+{
   // 10-13: blank printings take Scryfall's Cardmarket euro price in dollars under the converted source; series go to that source.
   const { fillFromEuro } = await import("../src/lib/server/mtgPriceRefresh.ts");
   const rows = [

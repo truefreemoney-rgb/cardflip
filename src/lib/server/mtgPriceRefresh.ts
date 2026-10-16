@@ -46,6 +46,7 @@ interface ScryfallCard {
   id: string;
   lang?: string;
   tcgplayer_id?: number;
+  released_at?: string;
   prices?: { usd?: string | null; usd_foil?: string | null; usd_etched?: string | null; eur?: string | null; eur_foil?: string | null };
 }
 
@@ -130,6 +131,15 @@ export function fillFromEuro(rows: MtgPriceRow[], usdPerEur: number): number {
 
 /** From this price up a printing's cheapest live listing is kept (listing_lows) and caps it. */
 export const CAP_MIN_USD = 10;
+/**
+ * Soft cap (10-16, Chris yes): pre-1996 printings and listings of $100+ are capped at SOFT_CAP_X the cheapest listing,
+ * not at it. That listing is often a played or damaged copy, so old and dear cards ran low: eBay asks sat 1.46x over
+ * capped pre-1996 prices (1.10x uncapped) and 1.56x over capped modern foils; sold checks agree (Alpha Blaze of Glory
+ * $400 vs $579-$695 sold, Jace foil $134 vs $180-$205). 1.45 stays under the trust check's 1.5x edge (priceTrust test 4).
+ */
+export const SOFT_CAP_BEFORE = "1996-01-01";
+export const SOFT_CAP_MIN_LOW_USD = 100;
+export const SOFT_CAP_X = 1.45;
 
 /**
  * The cheapest-listing cap (10-13, Chris "yes go ahead with both foil fixes"). TCGplayer's market price is its last sale,
@@ -144,6 +154,8 @@ export function capToListing(
   rows: MtgPriceRow[],
   tcgIdOf: Map<string, number>,
   lowsByProduct: Map<number, Record<string, number>>,
+  /** Release date per printing (Scryfall released_at); pre-1996 takes the soft cap. */
+  releasedOf: Map<string, string> = new Map(),
 ): { capped: number; lows: ListingLow[] } {
   let capped = 0;
   const lows: ListingLow[] = [];
@@ -157,7 +169,8 @@ export function capToListing(
       if (price == null || price < CAP_MIN_USD || low == null) continue;
       lows.push({ cardId: r.id, game: "mtg", variant, lowUsd: low });
       if (price >= PRICE_TRUST.staleOverLow * low) { // same edge as test 4: exactly 1.5x is too high
-        r[field] = low;
+        const soft = (releasedOf.get(r.id) ?? "9999") < SOFT_CAP_BEFORE || low >= SOFT_CAP_MIN_LOW_USD;
+        r[field] = soft ? Math.round(low * SOFT_CAP_X * 100) / 100 : low;
         capped++;
       }
     }
@@ -197,11 +210,13 @@ export async function refreshMtgPricesFromBulk(day = todayUtc()): Promise<Refres
   // batches — per-row statements were ~200k round trips on Turso.
   const pending: MtgPriceRow[] = [];
   const tcgIdOf = new Map<string, number>();
+  const releasedOf = new Map<string, string>();
   const onCard = (obj: unknown) => {
     const c = obj as ScryfallCard;
     if (!c?.id || c.lang !== "en" || !c.prices) return;
     scanned++;
     if (c.tcgplayer_id) tcgIdOf.set(c.id, c.tcgplayer_id);
+    if (c.released_at) releasedOf.set(c.id, c.released_at);
     pending.push({
       id: c.id,
       usd: num(c.prices.usd), foil: num(c.prices.usd_foil), etched: num(c.prices.usd_etched),
@@ -289,7 +304,7 @@ export async function refreshMtgPricesFromBulk(day = todayUtc()): Promise<Refres
   // Cap at the cheapest live listing and keep that listing for the trust check (capToListing). A failure only skips it.
   let cappedToListing = 0;
   try {
-    const r = capToListing(pending.filter((c) => mirror.has(c.id)), tcgIdOf, await allListingLows());
+    const r = capToListing(pending.filter((c) => mirror.has(c.id)), tcgIdOf, await allListingLows(), releasedOf);
     cappedToListing = r.capped;
     const have = new Set(lows.map((l) => `${l.cardId}|${l.variant}`));
     lows.push(...r.lows.filter((l) => !have.has(`${l.cardId}|${l.variant}`)));
