@@ -55,8 +55,8 @@ Older, still open:
 Found 10-14 9:50pm in older TO-TEST blocks, never listed before:
 77. Scanner: a card with two near-identical printings (a Trainer Gallery card like Eevee TG11, or a 1st Edition twin): the card shows within ~3 s; if the picture check later disagrees, it swaps and a Check-match line says "the photo looks more like this printing than <set>". [10-11]
 78. Scanner: verify a card quickly after it shows: a late picture check must NOT change it afterwards (verified wins). [10-11]
-79. One Tap: close it with the X, open /pricing and reload home: it never comes back on that device. [10-11]
-80. One Tap: signed IN, no prompt on any public page; never on /app, /admin, /login, /signup. [10-11]
+79. PASS 10-16 ~2:30am ET (Chris: done 3 times, it never comes back): One Tap: close it with the X, open /pricing and reload home: it never comes back on that device. [10-11]
+80. PASS 10-16 ~2:30am ET (pane, signed in as Chris: cardflip.io home after 5 s has no Google sign-in script and no prompt; /app /admin /login /signup never load it per code): One Tap: signed IN, no prompt on any public page; never on /app, /admin, /login, /signup. [10-11]
 81. PASS 10-14 ~11:05pm ET (pane 375px, your account = owner so no Subscribe Now button: Sylveon ex panel, round X top right closes it, plain list back; Share button inside the panel): Inventory with a card open: the round X next to Subscribe Now closes the card and shows the plain list; Share sits inside the card panel. [10-08]
 
 Also yours, not a test: sign into /admin in the browser pane when you have a minute, so I can do D66-D69 and D71 without you.
