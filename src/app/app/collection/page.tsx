@@ -2002,7 +2002,7 @@ export default function CollectionPage() {
           {summaryOpen ? (
             <span className="text-xs uppercase tracking-[0.15em] text-zinc-500">Summary</span>
           ) : (
-            // Both totals stay on one row at phone width up to $99,999.99 each (10-16): tighter gaps, "Show" is the chevron alone.
+            // Both totals stay on one row at phone width up to $99,999.99 each (10-16): tighter gaps, and "Show" steps aside when they are long.
             <span className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-0.5 text-xs text-zinc-400 sm:gap-x-4">
               <span className="whitespace-nowrap">
                 {pricingOnly ? "Market Value" : "In Play"} <span className="font-display text-sm font-semibold tabular-nums text-white">{liveLoaded ? formatMoney(stats.inPlayMarket) : "…"}</span>
@@ -2013,7 +2013,18 @@ export default function CollectionPage() {
             </span>
           )}
           <span className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-brand-300">
-            <span className={summaryOpen ? "" : "hidden sm:inline"}>{summaryOpen ? "Hide" : "Show"}</span>
+            {/* "Show" stays unless the two totals are too long for it on a phone (Chris 10-16); then the arrow alone.
+                Measured on iPhone WebKit at 375px: the line breaks from 35 characters, so 33 leaves a margin. */}
+            <span
+              className={
+                summaryOpen ||
+                `${pricingOnly ? "Market Value" : "In Play"} ${liveLoaded ? formatMoney(stats.inPlayMarket) : "…"} Earned ${formatMoney(pricingOnly ? stats.earned : stats.net)}`.length <= 33
+                  ? ""
+                  : "hidden sm:inline"
+              }
+            >
+              {summaryOpen ? "Hide" : "Show"}
+            </span>
             <svg viewBox="0 0 20 20" className={`h-4 w-4 transition-transform ${summaryOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <path d="M5 8l5 5 5-5" />
             </svg>
