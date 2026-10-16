@@ -88,7 +88,7 @@ export async function completeGoogleSignIn(
     const knownDevice = deviceIdFrom(req);
     const deviceId = knownDevice ?? newDeviceId();
     const inbox = inboxKey(claims.email);
-    const repeat = Boolean(await repeatSignup(ipHash, knownDevice, inbox));
+    const repeat = Boolean(await repeatSignup(ipHash, knownDevice, inbox, clientIp(req)));
     // Google proved the inbox, so no confirmation step: emailPending stays false.
     const created = await createUser(claims.name, claims.email, "", "user", { homeCountry: here, googleSub: claims.sub });
     await recordSignup(created.id, ipHash, deviceId, repeat, here, Date.now(), ctx.touch, inbox);

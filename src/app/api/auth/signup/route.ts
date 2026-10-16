@@ -119,7 +119,7 @@ export async function POST(req: Request) {
   const deviceId = knownDevice ?? newDeviceId();
   // …and once per inbox: Gmail dot and plus spellings are the same person (Chris 10-01).
   const inbox = inboxKey(email);
-  const repeat = Boolean(await repeatSignup(ipHash, knownDevice, inbox));
+  const repeat = Boolean(await repeatSignup(ipHash, knownDevice, inbox, clientIp(req)));
 
   // Email confirmation is on only while the admin switch says exactly "1"
   // AND a code can actually be delivered (emailVerify.ts). Off = today.

@@ -76,7 +76,7 @@ export async function POST(req: Request) {
   const knownDevice = deviceIdFrom(req);
   const deviceId = knownDevice ?? newDeviceId();
   const inbox = inboxKey(email);
-  const repeat = Boolean(await repeatSignup(ipHash, knownDevice, inbox));
+  const repeat = Boolean(await repeatSignup(ipHash, knownDevice, inbox, clientIp(req)));
 
   const confirm = await emailConfirmEnabled();
   if (confirm) {

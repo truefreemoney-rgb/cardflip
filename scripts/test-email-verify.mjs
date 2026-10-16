@@ -89,7 +89,8 @@ function check(label, actual, expected = true) {
 
 // --- helpers ------------------------------------------------------------------
 let ipCounter = 0;
-const nextIp = () => `10.7.${++ipCounter >> 8}.${ipCounter & 255}`;
+// Each signup its own /24 (10-16: a block gets 5 free trials a day, signupGuard.trialRation).
+const nextIp = () => `10.7.${++ipCounter & 255}.${ipCounter >> 8}`;
 function jpost(body, { ip = nextIp(), cookie } = {}) {
   const headers = { "content-type": "application/json", "fly-client-ip": ip };
   if (cookie) headers.cookie = cookie;

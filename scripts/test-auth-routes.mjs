@@ -53,7 +53,7 @@ let ipCounter = 0;
 function post(body, ip) {
   return new Request("http://test/api", {
     method: "POST",
-    headers: { "content-type": "application/json", "fly-client-ip": ip ?? `10.0.${++ipCounter >> 8}.${ipCounter & 255}` },
+    headers: { "content-type": "application/json", "fly-client-ip": ip ?? `10.0.${++ipCounter & 255}.${ipCounter >> 8}` },
     body: JSON.stringify(body),
   });
 }
@@ -359,6 +359,26 @@ check("reset: old password refused", (await login.POST(post({ email: "sam@exampl
   const r = await reset.POST(post({ token: t.token, password: "after-reset" }));
   check("reset: a two-step account gets its new password but no session (log in with the code)", [r.status, Boolean(sessionCookie(r)), (await r.json()).signIn], [200, false, true]);
   check("reset: …and the login then asks for the code", (await (await login.POST(post({ email: "totp@example.com", password: "after-reset" }))).json()).totpRequired, true);
+}
+
+// 10-16 audit: trial farming with a cleared cookie, a fresh IP and a non-Gmail inbox. A network block gets 5 free
+// trials a day, the site 300; past either a signup is made as a repeat.
+{
+  const { repeatSignup, blockHash, hashIp, TRIALS_PER_BLOCK_DAY } = await import(at("lib/server/signupGuard.ts"));
+  const { readFileSync } = await import("node:fs");
+  check("block: same /24 → same block, next /24 → another", [blockHash("81.2.3.4") === blockHash("81.2.3.200"), blockHash("81.2.3.4") === blockHash("81.2.4.4")], [true, false]);
+  check("block: same IPv6 /64 → same block, however it's written", [blockHash("2001:db8:1:2::5") === blockHash("2001:0db8:0001:0002:ffff::9"), blockHash("2001:db8:1:2::5") === blockHash("2001:db8:1:3::5")], [true, false]);
+  check("block: loopback / unknown is no block", [blockHash("127.0.0.1"), blockHash("unknown")], [null, null]);
+  const verdicts = [];
+  for (let i = 0; i <= TRIALS_PER_BLOCK_DAY; i++) {
+    const ip = `81.2.3.${10 + i}`;
+    verdicts.push(await repeatSignup(hashIp(ip), `farm-device-${i}`, `farm${i}@inbox.example`, ip));
+  }
+  check(`block: ${TRIALS_PER_BLOCK_DAY} fresh trials from one /24, then busy-network`, verdicts, [...Array(TRIALS_PER_BLOCK_DAY).fill(null), "busy-network"]);
+  check("block: a neighbour block still gets its trial", await repeatSignup(hashIp("81.2.4.10"), "farm-device-x", "farmx@inbox.example", "81.2.4.10"), null);
+  const sources = ["auth/signup/route.ts", "auth/x/callback/route.ts", "auth/x/finish/route.ts"].map((p) => readFileSync(new URL(`../src/app/api/${p}`, import.meta.url), "utf8"));
+  sources.push(readFileSync(new URL("../src/lib/server/googleSignIn.ts", import.meta.url), "utf8"));
+  check("every signup door passes the IP to the trial guard", sources.map((s) => s.includes("repeatSignup(ipHash, knownDevice, inbox, clientIp(req))")), [true, true, true, true]);
 }
 
 console.log(failures === 0 ? "\nAll auth-route checks passed" : `\n${failures} auth-route check(s) failed`);

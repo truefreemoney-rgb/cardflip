@@ -138,7 +138,7 @@ export async function GET(req: Request) {
       const knownDevice = deviceIdFrom(req);
       const deviceId = knownDevice ?? newDeviceId();
       const inbox = inboxKey(email);
-      const repeat = Boolean(await repeatSignup(ipHash, knownDevice, inbox));
+      const repeat = Boolean(await repeatSignup(ipHash, knownDevice, inbox, clientIp(req)));
       // X confirmed the inbox, so no confirmation step: emailPending stays false.
       const created = await createUser(profile.name, email, "", "user", {
         homeCountry: here,

@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import type { Touch } from "@/lib/attribution";
 import { TRIAL_SCANS } from "@/lib/server/users";
 import { isTestNetwork } from "@/lib/server/trialScan";
+import { dayBudgetSpent } from "@/lib/server/dayBudget";
 
 /**
  * Throwaway-account guard (Chris 09-29, after a row of "Probe" accounts on
@@ -101,6 +102,51 @@ export async function repeatSignup(
   ipHash: string | null,
   deviceId: string | null,
   inbox: string | null = null,
+  ip: string | null = null,
+): Promise<"same-device" | "same-ip" | "same-inbox" | "busy-network" | "daily-cap" | null> {
+  const repeat = await repeatSignupOnly(ipHash, deviceId, inbox);
+  return repeat ?? (ip && !isTestNetwork(ipHash) ? await trialRation(ip) : null);
+}
+
+/** Free trials a day from one network block (an IPv4 /24, an IPv6 /64), and across the whole site. */
+export const TRIALS_PER_BLOCK_DAY = 5;
+export const TRIALS_PER_DAY = 300;
+
+/**
+ * The network block an IP sits in, hashed: the /24 of an IPv4 address, the /64 of an IPv6 one. A fresh IP is cheap
+ * (a VPN hop, a new IPv6 address), a fresh block much less so. Null for loopback / unknown, like hashIp.
+ */
+export function blockHash(ip: string): string | null {
+  if (!hashIp(ip)) return null;
+  const v4 = /^(?:::ffff:)?(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.\d{1,3}$/.exec(ip.trim());
+  let block: string;
+  if (v4) block = `${v4[1]}.${v4[2]}.${v4[3]}`;
+  else if (ip.includes(":")) {
+    const [head, tail = ""] = ip.trim().toLowerCase().split("::");
+    const left = head ? head.split(":") : [];
+    const right = tail ? tail.split(":") : [];
+    const full = [...left, ...Array(Math.max(0, 8 - left.length - right.length)).fill("0"), ...right];
+    block = full.slice(0, 4).map((h) => h.replace(/^0+(?=.)/, "")).join(":");
+  } else return null;
+  return createHash("sha256").update(`cardflip-block:${block}`).digest("hex").slice(0, 32);
+}
+
+/**
+ * The 10-16 audit's trial farm: a cleared cookie on a fresh IP with a non-Gmail inbox passed every check above. A
+ * signup that would get the trial spends one from its block's daily ration and one from the site's; past either it
+ * is created as a repeat (on the Booster wall). Only called when the trial would otherwise be granted.
+ */
+async function trialRation(ip: string): Promise<"busy-network" | "daily-cap" | null> {
+  const block = blockHash(ip);
+  if (block && (await dayBudgetSpent(`trialblock_${block}`, TRIALS_PER_BLOCK_DAY))) return "busy-network";
+  if (await dayBudgetSpent("trials_all", TRIALS_PER_DAY)) return "daily-cap";
+  return null;
+}
+
+async function repeatSignupOnly(
+  ipHash: string | null,
+  deviceId: string | null,
+  inbox: string | null,
 ): Promise<"same-device" | "same-ip" | "same-inbox" | null> {
   // Chris's test network (TRIAL_TEST_IP_HASHES, 10-05): every test signup starts on the free trial, like a new visitor.
   if (isTestNetwork(ipHash)) return null;
