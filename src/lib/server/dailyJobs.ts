@@ -97,7 +97,7 @@ export async function dailyStatus(now = Date.now()) {
 
 export interface DailyResult {
   ran: boolean;
-  mtg?: { scanned: number; updated: number; seriesTouched: number; mirrorChanged?: number; seriesSkipped?: number; tcgplayerFilled?: number; cappedToListing?: number } | { error: string } | { skipped: string };
+  mtg?: { scanned: number; updated: number; seriesTouched: number; mirrorChanged?: number; seriesSkipped?: number; tcgplayerFilled?: number; cardmarketFilled?: number; cappedToListing?: number } | { error: string } | { skipped: string };
   /** Lorcana / One Piece / Yu-Gi-Oh! daily prices + history (lib/server/tcgPriceRefresh.ts). */
   tcg?: Partial<Record<TcgGame, TcgRefreshResult | { error: string } | { skipped: string }>>;
   pokemonTcgcsv?:
@@ -134,7 +134,7 @@ export async function runMtgStep({ skipIfDone = false, now = Date.now() } = {}):
       }
     }
     const r = await refreshMtgPricesFromBulk();
-    return { scanned: r.scanned, updated: r.updated, seriesTouched: r.seriesTouched, mirrorChanged: r.mirrorChanged, seriesSkipped: r.seriesSkipped, tcgplayerFilled: r.tcgplayerFilled, cappedToListing: r.cappedToListing };
+    return { scanned: r.scanned, updated: r.updated, seriesTouched: r.seriesTouched, mirrorChanged: r.mirrorChanged, seriesSkipped: r.seriesSkipped, tcgplayerFilled: r.tcgplayerFilled, cardmarketFilled: r.cardmarketFilled, cappedToListing: r.cappedToListing };
   } catch (err) {
     console.error("daily: MTG price refresh failed:", err);
     return { error: err instanceof Error ? err.message : String(err) };

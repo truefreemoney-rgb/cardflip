@@ -1,24 +1,24 @@
 # To test later
 - [ ] HALF 10-14 ~11:00pm ET (raw card: the Search/Watchlist sheet "View Sold on eBay" and "Buy on eBay" links carry -psa -bgs -cgc -sgc -graded -slab; /admin/prices half needs your /admin sign-in): After push: /admin/prices 'eBay sold' and a raw card's 'check sold listings' open eBay with '-psa -bgs -cgc -sgc -graded -slab' and no slab titles; a slab item's eBay link still searches its grade (e.g. PSA 9).
-- [ ] 10-15: /cards/pokemon/crystal-guardians/charizard--ex14-4 shows $939.50 (hand keep POSTed 10-14 ~2:45pm ET; page copy was still "looks off" right after, cache).
-- [ ] Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
+- [x] PASS 10-16 (curl: $939.50, no "looks off") 10-15: /cards/pokemon/crystal-guardians/charizard--ex14-4 shows $939.50 (hand keep POSTed 10-14 ~2:45pm ET; page copy was still "looks off" right after, cache).
+- [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
 
 ## 10-16 ~3:05am ET: scanner screen + earlier unpushed batch (PUSHED 3f3ba57f 10-16 ~3:05am ET)
 - [ ] Scanner (phone, cardflip.io/app, Scan): corner brackets only, no moving box, no green; above them "Line the card's edges up with the corners". Too dark / glare shows the amber hint there instead.
 - [ ] Scanner: a binder card in its pocket scans as the card (no "slab"), three times in a row. (Tap crop grows at most 8 % past the guide now.)
 - [ ] Scan result facts panel: label reads "List it at", link "vs N listings" (shows after a real scan + "Yes, this is my card").
-- [ ] Login keeps the link's query: open cardflip.io/app?x=1 logged out, sign in, you land on /app?x=1 (15698b36). (Mine, pane.)
+- [~] CODE-CHECKED 10-16 (SessionProvider keeps window.location.search; live run needs a sign-out, skipped) Login keeps the link's query: open cardflip.io/app?x=1 logged out, sign in, you land on /app?x=1 (15698b36). (Mine, pane.)
 - [ ] Emails with card pictures (price alert, digest): pictures load from cardflip.io/pics, not Scryfall / tcgdex (dcc21110). (Mine, /admin emails test send.)
 - [ ] /admin emails: the test button counts seconds while a slow email builds (f08f46b7). (Mine, pane.)
-- [ ] /api/dev/outline-dump answers 404 on cardflip.io. (Mine, curl.)
+- [x] PASS 10-16 (curl 404) /api/dev/outline-dump answers 404 on cardflip.io. (Mine, curl.)
 
 ## 10-15 ~2:00pm ET: fixes found while working the open-tests list (in the 10-15 batch push)
 - [ ] Ad signup (A36): from cardflip.io/scan, Sign Up, finish: you land in the app with the SCANNER OPEN (it landed shut since 10-06). Close it, go to Inventory and back: it stays shut. (No new account for Chris and none made by me on prod: proven on local dev; on prod watch the next real ad signups reach a scan in the /admin funnel.)
 - [ ] Insights (A10): your Magic Insights headline equals the chart's last number; Opposition Agent shows its foil price there too. (Mine, pane.)
 - [ ] /scan used visitor (A1): no flash of the Scan button before "Your free scan is used". (Mine, headless on prod.)
 - [ ] Failed scan message reads "Couldn't read this card — retake..." with no "(0% sure)".
-- [ ] /api/dev/outline-dump answers 404 on cardflip.io. (Mine, curl.)
+- [x] PASS 10-16 (curl 404) /api/dev/outline-dump answers 404 on cardflip.io. (Mine, curl.)
 
 ## 10-15 ~9:45am ET: scanner options button, game + card + scanner options in ONE sheet (NOT PUSHED, 3e8e0caa; Chris: keep them combined)
 Phone steps: 1) Open the scanner. 2) Tap the "..." circle top right. You should see "Scanner options": Game chips (all five fit), New scans start as (5 conditions), Camera (Light on phones with one, Tips switch), Share, Help. 3) Tap Lightly Played, Done, scan a card: it starts as Lightly Played. 4) Tap Share: the phone share sheet opens with cardflip.io. 5) Help > Open lands on the help page.
@@ -461,10 +461,10 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 - Passed on tunnel 10-12: Magic card under Pokémon = bad scan, not saved, given back (6baaa844); any 504 = Took too long (6eb614a6); bulk verify Confirm removed (d2a3e96c).
 
 ## Magic Art Series prices (10-13, commit after push)
-- [ ] Morning after the push: the 56 Art Series cards from the 10-13 dry run have a price (e.g. Avatar Eternal Art Series 1-12 ~$0.25-0.84, Marvel Thanos 1c-9c ~$3-4, Avatar Yue 41 ~$11). Query: Art Series unpriced count should drop 87 -> ~31.
+- [x] PASS 10-16 (Turso: 32 English Art Series unpriced, target ~31) Morning after the push: the 56 Art Series cards from the 10-13 dry run have a price (e.g. Avatar Eternal Art Series 1-12 ~$0.25-0.84, Marvel Thanos 1c-9c ~$3-4, Avatar Yue 41 ~$11). Query: Art Series unpriced count should drop 87 -> ~31.
 
 ## Magic cheapest-listing cap + listing beats Cardmarket (10-13)
-- [ ] Morning after the push: daily_last_result mtg.cappedToListing is in the hundreds (not 0, not tens of thousands); mtg step still finishes under the 800 s cap.
+- [ ] HALF 10-16: 10-15 run cappedToListing 2,579 (not hundreds, but 2% of 116k; mtg step fine, whole run 200 s). cardmarketFilled was never saved: dailyJobs.ts dropped it, fixed 10-16; read it after the next push. Morning after the push: daily_last_result mtg.cappedToListing is in the hundreds (not 0, not tens of thousands); mtg step still finishes under the 800 s cap.
 - [ ] Magic "This price looks off" count drops from ~837 toward ~83 (rerun the sweep script pattern, s154 scratchpad).
 - [x] PASS 10-14 ~10:25pm ET (Cromat $57.30, Spiritmonger $57.65, Vindicate $163.20): Spot-check 3 capped foils on the card page (e.g. Cromat Apocalypse foil ~$57, not $155).
 
@@ -475,8 +475,8 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 
 ## 10-13 ~3pm ET: nightly new-cards run (PC, 2am ET)
 - [ ] 10-14 morning: (LOG PASS 10-14 7:40am ET: done 2:33am, failed: empty, all 5 games 0 failed, 44 YGO stand-ins; /admin/prices tile PASS 8:25am: last run 6 h ago, all steps fine) backups\catalog-sync.log ends with "===== done ... (failed:)" and nothing after failed:; /admin/prices shows "New cards ... last run" ~2am, all steps fine.
-- [ ] Yu-Gi-Oh saved pictures intact on Turso after the push (count own_image_url<>'' for yugioh >= 59,969); the 22 new rows got pictures.
-- [ ] After the code push: cardmarket_map rows on Turso (yugioh ~28k, lorcana ~2.6k) and the 5:25am tcg-prices run still green.
+- [x] PASS 10-16 (60,196 of 60,196 own pictures; Lorcana 3,505/3,505, One Piece 5,546/5,549) Yu-Gi-Oh saved pictures intact on Turso after the push (count own_image_url<>'' for yugioh >= 59,969); the 22 new rows got pictures.
+- [x] PASS 10-16 (yugioh 28,141, lorcana 2,624) After the code push: cardmarket_map rows on Turso (yugioh ~28k, lorcana ~2.6k) and the 5:25am tcg-prices run still green.
 
 - [ ] Stand-ins: a new card with no scan shows another printing's picture (own_image_src 'standin:<id>'), and the night its own scan appears it switches (tested on a DB copy 10-13: borrow, keep on retry, replace, stand-in's files kept). /admin/prices lists cards still borrowing 2+ weeks after release.
 
@@ -507,7 +507,7 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 - [ ] A scan the AI was unsure of: Scanner list and Inventory show 'Verify match' but NO 'low-confidence read (40%)' text anywhere.
 - [x] (10-14 2:17pm ET Chris phone: pass) 'How to ship' on a $20-$100 envelope card, step 3 reads: 'Postage is $1.31 total. Use $1.31 in postage stamps, or hand it in at the post office counter and they'll stamp it for you.'
 - [x] (10-14 3:50pm ET Chris phone: pass, Best Match both places) Search: every result tile has a 'Buy on eBay' button under the price, and the opened card has one under Share; both open eBay on Best Match (not cheapest first) for that card. Watchlist's Buy on eBay is Best Match too.
-- [ ] Nightly backup (cardflip-backups repo) goes green the night after the push (foreign keys off in the copy; local run 10-14 passed, 552,343 rows).
+- [x] PASS 10-16 (10-15 run green after red 10-13/10-14) Nightly backup (cardflip-backups repo) goes green the night after the push (foreign keys off in the copy; local run 10-14 passed, 552,343 rows).
 
 ## 10-14 morning: set pages show under-$1 cards, Buy above Watchlist, duplicate Trainer Galleries gone (PUSHED 30615a64 10-14 ~5:20am ET)
 - [x] (10-14 ~5:30am ET applied on Chris's yes: 18 statements, re-run dry = 0; backup backups/dup-tg-sets-prod-1791970155907.json) RIGHT AFTER THE PUSH (me): `node scripts/drop-duplicate-tg-sets.mjs --prod` (dry run: 1 customer card moved to swsh9tg, 120 en_cards + 144 price_series + 120 tcgplayer_products + 5 listing_lows deleted, 119 saved searches cleared) then the same with `--apply`. Not before the push: live code has no redirect for the old ids yet.
