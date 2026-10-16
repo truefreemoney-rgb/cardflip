@@ -875,8 +875,12 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
     const seen = outlineTarget.current;
     const reachX = seen ? Math.max(0, -Math.min(...seen.map((p) => p.x)), Math.max(...seen.map((p) => p.x)) - 1) + 0.02 : 0;
     const reachY = seen ? Math.max(0, -Math.min(...seen.map((p) => p.y)), Math.max(...seen.map((p) => p.y)) - 1) + 0.02 : 0;
-    const padX = seen ? Math.min(gw * 0.25, gw * reachX) : 0;
-    const padY = seen ? Math.min(gh * 0.25, gh * reachY) : 0;
+    // At most 8 % a side (was 25 %, 10-16): the finder boxes two cards or a
+    // pocket as often as the card on a binder page, and a crop grown to that
+    // box pulled neighbours and pocket edges into the photo (one scan came
+    // back "slab"). 8 % still takes in a set number just past the bracket.
+    const padX = seen ? Math.min(gw * 0.08, gw * reachX) : 0;
+    const padY = seen ? Math.min(gh * 0.08, gh * reachY) : 0;
     const sx = Math.max(0, gx - padX);
     const sy = Math.max(0, gy - padY);
     const sw = Math.min(vw - sx, gw + padX * 2);
