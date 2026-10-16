@@ -15,7 +15,8 @@ import type { GameId, PokemonCard, ScanLanguage } from "@/lib/types";
 const NO_MATCH = "No cards matched that search.";
 /** Cards per page of results; "Show more" adds another page (10-14 redesign: 200 tiles at once was a wall). */
 const PAGE = 24;
-const VIEW_KEY = "cardflip.searchView";
+// v2 (10-16): the default flipped to grid, so old "list" choices start over on pictures.
+const VIEW_KEY = "cardflip.searchView.v2";
 export type CardSearchView = "list" | "grid";
 
 /**
@@ -80,12 +81,12 @@ export function useCardSearch(language: ScanLanguage, onReset?: () => void) {
   const [searched, setSearched] = useState("");
   // The set a set tile opened, so the picker the box turns into shows it.
   const [browsed, setBrowsed] = useState("");
-  // List or grid (10-14: list rows on a phone), remembered per browser.
+  // List or grid, remembered per browser. Pictures first (10-16, Chris: image view by default).
   const [view, setViewState] = useState<CardSearchView>(() => {
     try {
-      return typeof window !== "undefined" && window.localStorage.getItem(VIEW_KEY) === "grid" ? "grid" : "list";
+      return typeof window !== "undefined" && window.localStorage.getItem(VIEW_KEY) === "list" ? "list" : "grid";
     } catch {
-      return "list";
+      return "grid";
     }
   });
   function setView(next: CardSearchView) {
