@@ -311,6 +311,13 @@ console.log("\ninvoice reading");
   check("a renewal invoice that also carries proration lines: the regular line decides, not line 0",
     planCreditFor(inv([line("price_std", -500, true), line("price_pro", 1000, true), line("price_pro", 1999)])).scans, PRO);
   check("a price nobody knows is never guessed", planCreditFor(inv([line("price_zzz", 999)])), { kind: "unknown_price", priceId: "price_zzz" });
+  // 10-16 audit: a 100%-off promo code credited a full plan for $0 every month.
+  check("a $0 invoice (100%-off code) credits nothing", planCreditFor(inv([line("price_std", 999)], { total: 0, amount_paid: 0 })).kind, "none");
+  check("a renewal paid from account credit still credits (total > 0, amount_paid 0)", planCreditFor(inv([line("price_std", 999)], { total: 999, amount_paid: 0 })).scans, STD);
+  {
+    const hook = src("app/api/stripe/webhook/route.ts");
+    check("both checkout credits skip a $0 session", (hook.match(/const paid = !free && /g) || []).length, 2);
+  }
   check("no lines: nothing to credit", planCreditFor(inv([])).kind, "none");
   check("proration outside a plan change credits nothing", planCreditFor(inv([line("price_pro", 1000, true)], { billing_reason: "manual" })).kind, "none");
 }

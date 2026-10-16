@@ -100,6 +100,10 @@ export function planCreditFor(inv: StripeObject): CreditPlan {
   const lines = invoiceLines(inv);
   const regular = lines.filter((l) => !l.proration && l.priceId);
   if (regular.length > 0) {
+    // A 100%-off promo code (checkout allows codes) made a $0 invoice that still credited a full plan every month
+    // (10-16 audit). `total` is after discounts but before customer balance, so a renewal paid from account credit
+    // (a downgrade's proration) still counts.
+    if (typeof inv.total === "number" && inv.total <= 0) return { kind: "none", reason: "a $0 invoice (100%-off code) credits nothing" };
     let scans = 0;
     let best: { plan: StripePlan; scans: number; priceId: string } | null = null;
     for (const l of regular) {

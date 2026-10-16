@@ -73,7 +73,9 @@ export async function POST(req: NextRequest) {
         // Booster (09-25): a one-time payment, no subscription. Credit the
         // scans the session was sold with; the session id keys the credit.
         if (customerId && !user.stripeCustomerId) await setStripeCustomer(user.id, customerId);
-        const paid = obj.payment_status === "paid" || obj.payment_status === "no_payment_required";
+        // A $0 checkout (100%-off code, 10-16 audit) credits nothing; invoice.paid says the same (planCreditFor).
+        const free = typeof obj.amount_total === "number" && obj.amount_total <= 0;
+        const paid = !free && (obj.payment_status === "paid" || obj.payment_status === "no_payment_required");
         const scans = Number(meta.packScans) > 0 ? Number(meta.packScans) : PRICING.pack.scans;
         const sessionId = typeof obj.id === "string" ? obj.id : null;
         if (paid && sessionId) {
@@ -95,7 +97,9 @@ export async function POST(req: NextRequest) {
         // credited after the flip, a failure would leave an active subscriber
         // with no scans whose retry skips the welcome edge below.
         const invoiceId = typeof obj.invoice === "string" ? obj.invoice : null;
-        const paid = obj.payment_status === "paid" || obj.payment_status === "no_payment_required";
+        // A $0 checkout (100%-off code, 10-16 audit) credits nothing; invoice.paid says the same (planCreditFor).
+        const free = typeof obj.amount_total === "number" && obj.amount_total <= 0;
+        const paid = !free && (obj.payment_status === "paid" || obj.payment_status === "no_payment_required");
         if (invoiceId && paid) await creditCheckoutInvoice(user, invoiceId, sub);
         await setSubscription(user.id, sub.status, sub.periodEnd, sub.plan, sub.cancelAt);
         await setStripeSubscription(user.id, subscriptionId);
