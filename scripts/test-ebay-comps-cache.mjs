@@ -90,5 +90,29 @@ check(
   console.log(`  ${ok ? "PASS" : "FAIL"}  comps route: per-seller + app-wide budgets spent on a cache miss only, before eBay, answered as a 429`);
 }
 
+// 10-16 audit: a real id with a made-up name cached the fake card's comps under the real card's key for every
+// seller, and seeded its graded history. The catalog now says what an id is; an unknown id keys by name|set|number.
+{
+  const { compsIdentity } = await import(at("lib/server/ebayCompsCache.ts"));
+  const catalog = { id: "base1-4", name: "Charizard", number: "4", setName: "Base Set", setCode: "BS", setTotal: 102, prices: [] };
+  const spoof = { id: "base1-4", name: "Magikarp", number: "35", setName: "Base Set", game: "mtg", prices: [{ currency: "USD", market: 5 }] };
+  const real = compsIdentity(spoof, catalog);
+  check("catalog card: searched as the catalog's name and number", [real.verified, real.card.name, real.card.number, real.card.game], [true, "Charizard", "4", undefined]);
+  check("catalog card: keeps the client's prices (raw floor)", real.card.prices.length, 1);
+  check("catalog card: same cache key as an honest lookup", compsCacheKey(real.card, null, null), compsCacheKey(catalog, null, null));
+  const unknown = compsIdentity(spoof, null);
+  check("unknown id: not verified, never keyed by the id", [unknown.verified, compsCacheKey(unknown.card, null, null).includes("Magikarp|Base Set|35")], [false, true]);
+  check("unknown id: can't land on the real card's key", compsCacheKey(unknown.card, null, null) !== compsCacheKey(catalog, null, null));
+
+  const { readFileSync } = await import("node:fs");
+  const route = readFileSync(new URL("../src/app/api/ebay/comps/route.ts", import.meta.url), "utf8");
+  const ok =
+    route.includes("compsIdentity(clientCard, await catalogCard(clientCard))") &&
+    route.indexOf("compsIdentity(clientCard") < route.indexOf("cachedEbayComps(card,") &&
+    /if \(!cached && verified && grading/.test(route);
+  if (!ok) failures++;
+  console.log(`  ${ok ? "PASS" : "FAIL"}  comps route: catalog identity before the cache, graded history only for a verified card`);
+}
+
 console.log(failures ? `\n${failures} FAILED` : "\nall passed");
 process.exit(failures ? 1 : 0);

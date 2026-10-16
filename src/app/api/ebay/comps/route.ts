@@ -13,7 +13,7 @@ import { canBeFirstEdition, isFirstEditionCard } from "@/lib/listing";
 import { recordPoint } from "@/lib/server/priceHistory";
 import { englishCardById } from "@/lib/server/enCards";
 import { mtgCardById } from "@/lib/server/mtgCards";
-import { cachedEbayComps } from "@/lib/server/ebayCompsCache";
+import { cachedEbayComps, compsIdentity } from "@/lib/server/ebayCompsCache";
 import { parseGame } from "@/lib/games";
 import { dayBudgetSpent } from "@/lib/server/dayBudget";
 import {
@@ -29,6 +29,19 @@ const COMPS_USER_DAILY = 200;
 const COMPS_APP_DAILY = 4000;
 class CompsBudgetError extends Error {}
 
+/** The catalog row behind a client card id, or null when the catalog has none (or the lookup fails). */
+async function catalogCard(card: PokemonCard): Promise<PokemonCard | null> {
+  if (typeof card.id !== "string" || !card.id) return null;
+  try {
+    return parseGame(card.game) === "mtg"
+      ? ((await mtgCardById(card.id))[0] ?? null)
+      : ((await englishCardById(card.id)).cards[0] ?? null);
+  } catch (err) {
+    console.error("comps catalog lookup failed:", err);
+    return null;
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const user = await requireUser();
@@ -37,11 +50,13 @@ export async function POST(req: Request) {
     if (unconfirmed) return unconfirmed;
     enforceRateLimit(`comps:${user.id}`, ...LIMITS.ebayComps);
     const body = await req.json().catch(() => null);
-    const card = body?.card as PokemonCard | undefined;
+    const clientCard = body?.card as PokemonCard | undefined;
 
-    if (!card?.name) {
+    if (typeof clientCard?.name !== "string" || !clientCard.name) {
       return NextResponse.json({ error: "Missing card" }, { status: 400 });
     }
+    // The catalog, not the body, says what a card id is (compsIdentity).
+    const { card, verified } = compsIdentity(clientCard, await catalogCard(clientCard));
 
     // Optional slab pricing: with a company+grade, the comps become
     // "what are copies at exactly this grade listed for".
@@ -122,19 +137,14 @@ export async function POST(req: Request) {
     // actually price grow a REAL graded curve over time, replacing the
     // chart's rescaled estimate. Fire-and-forget: recording must never sink
     // the lookup.
-    // The id and game are client-supplied — only a card the catalog knows
-    // gets a series, so a hand-rolled body can't seed junk history rows.
-    if (!cached && grading && comps && comps.count >= 2 && typeof card.id === "string" && card.id) {
+    // Only a catalog card gets a series, searched under the catalog's own
+    // name, so a hand-rolled body can't seed junk history rows.
+    if (!cached && verified && grading && comps && comps.count >= 2) {
       const gradeNum = grading.grade.match(/\d+(?:\.\d+)?/)?.[0] ?? grading.grade;
       const variant = `graded-${grading.company.toLowerCase()}-${gradeNum}`;
-      const game = parseGame(card.game);
-      const cardId = card.id;
-      const average = comps.average;
-      void (async () => {
-        const known =
-          game === "mtg" ? (await mtgCardById(cardId)).length > 0 : (await englishCardById(cardId)).cards.length > 0;
-        if (known) await recordPoint(cardId, game, variant, "ebay", "USD", average);
-      })().catch((err) => console.error("graded history point failed:", err));
+      void recordPoint(card.id, parseGame(card.game), variant, "ebay", "USD", comps.average).catch((err) =>
+        console.error("graded history point failed:", err),
+      );
     }
 
     let sold = null;

@@ -18,6 +18,34 @@ const PREFIX = "ebaycomps:v1:";
 
 export type Grading = { company: string; grade: string } | null | undefined;
 
+/**
+ * The card the comps are searched AND cached as (10-16 audit). The body's id
+ * and name are both client-supplied: a real id with a made-up name cached the
+ * made-up card's comps under the real card's key for a day, for every seller,
+ * and seeded its graded history. A catalog card's identity comes from the
+ * catalog; a card the catalog doesn't know is keyed by its own name|set|number.
+ */
+export function compsIdentity(
+  client: PokemonCard,
+  catalog: PokemonCard | null | undefined,
+): { card: PokemonCard; verified: boolean } {
+  if (!catalog) return { card: { ...client, id: "" }, verified: false };
+  return {
+    card: {
+      ...client,
+      id: catalog.id,
+      name: catalog.name,
+      englishName: catalog.englishName ?? null,
+      setName: catalog.setName,
+      number: catalog.number,
+      setCode: catalog.setCode ?? null,
+      setTotal: catalog.setTotal ?? null,
+      game: catalog.game,
+    },
+    verified: true,
+  };
+}
+
 export function compsCacheKey(card: PokemonCard, grading: Grading, firstEdition: boolean | null | undefined): string {
   const id = card.id || `${card.name}|${card.setName ?? ""}|${card.number ?? ""}`;
   const g = grading ? `${grading.company}-${grading.grade}`.toLowerCase() : "raw";
