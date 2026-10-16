@@ -12,6 +12,7 @@ import { inAppBrowserName, isIosWebView } from "@/lib/client/inAppBrowser";
 import CardImage from "@/components/CardImage";
 import CandidatePicker from "@/components/CandidatePicker";
 import CopyEditSheet from "@/components/CopyEditSheet";
+import ScanResultSheet from "@/components/ScanResultSheet";
 import ScannerOptionsSheet from "@/components/ScannerOptionsSheet";
 import VerifyAllSheet from "@/components/VerifyAllSheet";
 import { effectiveVariant, formatMoney, formatVariantLabel, headlinePrice, marketFlagOf, pickPrice } from "@/lib/listing";
@@ -342,6 +343,8 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
   const [options, setOptions] = useState(false);
   // The "This copy" sheet (condition / printing) over the result card.
   const [editing, setEditing] = useState(false);
+  // The result card opened big (10-16): tap the chip; pull down or Done closes it.
+  const [expanded, setExpanded] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   // One card fills the guide. The Binder Page mode (09-27) went 10-03 with
@@ -1286,7 +1289,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
               {blurNote}
             </p>
           ) : lastScan ? (
-            <ScanToast key={lastScan.id} item={lastScan} onOpen={onOpen} onRemove={onRemove} onSwap={onPick ? () => setPicking(true) : undefined} onPickSibling={onPick ? (c) => onPick(lastScan.id, c, lastScan.candidates) : undefined} onEdit={onEdit ? () => setEditing(true) : undefined} verify={verify} />
+            <ScanToast key={lastScan.id} item={lastScan} onOpen={onOpen} onRemove={onRemove} onSwap={onPick ? () => setPicking(true) : undefined} onPickSibling={onPick ? (c) => onPick(lastScan.id, c, lastScan.candidates) : undefined} onEdit={onEdit ? () => setEditing(true) : undefined} onExpand={() => setExpanded(true)} verify={verify} />
           ) : nativeCam ? null : (
             <div className="w-full text-center text-sm leading-snug text-zinc-400">
               Fill the guide with one card, then tap Capture.
@@ -1341,6 +1344,15 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
           )}
         </div>
       </div>
+      {expanded && lastScan?.card && (
+        <ScanResultSheet
+          item={lastScan}
+          copy={copyParts(lastScan).join(" · ")}
+          onEdit={onEdit ? () => setEditing(true) : undefined}
+          onSwap={onPick ? () => { setExpanded(false); setPicking(true); } : undefined}
+          onClose={() => setExpanded(false)}
+        />
+      )}
       {editing && lastScan?.card && onEdit && (
         <CopyEditSheet
           item={lastScan}
@@ -1410,11 +1422,13 @@ interface ToastProps {
   onPickSibling?: (card: PokemonCard) => void;
   /** The details pill: open the "This copy" sheet. Falls back to onOpen when absent. */
   onEdit?: () => void;
+  /** Open the result big (ScanResultSheet). */
+  onExpand?: () => void;
   /** The chip button's numbers: scans waiting and their market total. */
   verify: { count: number; value: number } | null;
 }
 
-function ScanToast({ item, onOpen, onRemove, onSwap, onPickSibling, onEdit, verify }: ToastProps) {
+function ScanToast({ item, onOpen, onRemove, onSwap, onPickSibling, onEdit, onExpand, verify }: ToastProps) {
   const scanning = item.status === "queued" || item.status === "scanning";
 
   if (scanning) {
@@ -1448,7 +1462,7 @@ function ScanToast({ item, onOpen, onRemove, onSwap, onPickSibling, onEdit, veri
     );
   }
 
-  return <RevealChip item={item} onOpen={onOpen} onRemove={onRemove} onSwap={onSwap} onPickSibling={onPickSibling} onEdit={onEdit} verify={verify} />;
+  return <RevealChip item={item} onOpen={onOpen} onRemove={onRemove} onSwap={onSwap} onPickSibling={onPickSibling} onEdit={onEdit} onExpand={onExpand} verify={verify} />;
 }
 
 /**
@@ -1525,7 +1539,7 @@ function revealMarket(item: ScanItem): number | null {
   return price > 0 ? price : null;
 }
 
-function RevealChip({ item, onOpen, onRemove, onSwap, onEdit, verify }: ToastProps) {
+function RevealChip({ item, onOpen, onRemove, onSwap, onEdit, onExpand, verify }: ToastProps) {
   const card = item.card!;
   // A look-alike printing worth much more (Special Illustration vs regular): say so, never switch by itself.
   // The "Check the art … Switch" nudge for a pricier twin is gone (Chris 10-08: "i don't like this switch option, remove that").
@@ -1548,10 +1562,8 @@ function RevealChip({ item, onOpen, onRemove, onSwap, onEdit, verify }: ToastPro
   // The printing: the seller's pick, else the one the headline price came
   // from (never an eBay comps row). One Piece / Yu-Gi-Oh! have no printings
   // to speak of ("normal" only), so the pill skips it there.
-  const picked = pickPrice(card);
-  const variant = effectiveVariant(item) ?? (picked && !/^eBay/i.test(picked.label) ? picked.variant : undefined);
-  const printing = variant && !(variant === "normal" && (item.game === "onepiece" || item.game === "yugioh")) ? formatVariantLabel(variant) : null;
-  const copyBits = [item.condition, printing, LANGUAGE_WORD[item.language]].filter(Boolean);
+  const copyBits = copyParts(item);
+
 
   return (
     <div
@@ -1560,7 +1572,7 @@ function RevealChip({ item, onOpen, onRemove, onSwap, onEdit, verify }: ToastPro
       {/* Row 1: art, label + name + set, price. The set line may wrap to two
           lines: a truncated "Lost Origin Trainer Gallery · #…" was the first
           thing Chris flagged (10-15), and the number is what a seller checks. */}
-      <div className="flex w-full items-start gap-3">
+      <button type="button" onClick={onExpand} disabled={!onExpand} aria-label={`Open ${card.name} big`} className="flex w-full items-start gap-3 text-left">
         <div className="reveal-art relative h-16 w-[46px] shrink-0 overflow-hidden rounded-md shadow-lg shadow-black/60 ring-1 ring-white/15">
           {card.imageSmall ? (
             <CardImage src={card.imageSmall} alt="" className="h-full w-full" />
@@ -1603,7 +1615,7 @@ function RevealChip({ item, onOpen, onRemove, onSwap, onEdit, verify }: ToastPro
             </p>
           )}
         </div>
-      </div>
+      </button>
       {/* Row 2: this copy's details on the left, Clear on the right. Clear
           takes the scan off the list on the spot (Chris 10-02); a word, not
           an X (10-14): the card stays in Inventory. It had floated between
@@ -1667,6 +1679,17 @@ function RevealChip({ item, onOpen, onRemove, onSwap, onEdit, verify }: ToastPro
       )}
     </div>
   );
+}
+
+/** What this copy is: condition, printing (the seller's pick, else the one the
+ *  headline price came from, never an eBay comps row; skipped for games with no
+ *  printings to speak of), language when not English. */
+function copyParts(item: ScanItem): string[] {
+  const card = item.card!;
+  const picked = pickPrice(card);
+  const variant = effectiveVariant(item) ?? (picked && !/^eBay/i.test(picked.label) ? picked.variant : undefined);
+  const printing = variant && !(variant === "normal" && (item.game === "onepiece" || item.game === "yugioh")) ? formatVariantLabel(variant) : null;
+  return [item.condition, printing, LANGUAGE_WORD[item.language]].filter((b): b is string => Boolean(b));
 }
 
 /** The dot on the result card's details pill: the condition's colour (same ladder as the editor's chips). */

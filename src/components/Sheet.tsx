@@ -88,6 +88,7 @@ export default function Sheet({
   bodyClassName = "",
   padded = true,
   z = "z-[70]",
+  doneLabel,
 }: {
   onClose: () => void;
   /** Header text; also the dialog's accessible name. Omit for a bare sheet with a floating close button. */
@@ -109,6 +110,8 @@ export default function Sheet({
   /** Body padding on (default). Turn off for edge-to-edge content. */
   padded?: boolean;
   z?: string;
+  /** A worded close top right ("Done") in place of the X. */
+  doneLabel?: string;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
@@ -160,7 +163,15 @@ export default function Sheet({
 
   if (typeof document === "undefined") return null;
 
-  const close = (
+  const close = doneLabel ? (
+    <button
+      type="button"
+      onClick={onClose}
+      className="flex h-11 shrink-0 items-center rounded-full px-3 text-sm font-semibold text-brand-300 transition hover:bg-white/10 hover:text-white"
+    >
+      {doneLabel}
+    </button>
+  ) : (
     <button
       type="button"
       onClick={onClose}
