@@ -74,5 +74,15 @@ check("secretEqual: match, mismatch, prefix, and an unset or empty secret never 
   check("…and the route uses it before mailing", /RUN_URL\.test\(rawUrl\) \? rawUrl : undefined/.test(src), true);
 }
 
+// 10-16 audit: the same cross-site GET rode the owner cookie into four cron routes (?force=1 mail sweep, video
+// renders). They are key-only now; nothing in the console calls them.
+{
+  const { readFileSync } = await import("node:fs");
+  for (const r of ["emails", "social-tiktok", "social-video", "social-inbox"]) {
+    const s = readFileSync(new URL(`../src/app/api/cron/${r}/route.ts`, import.meta.url), "utf8");
+    check(`cron/${r}: keys only, no owner-cookie fallback`, [/requireAdmin/.test(s), /if \(denied\) return denied;/.test(s)], [false, true]);
+  }
+}
+
 console.log(fails ? `\n${fails} failing` : "\nall green");
 process.exit(fails ? 1 : 0);

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { presentedKey, secretEqual } from "@/lib/server/secretEqual";
-import { AuthError, requireAdminOwner } from "@/lib/server/auth";
 import { cronAuthError } from "@/lib/server/cronAuth";
 import { runSocialOptimize } from "@/lib/server/socialOptimize";
 import { alertPackageFailure, notifyPackageReady, packageSafetyNet, tiktokTargetDay } from "@/lib/server/socialTiktok";
@@ -15,7 +14,7 @@ import { alertPackageFailure, notifyPackageReady, packageSafetyNet, tiktokTarget
  * if any slot is missing, or was made under a day plan that has since
  * changed, it dispatches the social-post workflow's TikTok run, which remakes
  * only those slots.
- *   GET /api/cron/social-tiktok          → Bearer CRON_SECRET (Vercel), Bearer SOCIAL_POST_KEY (GitHub), or the owner cookie
+ *   GET /api/cron/social-tiktok          → Bearer CRON_SECRET (Vercel), Bearer SOCIAL_POST_KEY (GitHub) only
  *   ...&dry=1                            → report only, never dispatch
  *   ...&force=1                          → check outside the windows and dispatch even right after a dispatch
  *   ...&day=YYYY-MM-DD                   → check that day's package
@@ -32,14 +31,9 @@ function postKeyOk(req: NextRequest): boolean {
 
 export async function GET(req: NextRequest) {
   const denied = postKeyOk(req) ? null : cronAuthError(req);
-  if (denied) {
-    try {
-      await requireAdminOwner();
-    } catch (err) {
-      if (err instanceof AuthError) return denied;
-      throw err;
-    }
-  }
+  // Keys only (10-16 audit): the owner cookie is SameSite=Lax, so it rode along on a cross-site GET and any page
+  // Chris opened could fire ?force=1. Nothing in the console calls these; run by hand with the key.
+  if (denied) return denied;
   const q = req.nextUrl.searchParams;
   const rawDay = q.get("day");
   const day = rawDay && /^\d{4}-\d{2}-\d{2}$/.test(rawDay) ? rawDay : undefined;

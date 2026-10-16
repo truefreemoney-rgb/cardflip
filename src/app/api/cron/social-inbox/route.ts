@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { AuthError, requireAdminOwner } from "@/lib/server/auth";
 import { cronAuthError } from "@/lib/server/cronAuth";
 import { reportStaleOnceADay } from "@/lib/server/healthChecks";
 import { sweepSocialInbox } from "@/lib/server/socialInbox";
@@ -11,21 +10,16 @@ import { refreshSocialPosts } from "@/lib/server/socialPosts";
  * it an hour after each autopilot slot (vercel.json: 8am / 2pm / 8pm
  * Eastern, both DST hours). The owner can also hit it from the inbox page
  * ("Check now").
- *   GET /api/cron/social-inbox → Bearer CRON_SECRET (Vercel), ?key=, or the owner cookie
+ *   GET /api/cron/social-inbox → Bearer CRON_SECRET (Vercel) or ?key=
  */
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
 export async function GET(req: NextRequest) {
   const denied = cronAuthError(req);
-  if (denied) {
-    try {
-      await requireAdminOwner();
-    } catch (err) {
-      if (err instanceof AuthError) return denied;
-      throw err;
-    }
-  }
+  // Keys only (10-16 audit): the owner cookie is SameSite=Lax, so it rode along on a cross-site GET and any page
+  // Chris opened could fire ?force=1. Nothing in the console calls these; run by hand with the key.
+  if (denied) return denied;
   const started = Date.now();
   // Backstop for a dead price cron: files the stale backup / price run line (once a day).
   await reportStaleOnceADay();

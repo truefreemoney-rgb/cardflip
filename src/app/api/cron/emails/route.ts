@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { AuthError, requireAdminOwner } from "@/lib/server/auth";
 import { CAMPAIGN_IDS, sweepCampaigns, type CampaignId } from "@/lib/server/campaigns";
 import { cronAuthError } from "@/lib/server/cronAuth";
 
@@ -9,7 +8,7 @@ import { cronAuthError } from "@/lib/server/cronAuth";
  * keeps the ping that lands in the Eastern send hour and skips the other.
  *   Tue + Thu 10:00am ET   scans / your cards
  *   Sun 6:30pm ET          this week in cards
- *   GET /api/cron/emails                 → Bearer CRON_SECRET (Vercel), ?key=, or the owner cookie
+ *   GET /api/cron/emails                 → Bearer CRON_SECRET (Vercel) or ?key=
  *   ...&force=1                          → ignore the day/hour (still needs the switch on, still capped)
  *   ...&only=scans|cards|week            → that mail instead of today's
  */
@@ -18,14 +17,9 @@ export const maxDuration = 300;
 
 export async function GET(req: NextRequest) {
   const denied = cronAuthError(req);
-  if (denied) {
-    try {
-      await requireAdminOwner();
-    } catch (err) {
-      if (err instanceof AuthError) return denied;
-      throw err;
-    }
-  }
+  // Keys only (10-16 audit): the owner cookie is SameSite=Lax, so it rode along on a cross-site GET and any page
+  // Chris opened could fire ?force=1. Nothing in the console calls these; run by hand with the key.
+  if (denied) return denied;
   const q = req.nextUrl.searchParams;
   const only = q.get("only");
   const opts = {

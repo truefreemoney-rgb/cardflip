@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { AuthError, requireAdminOwner } from "@/lib/server/auth";
 import { cronAuthError } from "@/lib/server/cronAuth";
 import { eastern } from "@/lib/server/socialPublish";
 import { middayVideo, packageSafetyNet, type NetReport } from "@/lib/server/socialTiktok";
@@ -24,7 +23,7 @@ import { BOARD_REPO, ghHeaders } from "@/lib/server/boardRuns";
  * the 1pm one when that render is not already dispatched here) the same way,
  * because a plan pushed after 7am is otherwise not seen until tonight
  * (lib/server/socialTiktok.ts packageSafetyNet, sameDay).
- *   GET /api/cron/social-video          → Bearer CRON_SECRET (Vercel), ?key=, or the owner cookie
+ *   GET /api/cron/social-video          → Bearer CRON_SECRET (Vercel) or ?key=
  *   ...&dry=1                           → report only, never dispatch
  *   ...&force=1                         → dispatch even when registered (proves the token; the job exits at once)
  */
@@ -34,14 +33,9 @@ const WORKFLOW = "social-post.yml";
 
 export async function GET(req: NextRequest) {
   const denied = cronAuthError(req);
-  if (denied) {
-    try {
-      await requireAdminOwner();
-    } catch (err) {
-      if (err instanceof AuthError) return denied;
-      throw err;
-    }
-  }
+  // Keys only (10-16 audit): the owner cookie is SameSite=Lax, so it rode along on a cross-site GET and any page
+  // Chris opened could fire ?force=1. Nothing in the console calls these; run by hand with the key.
+  if (denied) return denied;
   const q = req.nextUrl.searchParams;
   const force = q.get("force") === "1";
   const dry = q.get("dry") === "1";

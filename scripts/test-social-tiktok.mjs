@@ -568,7 +568,7 @@ console.log("schedule, workflow, routes");
   check("the script refuses --force without --slot, and skips a ready slot only when it is not forced", [sv.includes("if (FORCE && PACKAGE && !ONLY.length)"), sv.includes('if (!FORCE && st.state === "ready")')], [true, true]);
   check("a remake over an existing row is parked under a new blob path (the CDN keeps an overwritten path's old bytes)", [sv.includes("const remake = prior?.url ?"), sv.includes("${day}${remake}.mp4")], [true, true]);
   const cronRoute = read("src/app/api/cron/social-tiktok/route.ts");
-  check("the cron route takes the Vercel bearer, the GitHub key or the owner, and nothing else", [cronRoute.includes("cronAuthError(req)"), cronRoute.includes("SOCIAL_POST_KEY"), cronRoute.includes("requireAdminOwner")], [true, true, true]);
+  check("the cron route takes the Vercel bearer or the GitHub key, and nothing else (10-16: no owner cookie, a cross-site GET carried it)", [cronRoute.includes("cronAuthError(req)"), cronRoute.includes("SOCIAL_POST_KEY"), cronRoute.includes("requireAdminOwner")], [true, true, false]);
   const video = read("src/app/api/admin/social/tiktok/video/route.ts"), post = read("src/app/api/admin/social/tiktok/route.ts");
   check("the video stream and Mark Posted are owner-only", [video.includes("requireAdminOwner()"), post.includes("requireAdminOwner()")], [true, true]);
   const card = read("src/components/admin/TikTokPackage.tsx");
