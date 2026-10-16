@@ -296,7 +296,9 @@ check("www with a port and capitals", proxyMod.wwwRedirectUrl("WWW.cardflip.io:4
 check("the apex is left alone", [proxyMod.wwwRedirectUrl("cardflip.io", "/", ""), proxyMod.wwwRedirectUrl(null, "/", ""), proxyMod.wwwRedirectUrl("localhost:3000", "/", ""), proxyMod.wwwRedirectUrl("www.cardflip.io.evil.com", "/", "")], [null, null, null, null]);
 check("robots lists the sitemap index", robots.sitemap, "https://cardflip.io/sitemap.xml");
 const disallow = robots.rules[0].disallow;
-check("robots: private areas disallowed, /reset-password is not (its noindex must be readable)", [disallow.includes("/app"), disallow.includes("/api/"), disallow.includes("/admin"), disallow.includes("/reset-password"), disallow.includes("/cards")], [true, true, true, false, false]);
+check("robots: private areas disallowed, /reset-password is not (its noindex must be readable)", [disallow.includes("/app$") && disallow.includes("/app/"), disallow.includes("/api/"), disallow.includes("/admin"), disallow.includes("/reset-password"), disallow.includes("/cards")], [true, true, true, false, false]);
+
+check("robots: prefetch data (_rsc) is not crawled, the app icon is (10-16)", [disallow.includes("/*?_rsc="), disallow.includes("/*&_rsc="), disallow.includes("/app")], [true, true, false]);
 
 // --- 9. rendering cost and site rules, read from the source ----------------------
 

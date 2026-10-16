@@ -17,7 +17,10 @@ const TRAINING_BOTS = [
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: [
-      { userAgent: "*", allow: "/", disallow: ["/app", "/api/", "/admin"] },
+      // "/app$" + "/app/", not "/app": a bare prefix also blocked /apple-icon.png (10-16 audit).
+      // _rsc: Next.js link-prefetch data, not pages. Search Console 10-16: 67% of Googlebot's 130K crawls were these
+      // (?_rsc=...) while 56.5K card pages sat "Discovered, not indexed" waiting for crawl time.
+      { userAgent: "*", allow: "/", disallow: ["/app$", "/app/", "/api/", "/admin", "/*?_rsc=", "/*&_rsc="] },
       { userAgent: TRAINING_BOTS, disallow: "/" },
     ],
     sitemap: `${SITE_URL}/sitemap.xml`,
