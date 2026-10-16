@@ -357,7 +357,7 @@ function WatchRow({
                 key={item.id}
                 type="button"
                 onClick={() => (card ? onOpen(card) : onStub(stub))}
-                className="relative w-[118px] shrink-0 rounded-2xl border border-edge bg-surface-1 p-1.5 pb-2 text-left transition hover:border-edge-strong"
+                className="relative w-[142px] shrink-0 rounded-2xl border border-edge bg-surface-1 p-1.5 pb-2 text-left transition hover:border-edge-strong"
               >
                 <CardImage src={item.imageUrl} alt={item.cardName} className="aspect-[5/7] w-full rounded-lg" />
                 {item.alertPrice != null && (
@@ -366,11 +366,15 @@ function WatchRow({
                   </span>
                 )}
                 <span className="mt-1.5 block truncate px-0.5 text-[12.5px] font-semibold text-white">{item.cardName}</span>
-                <span className="flex items-baseline justify-between gap-1 px-0.5">
-                  <span className="font-display text-[15px] font-bold text-white">{card === undefined ? "…" : <Price usd={now} />}</span>
+                <span className="flex flex-wrap items-baseline justify-between gap-x-1 px-0.5">
+                  <span
+                    className={`whitespace-nowrap font-display font-bold text-white ${now == null || now < 1000 ? "text-[15px]" : now < 10_000 ? "text-[13px]" : "text-[12px]"}`}
+                  >
+                    {card === undefined ? "…" : <Price usd={now} />}
+                  </span>
                   {move != null && Math.abs(move) >= 0.001 && (
-                    <span className={`text-[11px] font-semibold ${move > 0 ? "text-emerald-400" : "text-red-400"}`} title="Since you saved it">
-                      {move > 0 ? "▲" : "▼"} {(Math.abs(move) * 100).toFixed(1)}%
+                    <span className={`whitespace-nowrap text-[10.5px] font-semibold ${move > 0 ? "text-emerald-400" : "text-red-400"}`} title="Since you saved it">
+                      {move > 0 ? "▲" : "▼"} {(Math.abs(move) * 100).toFixed(Math.abs(move) >= 1 ? 0 : 1)}%
                     </span>
                   )}
                 </span>

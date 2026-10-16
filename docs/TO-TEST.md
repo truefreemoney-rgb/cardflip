@@ -4,6 +4,9 @@
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
 
+## 10-16 ~2:30pm ET: Watchlist price pill on one line (NOT PUSHED)
+- Phone: Search tab > My Watchlist. Every tile shows the price and the ▲/▼ % on ONE line (Charizard $134.86 ▼ 5.0% was 2 rows). Tiles are a bit wider (142px). Local check done with test tiles up to $99,999.99.
+
 ## 10-16: FLIPBACK code + come-back mail (NOT PUSHED, b9ba3bd2..8cbfbacb). Local pass: link signed-out -> login -> +10 scans; Account box "already used"; header "10 free scans"; full npm test green
 - [ ] 10-17 morning: how many redeemed (SELECT COUNT(*) FROM promo_redemptions WHERE code='FLIPBACK') + returning visits in admin Analytics; tell Chris.
 - [x] DONE 10-16 ~12:10pm ET: preview 16, two [TEST] mails read by Chris (subject "Your CardFlip code is inside: 10 scans on us", no "free"), SENT 16/16, 0 failed; preview after = 0 (no repeats).
