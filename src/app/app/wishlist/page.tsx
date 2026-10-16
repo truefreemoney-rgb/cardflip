@@ -19,8 +19,8 @@ import {
 } from "@/lib/client/wishlistApi";
 import { fetchCardById, searchCards } from "@/lib/cards";
 import { ebaySearchUrl, ebaySoldSearchUrl, formatMoney, pickPrice, priceFlagOf, withEpnParams } from "@/lib/listing";
-import { PriceFlagText, PriceStaleNote } from "@/components/PriceFlagNote";
-import { PRICE_FLAG_LINK, priceFlagLeftOut, type PriceFlag, type PriceStale } from "@/lib/priceFlag";
+import { PriceFlagText } from "@/components/PriceFlagNote";
+import { PRICE_FLAG_LINK, priceFlagLeftOut, type PriceFlag } from "@/lib/priceFlag";
 import { normalizeNumber } from "@/lib/cardNumber";
 import { displayCardNumber } from "@/lib/games";
 import type { PokemonCard, ScanLanguage } from "@/lib/types";
@@ -147,7 +147,6 @@ interface Repriced {
   /** item.id → the price guard flags today's market (no number, out of the totals). */
   flags: Record<string, PriceFlag>;
   /** item.id → today's market has not updated in 45+ days (10-02): the number shows, with a note under it. */
-  stale: Record<string, PriceStale>;
 }
 
 /** eBay Partner Network campaign id (empty until the owner joins EPN: the Buy link is then a plain eBay link). */
@@ -211,7 +210,6 @@ async function fetchCurrentPrices(items: WishlistItem[]): Promise<Repriced> {
   const cardIds: Record<string, string> = {};
   const resolved: Record<string, PokemonCard> = {};
   const flags: Record<string, PriceFlag> = {};
-  const stale: Record<string, PriceStale> = {};
   await Promise.all(
     targets.map(async (item) => {
       try {
@@ -236,14 +234,13 @@ async function fetchCurrentPrices(items: WishlistItem[]): Promise<Repriced> {
         else if (usd?.market != null) {
           prices[item.id] = usd.market;
           // A market that has not updated in 45+ days (10-02): shown, with the note under it.
-          if (usd.stale) stale[item.id] = usd.stale;
         }
       } catch {
         // Row keeps its saved price; delta and sparkline just don't show.
       }
     }),
   );
-  return { prices, cardIds, cards: resolved, flags, stale };
+  return { prices, cardIds, cards: resolved, flags };
 }
 
 /** A panel the viewer can fold away (Chris 10-14: "make the pills for total value and search collapsable"), remembered per browser. */
@@ -307,7 +304,6 @@ export default function WishlistPage() {
   const [nowPrices, setNowPrices] = useState<Record<string, number>>({});
   // Rows whose current market the price guard flags: the note instead of a number, and out of the totals.
   const [nowFlags, setNowFlags] = useState<Record<string, PriceFlag>>({});
-  const [nowStale, setNowStale] = useState<Record<string, PriceStale>>({});
   // Catalog ids resolved by the repricing pass for rows that predate `cardId`.
   const [resolvedIds, setResolvedIds] = useState<Record<string, string>>({});
   // Tile click → the same detail modal the price-check page opens. NO scanner
@@ -364,11 +360,10 @@ export default function WishlistPage() {
         setItems(list);
         // Deltas fill in as they arrive; the list never waits on pricing.
         fetchCurrentPrices(list)
-          .then(({ prices, cardIds, cards, flags, stale }) => {
+          .then(({ prices, cardIds, cards, flags }) => {
             if (cancelled) return;
             setNowPrices(prices);
             setNowFlags(flags);
-            setNowStale(stale);
             setResolvedIds(cardIds);
             resolvedCards.current = { ...resolvedCards.current, ...cards };
             setCatalogPictures(Object.fromEntries(Object.entries(cards).map(([id, c]) => [id, c.imageSmall])));
@@ -845,7 +840,6 @@ export default function WishlistPage() {
                         )}
                         {!flagged && item.price != null && now != null && <PriceDelta saved={item.price} now={now} />}
                       </div>
-                      {!flagged && nowStale[item.id] && <PriceStaleNote className="mt-1" days={nowStale[item.id].days} soldUrl={ebaySoldSearchUrl(stubCard(item))} />}
                       <p className="mt-1 truncate text-[11px] text-zinc-500">
                         {!flagged && now != null && item.price != null
                           ? `Saved ${formatMoney(item.price)} · ${formatShortDate(item.addedAt)}`

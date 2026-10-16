@@ -85,12 +85,13 @@ body {
 h1,
 h2,
 h3 {
-  text-wrap: balance;
+  /* -style only: the text-wrap shorthand also resets wrapping, which beat every .truncate (10-16). */
+  text-wrap-style: balance;
   letter-spacing: -0.02em;
 }
 
 p {
-  text-wrap: pretty;
+  text-wrap-style: pretty;
 }
 
 ::selection {
