@@ -1298,3 +1298,111 @@ export function warpQuad(
   }
   return out;
 }
+
+// ---------------------------------------------------------------------------
+// Research, not used by the app (10-16): kept with scripts/outline-eval and
+// docs/research/scanner-outline-10-16.md for a later auto-scan. See there.
+// ---------------------------------------------------------------------------
+
+/** How pageThrough reads a box; see there. */
+export interface OneCardTuning {
+  /** Each line starts and ends this share of the box in from its sides: the box may hug the pocket, and the card's border stays off the line. */
+  inset: number;
+  /** Lines are read across the middle of the box, this share of its width (columns) or height (rows) either side of centre. */
+  span: number;
+  /** A line is flat when its gray's standard deviation is under this. */
+  flat: number;
+  /** A flat line is the page's when its mean, and the points past both its ends, are within this of the gray just outside the box. */
+  near: number;
+}
+
+export const ONE_CARD_TUNING: OneCardTuning = { inset: 0.12, span: 0.35, flat: 14, near: 30 };
+
+export interface PageThrough {
+  /** The longest run of page lines across the box, as a share of its width (columns) or height (rows). 0 = one card. */
+  strip: number;
+  /** The same, by direction. */
+  cols: number;
+  rows: number;
+  /** The gray just outside the box: the page, the table. */
+  outside: number;
+}
+
+/**
+ * Does the page run through the box? (10-16, Chris's binder rounds: with
+ * the guide between two pockets the corner finder built a card-shaped box
+ * out of two cards' corners, and the brackets went green over four cards.)
+ * A box across two pockets has the page between them: a strip of flat,
+ * page-coloured pixels from one side of the box to the other, going on past
+ * the box at both ends. One card's inside never has one: a column through a
+ * card crosses its name bar, art and text, a row crosses the border, the
+ * art or text and the border again, and a flat patch of art stops at the
+ * card's border instead of running out past the box.
+ * Reads columns across the middle 70 % of the box's width and rows across
+ * the middle 70 % of its height, one a crop pixel, each inset from the sides.
+ * `corners` in frame px (clockwise from top-left, as the finder gives them),
+ * `g` the working crop. Costs under a millisecond.
+ */
+export function pageThrough(g: CropGray, corners: [Point, Point, Point, Point], tune?: Partial<OneCardTuning>): PageThrough {
+  const t: OneCardTuning = { ...ONE_CARD_TUNING, ...tune };
+  const c = corners.map((p) => ({ x: ((p.x - g.sx) / g.sw) * g.w, y: ((p.y - g.sy) / g.sh) * g.h }));
+  // The point u of the way along the top (and bottom), v of the way down.
+  const at = (u: number, v: number): Point => {
+    const tx = c[0].x + (c[1].x - c[0].x) * u, ty = c[0].y + (c[1].y - c[0].y) * u;
+    const bx = c[3].x + (c[2].x - c[3].x) * u, by = c[3].y + (c[2].y - c[3].y) * u;
+    return { x: tx + (bx - tx) * v, y: ty + (by - ty) * v };
+  };
+  const gray = (p: Point): number => {
+    const x = Math.round(p.x), y = Math.round(p.y);
+    return x < 0 || y < 0 || x >= g.w || y >= g.h ? NaN : g.gray[y * g.w + x];
+  };
+  // The surround: 6 % outside each side, its median gray.
+  const ring: number[] = [];
+  for (let i = 0; i < 12; i++) {
+    const s = (i + 0.5) / 12;
+    for (const p of [at(s, -0.06), at(s, 1.06), at(-0.06, s), at(1.06, s)]) {
+      const v = gray(p);
+      if (!Number.isNaN(v)) ring.push(v);
+    }
+  }
+  if (ring.length < 8) return { strip: 0, cols: 0, rows: 0, outside: NaN };
+  ring.sort((a, b) => a - b);
+  const outside = ring[ring.length >> 1];
+  const pageLine = (col: boolean, k: number): boolean => {
+    const n = 24;
+    let sum = 0, sq = 0, m = 0;
+    for (let i = 0; i < n; i++) {
+      const s = t.inset + ((1 - 2 * t.inset) * (i + 0.5)) / n;
+      const v = gray(col ? at(k, s) : at(s, k));
+      if (Number.isNaN(v)) continue;
+      sum += v;
+      sq += v * v;
+      m++;
+    }
+    if (m < n / 2) return false;
+    const mean = sum / m;
+    if (Math.sqrt(Math.max(0, sq / m - mean * mean)) >= t.flat || Math.abs(mean - outside) >= t.near) return false;
+    // The strip goes on past the box: the points 4-8 % out from both ends are the page's too.
+    let seen = 0, page = 0;
+    for (const e of [-0.08, -0.04, 1.04, 1.08]) {
+      const v = gray(col ? at(k, e) : at(e, k));
+      if (Number.isNaN(v)) continue;
+      seen++;
+      if (Math.abs(v - outside) < t.near) page++;
+    }
+    return seen >= 2 && page >= Math.ceil(seen * 0.75);
+  };
+  const width = Math.hypot(c[1].x - c[0].x, c[1].y - c[0].y);
+  const height = Math.hypot(c[3].x - c[0].x, c[3].y - c[0].y);
+  const longest = (col: boolean, size: number): number => {
+    const steps = Math.max(1, Math.round(size * 2 * t.span));
+    let best = 0, run = 0;
+    for (let i = 0; i <= steps; i++) {
+      if (pageLine(col, 0.5 - t.span + (2 * t.span * i) / steps)) best = Math.max(best, ++run);
+      else run = 0;
+    }
+    return size > 0 ? best / size : 0;
+  };
+  const cols = longest(true, width), rows = longest(false, height);
+  return { strip: Math.max(cols, rows), cols, rows, outside };
+}
