@@ -350,3 +350,10 @@ Nightly cron for all five games: add new sets/cards, self-host pictures, stand-i
 
 
 - [ ] M — **push-catalog: send only changed rows (10-16, Chris asked)** — the nightly push resends whole tables (mtg_cards 98,930 + tcg_cards ~69k) because sync-mtg stamps every row's synced_at each run; ~5 min of slow Turso reads (10-16 3:13am smoke failed: 2 searches >15 s while the rerun pushed). Fix: hash each row locally vs a remote id->hash (or compare the price/identity columns) and REPLACE only differing/new ids. Test on a DB copy first.
+
+- [x] PRICE LOCK-DOWN STEP 1 DONE 10-16 (s178, read-only; scripts in scratchpad lockdown.mjs / sample.mjs):
+  - Freshness: >99% of priced cards in every game updated within a day (Pokemon 23,528, Magic 97,354, Lorcana 3,259, One Piece 5,324, YGO 59,822 fresh).
+  - Unpriced, released 1+ month ago: Magic 669 (The Zeta Set 363 = Secret Lair x MSCHF, TCGplayer has 1 product, nobody prices singles yet; Rivals Quick Start 65 + Hachette UK 60 near-worthless; Summer Magic 58 = only PriceCharting), YGO 154 (prize/promo/Winner's Pack), Pokemon 66 (kits/promos + 5 1st Ed twins), Lorcana 27 (Format Coconut 23), One Piece 0 dated (143 promos with no release date). Lorcana Hyperia City 216 = releases today, expected.
+  - eBay sold check (277 sampled, 98 with 5+ raw sales): 70% within 0.67-1.5x of our price. Modern Pokemon/Magic/Lorcana mostly 0.8-1.2x. One Piece alt arts and YGO rarity variants can't be measured by eBay title search (shared numbers/codes) — excluded.
+  - Pattern: older Pokemon (2003-2015) priced at TCGplayer market run high vs eBay sold (0.55-0.65x: Electivire MT $90 vs $49, Terrakion-EX $43 vs $25) — partly condition mix on eBay. Real outliers where TCGplayer market is far over its own cheapest listing: Base Set 2 Mewtwo $129.77 (low $47, eBay $34), Reshiram-EX FA ND 95 $445 (low $174, eBay ~$100), Piloswine H22 $388 (low $270, eBay $169).
+  - PROPOSAL (Chris decides): give Pokemon the Magic-style listing cap (TCGCSV lowPrice is in the daily feed): over 2x the cheapest listing -> 1.45x it.
