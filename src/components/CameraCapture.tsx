@@ -757,6 +757,8 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
               body: JSON.stringify({ frame: full.toDataURL("image/jpeg", 0.85), meta }),
             }).then((r) => {
               if (r.ok) dumped.current++;
+            }).catch(() => {
+              // A dropped upload over the tunnel: Safari's "Load failed" popped the dev error badge (10-15).
             });
           } catch {
             // Debug only; never in the way.
