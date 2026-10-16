@@ -14,6 +14,9 @@
 - [x] PASS 10-16 local: /api/ebay/comps with id base1-4 + name "Magikarp" searches "Charizard 4" (audit #1).
 - [x] PASS 10-16 local: /api/cron/emails?force=1 and /api/cron/social-video without a key -> 403 (audit #4).
 
+## 10-16: number keypad on price boxes (NOT PUSHED, d326a66b)
+- [ ] Chris, phone, after push: 1. Open Inventory. 2. Tap a card's "What did you pay?" (cost) box. You should see a number keypad with a "." key, not the letter keyboard. Same for the sold-price box.
+
 ## 10-16: duplicate-email fix, audit #9 (NOT PUSHED, eb95dd75). Local: test:campaigns + test:digest green incl. two overlapping runs
 - [ ] After push: next Sunday 10-18 digest + 6:30pm ET week mail: /admin/emails log shows one "sent" per person, no repeats; `SELECT COUNT(*) FROM email_claims` > 0. (Mine.)
 
