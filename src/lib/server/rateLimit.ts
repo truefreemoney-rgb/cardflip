@@ -146,6 +146,9 @@ export const LIMITS = {
    * rotating IPs against one login still hits a wall. Chris 09-10: "enable
    * brute force protection". 10 tries per 15 min is plenty for a person. */
   authAccount: [{ limit: 10, windowMs: 15 * MINUTE }] as RateLimitRule[],
+  /** 10-16 audit: authAccount keyed by the account ALONE let a stranger lock Chris (or the console) out with 10 bad
+   * tries. It is now per account + IP; this looser account-wide cap still stops a slow IP-rotating guesser. */
+  authAccountWide: [{ limit: 100, windowMs: 60 * MINUTE }] as RateLimitRule[],
   /** Mailing an email-confirmation code (signup resend, Change Email, the account page): one a minute (Chris 10-14), five an hour. Keyed by account and again by target address. */
   emailCode: [{ limit: 1, windowMs: 60_000 }, { limit: 5, windowMs: 60 * MINUTE }] as RateLimitRule[],
   /** Confirmation codes mailed per IP per day (signup, resend, Change Email together), so one network cannot spend the shared daily mail budget that keeps the wall on for everyone. */

@@ -93,3 +93,16 @@ export function _resetRateLimitDb(): void {
   warned = false;
   lastSweep = 0;
 }
+
+/**
+ * Guess limit on one account (login, signup resume, console login). 10 tries per 15 min count per account + IP, so a
+ * stranger's bad passwords lock out only the stranger (10-16 audit); the account-wide cap (100 an hour) still stops a
+ * guesser rotating IPs. The wide counter is only spent once the per-IP one lets the try through.
+ */
+export async function accountLockout(scope: string, account: string, ip: string): Promise<Response | null> {
+  const acct = account.toLowerCase();
+  return (
+    (await limitOrRespondAsync(`${scope}:acct:${acct}:${ip}`, LIMITS.authAccount)) ??
+    (await limitOrRespondAsync(`${scope}:acct:${acct}`, LIMITS.authAccountWide))
+  );
+}

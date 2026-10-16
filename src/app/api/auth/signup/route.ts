@@ -5,7 +5,7 @@ import { SESSION_COOKIE } from "@/lib/server/auth";
 import { verifyPassword } from "@/lib/server/password";
 import { passwordProblem } from "@/lib/passwordRules";
 import { LIMITS, clientIp } from "@/lib/server/rateLimit";
-import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
+import { accountLockout, limitOrRespondAsync } from "@/lib/server/rateLimitDb";
 import { attachReferral } from "@/lib/server/referrals";
 import { isMailConfigured, sendSignupWelcomeEmail } from "@/lib/server/mail";
 import {
@@ -103,7 +103,7 @@ export async function POST(req: Request) {
   if (existing) {
     if (needsEmailConfirm(existing) && !totpEnabled(existing)) {
       // Same lock as login, so this is not a way around its guess limit.
-      const locked = await limitOrRespondAsync(`auth:login:acct:${email.toLowerCase()}`, LIMITS.authAccount);
+      const locked = await accountLockout("auth:login", email, clientIp(req));
       if (locked) return locked;
       if (verifyPassword(password, existing.passwordHash)) return resumeSignup(existing, req);
     }

@@ -13,7 +13,7 @@ function dummyHash(): string {
 import { SESSION_COOKIE } from "@/lib/server/auth";
 import { GOOGLE_ONLY_MESSAGE, hasPassword } from "@/lib/googleAuth";
 import { LIMITS, clientIp } from "@/lib/server/rateLimit";
-import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
+import { accountLockout, limitOrRespondAsync } from "@/lib/server/rateLimitDb";
 import { countryFrom } from "@/lib/server/signupGuard";
 import { isAllowedCountry } from "@/lib/countries";
 import { setHomeCookie } from "@/lib/homeCookie";
@@ -33,10 +33,9 @@ export async function POST(req: Request) {
   // Never on the live site (10-01 sweep): that account skips two-step and is unlimited.
   if (email.toLowerCase() === "admin" && process.env.VERCEL_ENV !== "production") email = "admin@cardflip.dev";
 
-  // Per-account lockout on top of the IP one: rotating IPs against a single
-  // email still stops at 10 tries per 15 minutes.
+  // Per-account lockout on top of the IP one (accountLockout: per account + IP, plus a looser account-wide cap).
   if (email) {
-    const locked = await limitOrRespondAsync(`auth:login:acct:${email.toLowerCase()}`, LIMITS.authAccount);
+    const locked = await accountLockout("auth:login", email, clientIp(req));
     if (locked) return locked;
   }
 

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { adminUsingDefaults, verifyAdminLogin } from "@/lib/adminAuth";
 import { ADMIN_COOKIE, adminCookieOptions, issueAdminSession } from "@/lib/server/adminGate";
 import { LIMITS, clientIp } from "@/lib/server/rateLimit";
-import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
+import { accountLockout, limitOrRespondAsync } from "@/lib/server/rateLimitDb";
 import { consoleCodeRequired, sendConsoleCode, spendConsoleCode } from "@/lib/server/loginCode";
 import { maskEmail } from "@/lib/server/emailVerify";
 import { OWNER_EMAIL } from "@/lib/server/users";
@@ -20,9 +20,9 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   const user = typeof body?.username === "string" ? body.username : "";
   const password = typeof body?.password === "string" ? body.password : "";
-  // Per-username lockout on top of the IP one (rotating IPs still stop).
+  // Per-username lockout on top of the IP one (accountLockout: per username + IP, plus a looser username-wide cap).
   if (user) {
-    const locked = await limitOrRespondAsync(`auth:admin:acct:${user.toLowerCase()}`, LIMITS.authAccount);
+    const locked = await accountLockout("auth:admin", user, clientIp(req));
     if (locked) return locked;
   }
   const role = verifyAdminLogin(user, password);

@@ -170,6 +170,29 @@ check("fail open: memory limiter still guards the burst", (await limitOrRespondA
 console.error = realError;
 db.prepare = realPrepare;
 
+// 10-16 audit: 10 bad tries from one stranger locked the real owner out for 15 min. Now per account + IP, with a
+// looser account-wide cap (100 / hour) behind it.
+{
+  const { accountLockout } = await import(at("lib/server/rateLimitDb.ts"));
+  _resetRateLimits();
+  _resetRateLimitDb();
+  let s = null;
+  for (let i = 0; i < 10; i++) s = await accountLockout("auth:login", "Chris@x.io", "6.6.6.6");
+  check("lockout: the stranger's first 10 tries go through", s, null);
+  check("lockout: the stranger's 11th is refused", (await accountLockout("auth:login", "chris@x.io", "6.6.6.6"))?.status, 429);
+  check("lockout: the owner from his own IP still gets in", await accountLockout("auth:login", "chris@x.io", "7.7.7.7"), null);
+  _resetRateLimits();
+  _resetRateLimitDb();
+  let wide = null;
+  for (let i = 0; i < 101 && !wide; i++) wide = await accountLockout("auth:admin", "admin", `9.9.${Math.floor(i / 10)}.${i}`);
+  check("lockout: rotating IPs still hit the account-wide wall at 100", wide?.status, 429);
+  const { readFileSync } = await import("node:fs");
+  for (const r of ["auth/login", "admin/login", "auth/signup"]) {
+    const src = readFileSync(new URL(`../src/app/api/${r}/route.ts`, import.meta.url), "utf8");
+    check(`${r}: uses accountLockout, no account-only key`, [src.includes("accountLockout("), /acct:\$\{(email|user)\.toLowerCase/.test(src)], [true, false]);
+  }
+}
+
 Date.now = realNow;
 console.log(failures === 0 ? "\nAll rate-limit checks passed" : `\n${failures} rate-limit check(s) failed`);
 process.exit(failures === 0 ? 0 : 1);
