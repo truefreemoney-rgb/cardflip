@@ -56,8 +56,6 @@ export function renderComeback(firstName: string, unsubUrl: string): ComebackMai
     "Happy flipping,",
     "The CardFlip Support Team",
     "",
-    "P.S. Did a card stump the scanner last time? Give it another shot. It's learned a lot.",
-    "",
     `Stop these emails: ${unsubUrl}`,
   ].join("\n");
   const p = (s: string, style = "") => `<p style="margin:0 0 12px;${style}">${s}</p>`;
@@ -82,7 +80,6 @@ export function renderComeback(firstName: string, unsubUrl: string): ComebackMai
     ${p("No card, no catch, and they&#39;re yours to use whenever you like.")}
     ${p("Got a card you&#39;ve always wondered about? The holo from 2003, the rare that&#39;s been sitting in a sleeve for years? Point your camera at it and find out what it&#39;s worth today. Worst case, it&#39;s a fun story. Best case… well. 😏")}
     ${p("Happy flipping,<br><b>The CardFlip Support Team</b>")}
-    ${p("<i>P.S. Did a card stump the scanner last time? Give it another shot. It&#39;s learned a lot.</i>", "color:#444")}
     <p style="color:#666;font-size:13px;margin:16px 0 4px"><a href="${unsubUrl}" style="color:#666">Stop these emails</a>.</p>
     <p style="color:#999;font-size:12px;margin:0">CardFlip · support@cardflip.io</p>
   </div>`;
