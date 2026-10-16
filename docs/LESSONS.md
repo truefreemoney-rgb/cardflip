@@ -4,6 +4,12 @@ Chris (10-14): every support ticket and every social comment is a learning
 experience while the site is new and not fully tested. One entry each: what
 they said, what it taught, what changed, what is still open. Newest first.
 
+## 10-16 · Junk 1pm post + Dynadot DNS fault (found by me, not a ticket)
+**What happened:** the 1pm head to head printed parked Alpha/Beta listings as "slipped 69% / 78.8% this week" on 5 sites. Then, ~1:15pm ET, Dynadot's ns2.dyna-ns.net began answering cardflip.io / www with 54.215.31.113 (TTL 60) on ~10-15% of queries: wrong-certificate errors for some visitors and GitHub posting pings.
+**What it taught:** (1) the price guard checked an old price against today's Cardmarket before its flat test, so a 52-day parked number passed; (2) our own 10-14 Magic cap (6f3fc80f) made every Magic "this week" move junk for 7 days; (3) one registrar nameserver is a single point of failure.
+**What changed:** eb2cd6ad (flat-old before referee, Magic weekly moves paused to 10-21, owner delete-post route); 1pm re-posted as Southern Islands set spotlight on all 7 sites; Vercel DNS zone prepared with every record (site, www, Fastmail MX/SPF/DKIM) and verified.
+**Still open:** Chris switches Dynadot nameservers to ns1/ns2.vercel-dns.com; confirm propagation; remove the MTG_CAP_DAY pause after 10-21.
+
 ## 10-14 · Support ticket #1001 · Jenny (trial, 5 scans, Google sign-up)
 **Their words:** "Why do we all need to buy it if we just want to see the prices and if others are wanting to sell there cards why make them pay for wanting to know what there binder/s inventory is like."
 Robot chat before it: "Why can't I just have free scans" / "is it possible to get my whole binder scanned without paying" / "but why".
