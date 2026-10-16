@@ -4,6 +4,19 @@
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
 
+## 10-16 ~9:30am ET: site-audit fixes (NOT PUSHED, ddea8db2..36c2e6a5; docs/AUDIT-2026-10-16.md)
+Mostly server guards, proven by local tests; these are the prod checks after the push.
+- [ ] eBay comps (#1): on a card page / scan result, "eBay listings" still loads comps for a Pokémon and a Magic card (catalog lookup in front of the cache). (Mine, pane.)
+- [ ] Cron routes (#4): `curl -s -o /dev/null -w "%{http_code}" https://cardflip.io/api/cron/emails` → 403 even when signed in to /admin in the pane (open it in the pane: 403). The 10am/6:30pm mail sweep and the 9:15pm TikTok net still run (Vercel cron with the key): check /admin Log next morning. (Mine.)
+- [ ] Stripe $0 (#7): no live check needed unless a 100%-off code exists in Stripe; next real renewal still credits scans (watch the Errors page / stripe log). (Mine.)
+- [ ] eBay quantity (#10): next real card push lists Quantity 1 on eBay. (Mine, eBay Seller Hub view.)
+- [ ] Login lockout (#5): 11 wrong passwords for a test email from one network → 429; the same email from another network still answers "Incorrect email or password". (Mine, curl with two IPs is not possible on prod; trust tests unless a lockout ticket shows up.)
+- [ ] Google/X link (#3): nothing to see; tests only.
+- [ ] Scan give-back cap (#6): a normal seller's "No match found" still gives the scan back (watch the header counter go back up after a miss). (Chris, phone, next scan session; just notice.)
+- [ ] Inventory thumbnails: /app/collection on a phone, tiles show the seller's photos sharp at tile size; DevTools/network shows card-image?…&w=400 at ~20-40 KB each; tapping a card still opens the full photo; eBay push still sends the full photo (no w). (Mine, pane at 375px, SCREENSHOTS TO CHRIS BEFORE THE PUSH.)
+- [ ] Inventory chart: one /api/cards/value-history request per visit (was two). (Mine, pane network.)
+- [ ] Trial ration: a normal new signup still gets the 5 free scans (watch the next real ad signups in /admin funnel: trial_scans_used 0 on fresh accounts). If several real signups from one carrier land on the Booster wall, raise TRIALS_PER_BLOCK_DAY (signupGuard.ts, now 5). (Mine, /admin.)
+
 ## 10-16 ~3:05am ET: scanner screen + earlier unpushed batch (PUSHED 3f3ba57f 10-16 ~3:05am ET)
 - [ ] Scanner (phone, cardflip.io/app, Scan): corner brackets only, no moving box, no green; above them "Line the card's edges up with the corners". Too dark / glare shows the amber hint there instead.
 - [ ] Scanner: a binder card in its pocket scans as the card (no "slab"), three times in a row. (Tap crop grows at most 8 % past the guide now.)
