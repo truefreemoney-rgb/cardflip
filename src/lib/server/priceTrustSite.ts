@@ -271,10 +271,12 @@ export async function readEbayAsks(game: GameId, cardIds: string[], day = todayU
 async function readChunk(game: GameId, chunk: string[], day: string): Promise<Map<string, TrustData>> {
   const marks = chunk.map(() => "?").join(",");
   const cmSince = addDays(day, -PRICE_TRUST.refMaxAgeDays);
+  // "+game" keeps SQLite off idx_price_series_family (game, source): it chose that index and walked every row of the
+  // game, 5-14 s on Turso for an Inventory of ~40 cards (prod 10-16). The primary key (card_id, ...) answers in ~40 ms.
   const seriesQ = db
     .prepare(
       `SELECT card_id, variant, source, start_day, prices FROM price_series
-        WHERE game = ? AND card_id IN (${marks})
+        WHERE +game = ? AND card_id IN (${marks})
           AND ((source = 'tcgplayer' AND currency = 'USD') OR (source IN ('cardmarket', '${REF_ALT_SOURCE}') AND variant = 'average' AND updated_day >= ?))`,
     )
     .all(game, ...chunk, cmSince) as unknown as Promise<SeriesRow[]>;
