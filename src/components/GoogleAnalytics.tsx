@@ -66,11 +66,14 @@ export default function GoogleAnalytics() {
   if ((!GTAG_ID && !TIKTOK_PIXEL_ID) || !pathname || pathname.startsWith("/admin")) return null;
 
   if (mode === "ask") {
+    // On /app phones the bar sits ON the bottom tab bar (BottomTabBar: h-14 + home-bar inset), never over it,
+    // so the tabs stay tappable before a choice (audit 10-16). Rendered outside app/app/layout, so it cannot read --bottom-nav-h.
+    const aboveTabs = pathname === "/app" || pathname.startsWith("/app/");
     return (
       <div
         role="dialog"
         aria-label="Cookie choice"
-        className="fixed inset-x-0 bottom-0 z-[100] border-t border-edge bg-[#0b0d13] px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-2xl shadow-black"
+        className={`fixed inset-x-0 bottom-0 z-[100] border-t border-edge bg-[#0b0d13] px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-2xl shadow-black ${aboveTabs ? "max-md:bottom-[calc(3.5rem+env(safe-area-inset-bottom))] max-md:pb-3" : ""}`}
       >
         <div className="mx-auto flex max-w-2xl flex-col gap-3 sm:flex-row sm:items-center">
           <p className="flex-1 text-xs text-zinc-300">
