@@ -663,8 +663,12 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
     let seen: [Point, Point, Point, Point] | null = null;
     let seenStreak = 0;
     let missStreak = 0;
-    // Ticks running with the fix within 3 % of the last (see `ready`).
+    // Ticks running with the fix within 10 % of the last (see `ready`).
     let steady = 0;
+    // Green holds 3 ticks (450 ms) after it last qualified, unless the card
+    // leaves the guide or is lost (10-16 ~1:20am, Chris: "still really hard
+    // to get a green guide"; without it green blinked off between ticks).
+    let greenHold = 0;
     // How the corners read when last found, for the tracker (trackCardCorners `lastScores`).
     let lastScores: number[] | null = null;
     // A fix far from the one shown (another box: the pocket round the card,
@@ -856,10 +860,11 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
         const last = seen;
         const apart = (a: [Point, Point, Point, Point], b: [Point, Point, Point, Point]) => Math.max(...a.map((p, i) => Math.hypot(p.x - b[i].x, p.y - b[i].y)));
         const moved = last ? apart(fresh, last) : Infinity;
-        // Steady = two fixes running within 3 % of each other (300 ms; was
-        // three, loosened 10-16 with the sure gate): green waits for it, a
+        // Steady = two fixes running within 10 % of each other (300 ms; was
+        // three within 3 %: the live finder moves ~7 % a tick on a still card,
+        // so it almost never passed, 10-16 ~1:20am): green waits for it, a
         // box still settling is blue.
-        steady = moved < 0.03 ? steady + 1 : 0;
+        steady = moved < 0.1 ? steady + 1 : 0;
         let held = false;
         if (!last || !outlineTarget.current) seen = fresh;
         else if (moved < 0.015) {
@@ -886,7 +891,9 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
         // While a jump is held back, the colour stays as it was: the fix on
         // screen is not the one just measured.
         const inGuide = seen.every((p) => p.x > -0.12 && p.x < 1.12 && p.y > -0.12 && p.y < 1.12);
-        const ready = inGuide && Math.abs(quad.angle) <= 8 && next === null && sure && steady >= 1;
+        const qualifies = inGuide && Math.abs(quad.angle) <= 8 && next === null && sure && steady >= 1;
+        greenHold = qualifies ? 4 : inGuide ? Math.max(0, greenHold - 1) : 0;
+        const ready = qualifies || greenHold > 0;
         readyNow = ready;
         if (seenStreak >= 2 && !held) {
           // The drawn line starts where the card is, then glides to each
@@ -899,6 +906,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
       } else {
         seenStreak = 0;
         steady = 0;
+        greenHold = 0;
         missStreak++;
         pending = null;
         // A lost tick keeps the shape (no blink) but never the green: an
