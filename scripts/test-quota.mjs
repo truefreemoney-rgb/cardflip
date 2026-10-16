@@ -517,6 +517,20 @@ delete process.env.CRON_SECRET;
   const subBack = await giveBackNoMatchScan(await get(subId), subScan);
   check("give-back: a subscriber's miss returns to the plan balance", [subBack.refunded, (await get(subId)).planScans, subBack.usage.remaining], [true, 3, 3]);
   void res3;
+
+  // 10-16 audit: scan → give-back looped one scan into ~500 paid empty reads a day. Capped per account per day.
+  const { GIVEBACK_DAILY_CAP } = await import(at("lib/server/scanGiveback.ts"));
+  const loopId = await mkSub({ plan_scans: 1 });
+  let lastLoop = null;
+  for (let i = 0; i <= GIVEBACK_DAILY_CAP; i++) {
+    const r = await reserveScan(await get(loopId));
+    const id = await recordScanUsage(loopId, "claude-sonnet-5", zero, { game: "pokemon", conf: 0 }, r.draw);
+    lastLoop = await giveBackNoMatchScan(await get(loopId), id);
+    if (i === GIVEBACK_DAILY_CAP - 1) check(`give-back: the first ${GIVEBACK_DAILY_CAP} misses today come back`, lastLoop.refunded, true);
+  }
+  check("give-back: past the daily cap a miss is not refunded", [lastLoop.refunded, lastLoop.reason, (await get(loopId)).planScans], [false, "cap", 0]);
+  const scanRoute = (await import("node:fs")).readFileSync(new URL("../src/app/api/vision/scan/route.ts", import.meta.url), "utf8");
+  check("scan route: an empty read earns no tiebreak allowance", /readIsEmpty\(\{[^}]*\}\)\s*\?\s*Promise\.resolve\(0\)\s*:\s*dayBump\(readsKey/.test(scanRoute), true);
 }
 
 console.log(failures === 0 ? "\nAll quota checks passed" : `\n${failures} quota check(s) failed`);

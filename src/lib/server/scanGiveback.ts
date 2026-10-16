@@ -8,6 +8,13 @@ import { isTcgGame, searchTcgCardsLocal } from "@/lib/server/tcgCards";
 import { parseGame } from "@/lib/games";
 import type { PrintedNumber } from "@/lib/cardNumber";
 import { UNREADABLE_CONFIDENCE } from "@/lib/types";
+import { dayBudgetSpent } from "@/lib/server/dayBudget";
+
+/**
+ * Give-backs per account per day (10-16 audit). Each empty read is still a paid model call, so a scan-then-give-back
+ * loop on one scan spent ~$5.50 a day per account with nothing to show. A real seller misses far fewer than this.
+ */
+export const GIVEBACK_DAILY_CAP = 20;
 
 /**
  * A scan that found no card is not a scan (Chris, 10-11: "if a card can't be
@@ -20,7 +27,7 @@ import { UNREADABLE_CONFIDENCE } from "@/lib/types";
  */
 export const GIVEBACK_WINDOW_MS = 15 * 60 * 1000;
 
-export type GivebackReason = "refunded" | "already" | "late" | "unknown" | "found" | "no-draw";
+export type GivebackReason = "refunded" | "already" | "late" | "unknown" | "found" | "no-draw" | "cap";
 
 interface UsageRow {
   id: string;
@@ -103,6 +110,7 @@ export async function giveBackNoMatchScan(user: User, scanId: string): Promise<{
     read = {};
   }
   if (!readIsEmpty(read) && (await catalogHasMatch(read))) return { refunded: false, reason: "found", usage };
+  if (await dayBudgetSpent(`giveback_${user.id}`, GIVEBACK_DAILY_CAP)) return { refunded: false, reason: "cap", usage };
   // Claim the row first: two give-backs for one scan must not both pay out.
   const claimed = await db.prepare("UPDATE scan_usage SET refunded_at = ? WHERE id = ? AND refunded_at IS NULL").run(Date.now(), scanId);
   if (Number(claimed.changes ?? 0) < 1) return { refunded: false, reason: "already", usage };

@@ -13,6 +13,7 @@ import { parseGame } from "@/lib/games";
 import { giveBackScans, outOfScansMessage, reserveScan, scanQuota, scanQuotaExhausted } from "@/lib/server/scanQuota";
 import type { ScanQuota, User } from "@/lib/server/users";
 import { dayBudgetSpent, dayBump, readsKey } from "@/lib/server/dayBudget";
+import { readIsEmpty } from "@/lib/server/scanGiveback";
 import {
   LIMITS,
   RateLimitError,
@@ -120,8 +121,11 @@ export async function POST(req: Request) {
     // a scan the seller already paid for.
     const [usage, , scanId] = await Promise.all([
       Promise.resolve(reservation.usage),
-      // Today's good reads: the tiebreak and binder-locate routes are rationed against this.
-      dayBump(readsKey(user.id)).catch((err) => console.error("reads counter failed:", err instanceof Error ? err.message : err)),
+      // Today's good reads: the tiebreak and binder-locate routes are rationed against this. An empty read (the
+      // give-back's own test) earns no allowance (10-16 audit: junk scans each bought one more Opus tiebreak).
+      readIsEmpty({ conf: card.confidence, kind: card.kind ?? null, slab: card.slab === true, seen: card.detectedGame ?? null, game: card.game ?? parseGame(body?.game) })
+        ? Promise.resolve(0)
+        : dayBump(readsKey(user.id)).catch((err) => console.error("reads counter failed:", err instanceof Error ? err.message : err)),
       recordScanUsage(user.id, VISION_MODEL, tokens, {
         game: card.game ?? parseGame(body?.game),
         ...(card.switchedFrom ? { from: card.switchedFrom } : {}),
