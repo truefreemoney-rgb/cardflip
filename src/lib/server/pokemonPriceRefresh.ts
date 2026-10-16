@@ -20,6 +20,7 @@ import {
   type TcgProduct,
 } from "@/lib/tcgcsv";
 import { loadPokemonHandMap } from "@/lib/server/pokemonHandMap";
+import { SOFT_CAP_X } from "@/lib/server/mtgPriceRefresh";
 import { readSealedMap, sealedSeriesUpserts } from "@/lib/server/sealedPrices";
 
 /**
@@ -38,6 +39,22 @@ const TRIED_KEY = "tcgcsv_map_tried";
 
 // Schema (tcgplayer_products) lives in lib/db.ts behind the adapter's schema gate.
 
+/** From this market price up a card takes the listing cap. */
+export const POKEMON_CAP_MIN_USD = 20;
+/** The cap starts when the market is this many times the cheapest listing. */
+export const POKEMON_CAP_OVER = 2;
+/**
+ * Pokémon listing cap (10-16, Chris "go ahead" after a dry run): TCGplayer's market price on older cards can sit far over
+ * every copy actually for sale (Base Set 2 Mewtwo $129.77 with the cheapest copy $47 and eBay sold ~$34; Reshiram-EX full
+ * art $445 vs $174 / ~$100). From $20, a market at POKEMON_CAP_OVER x the cheapest listing or more becomes SOFT_CAP_X
+ * (1.45) x that listing, as Magic's soft cap does: under the trust check's 1.5x edge, and above the cheapest copy, which
+ * is often a played one. Dry run 10-16: 1,351 of 8,196 $10+ printings (16.5%); eBay sold sample, the capped number was
+ * closer on 11 of 13; the 2 misses were $12-$15 holos, hence the $20 floor. Pure.
+ */
+export function pokemonListingCap(market: number, low: number | null): number {
+  if (!(market >= POKEMON_CAP_MIN_USD) || low == null || !(low > 0) || market < POKEMON_CAP_OVER * low) return market;
+  return Math.round(low * SOFT_CAP_X * 100) / 100;
+}
 export interface PokemonRefreshResult {
   groups: number;
   groupsFailed: number;
@@ -372,7 +389,8 @@ export async function refreshPokemonPricesFromTcgcsv(day = todayUtc()): Promise<
     }
     for (const r of results) {
       const mapped = productToCard.get(r.productId);
-      const price = r.marketPrice ?? null;
+      // Sealed products keep TCGplayer's market as is; cards take the listing cap (pokemonListingCap).
+      const price = mapped && r.marketPrice != null ? pokemonListingCap(r.marketPrice, r.lowPrice ?? null) : (r.marketPrice ?? null);
       if (!mapped && price != null && price > 0 && sealedMap.has(r.productId) && !sealedPrices.has(r.productId)) {
         sealedPrices.set(r.productId, price);
         continue;

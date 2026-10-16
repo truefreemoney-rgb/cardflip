@@ -66,6 +66,13 @@ check("... and an agreeing TCGdex reading never vouches: the $1,013 Rayquaza spi
   const cm = new Map([["a|average", s(11.3)], ["b|average", s(15)], ["c|average", s(1)], ["d|average", s(2)]]);
   check("referee candidates: disputed $10+ default printings, then cards already holding a reading", refereeCandidates(tcg, cm, new Map([["b|average", s(18)], ["d|average", s(30)]])), ["a", "d", "b"]);
 }
+{
+  // 10-16: Pokémon listing cap. From $20, a market at 2x+ the cheapest listing becomes 1.45x it; under that it stays.
+  const { pokemonListingCap } = await import(at("lib/server/pokemonPriceRefresh.ts"));
+  check("listing cap: Base Set 2 Mewtwo $129.77 (low $47.14) -> $68.35; Piloswine $388.45 (low $269.83, 1.44x) stays; $14.55 holo (low $5) stays under $20; no low stays",
+    [pokemonListingCap(129.77, 47.14), pokemonListingCap(388.45, 269.83), pokemonListingCap(14.55, 5), pokemonListingCap(129.77, null)],
+    [68.35, 388.45, 14.55, 129.77]);
+}
 check("Rayquaza with no second source: the spike never came back", verdict(data("pokemon", [ser("holofoil", RAYQUAZA)]))?.[1]?.startsWith("spike"), true);
 // 10-02: flat is a NOTE, not a hide. Deoxys shows $500 with "Market hasn't updated this in 3 months"; judgeSeries (the hide) says fine.
 check("Deoxys: a round $500 for 87 days is stale, not hidden", verdict(data("pokemon", [ser("holofoil", DEOXYS)])), null);

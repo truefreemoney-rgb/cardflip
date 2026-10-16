@@ -561,3 +561,5 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 - [ ] Morning after: soft cap live. Spot-check: an Alpha/Beta capped card (e.g. Beta Shivan Dragon, was $1,998.97 = cheapest listing) now ~1.45x its listing; a cheap modern foil (Cromat Apocalypse foil ~$57) unchanged; none of the soft-capped ones flagged "looks off".
 - [ ] Ancient Mew (miscp-001) card page shows ~$122 after the next daily price run.
 - [ ] Homepage hero line reads "...adds up what your whole binder is worth. Selling? It writes the eBay listing. You tap Post." (Chris yes 10-16).
+
+- [ ] Pokemon listing cap (10-16, after push): Base Set 2 Mewtwo (base4-10) card page ~$68 not $129.77; Skyridge Piloswine H22 unchanged ~$388; a cheap holo under $20 unchanged; none of the capped ones show "looks off".
