@@ -40,6 +40,9 @@ export const DAY_PLANS: Record<string, DayPlan> = {
   // 7am keeps the set spotlight (Pokémon, "also scans"), 7pm is the all-games picture (Chris: "switch 7am and 7pm";
   // that day's drops were -8% moves, so the set post stayed and the drops sat out).
   "2026-09-30": { mixedMovers: true, alsoScans: true, evening: "games", set: "base4" },
+  // 1pm re-posted as the Southern Islands set spotlight (Chris 10-16): the head to head went out with a parked Beta listing as
+  // "slipped 78.8%" and was taken down; TikTok and Pinterest already carry this set by hand.
+  "2026-10-16": { midday: "set", middayGame: "pokemon", set: "si1" },
 };
 
 /** "five" for the small counts a caption says out loud. */
