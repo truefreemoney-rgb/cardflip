@@ -615,9 +615,10 @@ export async function findUserByGoogleSub(sub: string): Promise<User | null> {
 export async function linkGoogleSub(userId: string, sub: string, wipePassword = false): Promise<boolean> {
   // wipePassword: the inbox was never proven before now, so whoever typed the old password
   // (maybe not the inbox owner) loses it; Google is the way in, or Forgot Password sets a new one.
+  // It loses any X link too (10-16 audit): an X signup with a typed, unproven email kept x_sub and walked back in.
   const res = await db
     .prepare(
-      `UPDATE users SET google_sub = ?, email_verified_at = COALESCE(email_verified_at, ?)${wipePassword ? ", password_hash = ?" : ""}
+      `UPDATE users SET google_sub = ?, email_verified_at = COALESCE(email_verified_at, ?)${wipePassword ? ", password_hash = ?, x_sub = NULL" : ""}
         WHERE id = ? AND google_sub IS NULL`,
     )
     .run(sub, Date.now(), ...(wipePassword ? [NO_PASSWORD] : []), userId);
@@ -629,11 +630,11 @@ export async function findUserByXSub(sub: string): Promise<User | null> {
   return row ? fromRow(row) : null;
 }
 
-/** Same as linkGoogleSub, for "Continue with X" (X handed over an email it confirmed). True when it wrote. */
+/** Same as linkGoogleSub, for "Continue with X" (X handed over an email it confirmed). An unproven link drops any Google id too. True when it wrote. */
 export async function linkXSub(userId: string, sub: string, wipePassword = false): Promise<boolean> {
   const res = await db
     .prepare(
-      `UPDATE users SET x_sub = ?, email_verified_at = COALESCE(email_verified_at, ?)${wipePassword ? ", password_hash = ?" : ""}
+      `UPDATE users SET x_sub = ?, email_verified_at = COALESCE(email_verified_at, ?)${wipePassword ? ", password_hash = ?, google_sub = NULL" : ""}
         WHERE id = ? AND x_sub IS NULL`,
     )
     .run(sub, Date.now(), ...(wipePassword ? [NO_PASSWORD] : []), userId);

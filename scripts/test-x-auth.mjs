@@ -265,5 +265,25 @@ const off = await start.GET(new Request("https://cardflip.io/api/auth/x/start?mo
 check("no keys: start sends the visitor back with the error flag", new URL(off.headers.get("location")).pathname + new URL(off.headers.get("location")).search, "/signup?x_error=1");
 check("no keys: xConfigured is false", sx.xConfigured(), false);
 
+// 10-16 audit: an X signup with a typed, unproven email kept x_sub after "Continue with Google" wiped its password,
+// so the squatter walked back in through X. An unproven link now drops the other provider's id too.
+{
+  const { linkGoogleSub, linkXSub, findUserById } = await import(at("lib/server/users.ts"));
+  const viaX = await createUser("X squat", "xsquat@example.com", "xsquatpass1");
+  await db.prepare("UPDATE users SET x_sub = ? WHERE id = ?").run("x-squatter", viaX.id);
+  await linkGoogleSub(viaX.id, "g-owner-1", true);
+  const a = await findUserById(viaX.id);
+  check("unproven Google link: password AND the X id are gone", [hasPassword(a.passwordHash), (await findUserByXSub("x-squatter"))?.id ?? null], [false, null]);
+  const viaG = await createUser("G squat", "gsquat@example.com", "gsquatpass1");
+  await db.prepare("UPDATE users SET google_sub = ? WHERE id = ?").run("g-squatter", viaG.id);
+  await linkXSub(viaG.id, "x-owner-1", true);
+  const row = await db.prepare("SELECT google_sub FROM users WHERE id = ?").get(viaG.id);
+  check("unproven X link: the Google id is gone", row.google_sub, null);
+  const kept = await createUser("Proven", "proven@example.com", "provenpass1");
+  await db.prepare("UPDATE users SET x_sub = ? WHERE id = ?").run("x-kept", kept.id);
+  await linkGoogleSub(kept.id, "g-kept", false);
+  check("a proven link keeps the other provider", (await findUserByXSub("x-kept"))?.id, kept.id);
+}
+
 console.log(failures ? `\n${failures} FAILED` : "\nall passed");
 process.exit(failures ? 1 : 0);
