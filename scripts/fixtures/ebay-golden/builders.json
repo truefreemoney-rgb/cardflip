@@ -1091,7 +1091,7 @@
     "inventoryItem": {
       "availability": {
         "shipToLocationAvailability": {
-          "quantity": 2
+          "quantity": 1
         }
       },
       "condition": "USED_VERY_GOOD",
@@ -1194,7 +1194,7 @@
       "sku": "cardflip-0f2b7c1e-1234-4abc-9def-0123456789ab",
       "marketplaceId": "EBAY_US",
       "format": "FIXED_PRICE",
-      "availableQuantity": 2,
+      "availableQuantity": 1,
       "categoryId": "183454",
       "listingDescription": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
       "listingDuration": "GTC",
@@ -1209,7 +1209,7 @@
       "sku": "cardflip-0f2b7c1e-1234-4abc-9def-0123456789ab",
       "marketplaceId": "EBAY_US",
       "format": "FIXED_PRICE",
-      "availableQuantity": 2,
+      "availableQuantity": 1,
       "categoryId": "183454",
       "listingDescription": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
       "listingDuration": "GTC",
@@ -1230,7 +1230,7 @@
       "sku": "cardflip-0f2b7c1e-1234-4abc-9def-0123456789ab",
       "marketplaceId": "EBAY_US",
       "format": "FIXED_PRICE",
-      "availableQuantity": 2,
+      "availableQuantity": 1,
       "categoryId": "183454",
       "listingDescription": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
       "listingDuration": "GTC",
@@ -1245,7 +1245,7 @@
       }
     },
     "offerUpdateBody": {
-      "availableQuantity": 2,
+      "availableQuantity": 1,
       "categoryId": "183454",
       "listingDescription": "<p>Charizard — Base Set, card 4.</p><p>Condition: Near Mint.</p><p>Ships fast &amp; safe &lt;3</p>",
       "listingDuration": "GTC",
