@@ -81,6 +81,66 @@ export async function cachedListSwr<T>(
   return { value: stale, stale: true };
 }
 
+/**
+ * Stale-while-revalidate that never answers empty: fresh → the value; stale → the old value now and a rebuild after
+ * the response; missing (first ever) → built and stored right now. For the sitemap files (10-16): every deploy empties
+ * the per-deployment ISR copies, and a cold Magic file was an 18 s build that 504'd for Googlebot; the memo outlives
+ * deploys, so a crawler only ever waits on the very first build. `deps` is for tests.
+ */
+export async function cachedStaleOk<T>(
+  key: string,
+  ttlMs: number,
+  build: () => Promise<T>,
+  now = Date.now(),
+  deps: { later?: (fn: () => Promise<void>) => void } = {},
+): Promise<T> {
+  let row: { payload: string; cached_at: number } | undefined;
+  try {
+    row = (await db.prepare("SELECT payload, cached_at FROM card_cache WHERE key = ?").get(key)) as typeof row;
+  } catch {
+    // Cache miss is fine.
+  }
+  const store = (value: T, at: number) =>
+    db
+      .prepare(
+        `INSERT INTO card_cache (key, payload, cached_at) VALUES (?, ?, ?)
+         ON CONFLICT(key) DO UPDATE SET payload = excluded.payload, cached_at = excluded.cached_at`,
+      )
+      .run(key, JSON.stringify(value), at)
+      .catch(() => {});
+  let old: T | undefined;
+  if (row) {
+    try {
+      old = JSON.parse(row.payload) as T;
+    } catch {
+      old = undefined;
+    }
+  }
+  if (old !== undefined && row && now - row.cached_at < ttlMs) return old;
+  if (old === undefined) {
+    const value = await build();
+    await store(value, now);
+    return value;
+  }
+  const refresh = async () => {
+    try {
+      await store(await build(), Date.now());
+    } catch {
+      // The next ask tries again; the old copy keeps serving.
+    }
+  };
+  if (deps.later) deps.later(refresh);
+  else {
+    try {
+      const { after } = await import("next/server");
+      after(refresh);
+    } catch {
+      void refresh();
+    }
+  }
+  return old;
+}
+
 /** Set lists refresh with the daily mirror sync; six hours is plenty. */
 export const SET_LIST_TTL_MS = 6 * 60 * 60 * 1000;
 

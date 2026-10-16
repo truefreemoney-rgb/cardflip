@@ -1,5 +1,5 @@
 import { parseSitemapName, urlsetXml } from "@/lib/sitemapXml";
-import { cardSitemapEntries, pagesSitemapEntries, sitemapIndexChildren } from "@/lib/server/cardSitemap";
+import { cachedCardSitemapEntries, pagesSitemapEntries, sitemapIndexChildren } from "@/lib/server/cardSitemap";
 
 /**
  * One child sitemap: pages.xml (marketing pages, help articles, the card hubs)
@@ -26,5 +26,5 @@ export async function GET(_req: Request, ctx: RouteContext<"/sitemaps/[name]">) 
   if (!file) return notFound();
   if (file === "pages") return xml(urlsetXml(await pagesSitemapEntries()));
   if (!(await sitemapIndexChildren()).some((c) => c.name === name)) return notFound();
-  return xml(urlsetXml(await cardSitemapEntries(file.game, file.chunk)));
+  return xml(urlsetXml(await cachedCardSitemapEntries(file.game, file.chunk)));
 }

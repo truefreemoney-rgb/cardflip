@@ -16,7 +16,7 @@ process.once("exit", () => {
 
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
 const { db } = await import(at("lib/db.ts"));
-const { cachedList, cachedListSwr } = await import(at("lib/server/listCache.ts"));
+const { cachedList, cachedListSwr, cachedStaleOk } = await import(at("lib/server/listCache.ts"));
 
 let failures = 0;
 function check(label, actual, expected = true) {
@@ -61,6 +61,28 @@ check("refresh stored the new value", await cachedList("t:catalog", TTL, async (
 const broken = await cachedListSwr("t:other", TTL, async () => { throw new Error("turso down"); }, { n: 7 }, now);
 check("failing build → fallback", broken, { value: { n: 7 }, stale: true });
 await sleep(50);
+
+// 10-16: sitemap files. First ask builds; fresh replays; stale answers the old copy NOW and rebuilds later; a failed
+// rebuild keeps the old copy; an empty list is still a valid answer.
+{
+  const T0 = 1_000_000;
+  let builds = 0;
+  const later = [];
+  const deps = { later: (fn) => later.push(fn) };
+  const b = (v) => async () => { builds++; return v; };
+  check("stale-ok: first ask builds and answers", [await cachedStaleOk("swr-ok", 1000, b(["a"]), T0, deps), builds, later.length], [["a"], 1, 0]);
+  check("stale-ok: fresh replays without a build", [await cachedStaleOk("swr-ok", 1000, b(["b"]), T0 + 10, deps), builds], [["a"], 1]);
+  check("stale-ok: stale answers the old copy at once, rebuild queued", [await cachedStaleOk("swr-ok", 1000, b(["c"]), T0 + 5000, deps), builds, later.length], [["a"], 1, 1]);
+  await later.shift()();
+  check("stale-ok: the queued rebuild stores the new copy", [await cachedStaleOk("swr-ok", 10 ** 12, b(["d"]), Date.now(), deps), builds], [["c"], 2]);
+  await cachedStaleOk("swr-ok", 1, async () => { throw new Error("turso down"); }, Date.now() + 10_000, deps);
+  await later.shift()();
+  check("stale-ok: a failed rebuild keeps serving the old copy", await cachedStaleOk("swr-ok", 10 ** 12, b(["e"]), Date.now(), deps), ["c"]);
+  check("stale-ok: an empty file is a real answer, kept", [await cachedStaleOk("swr-empty", 1000, b([]), T0, deps), await cachedStaleOk("swr-empty", 1000, b(["x"]), T0 + 1, deps)], [[], []]);
+  const { readFileSync } = await import("node:fs");
+  const route = readFileSync(new URL("../src/app/sitemaps/[name]/route.ts", import.meta.url), "utf8");
+  check("sitemap route serves the stored copy", route.includes("await cachedCardSitemapEntries(file.game, file.chunk)"));
+}
 
 await db.close?.();
 console.log(failures === 0 ? "\nAll listCache checks passed" : `\n${failures} listCache check(s) failed`);

@@ -7,7 +7,7 @@ import { judgeSeries, loadTrustData } from "@/lib/server/priceTrustSite";
 import { hasMovers } from "@/lib/server/moversPage";
 import { staticEntries } from "@/lib/sitemapPages";
 import { sitemapChildren, type SitemapChild, type SitemapEntry } from "@/lib/sitemapXml";
-import { cachedList } from "@/lib/server/listCache";
+import { cachedStaleOk } from "@/lib/server/listCache";
 import { freshCutoff, publicCardGames, setIndex } from "@/lib/server/cardPages";
 import type { GameId } from "@/lib/types";
 
@@ -112,6 +112,17 @@ export async function cardSitemapEntries(game: GameId, chunk: number, today = to
   return out;
 }
 
+/** Built sitemap files and counts are kept 20 hours, then served stale while they rebuild after the response (cachedStaleOk). */
+const SITEMAP_TTL_MS = 20 * 60 * 60 * 1000;
+
+/**
+ * One card file as the route serves it: the stored copy (outlives deploys; 10-16 a cold Magic file took 18 s and 504'd
+ * for Googlebot after each deploy), rebuilt in the background once it is older than 20 hours.
+ */
+export async function cachedCardSitemapEntries(game: GameId, chunk: number): Promise<SitemapEntry[]> {
+  return cachedStaleOk(`seo:sitemap-file:v1:${game}:${chunk}`, SITEMAP_TTL_MS, () => cardSitemapEntries(game, chunk));
+}
+
 /** Card counts per public game: what the index needs to list every file. A failed count throws (the index answers 500 and is asked again) rather than silently dropping a game for a day. */
 export async function cardSitemapCounts(today = todayUtc()): Promise<Partial<Record<GameId, number>>> {
   const counts: Partial<Record<GameId, number>> = {};
@@ -126,7 +137,7 @@ export async function cardSitemapCounts(today = todayUtc()): Promise<Partial<Rec
  * a day by the CDN, so this is one small read when a crawler asks.
  */
 export async function sitemapIndexChildren(today = todayUtc()): Promise<SitemapChild[]> {
-  const { counts } = await cachedList("seo:sitemap-counts:v1", 20 * 60 * 60 * 1000, async () => ({ counts: await cardSitemapCounts(today) }));
+  const { counts } = await cachedStaleOk("seo:sitemap-counts:v1", SITEMAP_TTL_MS, async () => ({ counts: await cardSitemapCounts(today) }));
   return sitemapChildren(counts);
 }
 
