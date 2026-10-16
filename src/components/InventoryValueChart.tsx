@@ -47,6 +47,12 @@ export default function InventoryValueChart({ game, version = 0, status = "all",
   const preset = "preset" in choice ? choice.preset : "";
 
   useEffect(() => {
+    // No cards (yet): nothing to draw. The page renders before its card list lands, so fetching here too doubled the
+    // slowest call on the page (10-16 audit: two ~3.8 s value-history loads per visit).
+    if (version === 0) {
+      setPoints([]);
+      return;
+    }
     let alive = true;
     const scope =
       (status !== "all" ? `&status=${encodeURIComponent(status)}` : "") +

@@ -256,5 +256,25 @@ check("wrong user can't delete a lookup", (await listPriceChecks(alice.id)).leng
   check("empty list is a no-op", await deleteCards([], alice.id), 0);
 }
 
+// 10-16 audit: inventory tiles pulled the full ~1150px scan (270-490 KB) for a 164px tile. ?w=400 serves a small copy;
+// eBay's fetch (no w) still gets the full photo.
+{
+  const sharp = (await import("sharp")).default;
+  const { db } = await import(at("lib/db.ts"));
+  const { id } = await db.prepare("SELECT id FROM cards LIMIT 1").get();
+  const big = await sharp({ create: { width: 1150, height: 1600, channels: 3, background: { r: 200, g: 40, b: 40 } } }).jpeg({ quality: 95 }).toBuffer();
+  await db.prepare("INSERT OR REPLACE INTO card_photos (card_id, bytes, updated_at) VALUES (?, ?, ?)").run(id, big, 1_700_000_000_000);
+  const route = await import(at("app/api/card-image/[id]/route.ts"));
+  const get = (q) => route.GET(new Request(`http://localhost/api/card-image/${id}${q}`), { params: Promise.resolve({ id }) });
+  const full = await get("?v=1");
+  const fullBytes = Buffer.from(await full.arrayBuffer());
+  check("card image: no w → the full photo, 1h cache", [full.status, fullBytes.length, full.headers.get("cache-control")], [200, big.length, "public, max-age=3600"]);
+  const thumb = await get("?v=1&w=400");
+  const meta = await sharp(Buffer.from(await thumb.arrayBuffer())).metadata();
+  check("card image: w=400 → a 400px-wide copy, far smaller, cached for good", [thumb.status, meta.width, Number(thumb.headers.get("content-length")) < big.length / 3, /immutable/.test(thumb.headers.get("cache-control"))], [200, 400, true, true]);
+  const odd = await get("?v=1&w=37");
+  check("card image: any other width → the full photo (one CDN variant only)", Number(odd.headers.get("content-length")), big.length);
+}
+
 console.log(failures === 0 ? "\nAll ledger/fee checks passed" : `\n${failures} ledger/fee check(s) failed`);
 process.exitCode = failures === 0 ? 0 : 1;

@@ -2825,7 +2825,7 @@ export default function CollectionPage() {
             const sold = card.status === "sold";
             const draft = card.status === "ready";
             const isSelected = selected.has(card.id);
-            const img = card.photoAt ? apiPath(`/api/card-image/${card.id}?v=${card.photoAt}`) : card.imageUrl;
+            const img = card.photoAt ? apiPath(`/api/card-image/${card.id}?v=${card.photoAt}&w=400`) : card.imageUrl;
             const resumeHref = `/app?resume=${card.id}&rn=${encodeURIComponent(card.cardName)}&rnum=${encodeURIComponent(card.cardNumber || "")}&rg=${parseGame(card.game)}&ri=${encodeURIComponent(card.imageUrl || "")}${card.photoAt ? `&rp=${card.photoAt}` : ""}`;
             const glow = live
               ? "ring-emerald-400/40 shadow-emerald-500/15"
@@ -3102,7 +3102,7 @@ export default function CollectionPage() {
                   />
                   <CardImage
                     // The seller's own scan photo when one is stored; catalog art otherwise.
-                    src={card.photoAt ? apiPath(`/api/card-image/${card.id}?v=${card.photoAt}`) : card.imageUrl}
+                    src={card.photoAt ? apiPath(`/api/card-image/${card.id}?v=${card.photoAt}&w=400`) : card.imageUrl}
                     alt={card.cardName}
                     className="h-[4.5rem] w-[3.25rem] shrink-0 rounded-md sm:h-16 sm:w-12"
                   />
