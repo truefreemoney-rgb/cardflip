@@ -119,6 +119,18 @@ const boom = async () => { throw new Error("smtp down"); };
 await db.prepare("UPDATE users SET digest_sent_week = NULL WHERE id = ?").run(u.id);
 check("failed send stamps nothing", [(await sweepWeeklyDigest(SUNDAY, {}, { send: boom, configured: on })).sent, (await db.prepare("SELECT digest_sent_week FROM users WHERE id = ?").get(u.id)).digest_sent_week], [0, null]);
 check("next Sunday sends again", (await sweepWeeklyDigest(SUNDAY + 7 * DAY, {}, { send, configured: on })).sent, 1);
+// Audit #9: two runs at once mail once; the week is stamped before the mail goes.
+sent.length = 0;
+let stampedFirst = true;
+const slowSend = async (to, digest, unsub) => {
+  const row = await db.prepare("SELECT digest_sent_week FROM users WHERE id = ?").get(u.id);
+  if (row.digest_sent_week !== easternDay(SUNDAY + 14 * DAY)) stampedFirst = false;
+  await new Promise((r) => setTimeout(r, 20));
+  return send(to, digest, unsub);
+};
+const both = await Promise.all([0, 1].map(() => sweepWeeklyDigest(SUNDAY + 14 * DAY, {}, { send: slowSend, configured: on })));
+check("overlapping runs: one mail", [sent.length, both[0].sent + both[1].sent], [1, 1]);
+check("week stamped before the mail goes", stampedFirst);
 
 console.log("unsubscribe");
 check("wrong token → false", await unsubscribeDigest(u.id, "nope"), false);

@@ -234,15 +234,30 @@ export async function sweepWeeklyDigest(
   let sent = 0;
   for (const u of users) {
     if (u.digest_sent_week === week && !opts.force) continue;
+    let stamped = false;
     try {
       const digest = await buildDigest(u.id, now);
       if (!digest || (digest.held === 0 && digest.sold.length === 0)) continue;
       const token = u.digest_token ?? (await digestTokenFor(u.id));
+      // Stamp the week BEFORE the mail goes (audit #9: send-then-stamp mailed twice when the stamp failed or two
+      // runs overlapped). Only the run whose stamp lands sends; a failed send puts the old value back.
+      const claim = opts.force
+        ? await db.prepare("UPDATE users SET digest_sent_week = ? WHERE id = ?").run(week, u.id)
+        : await db
+            .prepare("UPDATE users SET digest_sent_week = ? WHERE id = ? AND (digest_sent_week IS NULL OR digest_sent_week != ?)")
+            .run(week, u.id, week);
+      if (Number(claim.changes ?? 0) === 0) continue;
+      stamped = true;
       await send(u.email, digest, { userId: u.id, token });
-      await db.prepare("UPDATE users SET digest_sent_week = ? WHERE id = ?").run(week, u.id);
       sent++;
     } catch (err) {
-      // Stamp nothing on a failed send — the next run this Sunday retries.
+      // Un-stamp a failed send so the next run this Sunday retries.
+      if (stamped) {
+        await db
+          .prepare("UPDATE users SET digest_sent_week = ? WHERE id = ?")
+          .run(u.digest_sent_week ?? null, u.id)
+          .catch((e: unknown) => console.error(`weekly digest un-stamp for ${u.email} failed:`, e));
+      }
       console.error(`weekly digest to ${u.email} failed:`, err);
     }
   }

@@ -320,10 +320,18 @@ function unsubUrlFor(userId: string, token: string): string {
   return `${SITE_URL}/api/digest/unsubscribe?u=${encodeURIComponent(userId)}&t=${encodeURIComponent(token)}&k=updates`;
 }
 
-async function logSend(row: { userId: string | null; email: string; campaign: string; status: "sent" | "failed" | "test" | "copy"; error?: string }, now = Date.now()): Promise<void> {
-  await db
+async function logSend(row: { userId: string | null; email: string; campaign: string; status: "sent" | "failed" | "test" | "copy"; error?: string }, now = Date.now()): Promise<bigint | undefined> {
+  const r = await db
     .prepare("INSERT INTO email_sends (user_id, email, campaign, status, error, sent_at) VALUES (?, ?, ?, ?, ?, ?)")
     .run(row.userId, row.email, row.campaign, row.status, row.error ?? null, now);
+  return r.lastInsertRowid;
+}
+
+/** One campaign mail per person per Eastern day: true only for the run whose claim row lands (audit #9). */
+async function claimDay(userId: string, now: number): Promise<string | null> {
+  const key = `campaign:${userId}:${etParts(now).day}`;
+  const r = await db.prepare("INSERT OR IGNORE INTO email_claims (key, claimed_at) VALUES (?, ?)").run(key, now);
+  return Number(r.changes ?? 0) > 0 ? key : null;
 }
 
 interface SendRow {
@@ -557,18 +565,31 @@ export async function sweepCampaigns(
   const shared: { week?: WeekFacts; five?: MailCard[] } = {};
   const binder: MailCard[] = [];
   for (const c of due) {
+    // Claim + "sent" row land BEFORE the mail goes (audit #9: send-then-log mailed twice when the log write
+    // failed or two runs overlapped). A send that throws flips the row to failed and frees the claim for a rerun.
+    let claim: string | null = null;
+    let rowId: bigint | undefined;
     try {
       const token = await digestTokenFor(c.user.id);
       const built = await buildMail(id, c.user, unsubUrlFor(c.user.id, token), now, shared);
       if (!built) continue;
+      claim = await claimDay(c.user.id, now);
+      if (!claim) continue;
+      rowId = await logSend({ userId: c.user.id, email: c.user.email, campaign: id, status: "sent" }, now);
       await send(c.user.email, built.mail);
-      await logSend({ userId: c.user.id, email: c.user.email, campaign: id, status: "sent" }, now);
       sent++;
       copy ??= built.mail;
       if (id === "cards" && (built.facts as CardsFacts).variant === "binder") binder.push(...(built.facts as CardsFacts).cards);
     } catch (err) {
       failed++;
-      await logSend({ userId: c.user.id, email: c.user.email, campaign: id, status: "failed", error: err instanceof Error ? err.message : String(err) }, now);
+      const msg = err instanceof Error ? err.message : String(err);
+      try {
+        if (rowId !== undefined) await db.prepare("UPDATE email_sends SET status = 'failed', error = ? WHERE id = ?").run(msg, rowId);
+        else await logSend({ userId: c.user.id, email: c.user.email, campaign: id, status: "failed", error: msg }, now);
+        if (claim) await db.prepare("DELETE FROM email_claims WHERE key = ?").run(claim);
+      } catch (logErr) {
+        console.error(`campaign ${id} failure log for ${c.user.email} failed:`, logErr);
+      }
       console.error(`campaign ${id} to ${c.user.email} failed:`, err);
     }
   }

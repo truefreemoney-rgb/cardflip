@@ -124,6 +124,24 @@ await sendCampaignTest("scans:trial_left", OWNER, TUE, deps());
 const logged = await db.prepare("SELECT status, COUNT(*) AS n FROM email_sends GROUP BY status ORDER BY status").all();
 check("log: copies + failed + sent + one test", logged.map((x) => [x.status, Number(x.n)]), [["copy", 4], ["failed", 3], ["sent", 15], ["test", 1]]);
 
+// Audit #9: two runs at once mail each person once, and the "sent" row exists before the mail goes.
+mails.length = 0;
+const TUE3 = TUE + 14 * DAY;
+let loggedFirst = true;
+const slow = deps();
+const slowSend = async (to, m) => {
+  if (to !== OWNER) {
+    const row = await db.prepare("SELECT 1 FROM email_sends WHERE email = ? AND status = 'sent' AND sent_at = ?").get(to, TUE3);
+    if (!row) loggedFirst = false;
+  }
+  await new Promise((r) => setTimeout(r, 20));
+  return slow.send(to, m);
+};
+const [runA, runB] = await Promise.all([sweepCampaigns(TUE3, {}, { ...slow, send: slowSend }), sweepCampaigns(TUE3, {}, { ...slow, send: slowSend })]);
+const users3 = mails.map((m) => m.to).filter((t) => t !== OWNER);
+check("overlapping runs: each person mailed once", [users3.length, new Set(users3).size, runA.sent + runB.sent], [4, 4, 4]);
+check("sent row is written before the mail goes", loggedFirst);
+
 const h = (campaign, ago) => [{ user_id: "x", campaign, sent_at: TUE - ago * DAY }];
 check("cap: a mail earlier today blocks", capBlocks(h("scans", 0), "cards", TUE + 3_600_000), "already mailed today");
 check("cap: the same mail within the week blocks", capBlocks(h("scans", SAME_GAP_DAYS - 1), "scans", TUE), "had this mail this week");

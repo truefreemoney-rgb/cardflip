@@ -576,6 +576,13 @@ const SCHEMA = `
   );
   CREATE INDEX IF NOT EXISTS idx_email_sends_user ON email_sends (user_id, sent_at);
 
+  -- Send claims (10-16, audit #9): one row per mail+person+day, inserted
+  -- BEFORE the mail goes, so two overlapping runs never both send it.
+  CREATE TABLE IF NOT EXISTS email_claims (
+    key TEXT PRIMARY KEY,
+    claimed_at INTEGER NOT NULL
+  );
+
   -- Booster purchases (09-25): one row per Stripe Checkout session so a
   -- retried webhook never credits twice. users.extra_scans is the balance.
   CREATE TABLE IF NOT EXISTS scan_pack_purchases (
