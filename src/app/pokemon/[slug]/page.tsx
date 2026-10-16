@@ -4,7 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import MarketingNav from "@/components/MarketingNav";
 import Footer from "@/components/Footer";
-import { ScanCta, TileGrid } from "@/components/CardPagesUi";
+import { BuyNote, ScanCta, TileGrid } from "@/components/CardPagesUi";
 import { nameTiles, publicCardGame } from "@/lib/server/cardPages";
 import { nameLandingPath, parseNameLanding } from "@/lib/nameLandings";
 import { formatMoney } from "@/lib/listing";
@@ -77,7 +77,8 @@ export default async function NameLandingPage({ params }: { params: Promise<{ sl
               {priced.toLocaleString("en-US")} {name} cards priced{top != null ? ` · most valuable ${formatMoney(top)}` : ""}
               {priced > tiles.length ? ` · top ${tiles.length} shown` : ""}
             </p>
-            <TileGrid game="pokemon" tiles={tiles} showSet />
+            <TileGrid game="pokemon" tiles={tiles} showSet showBuy />
+            <BuyNote className="mt-3 text-center" />
           </>
         )}
 

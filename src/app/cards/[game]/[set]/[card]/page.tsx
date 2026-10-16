@@ -9,7 +9,8 @@ import ArtImg from "@/components/ArtImg";
 import WatchPrice from "@/components/WatchPrice";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import PriceConfidenceBadge from "@/components/PriceConfidenceBadge";
-import { Crumbs, PriceCell, ScanCta, StickyPriceBar, TileGrid } from "@/components/CardPagesUi";
+import BuyOnEbayLink from "@/components/BuyOnEbayLink";
+import { BuyNote, Crumbs, PriceCell, ScanCta, StickyPriceBar, TileGrid, buyCard } from "@/components/CardPagesUi";
 import {
   canonicalRedirect,
   cardHeading,
@@ -285,9 +286,11 @@ export default async function CardPricePage({ params }: PageProps<"/cards/[game]
             {page.prices.length > 1 && <PriceTable page={page} />}
 
             <div className="mt-6 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+              <BuyOnEbayLink card={buyCard(game, { id: f.id, name: f.name, number: f.number, setName: f.setName, setCode: f.setCode, image: f.image })} customId="card-page" solid label="Buy on eBay" className="h-11 rounded-full px-6 text-sm" />
               <WatchPrice game={game} id={f.id} />
               <ScanCta secondary />
             </div>
+            <BuyNote className="mt-2" />
           </div>
         </div>
 

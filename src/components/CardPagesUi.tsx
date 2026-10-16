@@ -1,9 +1,10 @@
 import Link from "next/link";
 import ArtImg from "@/components/ArtImg";
+import BuyOnEbayLink from "@/components/BuyOnEbayLink";
 import { PriceFlagText } from "@/components/PriceFlagNote";
 import { cardPath, gamePath, gameTitle } from "@/lib/cardPages";
 import { formatMoney } from "@/lib/listing";
-import type { GameId } from "@/lib/types";
+import type { GameId, PokemonCard } from "@/lib/types";
 
 /**
  * Small server-rendered pieces shared by the public card pages (/cards, SEO
@@ -111,15 +112,28 @@ export interface TileData {
   setName: string;
 }
 
-/** Cards as a grid of small pictures with name, set and price, each a link to its page. */
-export function TileGrid({ game, tiles, showSet = false }: { game: GameId; tiles: TileData[]; showSet?: boolean }) {
+/**
+ * The card as the eBay Buy link needs it (name, number, set, game): the public
+ * pages carry facts, not catalog cards. Same shape as the Watchlist's stub.
+ */
+export function buyCard(game: GameId, c: { id: string; name: string; number: string; setName: string; setCode?: string | null; image?: string }): PokemonCard {
+  return { id: c.id, name: c.name, englishName: null, setName: c.setName, setSeries: "", number: c.number, rarity: null, imageSmall: c.image ?? "", imageLarge: c.image ?? "", prices: [], game, setCode: c.setCode ?? null };
+}
+
+/** The affiliate line that goes with Buy buttons on a public page. */
+export function BuyNote({ className = "" }: { className?: string }) {
+  return <p className={`text-[11px] text-zinc-500 ${className}`}>CardFlip may earn a commission when you buy through eBay links.</p>;
+}
+
+/** Cards as a grid of small pictures with name, set and price, each a link to its page; showBuy adds an eBay Buy button under each (10-16). */
+export function TileGrid({ game, tiles, showSet = false, showBuy = false }: { game: GameId; tiles: TileData[]; showSet?: boolean; showBuy?: boolean }) {
   return (
     <ul className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
       {tiles.map((t) => (
-        <li key={t.key} className="min-w-0">
+        <li key={t.key} className="flex min-w-0 flex-col gap-1.5">
           <Link
             href={cardPath(game, t.setSlug, t.name, t.key)}
-            className="flex h-full flex-col overflow-hidden rounded-2xl border border-edge bg-surface-1 transition hover:border-edge-strong"
+            className="flex flex-1 flex-col overflow-hidden rounded-2xl border border-edge bg-surface-1 transition hover:border-edge-strong"
           >
             <div className="aspect-[5/7] bg-black/30">
               {showsInLists(t.tile || t.image) && <ArtImg src={t.tile || t.image} alt={`${t.name}, ${t.setName}`} loading="lazy" width={500} height={700} className="h-full w-full object-cover" />}
@@ -132,6 +146,9 @@ export function TileGrid({ game, tiles, showSet = false }: { game: GameId; tiles
               </p>
             </div>
           </Link>
+          {showBuy && (
+            <BuyOnEbayLink card={buyCard(game, { id: t.key, name: t.name, number: t.number, setName: t.setName })} customId="name-page" solid label="Buy" className="h-9 rounded-full text-sm" />
+          )}
         </li>
       ))}
     </ul>
