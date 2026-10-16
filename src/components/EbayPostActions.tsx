@@ -447,7 +447,7 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
                         ? "price not available"
                         : "checking the price…"
                     : formatMoney(price)}
-                  {(item.quantity ?? 1) > 1 ? ` × ${item.quantity} copies` : ""}.
+                  {item.kind === "sealed" && (item.quantity ?? 1) > 1 ? ` × ${item.quantity} copies` : ""}.
                 </p>
                 {local && confirmAsk && "error" in confirmAsk && (
                   <p className="mt-1 text-xs text-amber-300">{confirmAsk.error}</p>

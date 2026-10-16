@@ -193,13 +193,11 @@ console.log("Offer");
   const offer = buildOffer(base);
   check("sku from card id", offer.sku, skuForCard(base.cardId));
   check("quantity defaults to 1", offer.availableQuantity, 1);
-  check("quantity carries through", buildOffer({ ...base, quantity: 4 }).availableQuantity, 4);
-  check(
-    "inventory item quantity matches",
-    buildInventoryItem({ ...base, quantity: 4 }).availability.shipToLocationAvailability.quantity,
-    4,
-  );
-  check("quantity clamps to 1..99", [buildOffer({ ...base, quantity: 0 }).availableQuantity, buildOffer({ ...base, quantity: 250 }).availableQuantity], [1, 99]);
+  // 10-16 audit: one card per listing, whatever the body says; sealed keeps its count.
+  check("a card lists 1 copy even when the body says 99", [buildOffer({ ...base, quantity: 99 }).availableQuantity, buildInventoryItem({ ...base, quantity: 99 }).availability.shipToLocationAvailability.quantity], [1, 1]);
+  const sealed = { ...base, kind: "sealed" };
+  check("sealed quantity carries through", [buildOffer({ ...sealed, quantity: 4 }).availableQuantity, buildInventoryItem({ ...sealed, quantity: 4 }).availability.shipToLocationAvailability.quantity], [4, 4]);
+  check("sealed quantity clamps to 1..99", [buildOffer({ ...sealed, quantity: 0 }).availableQuantity, buildOffer({ ...sealed, quantity: 250 }).availableQuantity], [1, 99]);
   check("sku ≤ 50 chars", offer.sku.length <= 50, true);
   check("price as string", offer.pricingSummary.price, { currency: "USD", value: "818.00" });
   check("category", offer.categoryId, "183454");

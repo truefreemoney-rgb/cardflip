@@ -318,8 +318,9 @@ export interface InventoryItemPayload {
   };
 }
 
-/** The listing quantity a DraftInput carries, clamped to eBay-sane bounds. */
-export function listingQuantity(input: Pick<DraftInput, "quantity">): number {
+/** One card per listing (Chris 09-03), enforced here so a hand-rolled body can't list 99 copies (10-16 audit); sealed keeps its count, clamped. */
+export function listingQuantity(input: Pick<DraftInput, "quantity" | "kind">): number {
+  if (input.kind !== "sealed") return 1;
   const q = Math.floor(input.quantity ?? 1);
   return Number.isFinite(q) ? Math.min(99, Math.max(1, q)) : 1;
 }
