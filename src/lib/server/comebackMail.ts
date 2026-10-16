@@ -38,7 +38,7 @@ export function renderComeback(firstName: string, unsubUrl: string): ComebackMai
     "",
     "While you were away, CardFlip got busy:",
     "- Five games now: Pokémon, Magic, Yu-Gi-Oh!, Lorcana and One Piece",
-    "- 205,000+ printings priced, refreshed every morning",
+    "- 205,000+ printings priced",
     "- A Watchlist that gives you a heads-up when a card's price moves",
     "",
     "So here's a welcome-back present: 10 free scans, on us.",
@@ -65,7 +65,7 @@ export function renderComeback(firstName: string, unsubUrl: string): ComebackMai
     ${p("While you were away, CardFlip got busy:", "margin-bottom:4px")}
     <ul style="margin:0 0 14px;padding-left:20px">
       <li><b>Five games now:</b> Pokémon, Magic, Yu-Gi-Oh!, Lorcana and One Piece</li>
-      <li><b>205,000+ printings priced</b>, refreshed every morning</li>
+      <li><b>205,000+ printings priced</b></li>
       <li><b>A Watchlist</b> that gives you a heads-up when a card&#39;s price moves</li>
     </ul>
     ${p("So here&#39;s a welcome-back present: <b>10 free scans, on us.</b>")}

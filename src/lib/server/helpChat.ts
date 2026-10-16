@@ -365,15 +365,20 @@ async function actOnSmallActions(user: User, reply: string): Promise<string> {
         .prepare("SELECT id FROM scan_usage WHERE user_id = ? AND at > ? AND refunded_at IS NULL ORDER BY at DESC LIMIT 10")
         .all(user.id, Date.now() - GIVEBACK_WINDOW_MS)) as unknown as { id: string }[];
       let given = 0;
+      // 10-16 audit #6 caps give-backs at 20 a day: say so, never "each one found a card".
+      let capped = false;
       let remaining: number | null = null;
       for (const r of rows) {
         const res = await giveBackNoMatchScan(user, r.id);
         if (res.refunded) given++;
+        if (res.reason === "cap") capped = true;
         remaining = res.usage.remaining ?? null;
       }
       line =
         rows.length === 0
           ? "I checked: no scans in the last 15 minutes to give back."
+          : given === 0 && capped
+            ? "You've hit today's limit on scans given back, so I can't give more back today. A human can take a look. {{ticket}}"
           : given === 0
             ? `I checked your last ${rows.length === 1 ? "scan" : `${rows.length} scans`}: each one found a card, so there is nothing to give back.`
             : `I checked your last ${rows.length === 1 ? "scan" : `${rows.length} scans`} and gave ${given === 1 ? "one" : given} back.${remaining != null ? ` Scans left now: ${remaining}.` : ""}`;
