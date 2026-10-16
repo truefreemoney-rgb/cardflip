@@ -551,6 +551,7 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 - [ ] Search cards opens on the picture grid (new key cardflip.searchView.v2), list toggle still works. Pane: done locally.
 - [ ] Watchlist: no stale-price note on cards; set names stay on one line. Sitewide .truncate on <p>/h2/h3 now truncates (text-wrap-style fix). Glance at Inventory/Search tiles for anything that now cuts off badly.
 - [ ] Scanner: Open a Pack button gone. Pane: done locally.
-- [ ] PHONE (camera): scan a card, tap the result card -> big view with picture, price, "Change", "Not this card?"; pull the handle down or tap Done closes it.
+- [x] PASS 10-16 (Chris, phone) PHONE (camera): scan a card, tap the result card -> big view with picture, price, "Change", "Not this card?"; pull the handle down or tap Done closes it.
 - [ ] Card pages: Buy on eBay under the price + commission line; name pages (e.g. /pokemon/mewtwo-card-value) Buy under each card. customid card-page / name-page / cards-search.
 - [ ] /cards/pokemon search: full grid + count + Show more + Buy (Mewtwo = 95, same as the app).
+- Decided 10-16 (Chris): NO "Which one is yours?" picker when the name reads but the number doesn't exist. Keep "No match" (never guess a printing).
