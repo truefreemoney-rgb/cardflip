@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import ArtImg from "@/components/ArtImg";
+import BuyOnEbayLink from "@/components/BuyOnEbayLink";
 import { showsInLists } from "@/components/CardPagesUi";
 import { cardKey, cardPath, gameTitle, parseCardKey, slugify } from "@/lib/cardPages";
 import { searchTyped } from "@/lib/cards";
@@ -17,11 +18,17 @@ import type { GameId, PokemonCard } from "@/lib/types";
  * route's per-IP rate limit. Typing is debounced (350 ms) and starts at two
  * characters; only the newest answer is shown. A card with no valid page key or
  * no picture gets no page, so it is left out. A flagged price is never printed.
+ * On a page (not the nav) the answers are a picture grid in the page with a
+ * count and Show more, like the app's Search cards (10-16, Chris: the 8-row
+ * dropdown was "broke"); the nav keeps the quick dropdown.
  */
 
 const MIN_CHARS = 2;
 const DEBOUNCE_MS = 350;
 const SHOWN = 8;
+/** The page grid: how many answers to fetch, and how many each Show more adds. */
+const PAGE_FETCH = 200;
+const PAGE_STEP = 24;
 
 interface Hit {
   key: string;
@@ -31,9 +38,10 @@ interface Hit {
   number: string;
   image: string;
   price: number | null;
+  card: PokemonCard;
 }
 
-function toHits(game: GameId, cards: PokemonCard[]): Hit[] {
+function toHits(game: GameId, cards: PokemonCard[], max = SHOWN): Hit[] {
   const seen = new Set<string>();
   const out: Hit[] = [];
   for (const c of cards) {
@@ -50,8 +58,9 @@ function toHits(game: GameId, cards: PokemonCard[]): Hit[] {
       number: c.number,
       image: c.imageSmall,
       price: picked,
+      card: c,
     });
-    if (out.length >= SHOWN) break;
+    if (out.length >= max) break;
   }
   return out;
 }
@@ -79,22 +88,26 @@ export default function CatalogSearch({
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
   const seq = useRef(0);
+  const inPage = variant === "page";
+  const [shown, setShown] = useState(PAGE_STEP);
 
   useEffect(() => {
     const term = q.trim();
     const mine = ++seq.current;
     if (term.length < MIN_CHARS) return;
     const t = setTimeout(() => {
-      searchTyped(term, game, "en", { limit: 24, exact: false })
+      searchTyped(term, game, "en", { limit: inPage ? PAGE_FETCH : 24, exact: false })
         .then((cards) => {
-          if (mine === seq.current) setRes({ term, game, hits: toHits(game, cards ?? []) });
+          if (mine !== seq.current) return;
+          setRes({ term, game, hits: toHits(game, cards ?? [], inPage ? PAGE_FETCH : SHOWN) });
+          setShown(PAGE_STEP);
         })
         .catch(() => {
           if (mine === seq.current) setRes({ term, game, hits: null });
         });
     }, DEBOUNCE_MS);
     return () => clearTimeout(t);
-  }, [q, game]);
+  }, [q, game, inPage]);
 
   useEffect(() => {
     const away = (e: PointerEvent) => {
@@ -105,7 +118,7 @@ export default function CatalogSearch({
   }, []);
 
   const term = q.trim();
-  const showPanel = open && term.length >= MIN_CHARS;
+  const showPanel = !inPage && open && term.length >= MIN_CHARS;
   const current = res && res.term === term && res.game === game ? res : null;
   const hits = current?.hits ?? null;
   const failed = current !== null && current.hits === null;
@@ -158,6 +171,54 @@ export default function CatalogSearch({
           className="h-11 min-w-0 flex-1 rounded-xl border border-edge bg-surface-2 px-3 text-base text-white placeholder:text-zinc-500 focus:border-brand-400 focus:outline-none"
         />
       </form>
+
+      {inPage && term.length >= MIN_CHARS && (
+        <div className="mt-4">
+          {busy ? (
+            <p className="text-sm text-zinc-400">Searching...</p>
+          ) : failed ? (
+            <p className="text-sm text-zinc-400">Search is busy. Try again in a moment.</p>
+          ) : hits && hits.length === 0 ? (
+            <p className="text-sm text-zinc-400">No cards found. Try fewer words.</p>
+          ) : (
+            <>
+              <p className="text-sm text-zinc-400">
+                {hits!.length} {hits!.length === 1 ? "card" : "cards"}
+              </p>
+              <ul className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {hits!.slice(0, shown).map((h) => (
+                  <li key={h.key} className="flex min-w-0 flex-col gap-1.5">
+                    <Link href={h.href} onClick={onNavigate} className="flex flex-1 flex-col overflow-hidden rounded-2xl border border-edge bg-surface-1 transition hover:border-edge-strong">
+                      <span className="block aspect-[5/7] bg-black/30">
+                        {showsInLists(h.image) && <ArtImg src={h.image} alt={`${h.name}, ${h.setName}`} loading="lazy" width={250} height={350} className="h-full w-full object-cover" />}
+                      </span>
+                      <span className="flex flex-1 flex-col gap-0.5 p-2.5">
+                        <span className="block truncate text-sm font-medium text-white">{h.name}</span>
+                        <span className="block truncate text-xs text-zinc-500">
+                          {h.setName}
+                          {h.number ? ` · ${h.number}` : ""}
+                        </span>
+                        {h.price != null && <span className="mt-auto pt-1 font-display text-base font-semibold tabular-nums text-emerald-300">{formatMoney(h.price)}</span>}
+                      </span>
+                    </Link>
+                    <BuyOnEbayLink card={h.card} customId="cards-search" solid label="Buy" className="h-9 rounded-full text-sm" />
+                  </li>
+                ))}
+              </ul>
+              {hits!.length > shown && (
+                <button
+                  type="button"
+                  onClick={() => setShown((n) => n + PAGE_STEP)}
+                  className="mt-4 w-full rounded-full border border-edge py-3 text-sm font-semibold text-zinc-200 transition hover:border-edge-strong hover:text-white"
+                >
+                  Show {Math.min(PAGE_STEP, hits!.length - shown)} more
+                </button>
+              )}
+              <p className="mt-3 text-center text-[11px] text-zinc-500">CardFlip may earn a commission when you buy through eBay links.</p>
+            </>
+          )}
+        </div>
+      )}
 
       {showPanel && (
         <div className="absolute inset-x-0 top-full z-50 mt-1.5 max-h-[70dvh] overflow-y-auto rounded-2xl border border-edge-strong panel-solid shadow-2xl shadow-black/60">
