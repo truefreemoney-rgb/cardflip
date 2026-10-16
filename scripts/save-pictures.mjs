@@ -170,7 +170,50 @@ if (!dry && failedRows.length) {
     prodStmts.push({ sql: PROD_SQL, args: [from.image_url, from.own_tile_url, `standin:${from.id}`, id] });
     standIns++;
   }
-}await flushProd(true);
+}
+
+// CardTrader upgrades (10-16, Board "retries SAMPLE-stamped pictures daily"): 187 Yu-Gi-Oh printings were filled by
+// hand from CardTrader, whose new-set pictures are often Konami "SAMPLE" previews. Their link and saved copy both
+// point at CardTrader, so the pass above never looks at them again. Every night try TCGplayer's real scan (the row id
+// is its product id); the first night one exists it replaces the copy and becomes the row's link. No scan yet = keep
+// the CardTrader copy, quietly.
+let upgraded = 0;
+if (game === "yugioh" && !stop) {
+  const upgrades = db
+    .prepare(`SELECT id, name, image_url, own_image_url, own_tile_url FROM tcg_cards WHERE game = 'yugioh' AND own_image_src LIKE 'https://cardtrader.com/%'`)
+    .all()
+    .filter((r) => /^ygo-\d+/.test(r.id))
+    .slice(0, limit || undefined);
+  const UPGRADE_SQL = "UPDATE tcg_cards SET image_url = ?, own_image_url = ?, own_tile_url = ?, own_image_src = ? WHERE id = ?";
+  const setUpgrade = db.prepare(UPGRADE_SQL);
+  let u = 0;
+  const upgradeWorker = async () => {
+    while (!stop) {
+      const row = upgrades[u++];
+      if (!row) return;
+      const tcg = `https://tcgplayer-cdn.tcgplayer.com/product/${row.id.match(/^ygo-(\d+)/)[1]}_in_1000x1000.jpg`;
+      try {
+        const saved = await savePicture({ game, id: row.id, src: tcg, fetchUrl: tcg, dry, fallback: false });
+        console.log(`  upgrade ${row.id} (${row.name}): ${tcg}`);
+        if (dry) {
+          upgraded++;
+          continue;
+        }
+        setUpgrade.run(tcg, saved.url, saved.tile, tcg, row.id);
+        prodStmts.push({ sql: UPGRADE_SQL, args: [tcg, saved.url, saved.tile, tcg, row.id] });
+        await flushProd();
+        if (row.own_image_url && row.own_image_url !== saved.url) await deletePictures([row.own_image_url, row.own_tile_url]);
+        upgraded++;
+      } catch (err) {
+        if (err instanceof StopRun) stop = err;
+        // No TCGplayer scan yet: the CardTrader copy stays until one appears.
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: WORKERS }, upgradeWorker));
+  console.log(`yugioh: ${upgraded} of ${upgrades.length} CardTrader pictures upgraded to TCGplayer scans${dry ? " (dry)" : ""}`);
+}
+await flushProd(true);
 
 const kb = (n) => (n / 1024).toFixed(1);
 console.log(`\n${game}: saved ${done}, failed ${failed}${standIns ? ` (${standIns} show another printing until theirs appears)` : ""}${dry ? " (dry)" : ""}. Average per card: source ${kb(bytes.source / Math.max(done, 1))} KB → page ${kb(bytes.page / Math.max(done, 1))} KB + tile ${kb(bytes.tile / Math.max(done, 1))} KB`);
