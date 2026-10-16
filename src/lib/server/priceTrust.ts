@@ -58,7 +58,9 @@
  * `old` judges a price that is printed as the OLD side of a move ("$662 ->
  * $345"): a stale or thin old price is not a market price, so it is the
  * strictest reading: flat >= 30 days is stale from $10, and thin or round
- * alone fail from $500. The card pages call it without `old`.
+ * alone fail from $500. The flat test runs BEFORE the referee for an old price
+ * (10-16): the second source is today's reading and cannot vouch for a number
+ * parked for a month. The card pages call it without `old`.
  */
 
 /** The thresholds, in one place so the site can read the same numbers. */
@@ -382,6 +384,12 @@ export function priceTrust({ to, prices, siblings = [], refEur = null, refAltEur
   if (!old && ebay?.manual === "keep") return { ok: true, reason: "checked against ebay sold", agrees: true };
   if (!old && ebay?.manual === "hide") return wrong("checked against ebay sold: too high");
 
+  const f = features(prices, to);
+  // 4, for an OLD price, ahead of the referee (10-16): a number parked 30+ days is a listing nobody bought, not where the card
+  // stood, and the referee is TODAY's reading, which cannot vouch for a past one. Alpha Earth Elemental: $94.99 for 52 days,
+  // then $29.85; Scryfall's EUR 32 made the $94.99 "2.7x, agrees" and the 1pm head to head printed "slipped 69%".
+  if (old && to >= T.refMinUsd && f.runDays >= T.staleOldDays) return wrong(`flat ${f.runDays}d`);
+
   // 1. Cross-source referee. The second reading speaks only when nearer than the first, and then it never vouches:
   // a junk TCGdex EUR 2,216 must not wave through the $1,013 Rayquaza spike, so an agreeing second reading only
   // takes the gap away and the series tests below still run.
@@ -405,7 +413,6 @@ export function priceTrust({ to, prices, siblings = [], refEur = null, refAltEur
   // ~$4). After the Cardmarket vouch above: two sources agreeing still outrank asks, which run in every condition.
   if (!old && ebay?.high) return wrong(ebay.reason);
 
-  const f = features(prices, to);
   // 2. A spike that never came back.
   if (to >= T.spikeMinUsd && f.hardSpike) return wrong(`spike ${x(f.hardSpike[0])} still ${x(f.hardSpike[1])}`);
   // 3. Sibling anchor.
@@ -419,9 +426,8 @@ export function priceTrust({ to, prices, siblings = [], refEur = null, refAltEur
   if (to >= T.gradedMinUsd && anchorRatio != null && anchorRatio >= T.siblingFail && f.runDays >= T.thinFlatDays) {
     return wrong(`flat ${f.runDays}d, a sibling at ${x(anchorRatio)}`);
   }
-  // 4. Stuck listing. An OLD price is stale sooner, and from $10: a parked $15.50 that "dropped" to $10 is not a drop, so it is wrong.
-  if (old && to >= T.refMinUsd && f.runDays >= T.staleOldDays) return wrong(`flat ${f.runDays}d`);
-  // A CURRENT price flat >= 45 days is a note, not a hide (10-02): no sale in six weeks says the market has not updated, not that the
+  // 4. Stuck listing. An OLD price is stale sooner, and from $10: a parked $15.50 that "dropped" to $10 is not a drop, so it is
+  // wrong (checked above, before the referee). A CURRENT price flat >= 45 days is a note, not a hide (10-02): no sale in six weeks says the market has not updated, not that the
   // number is wrong (Charizard Plasma Storm 136: $1,150 flat 128 days, eBay Near Mint sold $1,276-$1,651). Tests 1-3 above still hide it
   // when there is evidence; a 3-5x Cardmarket gap is named in the reason but does not hide it either (Europe runs far cheaper on US
   // chase cards). The soft signs (thin, round) are the same statement as flat, so they do not run on top of it.

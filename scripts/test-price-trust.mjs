@@ -186,6 +186,16 @@ const BLASTOISE_ECARD = expand([[400, 15], [568, 13], [400, 3], [260.1, 4], [260
 check("Blastoise ecard1-4 $400 -> $252: $400 sat for 85 days", oldSide(BLASTOISE_ECARD).reason, "flat 85d");
 check("a moving old price passes as before ($944 Base Charizard a week ago)", oldSide(CHARIZARD_BASE, 0).ok);
 check("under $10 nothing is checked, old or not", priceTrust({ to: 8, prices: Array(60).fill(8), old: true }).ok);
+// 10-16, the 1pm Magic head to head: two Alpha cards "slipped 65-69%" when a listing parked for months finally went. Prod rows
+// 05-17 -> 10-16 (tcgplayer nonfoil). Scryfall's EUR today put the parked numbers inside 3x, and the referee vouched for them.
+const EARTH_ELEMENTAL = expand([[49.95, 11], [45.85, 1], [41.75, 8], [null, 1], [41.75, 60], [null, 1], [41.75, 12], [94.99, 8], [null, 2], [94.99, 3], [null, 1], [94.99, 14], [null, 8], [94.99, 20], [29.85, 2], [43.5, 1]]); // lea 144, EUR 32
+const RESURRECTION = expand([[30, 15], [35.94, 5], [null, 1], [35.94, 4], [36.32, 6], [97.99, 8], [36.32, 2], [97.98, 40], [null, 1], [97.98, 20], [null, 2], [97.98, 3], [null, 1], [97.98, 14], [null, 8], [97.98, 20], [34.06, 2], [49.39, 1]]); // lea 34, EUR 46.66
+const weekAgo = (series, back = 7) => series.slice(0, series.length - back);
+check("Alpha Earth Elemental: $94.99 a week ago had sat 52 days, today's Cardmarket (2.7x) does not make it an old price", priceTrust({ to: 94.99, prices: weekAgo(EARTH_ELEMENTAL), refEur: 32, old: true }), { ok: false, hard: true, reason: "flat 52d" });
+check("Alpha Resurrection: $97.98 parked 100+ days, Cardmarket 1.9x: no old price either", priceTrust({ to: 97.98, prices: weekAgo(RESURRECTION), refEur: 46.66, old: true }).reason.startsWith("flat"), true);
+check("... the new prices themselves are fine (Cardmarket agrees with $29.85 / $34.06)", [judge(EARTH_ELEMENTAL.slice(0, -1), { refEur: 32 }).ok, judge(RESURRECTION.slice(0, -1), { refEur: 46.66 }).ok], [true, true]);
+check("... and a CURRENT price Cardmarket vouches for is still vouched for, flat or not", judge(weekAgo(EARTH_ELEMENTAL), { refEur: 32 }), { ok: true, reason: "cardmarket 2.7x agrees", agrees: true });
+check("an old price that moved inside the month is still vouched for by Cardmarket", priceTrust({ to: 146, prices: liquid(146), refEur: 110, old: true }).agrees, true);
 
 console.log("10-01 review: the step-jump rule for movers (stepJump, not part of priceTrust)");
 // ru1-13 PokÃ©mon Rumble Skuntank normal, 09-30: $52.07-$52.69 for 4+ months, then ONE overnight step to $89.98, flat since (+71%). priceTrust calls it fine (under $100, no 3x).

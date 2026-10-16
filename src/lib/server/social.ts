@@ -25,6 +25,9 @@ import { ANGLE_KINDS, GENERAL_TAGS, MAX_TAGS, JUMP_MIN_PCT, MIXED_GAMES, MIXED_P
  */
 
 export const MOVER_DAYS = 7;
+/** Magic's price-cap day and the last day a 7-day window can still span it (topMovers pauses Magic moves in between). */
+export const MTG_CAP_DAY = "2026-10-14";
+export const MTG_CAP_DAY_END = "2026-10-21";
 export const MOVER_LIMIT = 5;
 /** Below this the % swing is noise (a $1.83 common "up 69%" is not news; Chris 09-25, was $3). */
 export const MOVER_MIN_PRICE = 10;
@@ -463,6 +466,10 @@ export async function topMovers(
   day = todayUtc(),
   { days = MOVER_DAYS, limit = MOVER_LIMIT, minPrice = MOVER_MIN_PRICE, direction = "both" as "both" | "up" | "down", exclude = new Set<string>(), band = undefined as [number, number] | undefined } = {},
 ): Promise<Mover[]> {
+  // Magic's 10-14 price cap (6f3fc80f, cheapest live listing) dropped ~770 cards 30%+ in one day: a week spanning it compares the
+  // old uncapped number with the capped one, so no Magic "this week" move is real until the window is past it (Chris 10-16).
+  // Empty = the callers' fallbacks run (Magic at today's price only); remove after 10-21.
+  if (game === "mtg" && day <= MTG_CAP_DAY_END && addDays(day, -days) < MTG_CAP_DAY) return [];
   const { cards: series } = await freshSeries(game, day, days, band);
   const moves: { cardId: string; variant: string; from: number; to: number; pct: number }[] = [];
   const staleFrom: string[] = [];

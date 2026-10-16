@@ -14,6 +14,11 @@
 - [x] PASS 10-16 local: /api/ebay/comps with id base1-4 + name "Magikarp" searches "Charizard 4" (audit #1).
 - [x] PASS 10-16 local: /api/cron/emails?force=1 and /api/cron/social-video without a key -> 403 (audit #4).
 
+## 10-16 ~1:30pm ET: junk "this week" moves (1pm head to head printed Alpha/Beta parked listings as -69%/-79%)
+- [ ] 7pm post (all sites + TikTok 7pm video): no Magic "+x% this week" card; Magic shows at today's price only. Pause lifts 10-21 (MTG_CAP_DAY_END in social.ts: remove the check after).
+- [ ] 10-17 1pm post: any card's "this week" old price is not a 30+ day flat number (read its series with scripts/_peek-series.mjs).
+- [ ] Delete route: the 5 junk 1pm posts (Bluesky/X/Facebook/Instagram/Threads) are gone; Instagram may need the app by hand.
+
 ## 10-16: Inventory speed (NOT PUSHED, 2b110bac price guard "+game"; a6313308 folders once)
 - [ ] After push, mine: pane signed in on cardflip.io/app/collection, performance entries: /api/cards/live-prices and /api/cards/value-history under ~1 s each (were 5.7 s / 5.3 s), /api/cards/categories once. Also a card page + /cards/pokemon set page still load (same guard code).
 

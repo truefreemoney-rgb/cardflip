@@ -598,5 +598,30 @@ check("a mixed guess: one card per game, filed by game for the no-repeat lists, 
 check("the picture route's kind list knows the angles (the image is drawn from the same angleData)", (await import("node:fs")).readFileSync(new URL("../src/app/api/social/image/route.tsx", import.meta.url), "utf8").includes("...ANGLE_KINDS] as const"), true);
 await db.prepare("INSERT OR REPLACE INTO card_cache (key, payload, cached_at) VALUES (?, ?, ?)").run("stage:v15:lorcana", JSON.stringify(STAGES["stage:v15:lorcana"]), Date.now());
 
+// ---- 10-16: the 1pm Magic head to head printed two Alpha cards "slipped 65-69%": a listing parked for months ending ------
+console.log("10-16: a week whose start sat on a parked listing is no move (Alpha Earth Elemental, Resurrection)");
+{
+  const V = addDays(J, 900); // a day of its own
+  // Prod rows 05-17 -> 10-15 (the 1pm read had no 10-16 point yet): $94.99 / $97.98 for months, then $29.85 / $34.06.
+  const EARTH = expand([[49.95, 11], [45.85, 1], [41.75, 8], [null, 1], [41.75, 60], [null, 1], [41.75, 12], [94.99, 8], [null, 2], [94.99, 3], [null, 1], [94.99, 14], [null, 8], [94.99, 20], [29.85, 2]]);
+  const RESUR = expand([[30, 15], [35.94, 5], [null, 1], [35.94, 4], [36.32, 6], [97.99, 8], [36.32, 2], [97.98, 40], [null, 1], [97.98, 20], [null, 2], [97.98, 3], [null, 1], [97.98, 14], [null, 8], [97.98, 20], [34.06, 2]]);
+  const vmtg = async (id, name, usd, eur, series) => {
+    await db.prepare("INSERT INTO mtg_cards (id, name, set_code, set_name, collector_number, image_url, rarity, price_usd, price_eur, synced_at) VALUES (?, ?, 'lea', 'Limited Edition Alpha', ?, 'https://cards.scryfall.io/normal/v.jpg', 'rare', ?, ?, 0)").run(id, name, id, usd, eur);
+    await put(id, "mtg", "nonfoil", "tcgplayer", "USD", series, addDays(V, -1));
+  };
+  await vmtg("mtg-v144", "Earth Elemental", 29.85, 32, EARTH);
+  await vmtg("mtg-v34", "Resurrection", 34.06, 46.66, RESUR);
+  await vmtg("mtg-v1", "Real Riser", 60, 50, wk(50, 60).slice(0, -1));
+  await vmtg("mtg-v2", "Real Faller", 48, 40, wk(60, 48).slice(0, -1));
+  const movesV = (await topMovers("mtg", V, { limit: 10 })).map((m) => m.cardId);
+  check("the movers never read the end of a parked listing as a drop", [movesV.includes("mtg-v144"), movesV.includes("mtg-v34"), movesV.includes("mtg-v1"), movesV.includes("mtg-v2")], [false, false, true, true]);
+  const pV = await SOC.pair("mtg", V);
+  check("the Magic head to head picks the two real moves, not the parked pair", pV && [pV.a.cardId, pV.b.cardId].sort(), ["mtg-v1", "mtg-v2"]);
+}
+
+// Magic's 10-14 price cap: no Magic "this week" move while a 7-day window spans it; other games and later days unaffected.
+check("Magic moves paused 10-16 (window spans the 10-14 cap)", (await topMovers("mtg", "2026-10-16")).length, 0);
+check("Magic moves paused through 10-20", (await topMovers("mtg", "2026-10-20")).length, 0);
+
 if (failures) { console.log(`\n${failures} failing`); process.exit(1); }
 console.log("\nall green");
