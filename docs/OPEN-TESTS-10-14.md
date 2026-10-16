@@ -63,7 +63,7 @@ Also yours, not a test: sign into /admin in the browser pane when you have a min
 
 ## B. A decision only you make - 1
 
-45. Trial size: 5 free scans today, about 2 cents each to us. Jenny hit the wall after 5 and left. 10 or 15 would still be under 30 cents a signup. Leave at 5, or raise? (No change until you say.) [10-14]
+45. DECIDED 10-16 ~2:20am ET (Chris: "leave at 5 scans"): Trial size: 5 free scans today, about 2 cents each to us. Jenny hit the wall after 5 and left. 10 or 15 would still be under 30 cents a signup. Leave at 5, or raise? (No change until you say.) [10-14]
 
 ## C. Waiting on a date, an event or a reply - 22
 
@@ -92,10 +92,10 @@ Also yours, not a test: sign into /admin in the browser pane when you have a min
 
 ## D. Mine (scripts, curl, browser pane) - 11
 
-66. NEEDS YOUR /admin SIGN-IN IN THE PANE: /admin/users, Jenny's row reads 0 with "5 removed" under it; an account that never deleted anything shows only the count. [10-14]
-67. NEEDS /admin: /admin/robot lists the week's chats thumbs-down first, threads expand, times say ET once; the overview Help chat tile links there. [10-14]
-68. NEEDS /admin: /admin/prices, hide any cheap card, open its set page + a sister printing's page: the number is gone right away. [10-14]
-69. NEEDS /admin: /admin analytics Scanner "Matched a card" = paid scans not given back / paid scans (tiebreak calls no longer count). [10-13]
+66. PASS 10-16 ~2:20am ET (pane, /admin/users: Jenny "0 cards 5 removed"; the only other removal shows "1 removed"): NEEDS YOUR /admin SIGN-IN IN THE PANE: /admin/users, Jenny's row reads 0 with "5 removed" under it; an account that never deleted anything shows only the count. [10-14]
+67. PASS 10-16 ~2:20am ET (pane, /admin/robot: "2 conversations, 1 reply marked not helpful", the thumbs-down chat first, threads expand, times "Oct 14, 9:41 PM ET" once; /admin overview "read the chats" links /admin/robot): NEEDS /admin: /admin/robot lists the week's chats thumbs-down first, threads expand, times say ET once; the overview Help chat tile links there. [10-14]
+68. WAITS FOR A REAL WRONG PRICE 10-16 ~2:20am ET (the queue holds only $100+ cards that need a real call, 378 rows; I did not hide a good price to test it. Next time you press "Wrong, hide", tell me the card and I check its set page + a sister printing at once): NEEDS /admin: /admin/prices, hide any cheap card, open its set page + a sister printing's page: the number is gone right away. [10-14]
+69. PASS 10-16 ~2:20am ET (pane /admin/analytics: Matched a card 81% (64% before); code: scan_usage rows with a draw (paid scans, tiebreak calls have none) not refunded / all with a draw): NEEDS /admin: /admin analytics Scanner "Matched a card" = paid scans not given back / paid scans (tiebreak calls no longer count). [10-13]
 70. PASS 10-14 9:35pm ET (pane: "where did my Sylveon ex go" -> "still in Inventory, two copies of 30th Celebration 153 and one Prismatic Evolutions 156" + the button; the button carried the set name too, fixed locally so it is the name only, NOT PUSHED): Robot: "where did my <recent card> go" names it and shows "Find <card> in Inventory". [10-14]
 71. NEEDS a trial account at 0 scans (or Jenny's view): the wall opens with "Just want a price? That's free." + Search Cards button and Search works; a lapsed subscriber's wall has no free-price box; the robot as a 0-scan account leads with the free path. [10-14]
 72. PASS 10-14 ~10:10pm ET (curl: "Other printings of" strip lists 12 Charizards, not base1-4-1st itself, no Base Set link, no $968.91 in the page; alt text fixed locally, name + stripEdition(setName), NOT PUSHED): curl: /cards/pokemon/base-set-1st-edition/charizard--base1-4-1st "Other Charizard cards" strip no longer lists the page's own card; homepage Yu-Gi-Oh tile picture alt text still says "(Worldwide English)" (invisible; small fix). [10-14]
