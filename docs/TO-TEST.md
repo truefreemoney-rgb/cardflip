@@ -546,3 +546,11 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 - [ ] Scanner result card (10-15 ~7:45am ET): set · rarity · number wraps to 2 lines, never cut; row 2 = "● Near Mint · Holofoil ✎" pill (dot = condition colour; tap opens the card) + Clear on the right; no "75% sure" on the label; on a phone with 10+ scans or a $1,000+ total the green button says "Verify All $1,234.56" (was "Verify 12 S…"). Card editor's "Is this your card?" line no longer shows a percentage. Pane-checked at 375px on a real Pikachu scan; Chris to eyeball on the phone after the push.
 - [ ] Scanner "This copy" sheet (10-15 ~8:15am ET): tap the "● Near Mint · Holofoil ✎" pill on the result card: a sheet "This copy" with 5 condition chips (each shows the market for that condition), Printing chips only when the card has 2+ priced printings, "Use X for all N waiting scans" when 2+ waiting, Done. Taps apply at once: the pill + the card's market price + the Verify total follow (headlinePrice now = market for the copy's condition; NM unchanged). Pane: sheet opened, LP tap -> pill "Lightly Played · Holofoil". NOT yet seen: the price moving to $87.79 on the card (checked by code + tests only); printing chips on a multi-printing card; the all-N link.
 - [ ] One $10,000 card at phone width: Verify button says "Verify Scan $10,000.00" (not "Verify All").
+
+## 10-16 push (s178, Chris's 9 items)
+- [ ] Search cards opens on the picture grid (new key cardflip.searchView.v2), list toggle still works. Pane: done locally.
+- [ ] Watchlist: no stale-price note on cards; set names stay on one line. Sitewide .truncate on <p>/h2/h3 now truncates (text-wrap-style fix). Glance at Inventory/Search tiles for anything that now cuts off badly.
+- [ ] Scanner: Open a Pack button gone. Pane: done locally.
+- [ ] PHONE (camera): scan a card, tap the result card -> big view with picture, price, "Change", "Not this card?"; pull the handle down or tap Done closes it.
+- [ ] Card pages: Buy on eBay under the price + commission line; name pages (e.g. /pokemon/mewtwo-card-value) Buy under each card. customid card-page / name-page / cards-search.
+- [ ] /cards/pokemon search: full grid + count + Show more + Buy (Mewtwo = 95, same as the app).
