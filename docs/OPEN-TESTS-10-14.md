@@ -48,7 +48,7 @@ Older, still open:
 39. Accept Offers on: push a card, Seller Hub shows auto-accept 90% and auto-decline 70%; reprice moves them. [10-06]
 40. Tracked Shipping (only after EBAY_VALUE_SHIPPING=1 is set): a card over the threshold shows tracked postage. [10-06]
 41. PASS 10-16 ~2:40am ET (Chris phone, prod: Pokémon, Magic, Lorcana scanned, pictures load, right cards): Scan a Pokémon, a Magic and a Lorcana card on prod: pictures load and the card is still identified. [10-13]
-42. TikTok Events Manager (your TikTok Ads sign-in): ViewContent and ClickButton still arriving from /scan. [10-06]
+42. DROPPED 10-16 ~3:00am ET (Chris: TikTok ads have been off a while, ignore): TikTok Events Manager (your TikTok Ads sign-in): ViewContent and ClickButton still arriving from /scan. [10-06]
 43. PASS 10-16 ~2:55am ET (Chris screenshot of support@: 3 bounces total, Oct 4, Oct 7 and one new since; the new one is Gmail "550 5.1.1 NoSuchUser" = a sign-up typed an address that does not exist, not our mail setup): Fastmail mailbox (your login): fewer "Undelivered Mail Returned" bounces at support@ from welcome emails. [10-07]
 44. LATER (you 10-14): grey text is readable in sunlight. [10-06]
 
