@@ -312,9 +312,10 @@ export default async function Home() {
               </h1>
 
               <p className="animate-fade-up max-w-md text-lg leading-relaxed text-zinc-400" style={{ animationDelay: "120ms" }}>
-                Point your phone at a card. CardFlip reads it, matches the exact
-                printing, pulls the live market price and writes the eBay
-                listing. You tap Post.
+                {/* Both jobs (ticket #1001, 10-16): a binder's worth, not only selling. */}
+                Point your phone at a card. CardFlip finds the exact printing and
+                its live market price, and adds up what your whole binder is worth.
+                Selling? It writes the eBay listing. You tap Post.
               </p>
 
               <div className="animate-fade-up flex w-full max-w-xs flex-col gap-3 sm:w-auto sm:max-w-none sm:flex-row" style={{ animationDelay: "180ms" }}>
