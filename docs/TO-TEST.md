@@ -4,6 +4,15 @@
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
 
+## 10-16: FLIPBACK code + come-back mail (NOT PUSHED, b9ba3bd2..8cbfbacb). Local pass: link signed-out -> login -> +10 scans; Account box "already used"; header "10 free scans"; full npm test green
+- [ ] After push, BEFORE the blast: POST /api/admin/emails {comeback:"preview"} lists ~16 (no cardflipio/wageley*/owner), then {comeback:"test"} -> Chris reads the [TEST] mail on his phone. Send only on his yes.
+- [ ] Prod: password reset mail arrives (forgot-password) — local has no SMTP, unchecked.
+- [ ] Prod: a returning trial user taps the mail button -> lands on scanner with N+10 free scans (watch promo_redemptions + admin Users).
+- [ ] Prod: Inventory tiles load the ?w=400 copy (Network: ~20-40 KB each, not 300+ KB) on a real scanned photo.
+- [ ] Prod: a Google sign-in of an existing account still lands signed in (b1190519 only touches unproven-email links).
+- [x] PASS 10-16 local: /api/ebay/comps with id base1-4 + name "Magikarp" searches "Charizard 4" (audit #1).
+- [x] PASS 10-16 local: /api/cron/emails?force=1 and /api/cron/social-video without a key -> 403 (audit #4).
+
 ## 10-16 ~9:30am ET: site-audit fixes (NOT PUSHED, ddea8db2..36c2e6a5; docs/AUDIT-2026-10-16.md)
 Mostly server guards, proven by local tests; these are the prod checks after the push.
 - [ ] eBay comps (#1): on a card page / scan result, "eBay listings" still loads comps for a Pokémon and a Magic card (catalog lookup in front of the cache). (Mine, pane.)
