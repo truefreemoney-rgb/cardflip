@@ -35,13 +35,17 @@ const money = (n: number) => formatMoney(n);
 /** "Sep 3". */
 const dayLabel = (d: string) => new Date(parseDay(d)).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 
+const NO_POINTS: Point[] = [];
+
 export default function InventoryValueChart({ game, version = 0, status = "all", category = "all", className = "" }: Props) {
   // Pricing only (10-04): the server sums plain market prices, and the caption says so.
   const pricingOnly = Boolean(useOptionalSession()?.user?.pricingOnly);
   const [choice, setChoice] = useState<RangeChoice>({ preset: "90d" });
   /** True once the viewer has picked a range: from then on the strip stays up even when a range has too few days to draw. */
   const [picked, setPicked] = useState(false);
-  const [points, setPoints] = useState<Point[] | null>(null);
+  const [fetched, setPoints] = useState<Point[] | null>(null);
+  // No cards: an empty chart without a fetch (derived, not set in the effect: react-hooks lint).
+  const points = version === 0 ? NO_POINTS : fetched;
   const from = "from" in choice ? choice.from : "";
   const to = "from" in choice ? choice.to : "";
   const preset = "preset" in choice ? choice.preset : "";
@@ -49,10 +53,7 @@ export default function InventoryValueChart({ game, version = 0, status = "all",
   useEffect(() => {
     // No cards (yet): nothing to draw. The page renders before its card list lands, so fetching here too doubled the
     // slowest call on the page (10-16 audit: two ~3.8 s value-history loads per visit).
-    if (version === 0) {
-      setPoints([]);
-      return;
-    }
+    if (version === 0) return;
     let alive = true;
     const scope =
       (status !== "all" ? `&status=${encodeURIComponent(status)}` : "") +
