@@ -874,7 +874,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
                   rel="noopener noreferrer"
                   className="block truncate text-xs text-zinc-500 underline decoration-zinc-600 underline-offset-2 hover:text-white"
                 >
-                  {item.ebay && item.ebay.count > 0 ? `${item.ebay.count} listing${item.ebay.count === 1 ? "" : "s"} ↗` : "See listings ↗"}
+                  {item.ebay && item.ebay.count > 0 ? `vs ${item.ebay.count} listing${item.ebay.count === 1 ? "" : "s"} ↗` : "See listings ↗"}
                 </a>
               );
               cells.push({
@@ -891,13 +891,14 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
                   </>
                 ),
               });
-              // "eBay asking" is OUR number (Chris 10-08): the market price through condition, fees and shipping,
-              // never the average of other sellers' live listings (those stay as the small link). Always the
+              // "List it at" is OUR number (Chris 10-08): the market price through condition, fees and shipping,
+              // never the average of other sellers' live listings (those stay as the small "vs N listings" link;
+              // renamed from "eBay asking" 10-15, Chris read it as the listings' average). Always the
               // FULL-value quote: with Quick sale picked, quote.suggested is the 12%-off number ($1,151.75 on
               // a $1,134.85 Lugia, which read as "fees missing" to Chris); the Quick tile below shows that one.
               const askingQuote = marketQuote ?? quote;
               cells.push({
-                label: "eBay asking",
+                label: "List it at",
                 value: (
                   <>
                     <span className="font-display text-white">{formatMoney(askingQuote.suggested, askingQuote.price.currency)}</span>
