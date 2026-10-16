@@ -1642,13 +1642,11 @@ export default function AppPage() {
             <PricingModeToggle />
           </div>
           <Uploader onOpenCamera={openCamera} showcase={showcase} game={game} />
-          <Link href="/app/packs" className="rounded-full border border-edge bg-surface-1 px-4 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-brand-400 hover:text-white">
-            Open a Pack
-          </Link>
           {/* The add-without-a-photo search and sealed-product rows were
               removed 09-01 (Chris), photo uploads, binder pages and the
               sealed sheet 10-03: eBay listings must show the actual item, so
-              every card starts from a camera scan now. */}
+              every card starts from a camera scan now. The Open a Pack button
+              went 10-16 (Chris). */}
         </main>
       ) : (
         <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 px-4 py-6 sm:px-6">
