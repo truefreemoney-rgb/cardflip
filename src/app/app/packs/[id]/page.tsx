@@ -70,7 +70,7 @@ export default function PackPage({ params }: { params: Promise<{ id: string }> }
       </div>
 
       <section className="rounded-xl border border-edge bg-surface-1 p-3">
-        <p className={`text-3xl font-bold ${gainClass(pack.profit)}`}>
+        <p className={`whitespace-nowrap text-3xl font-bold ${gainClass(pack.profit)}`}>
           {pack.profit < 0 ? "-" : pack.profit > 0 ? "+" : ""}
           {formatMoney(Math.abs(pack.profit))} <span className="text-lg">({roiLabel(pack.roiPct)})</span>
         </p>

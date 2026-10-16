@@ -178,8 +178,8 @@ function CardStory({ f, page }: { f: CardFacts; page: CardPage }) {
 function Stat({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
   return (
     <div className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-edge bg-black/20 px-3 py-2.5 lg:block">
-      <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">{label}</p>
-      <p className={`font-display text-lg font-semibold tabular-nums lg:mt-0.5 ${strong ? "text-emerald-300" : "text-white"}`}>{value}</p>
+      <p className="min-w-0 truncate text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">{label}</p>
+      <p className={`shrink-0 whitespace-nowrap font-display text-lg font-semibold tabular-nums lg:mt-0.5 ${strong ? "text-emerald-300" : "text-white"}`}>{value}</p>
     </div>
   );
 }

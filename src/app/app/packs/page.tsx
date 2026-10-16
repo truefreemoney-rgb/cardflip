@@ -93,7 +93,7 @@ export default function PacksPage() {
       {life && life.packs > 0 && (
         <section className="rounded-xl border border-edge bg-surface-1 p-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">All Packs</p>
-          <p className={`mt-1 text-2xl font-bold ${gainClass(life.profit)}`}>
+          <p className={`mt-1 whitespace-nowrap text-2xl font-bold ${gainClass(life.profit)}`}>
             {life.profit < 0 ? "-" : life.profit > 0 ? "+" : ""}
             {formatMoney(Math.abs(life.profit))} <span className="text-base">({roiLabel(life.roiPct)})</span>
           </p>

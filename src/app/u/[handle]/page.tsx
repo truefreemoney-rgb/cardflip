@@ -83,13 +83,13 @@ export default async function PublicCollectionPage({ params }: Params) {
                     {card.kind === "card" ? ` · ${card.condition}` : ""}
                   </p>
                   <div className="mt-auto flex items-center justify-between gap-2 pt-1">
-                    <span className="font-display text-sm font-semibold tabular-nums text-white">{card.localPrice ?? (card.price != null ? formatMoney(card.price) : "—")}</span>
+                    <span className={`whitespace-nowrap font-display font-semibold tabular-nums text-white ${card.price != null && card.price >= 10_000 ? "text-xs" : "text-sm"}`}>{card.localPrice ?? (card.price != null ? formatMoney(card.price) : "—")}</span>
                     {card.ebayUrl && (
                       <a
                         href={card.ebayUrl}
                         target="_blank"
                         rel="noopener noreferrer nofollow"
-                        className="rounded-full bg-brand-500 px-2.5 py-1 text-[11px] font-semibold text-white transition hover:bg-brand-400"
+                        className="shrink-0 whitespace-nowrap rounded-full bg-brand-500 px-2 py-1 text-[11px] font-semibold text-white transition hover:bg-brand-400"
                       >
                         Buy on eBay
                       </a>

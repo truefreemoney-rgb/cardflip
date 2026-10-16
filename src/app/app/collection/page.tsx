@@ -1997,12 +1997,13 @@ export default function CollectionPage() {
           data-tour="summary"
           aria-expanded={summaryOpen}
           aria-controls="inventory-summary"
-          className={`flex w-full items-center justify-between gap-3 px-5 py-2.5 text-left transition hover:bg-white/[0.03] ${summaryOpen ? "border-b border-edge/60" : ""}`}
+          className={`flex w-full items-center justify-between gap-2 px-4 py-2.5 text-left transition hover:bg-white/[0.03] sm:gap-3 sm:px-5 ${summaryOpen ? "border-b border-edge/60" : ""}`}
         >
           {summaryOpen ? (
             <span className="text-xs uppercase tracking-[0.15em] text-zinc-500">Summary</span>
           ) : (
-            <span className="flex min-w-0 flex-wrap items-baseline gap-x-4 gap-y-0.5 text-xs text-zinc-400">
+            // Both totals stay on one row at phone width up to $99,999.99 each (10-16): tighter gaps, "Show" is the chevron alone.
+            <span className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-0.5 text-xs text-zinc-400 sm:gap-x-4">
               <span className="whitespace-nowrap">
                 {pricingOnly ? "Market Value" : "In Play"} <span className="font-display text-sm font-semibold tabular-nums text-white">{liveLoaded ? formatMoney(stats.inPlayMarket) : "…"}</span>
               </span>
@@ -2012,7 +2013,7 @@ export default function CollectionPage() {
             </span>
           )}
           <span className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-brand-300">
-            {summaryOpen ? "Hide" : "Show"}
+            <span className={summaryOpen ? "" : "hidden sm:inline"}>{summaryOpen ? "Hide" : "Show"}</span>
             <svg viewBox="0 0 20 20" className={`h-4 w-4 transition-transform ${summaryOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <path d="M5 8l5 5 5-5" />
             </svg>
@@ -3012,7 +3013,7 @@ export default function CollectionPage() {
                           onClick={() => void applyReprice(card, nudges[card.id])}
                           disabled={repricing === card.id}
                           title={`Suggested price is ${formatMoney(nudges[card.id].target)} — reprice here and on eBay`}
-                          className="rounded-full bg-amber-400/15 px-2 py-1 text-[11px] font-semibold text-amber-300 transition hover:bg-amber-400/25 disabled:opacity-50"
+                          className="whitespace-nowrap rounded-full bg-amber-400/15 px-2 py-1 text-[11px] font-semibold text-amber-300 transition hover:bg-amber-400/25 disabled:opacity-50"
                         >
                           {nudges[card.id].drift > 0 ? "↑" : "↓"} {formatMoney(nudges[card.id].target)}
                         </button>

@@ -4,6 +4,9 @@
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
 
+## 10-16 ~4pm ET: no extra rows sitewide (NOT PUSHED)
+- Phone: Watchlist tab tiles, Search > My Watchlist, Inventory summary bar (now just the arrow, no "Show" word on phones), homepage game tiles, a card page's price chart (date buttons always under the price on phones). Prices and the ▲/▼ % all stay on one line. Local check: iPhone WebKit shots at $99,999.99.
+
 ## 10-16 ~2:30pm ET: Watchlist price pill on one line (NOT PUSHED)
 - Phone: Search tab > My Watchlist. Every tile shows the price and the ▲/▼ % on ONE line (Charizard $134.86 ▼ 5.0% was 2 rows). Tiles are a bit wider (142px). Local check done with test tiles up to $99,999.99.
 

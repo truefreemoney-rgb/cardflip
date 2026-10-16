@@ -116,7 +116,7 @@ function AlertControl({ item, onSaved }: { item: WishlistItem; onSaved: (item: W
         setEditing(true);
       }}
       title="Get an email when this card's market price dips to your target"
-      className={`w-full rounded-full border px-2.5 py-1.5 text-[11px] font-medium transition ${
+      className={`w-full truncate whitespace-nowrap rounded-full border px-2.5 py-1.5 text-[11px] font-medium transition ${
         item.alertPrice != null
           ? "border-amber-400/30 bg-amber-400/10 text-amber-200 hover:bg-amber-400/20"
           : "border-edge text-zinc-500 hover:border-edge-strong hover:text-zinc-300"
@@ -285,7 +285,7 @@ function PriceDelta({ saved, now }: { saved: number; now: number }) {
   // (09-08 makeover — "▼ −$0.01 · 6%" wrapped inside the tile).
   return (
     <span
-      className={`shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums ${
+      className={`shrink-0 whitespace-nowrap rounded-full px-1.5 py-0.5 text-[10.5px] font-semibold tabular-nums ${
         up ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"
       }`}
       title={`${up ? "Up" : "Down"} ${formatMoney(Math.abs(delta))} since you saved it at ${formatMoney(saved)}`}
@@ -668,11 +668,11 @@ export default function WishlistPage() {
                         {flagged ? (
                           <span className="text-[11px] font-medium leading-snug"><PriceFlagText /></span>
                         ) : (
-                          <span className={`font-display text-sm font-semibold ${price != null ? "text-emerald-400" : "text-zinc-600"}`}>
+                          <span className={`whitespace-nowrap font-display text-sm font-semibold ${price != null ? "text-emerald-400" : "text-zinc-600"}`}>
                             {formatMoney(price)}
                           </span>
                         )}
-                        <span className={`text-[11px] font-semibold ${added ? "text-emerald-400" : "text-brand-300"}`}>
+                        <span className={`shrink-0 whitespace-nowrap text-[11px] font-semibold ${added ? "text-emerald-400" : "text-brand-300"}`}>
                           {added ? "★ Saved" : "☆ Add"}
                         </span>
                       </span>
@@ -792,7 +792,7 @@ export default function WishlistPage() {
                         className="aspect-[5/7] w-full rounded-lg"
                       />
                       {item.alertPrice != null && (
-                        <span className="absolute left-2 top-2 rounded-full bg-amber-400/90 px-2 py-0.5 text-[10px] font-semibold text-black shadow">
+                        <span className="absolute left-2 top-2 whitespace-nowrap rounded-full bg-amber-400/90 px-2 py-0.5 text-[10px] font-semibold text-black shadow">
                           🔔 {formatMoney(item.alertPrice)}
                         </span>
                       )}
@@ -818,7 +818,7 @@ export default function WishlistPage() {
                         move beside it, ONE muted line for the save, the
                         sparkline across the full width, then the alert. */}
                     <div>
-                      <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center justify-between gap-1.5">
                         {flagged ? (
                           // The note says "check sold listings": the tile hands over that search (10-02), as the Inventory and the detail view do.
                           <p className="text-xs font-medium leading-snug">
@@ -834,7 +834,9 @@ export default function WishlistPage() {
                             </a>
                           </p>
                         ) : (
-                          <p className={`font-display text-xl font-semibold leading-none tabular-nums ${shownPrice != null ? "text-emerald-400" : "text-zinc-600"}`}>
+                          <p
+                            className={`whitespace-nowrap font-display font-semibold leading-none tabular-nums ${shownPrice == null || shownPrice < 100 ? "text-xl" : shownPrice < 1000 ? "text-[17px]" : shownPrice < 10_000 ? "text-[14px]" : "text-[13px]"} ${shownPrice != null ? "text-emerald-400" : "text-zinc-600"}`}
+                          >
                             {formatMoney(shownPrice)}
                           </p>
                         )}

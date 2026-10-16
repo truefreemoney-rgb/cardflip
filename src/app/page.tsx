@@ -384,8 +384,8 @@ export default async function Home() {
                       </p>
                       {market && (
                         <p className="mt-2 flex items-baseline gap-2">
-                          <span className="holo-text font-display text-2xl font-bold">{formatMoney(market.base, market.price.currency)}</span>
-                          <span className="text-[10px] text-zinc-500">Market price · {market.price.label}</span>
+                          <span className="holo-text shrink-0 whitespace-nowrap font-display text-2xl font-bold">{formatMoney(market.base, market.price.currency)}</span>
+                          <span className="min-w-0 truncate text-[10px] text-zinc-500">Market price · {market.price.label}</span>
                         </p>
                       )}
                     </div>
@@ -523,9 +523,11 @@ export default async function Home() {
                   <div className="mx-auto w-full max-w-[11rem]">
                     <HoloCard src={card.imageUrl} alt={`${card.name} — ${stripEdition(card.setName)}`} className="aspect-[5/7] w-full" lazy />
                   </div>
-                  <div className="mt-3 flex items-baseline justify-between gap-2">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-brand-300">{GAMES[game].label}</span>
-                    {card.price != null && <span className="font-display text-sm font-semibold text-white">{formatMoney(card.price)}</span>}
+                  <div className="mt-3 flex items-baseline justify-between gap-1.5">
+                    <span className="min-w-0 truncate text-[10px] font-semibold uppercase text-brand-300">{GAMES[game].label}</span>
+                    {card.price != null && (
+                      <span className={`shrink-0 whitespace-nowrap font-display font-semibold text-white ${card.price >= 10_000 ? "text-[11px]" : card.price >= 1000 ? "text-xs" : "text-sm"}`}>{formatMoney(card.price)}</span>
+                    )}
                   </div>
                   <p className="mt-1 truncate text-sm font-medium text-white">{card.name}</p>
                   <p className="truncate text-xs text-zinc-500">{stripEdition(card.setName)}</p>
@@ -607,7 +609,7 @@ export default async function Home() {
                     { label: "Sold", value: formatMoney(binder.soldValue), sub: "You keep when all 8 sell", tone: "text-sky-300" },
                   ].map((s) => (
                     <div key={s.label} className="min-w-0 rounded-xl border border-edge bg-black/25 px-3 py-2">
-                      <dt className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">{s.label}</dt>
+                      <dt className="whitespace-nowrap text-[11px] font-medium uppercase tracking-[0.06em] text-zinc-500">{s.label}</dt>
                       <dd className={`mt-0.5 truncate font-display text-base font-semibold tabular-nums ${s.tone}`}>{s.value}</dd>
                       <dd className="truncate text-[11px] text-zinc-500">{s.sub}</dd>
                     </div>
@@ -645,7 +647,7 @@ export default async function Home() {
                   <dl className="mt-3 grid flex-1 auto-rows-fr grid-cols-2 gap-2">
                     {historyStats(history).map((s) => (
                       <div key={s.label} className="flex flex-col justify-center rounded-xl border border-edge bg-black/25 px-3 py-2">
-                        <dt className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">{s.label}</dt>
+                        <dt className="whitespace-nowrap text-[11px] font-medium uppercase tracking-[0.06em] text-zinc-500">{s.label}</dt>
                         <dd className={`mt-0.5 font-display text-base font-semibold tabular-nums ${s.tone}`}>{s.value}</dd>
                       </div>
                     ))}

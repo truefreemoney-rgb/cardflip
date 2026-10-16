@@ -84,7 +84,7 @@ export default function PriceSparkline({ cardId, preferVariant, days = 30, class
         <circle cx={geo.lastX} cy={geo.lastY} r="2" fill={stroke} />
       </svg>
       {!flagged && (
-        <span className={`text-xs font-medium tabular-nums ${up ? "text-emerald-400" : "text-red-400"}`}>
+        <span className={`shrink-0 whitespace-nowrap text-xs font-medium tabular-nums ${up ? "text-emerald-400" : "text-red-400"}`}>
           {up ? "▲" : "▼"} {Math.abs(geo.pct).toFixed(1)}%
           <span className="ml-1 font-normal text-zinc-600">{days}d</span>
         </span>

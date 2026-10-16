@@ -61,7 +61,7 @@ function MoverList({ game, rows }: { game: GameId; rows: MoverRow[] }) {
                 {r.setName}
                 {r.variant ? ` · ${r.variant}` : ""}
               </p>
-              <p className="text-xs tabular-nums text-zinc-400">
+              <p className="truncate whitespace-nowrap text-xs tabular-nums text-zinc-400">
                 {formatMoney(r.from)} → {formatMoney(r.to)}
               </p>
             </div>

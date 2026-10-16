@@ -283,7 +283,8 @@ export default function PriceHistoryChart({ cardId, initialSeries, preferVariant
   return (
     <section className={`@container rounded-2xl border border-edge bg-surface-1 ${compact ? "p-3" : "p-4"} ${className}`} aria-label="Price history">
       {/* Quote header */}
-      <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+      {/* Phone width: always two rows (quote, then the date changer), never a row that appears only when the price is long (10-16). */}
+      <div className="flex flex-col gap-2 @lg:flex-row @lg:flex-wrap @lg:items-end @lg:justify-between @lg:gap-x-4">
         <div>
           <div className={`flex items-baseline gap-2 ${label} text-zinc-500`}>
             <span className={`${compact ? "text-xs" : "text-sm"} font-medium text-zinc-200`}>Price history</span>
@@ -309,8 +310,8 @@ export default function PriceHistoryChart({ cardId, initialSeries, preferVariant
                 <span className={`${label} text-zinc-400`}>{shortDay(hovered.p.day, true)}</span>
               ) : flagged ? null : changeAbs !== null && shown.length > 1 ? (
                 <span className={`${label} font-medium tabular-nums ${up ? "text-emerald-400" : "text-red-400"}`}>
-                  {up ? "▲" : "▼"} {formatMoney(Math.abs(changeAbs), currency)} ({Math.abs(changePct ?? 0).toFixed(1)}%)
-                  <span className="ml-1 font-normal text-zinc-500">{rangeLabel === "All" ? "all time" : rangeLabel}</span>
+                  <span className="whitespace-nowrap">{up ? "▲" : "▼"} {formatMoney(Math.abs(changeAbs), currency)} ({Math.abs(changePct ?? 0).toFixed(1)}%)</span>
+                  <span className="ml-1 whitespace-nowrap font-normal text-zinc-500">{rangeLabel === "All" ? "all time" : rangeLabel}</span>
                 </span>
               ) : (
                 <span className={`${label} text-zinc-500`}>first recorded {shortDay(last.day)}</span>
@@ -440,7 +441,7 @@ export default function PriceHistoryChart({ cardId, initialSeries, preferVariant
             )}
           </svg>
 
-          <div className={`mt-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 ${label} text-zinc-500`}>
+          <div className={`mt-1 flex flex-col gap-0.5 @lg:flex-row @lg:flex-wrap @lg:items-center @lg:justify-between @lg:gap-x-3 ${label} text-zinc-500`}>
             <span className="tabular-nums">
               {geo.single
                 ? `Tracking since ${shortDay(last.day)} — a new point lands every day`
@@ -459,11 +460,11 @@ export default function PriceHistoryChart({ cardId, initialSeries, preferVariant
       {trend && (trend.avg30 || trend.avg7 || trend.avg1) && (
         <div className={`mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-black/25 px-2.5 py-1.5 ${label} text-zinc-400`}>
           <span className="text-zinc-500">{sourceLabel(trend.source)} averages</span>
-          {trend.avg30 != null && <span>30d <span className="tabular-nums text-zinc-200">{formatMoney(trend.avg30, trend.currency)}</span></span>}
-          {trend.avg7 != null && <span>7d <span className="tabular-nums text-zinc-200">{formatMoney(trend.avg7, trend.currency)}</span></span>}
-          {trend.avg1 != null && <span>1d <span className="tabular-nums text-zinc-200">{formatMoney(trend.avg1, trend.currency)}</span></span>}
+          {trend.avg30 != null && <span className="whitespace-nowrap">30d <span className="tabular-nums text-zinc-200">{formatMoney(trend.avg30, trend.currency)}</span></span>}
+          {trend.avg7 != null && <span className="whitespace-nowrap">7d <span className="tabular-nums text-zinc-200">{formatMoney(trend.avg7, trend.currency)}</span></span>}
+          {trend.avg1 != null && <span className="whitespace-nowrap">1d <span className="tabular-nums text-zinc-200">{formatMoney(trend.avg1, trend.currency)}</span></span>}
           {trendPct !== null && (
-            <span className={`ml-auto font-medium tabular-nums ${trendPct >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+            <span className={`ml-auto whitespace-nowrap font-medium tabular-nums ${trendPct >= 0 ? "text-emerald-400" : "text-red-400"}`}>
               {trendPct >= 0 ? "▲" : "▼"} {Math.abs(trendPct).toFixed(1)}% <span className="font-normal text-zinc-500">7d vs 30d</span>
             </span>
           )}

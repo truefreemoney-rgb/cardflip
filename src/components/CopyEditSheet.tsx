@@ -82,7 +82,7 @@ export default function CopyEditSheet({ item, onChange, onApplyConditionToAll, w
                 onChange({ condition, priceOverride: null });
                 saveCondition(condition);
               }}
-              className={`flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-medium transition ${on ? TONE[condition].on : OFF}`}
+              className={`flex items-center gap-2 whitespace-nowrap rounded-full border px-3 py-2 text-sm font-medium transition ${on ? TONE[condition].on : OFF}`}
             >
               <span className={`h-2 w-2 shrink-0 rounded-full ${TONE[condition].dot}`} aria-hidden />
               <span>{condition}</span>
@@ -117,7 +117,7 @@ export default function CopyEditSheet({ item, onChange, onApplyConditionToAll, w
                     if (on) return;
                     onChange({ variant: p.variant, priceOverride: null });
                   }}
-                  className={`flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-medium transition ${on ? "border-brand-400 bg-brand-500/15 text-white" : OFF}`}
+                  className={`flex items-center gap-2 whitespace-nowrap rounded-full border px-3 py-2 text-sm font-medium transition ${on ? "border-brand-400 bg-brand-500/15 text-white" : OFF}`}
                 >
                   <span>{formatVariantLabel(p.variant)}</span>
                   {p.market != null && <span className="tabular-nums text-zinc-400">{formatMoney(marketForCondition(p.market, item.condition))}</span>}

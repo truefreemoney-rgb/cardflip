@@ -75,7 +75,7 @@ function Change({ now, then, label }: { now: number; then: number | null; label:
   return (
     <div>
       <div className={heading}>{label}</div>
-      <div className={`mt-0.5 font-display text-base font-semibold ${tone}`}>
+      <div className={`mt-0.5 whitespace-nowrap font-display font-semibold ${Math.abs(delta) < 10_000 ? "text-base" : "text-sm"} ${tone}`}>
         {flat ? "Unchanged" : `${delta > 0 ? "▲" : "▼"} ${formatMoney(Math.abs(delta))}`}
         {!flat && <span className="ml-1 text-xs font-medium opacity-80">({Math.abs(pct).toFixed(1)}%)</span>}
       </div>
@@ -259,7 +259,7 @@ export default function InsightsPage() {
                     <dt className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-zinc-500">
                       <span className={`h-1.5 w-1.5 rounded-full ${dot}`} /> {label}
                     </dt>
-                    <dd className="font-display text-base font-semibold text-white">
+                    <dd className="whitespace-nowrap font-display text-base font-semibold text-white">
                       {formatMoney(s.value)} <span className="text-xs font-medium text-zinc-500">· {s.count}</span>
                     </dd>
                   </div>

@@ -361,7 +361,7 @@ function WatchRow({
               >
                 <CardImage src={item.imageUrl} alt={item.cardName} className="aspect-[5/7] w-full rounded-lg" />
                 {item.alertPrice != null && (
-                  <span className="absolute right-3 top-3 rounded-full border border-white/15 bg-black/75 px-1.5 py-0.5 text-[10px] font-semibold text-holo-gold">
+                  <span className="absolute right-3 top-3 whitespace-nowrap rounded-full border border-white/15 bg-black/75 px-1.5 py-0.5 text-[10px] font-semibold text-holo-gold">
                     🔔 <Price usd={item.alertPrice} />
                   </span>
                 )}
