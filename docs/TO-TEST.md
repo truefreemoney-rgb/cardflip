@@ -5,7 +5,8 @@
 # To test later
 
 ## 10-16: FLIPBACK code + come-back mail (NOT PUSHED, b9ba3bd2..8cbfbacb). Local pass: link signed-out -> login -> +10 scans; Account box "already used"; header "10 free scans"; full npm test green
-- [ ] After push, BEFORE the blast: POST /api/admin/emails {comeback:"preview"} lists ~16 (no cardflipio/wageley*/owner), then {comeback:"test"} -> Chris reads the [TEST] mail on his phone. Send only on his yes.
+- [ ] 10-17 morning: how many redeemed (SELECT COUNT(*) FROM promo_redemptions WHERE code='FLIPBACK') + returning visits in admin Analytics; tell Chris.
+- [x] DONE 10-16 ~12:10pm ET: preview 16, two [TEST] mails read by Chris (subject "Your CardFlip code is inside: 10 scans on us", no "free"), SENT 16/16, 0 failed; preview after = 0 (no repeats).
 - [ ] Prod: password reset mail arrives (forgot-password) — local has no SMTP, unchecked.
 - [ ] Prod: a returning trial user taps the mail button -> lands on scanner with N+10 free scans (watch promo_redemptions + admin Users).
 - [ ] Prod: Inventory tiles load the ?w=400 copy (Network: ~20-40 KB each, not 300+ KB) on a real scanned photo.
