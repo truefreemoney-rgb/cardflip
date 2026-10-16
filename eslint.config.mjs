@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Saved scanner research scripts (CommonJS, not app code).
+    "scripts/outline-eval/**",
   ]),
 ]);
 
