@@ -41,7 +41,7 @@ export function renderComeback(firstName: string, unsubUrl: string): ComebackMai
     "- 205,000+ printings priced",
     "- A Watchlist that gives you a heads-up when a card's price moves",
     "",
-    "So here's a welcome-back present: 10 free scans, on us.",
+    "So here's a welcome-back present: 10 scans, on us.",
     "",
     `Your code: ${COMEBACK_CODE}`,
     "",
@@ -68,14 +68,14 @@ export function renderComeback(firstName: string, unsubUrl: string): ComebackMai
       <li><b>205,000+ printings priced</b></li>
       <li><b>A Watchlist</b> that gives you a heads-up when a card&#39;s price moves</li>
     </ul>
-    ${p("So here&#39;s a welcome-back present: <b>10 free scans, on us.</b>")}
+    ${p("So here&#39;s a welcome-back present: <b>10 scans, on us.</b>")}
     <div style="margin:0 0 14px;padding:14px;border:2px dashed #6d5dfc;border-radius:12px;text-align:center">
       <div style="font-size:12px;letter-spacing:.08em;color:#666;font-weight:700">YOUR CODE</div>
       <div style="font-size:26px;font-weight:800;letter-spacing:.12em;color:#6d5dfc">${COMEBACK_CODE}</div>
     </div>
     ${p("<b>Two ways to grab them:</b>", "margin-bottom:6px")}
     ${p(`1. Tap the button and they&#39;re added for you:`, "margin-bottom:8px")}
-    <p style="margin:0 0 14px"><a href="${link}" style="display:inline-block;padding:12px 22px;border-radius:999px;background:#6d5dfc;color:#fff;text-decoration:none;font-weight:700">Add My 10 Free Scans</a></p>
+    <p style="margin:0 0 14px"><a href="${link}" style="display:inline-block;padding:12px 22px;border-radius:999px;background:#6d5dfc;color:#fff;text-decoration:none;font-weight:700">Add My 10 Scans</a></p>
     ${p(`2. Or open your <a href="${account}" style="color:#6d5dfc">Account page</a> and type <b>${COMEBACK_CODE}</b> in the &quot;Have a code?&quot; box.`)}
     ${p("No card, no catch, and they&#39;re yours to use whenever you like.")}
     ${p("Got a card you&#39;ve always wondered about? The holo from 2003, the rare that&#39;s been sitting in a sleeve for years? Point your camera at it and find out what it&#39;s worth today. Worst case, it&#39;s a fun story. Best case… well. 😏")}
