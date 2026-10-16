@@ -47,7 +47,7 @@ Older, still open:
 38. eBay card with no shipping pick: button says "Pick a shipping option to publish"; after a pick, the confirm line says free shipping. [10-08]
 39. Accept Offers on: push a card, Seller Hub shows auto-accept 90% and auto-decline 70%; reprice moves them. [10-06]
 40. Tracked Shipping (only after EBAY_VALUE_SHIPPING=1 is set): a card over the threshold shows tracked postage. [10-06]
-41. Scan a Pokémon, a Magic and a Lorcana card on prod: pictures load and the card is still identified. [10-13]
+41. PASS 10-16 ~2:40am ET (Chris phone, prod: Pokémon, Magic, Lorcana scanned, pictures load, right cards): Scan a Pokémon, a Magic and a Lorcana card on prod: pictures load and the card is still identified. [10-13]
 42. TikTok Events Manager (your TikTok Ads sign-in): ViewContent and ClickButton still arriving from /scan. [10-06]
 43. Fastmail mailbox (your login): fewer "Undelivered Mail Returned" bounces at support@ from welcome emails. [10-07]
 44. LATER (you 10-14): grey text is readable in sunlight. [10-06]
