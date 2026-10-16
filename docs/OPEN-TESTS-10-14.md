@@ -49,7 +49,7 @@ Older, still open:
 40. Tracked Shipping (only after EBAY_VALUE_SHIPPING=1 is set): a card over the threshold shows tracked postage. [10-06]
 41. PASS 10-16 ~2:40am ET (Chris phone, prod: Pokémon, Magic, Lorcana scanned, pictures load, right cards): Scan a Pokémon, a Magic and a Lorcana card on prod: pictures load and the card is still identified. [10-13]
 42. TikTok Events Manager (your TikTok Ads sign-in): ViewContent and ClickButton still arriving from /scan. [10-06]
-43. Fastmail mailbox (your login): fewer "Undelivered Mail Returned" bounces at support@ from welcome emails. [10-07]
+43. PASS 10-16 ~2:55am ET (Chris screenshot of support@: 3 bounces total, Oct 4, Oct 7 and one new since; the new one is Gmail "550 5.1.1 NoSuchUser" = a sign-up typed an address that does not exist, not our mail setup): Fastmail mailbox (your login): fewer "Undelivered Mail Returned" bounces at support@ from welcome emails. [10-07]
 44. LATER (you 10-14): grey text is readable in sunlight. [10-06]
 
 Found 10-14 9:50pm in older TO-TEST blocks, never listed before:
