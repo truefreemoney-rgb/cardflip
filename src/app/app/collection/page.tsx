@@ -1611,6 +1611,8 @@ export default function CollectionPage() {
   // (server table, 09-08 "add category"); both lists merge here.
   const [createdCategories, setCreatedCategories] = useState<string[]>([]);
   useEffect(() => {
+    // Wait for the session: fetching before AND after userId lands asked twice per visit (prod 10-16).
+    if (!userId) return;
     let cancelled = false;
     void fetchCategories().then((list) => {
       if (!cancelled) setCreatedCategories(list);
