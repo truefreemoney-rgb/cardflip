@@ -5,7 +5,9 @@ import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 const DUMPS = "C:/Users/Chris/cardflip/.outline-dumps";
 const filter = process.argv[2] ?? "2026-10-16T02-3";
-const files = (await readdir(DUMPS)).filter((f) => f.endsWith(".json") && f.includes(filter)).sort();
+// Comma list of substrings, so one run covers a round that spans minutes ("04-21,04-22,04-23").
+const parts = filter.split(",");
+const files = (await readdir(DUMPS)).filter((f) => f.endsWith(".json") && parts.some((p) => f.includes(p))).sort();
 const NAMES = ["TL", "TR", "BR", "BL"];
 const all = []; // every tick in time order, with the dump's guide (expect) for scale
 for (const f of files) {

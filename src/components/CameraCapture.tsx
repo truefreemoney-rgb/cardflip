@@ -36,7 +36,9 @@ import {
   pickHint,
   shouldStraighten,
   toGray,
+  trackCardCorners,
   warpQuad,
+  type CornerFix,
   type CornerPatch,
   type CropGray,
   type Hint,
@@ -259,39 +261,57 @@ function guideInVideo(video: LiveSource, mode: CaptureMode = "card"): GuideRect 
 let patchCanvas: HTMLCanvasElement | null = null;
 function cornersFromSource(
   video: LiveSource, g: GuideRect, vw: number, vh: number,
-  /** Last tick's corners (frame px): the box is carried over through the candidates near them, so it moves with the card instead of flipping between near-identical boxes (10-16). */
+  /** Last tick's corners (frame px): each is looked for again near where it was, so the box moves with the card instead of flipping between near-identical boxes (10-16, trackCardCorners). */
   prefer: [Point, Point, Point, Point] | null,
+  /** ...and how each of them read last tick (0 = completed, not seen): the corner found again must read at least half of it. */
+  preferScores: number[] | null,
   /** The working crop, for the edge check along each side of a box. */
   support: CropGray,
-): { corners: [Point, Point, Point, Point]; angle: number; scores: number[]; tracked: boolean } | null {
-  patchCanvas ??= document.createElement("canvas");
-  const pctx = patchCanvas.getContext("2d", { willReadFrequently: true });
+): { corners: [Point, Point, Point, Point]; angle: number; scores: number[]; tracked: boolean; support: number } | null {
+  const canvas = (patchCanvas ??= document.createElement("canvas"));
+  const pctx = canvas.getContext("2d", { willReadFrequently: true });
   if (!pctx) return null;
   const PATCH = 110;
   const half = g.w * 0.25;
   const scale = PATCH / (g.w * 0.5);
-  const patches: CornerPatch[] = [];
-  for (const [cx, cy] of [[g.x, g.y], [g.x + g.w, g.y], [g.x + g.w, g.y + g.h], [g.x, g.y + g.h]]) {
-    const left = Math.max(0, Math.round(cx - half)), top = Math.max(0, Math.round(cy - half));
-    const right = Math.min(vw, Math.round(cx + half)), bottom = Math.min(vh, Math.round(cy + half));
-    const pw = Math.max(8, Math.round((right - left) * scale)), ph = Math.max(8, Math.round((bottom - top) * scale));
-    patchCanvas.width = pw;
-    patchCanvas.height = ph;
-    pctx.drawImage(video, left, top, right - left, bottom - top, 0, 0, pw, ph);
-    let data: Uint8ClampedArray;
-    try {
-      data = pctx.getImageData(0, 0, pw, ph).data;
-    } catch {
-      return null;
+  // Four patches, each half a guide width across, round the given centres.
+  const grab = (centres: Point[]): [CornerPatch, CornerPatch, CornerPatch, CornerPatch] | null => {
+    const patches: CornerPatch[] = [];
+    for (const { x: cx, y: cy } of centres) {
+      const left = Math.max(0, Math.round(cx - half)), top = Math.max(0, Math.round(cy - half));
+      const right = Math.min(vw, Math.round(cx + half)), bottom = Math.min(vh, Math.round(cy + half));
+      const pw = Math.max(8, Math.round((right - left) * scale)), ph = Math.max(8, Math.round((bottom - top) * scale));
+      canvas.width = pw;
+      canvas.height = ph;
+      pctx.drawImage(video, left, top, right - left, bottom - top, 0, 0, pw, ph);
+      let data: Uint8ClampedArray;
+      try {
+        data = pctx.getImageData(0, 0, pw, ph).data;
+      } catch {
+        return null;
+      }
+      patches.push({ gray: toGray(data, pw * ph), pw, ph, ox: left, oy: top, scale });
     }
-    patches.push({ gray: toGray(data, pw * ph), pw, ph, ox: left, oy: top, scale });
+    return patches as [CornerPatch, CornerPatch, CornerPatch, CornerPatch];
+  };
+  const scoreOf = (f: CornerFix): number => (f.score === -Infinity ? 0 : f.score);
+  // Last tick's box first: the patches sit round its corners (so the card
+  // may be anywhere, bigger or smaller than the guide) and each corner is
+  // looked for near where it was. Only when that fails is the frame searched
+  // afresh round the guide's corners.
+  if (prefer) {
+    const patches = grab(prefer);
+    const track = patches && trackCardCorners(patches, prefer, g.w, vw, vh, { support, lastScores: preferScores });
+    if (track) return { corners: track.quad.corners, angle: track.quad.angle, scores: track.fixes.map(scoreOf), tracked: true, support: track.support };
   }
+  const patches = grab([{ x: g.x, y: g.y }, { x: g.x + g.w, y: g.y }, { x: g.x + g.w, y: g.y + g.h }, { x: g.x, y: g.y + g.h }]);
+  if (!patches) return null;
   // Ten candidates a corner (was six): on a binder page the card's own corner
-  // ranks fourth or fifth behind seam and sleeve corners, and the tracked box
-  // needs it in the list (10-16, bench: shift move 5 % -> 0.9 % median).
-  const pick = pickCardCorners(cardCornerCandidates(patches as [CornerPatch, CornerPatch, CornerPatch, CornerPatch], g.w, 10), 20, vw, vh, { prefer, support });
+  // ranks fourth or fifth behind seam and sleeve corners. The last box only
+  // breaks ties here (trackReach 0): carrying it over is trackCardCorners' job.
+  const pick = pickCardCorners(cardCornerCandidates(patches, g.w, 10), 20, vw, vh, { prefer, support, tune: { trackReach: 0 } });
   if (!pick) return null;
-  return { corners: pick.quad.corners, angle: pick.quad.angle, scores: pick.fixes.map((f) => (f.score === -Infinity ? 0 : f.score)), tracked: pick.tracked === true };
+  return { corners: pick.quad.corners, angle: pick.quad.angle, scores: pick.fixes.map(scoreOf), tracked: false, support: pick.support };
 }
 
 const TIPS_KEY = "cf-camera-tips-opens";
@@ -643,6 +663,10 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
     let seen: [Point, Point, Point, Point] | null = null;
     let seenStreak = 0;
     let missStreak = 0;
+    // Ticks running with the fix within 3 % of the last (see `ready`).
+    let steady = 0;
+    // How the corners read when last found, for the tracker (trackCardCorners `lastScores`).
+    let lastScores: number[] | null = null;
     // A fix far from the one shown (another box: the pocket round the card,
     // the art frame inside it) and how many ticks running it has held.
     let pending: { corners: [Point, Point, Point, Point]; ticks: number } | null = null;
@@ -697,16 +721,26 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
       // corners were found (a loose card with a thumb on two corners);
       // sharpening the corner box with it measured worse (10-15 harness).
       let quad: Quad | null = null;
+      // Whether this tick's fix earned green (debug ticks); null = no card.
+      let readyNow: boolean | null = null;
       // Last tick's corners in frame pixels, for the corner finder to track.
       const preferFrame = seen ? (seen.map((p) => ({ x: g.x + p.x * g.w, y: g.y + p.y * g.h })) as [Point, Point, Point, Point]) : null;
-      const corners = cornersFromSource(video, g, vw, vh, preferFrame, { gray, w, h, sx, sy, sw, sh });
+      const corners = cornersFromSource(video, g, vw, vh, preferFrame, preferFrame ? lastScores : null, { gray, w, h, sx, sy, sw, sh });
+      if (corners) lastScores = corners.scores;
+      // Sure = the box earned its corners (10-16, measured on 18 labeled
+      // binder frames: every box that was the card had all four corners at
+      // 30+ and an edge along 70 %+ of its sides; no box on half a card or
+      // across two cards did). Green needs it: a doubtful box stays blue
+      // (Chris, 10-16: "green ... well above, below and side to side of the
+      // card"). The line finder's box (no corners) is taken as it was.
+      const sure = corners ? Math.min(...corners.scores) >= 30 && corners.support >= 0.7 : true;
       if (corners) {
         const cc = corners.corners.map((p) => ({ x: ((p.x - sx) / sw) * w, y: ((p.y - sy) / sh) * h })) as [Point, Point, Point, Point];
         const area = Math.abs(cc.reduce((s, p, i) => s + p.x * cc[(i + 1) % 4].y - cc[(i + 1) % 4].x * p.y, 0)) / 2 / (w * h);
         quad = { corners: cc, area, angle: corners.angle };
         if (trace) {
           // "T" = carried over from last tick (tracked), "F" = found afresh.
-          trace.reason = `corners ${corners.scores.map((s) => s.toFixed(0)).join("/")} ${corners.tracked ? "T" : "F"}`;
+          trace.reason = `corners ${corners.scores.map((s) => s.toFixed(0)).join("/")} ${corners.tracked ? "T" : "F"} sup ${corners.support.toFixed(2)}${sure ? " sure" : ""}`;
           trace.sides = "";
         }
       } else {
@@ -737,7 +771,6 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
         setDebugText(
           `${trace.reason} · ${trace.sides} · T ${trace.T} max ${trace.maxStep} · luma ${Math.round(light.luma)} blown ${light.blown.toFixed(3)} · hint ${next ?? "none"} · ${mirror ? "mirror" : "video"} ${vw}x${vh} · el ${video.clientWidth}x${video.clientHeight} · dumps ${dumped.current}`,
         );
-        ticks.current.push({ t: Date.now(), reason: trace.reason, quad: quad?.corners ?? null, target: outlineTarget.current, shown: outlineShown.current });
         // Every 2 s, the whole frame + the geometry to the dev server
         // (api/dev/outline-dump), to tune the finder on real frames offline.
         if (Date.now() - lastDump.current > 2000) {
@@ -809,6 +842,9 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
         const last = seen;
         const apart = (a: [Point, Point, Point, Point], b: [Point, Point, Point, Point]) => Math.max(...a.map((p, i) => Math.hypot(p.x - b[i].x, p.y - b[i].y)));
         const moved = last ? apart(fresh, last) : Infinity;
+        // Steady = three fixes running within 3 % of each other (450 ms):
+        // green waits for it, a box still settling is blue.
+        steady = moved < 0.03 ? steady + 1 : 0;
         let held = false;
         if (!last || !outlineTarget.current) seen = fresh;
         else if (moved < 0.015) {
@@ -835,7 +871,8 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
         // While a jump is held back, the colour stays as it was: the fix on
         // screen is not the one just measured.
         const inGuide = seen.every((p) => p.x > -0.12 && p.x < 1.12 && p.y > -0.12 && p.y < 1.12);
-        const ready = inGuide && Math.abs(quad.angle) <= 8 && next === null;
+        const ready = inGuide && Math.abs(quad.angle) <= 8 && next === null && sure && steady >= 2;
+        readyNow = ready;
         if (seenStreak >= 2 && !held) {
           // The drawn line starts where the card is, then glides to each
           // new fix (the frame loop below); React only hears about shows,
@@ -846,6 +883,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
         }
       } else {
         seenStreak = 0;
+        steady = 0;
         missStreak++;
         pending = null;
         // A lost tick keeps the shape (no blink) but never the green: an
@@ -861,6 +899,8 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
           setOutline(null);
         }
       }
+      // Debug: this tick's result, with the colour it earned, for the next dump.
+      if (trace) ticks.current.push({ t: Date.now(), reason: trace.reason, quad: quad?.corners ?? null, target: outlineTarget.current, shown: outlineShown.current, ready: readyNow });
     }, 150);
     return () => {
       window.clearInterval(id);

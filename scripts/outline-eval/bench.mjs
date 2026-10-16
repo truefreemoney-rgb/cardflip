@@ -36,19 +36,35 @@ const PRIOR = process.env.PRIOR === "1";
 const SUPPORT = process.env.SUPPORT !== "0";
 const TUNE = process.env.TUNE ? JSON.parse(process.env.TUNE) : {};
 const SHIFTS = [[-4, 0], [4, 0], [0, -4], [0, 4], [-8, 0], [8, 0]];
+// NOISE=σ adds Gaussian grey noise (seeded, so runs repeat) to the patches of
+// the SHIFTED runs only: a live tick is a new frame, not the same frame
+// shifted, and the candidate list changes under sensor noise (10-16: the
+// phone's tracked box moved 4.5 % a tick while this bench said 0.9 %).
+const NOISE = +(process.env.NOISE ?? 0);
+let seed = 12345;
+const rnd = () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+const gauss = () => Math.sqrt(-2 * Math.log(1 - rnd())) * Math.cos(2 * Math.PI * rnd());
+const addNoise = (gray, sigma) => { if (!sigma) return gray; for (let i = 0; i < gray.length; i++) gray[i] = Math.max(0, Math.min(255, Math.round(gray[i] + gauss() * sigma))); return gray; };
 const files = (await readdir(DUMPS)).filter((f) => f.endsWith(".json") && f.includes(filter) && (filter || labels[f.slice(11, 23)])).sort();
 
-async function patchesFor(img, FW, FH, g, dx, dy) {
+// TRACK=1: the shifted runs carry the unshifted pick over with trackCardCorners
+// (patches centred on its corners, as the phone does), picking afresh only
+// when the track is lost. TRACKTUNE='{"reach":0.04,"floor":15}' overrides TRACK_TUNING.
+const TRACK = process.env.TRACK === "1";
+const TRACKTUNE = process.env.TRACKTUNE ? JSON.parse(process.env.TRACKTUNE) : {};
+
+async function patchesFor(img, FW, FH, g, dx, dy, centres) {
   const half = g.w * SPAN / 2;
   const scale = PATCH / (g.w * SPAN);
   const out = [];
-  for (const [cx0, cy0] of [[g.x, g.y], [g.x + g.w, g.y], [g.x + g.w, g.y + g.h], [g.x, g.y + g.h]]) {
+  for (const [cx0, cy0] of centres ?? [[g.x, g.y], [g.x + g.w, g.y], [g.x + g.w, g.y + g.h], [g.x, g.y + g.h]]) {
     const cx = cx0 + dx, cy = cy0 + dy;
     const left = Math.max(0, Math.round(cx - half)), top = Math.max(0, Math.round(cy - half));
     const right = Math.min(FW, Math.round(cx + half)), bottom = Math.min(FH, Math.round(cy + half));
     const pw = Math.max(8, Math.round((right - left) * scale)), ph = Math.max(8, Math.round((bottom - top) * scale));
     const rgba = await img.clone().extract({ left, top, width: right - left, height: bottom - top }).resize(pw, ph, { fit: "fill" }).ensureAlpha().raw().toBuffer();
-    out.push({ gray: pq.toGray(rgba, pw * ph), pw, ph, ox: left, oy: top, scale });
+    const gray = pq.toGray(rgba, pw * ph);
+    out.push({ gray: dx || dy ? addNoise(gray, NOISE) : gray, pw, ph, ox: left, oy: top, scale });
   }
   return out;
 }
@@ -61,7 +77,8 @@ const iouBox = ([l, r, t, b], [L, R, T, B]) => {
 const med = (a) => { const s = [...a].sort((p, q) => p - q); return s.length ? s[Math.floor(s.length / 2)] : NaN; };
 const pct = (a, p) => { const s = [...a].sort((x, y) => x - y); return s.length ? s[Math.min(s.length - 1, Math.floor(s.length * p))] : NaN; };
 
-let n = 0, found = 0, labeled = 0, correct = 0, iouSum = 0, msSum = 0;
+let n = 0, found = 0, labeled = 0, correct = 0, iouSum = 0, msSum = 0, tracks = 0, shifts = 0;
+const lostWhy = {};
 const moves = [], perCorner = [[], [], [], []], wrongs = [];
 for (const f of files) {
   const stamp = f.replace(".json", "");
@@ -78,13 +95,25 @@ for (const f of files) {
     const rgba = await img.clone().extract({ left: Math.round(sx), top: Math.round(sy), width: Math.round(sw), height: Math.round(sh) }).resize(w, h, { fit: "fill" }).ensureAlpha().raw().toBuffer();
     support = { gray: pq.toGray(rgba, w * h), w, h, sx, sy, sw, sh };
   }
-  const run = async (dx, dy, prefer) => {
+  const run = async (dx, dy, prefer, preferScores) => {
+    const out = (p, tracked) => ({ corners: p.quad.corners.map(toCrop), frame: p.quad.corners, scores: p.fixes.map((x) => (x.score === -Infinity ? 0 : x.score)), support: p.support, tracked });
+    if (TRACK && prefer) {
+      // The prior is from the unshifted frame; the shifted patches sit round it, as the phone's do round last tick's corners.
+      const patches = await patchesFor(img, FW, FH, g, dx, dy, prefer.map((p) => [p.x, p.y]));
+      const t0 = performance.now();
+      const why = { reason: "" };
+      const track = pq.trackCardCorners(patches, prefer, g.w, FW, FH, { support, tune: TUNE, track: TRACKTUNE, lastScores: preferScores ?? null, why });
+      if (track) return { ms: performance.now() - t0, pick: out(track, true) };
+      const key = why.reason.split(" ").slice(0, 2).join(" ");
+      lostWhy[key] = (lostWhy[key] ?? 0) + 1;
+    }
     const patches = await patchesFor(img, FW, FH, g, dx, dy);
     const t0 = performance.now();
     const cands = pq.cardCornerCandidates(patches, g.w, KEEP);
-    const pick = pq.pickCardCorners(cands, MIN, FW, FH, { prefer: prefer ?? null, support, tune: TUNE });
+    // With TRACK the last box only breaks ties here (trackReach 0), as on the phone.
+    const pick = pq.pickCardCorners(cands, MIN, FW, FH, { prefer: prefer ?? null, support, tune: TRACK ? { ...TUNE, trackReach: 0 } : TUNE });
     const ms = performance.now() - t0;
-    return { ms, pick: pick ? { corners: pick.quad.corners.map(toCrop), frame: pick.quad.corners, scores: pick.fixes.map((x) => (x.score === -Infinity ? 0 : x.score)), support: pick.support } : null };
+    return { ms, pick: pick ? out(pick, false) : null };
   };
   const base = await run(0, 0, null);
   n++; msSum += base.ms;
@@ -110,18 +139,23 @@ for (const f of files) {
     }
   }
   if (base.pick && !process.env.NOSHIFT) {
-    let worst = 0, lost = 0;
+    let worst = 0, lost = 0, held = 0;
     for (const [dx, dy] of SHIFTS) {
-      const r = await run(dx, dy, PRIOR ? base.pick.frame : null);
+      const r = await run(dx, dy, PRIOR ? base.pick.frame : null, PRIOR ? base.pick.scores : null);
       if (!r.pick) { lost++; continue; }
+      if (r.pick.tracked) held++;
+      // The patches moved, not the card: any move of the box is jitter.
       worst = Math.max(worst, Math.max(...r.pick.corners.map((p, i) => Math.hypot(p.x - base.pick.corners[i].x, p.y - base.pick.corners[i].y))) / meta.expect.w * 100);
     }
     moves.push(worst);
-    line += `  shift move ${worst.toFixed(1).padStart(5)}%${lost ? ` (${lost} lost)` : ""}`;
+    tracks += held;
+    shifts += SHIFTS.length;
+    line += `  shift move ${worst.toFixed(1).padStart(5)}%${lost ? ` (${lost} lost)` : ""}${TRACK ? ` held ${held}/${SHIFTS.length}` : ""}`;
   }
   if (process.env.VERBOSE) console.log(line);
 }
 console.log(`frames ${n}: found ${found}, ${(msSum / Math.max(1, n)).toFixed(1)} ms` +
   (labeled ? ` | labeled ${labeled}: correct ${correct}, mean IoU ${(iouSum / labeled).toFixed(3)}, corner err med % ${perCorner.map((c) => med(c).toFixed(1)).join("/")}` : "") +
-  (moves.length ? ` | shift move med ${med(moves).toFixed(1)}% p75 ${pct(moves, 0.75).toFixed(1)}% >8%: ${moves.filter((m) => m > 8).length}/${moves.length}` : "") +
-  (wrongs.length ? `\nwrong: ${wrongs.join(" ")}` : ""));
+  (moves.length ? ` | shift move med ${med(moves).toFixed(1)}% p75 ${pct(moves, 0.75).toFixed(1)}% >8%: ${moves.filter((m) => m > 8).length}/${moves.length}${TRACK ? ` held ${tracks}/${shifts}` : ""}` : "") +
+  (wrongs.length ? `\nwrong: ${wrongs.join(" ")}` : "") +
+  (TRACK && Object.keys(lostWhy).length ? `\ntrack lost: ${JSON.stringify(lostWhy)}` : ""));

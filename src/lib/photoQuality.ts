@@ -1024,6 +1024,137 @@ export function scoreCardBoxes(cands: [CornerFix[], CornerFix[], CornerFix[], Co
   return scored;
 }
 
+/** How a box is carried from tick to tick; see trackCardCorners. */
+export interface TrackTuning {
+  /** Each corner is looked for within this share of the box's width of where it was: a hand-held phone moves a card 1-3 % a tick, a pocket's corner sits 5-12 % off the card's. */
+  reach: number;
+  /** A corner that reads below this is lost this tick. */
+  floor: number;
+  /** A side with an edge along less than this share of its length loses the track (looser than PickTuning.sideMin: the box was good enough to take last tick, and a side that reads 0.5 there reads 0.45 a pixel over). */
+  sideMin: number;
+}
+
+export const TRACK_TUNING: TrackTuning = { reach: 0.04, floor: 15, sideMin: 0.3 };
+
+/** A box carried over from last tick: the corners as re-found (a lost one scores -Infinity and is completed from the other three), and the edge along each side. */
+export interface Track {
+  quad: Quad;
+  fixes: [CornerFix, CornerFix, CornerFix, CornerFix];
+  support: number;
+  sides: [number, number, number, number];
+}
+
+/**
+ * Last tick's box carried to this frame (10-16, Chris's binder frames): each
+ * corner is looked for again by the same template within `reach` of where
+ * it was, and the peak NEAREST to where it was is the corner: the same
+ * feature as last tick, which moves with the card and sits still when the
+ * card does. Not the strongest peak in reach: a sleeve or seam corner a few
+ * per cent off reads 2-3x stronger than the card's and would take the box
+ * (bench 10-16: strongest-in-reach moved the box 3.3 % on the same frame).
+ * A peak counts when it reads at least `floor` and, with the corner's last
+ * score given, at least half of it: the same corner reads about the same
+ * tick to tick, a grain of noise does not. Picked afresh from each tick's
+ * candidate list (pickCardCorners with `prefer`), the box swapped between
+ * near-identical candidates as the list changed under sensor noise: on the
+ * phone it moved 6 % a tick and lost the track on a third of ticks.
+ * Patch k must hold corner k's last position with room for the template
+ * round it: the scanner centres the patches on the last corners, so the card
+ * may sit anywhere, bigger or smaller than the guide. Null when fewer than
+ * three corners read as corners, or the box they make is not card-shaped or
+ * has a side with no edge along it: the caller picks afresh.
+ */
+export function trackCardCorners(patches: [CornerPatch, CornerPatch, CornerPatch, CornerPatch], last: [Point, Point, Point, Point], expectWidth: number, w: number, h: number, opts: PickOpts & { track?: Partial<TrackTuning>; lastScores?: number[] | null; /** Why the track was lost (offline harness). */ why?: { reason: string } } = {}): Track | null {
+  const tt: TrackTuning = { ...TRACK_TUNING, ...opts.track };
+  const t: PickTuning = { ...PICK_TUNING, ...opts.tune };
+  const width = Math.hypot(last[1].x - last[0].x, last[1].y - last[0].y);
+  const reading: CornerReading = { score: 0, r: 0, sign: 0, edge: 0, arc: 0, far: 0, inside: 0, past: 0 };
+  const fixes = patches.map((patch, k) => {
+    const { gray, pw, ph, ox, oy, scale } = patch;
+    const g = blur3(gray, pw, ph);
+    const r0 = expectWidth * scale * 0.045;
+    const px = Math.round((last[k].x - ox) * scale), py = Math.round((last[k].y - oy) * scale);
+    const R = Math.max(2, Math.round(width * scale * tt.reach));
+    // The best reading over the radii at every spot in reach (one ring more, for the peak test).
+    const x0 = px - R - 1, y0 = py - R - 1, W = 2 * R + 3;
+    const at = new Float32Array(W * W).fill(-Infinity);
+    const rAt = new Float32Array(W * W), signAt = new Int8Array(W * W);
+    for (const rf of CORNER_RADII) {
+      const tpl = cornerTemplate(k, r0 * rf);
+      const margin = Math.ceil(tpl.r) + 3;
+      for (let y = Math.max(margin, y0); y < Math.min(ph - margin, y0 + W); y++) {
+        for (let x = Math.max(margin, x0); x < Math.min(pw - margin, x0 + W); x++) {
+          const s = readCorner(g, pw, ph, tpl, x, y, reading);
+          const i = (y - y0) * W + (x - x0);
+          if (s > at[i]) {
+            at[i] = s;
+            rAt[i] = tpl.r;
+            signAt[i] = reading.sign;
+          }
+        }
+      }
+    }
+    // The peaks in reach that read enough, strongest first; a peak within
+    // 0.6 radii of a stronger one is the same corner read at another radius
+    // or a shoulder of its ridge (the three radii fit a corner 2-3 px apart,
+    // a plateau makes shoulders) and is dropped.
+    const was = opts.lastScores?.[k] ?? 0;
+    const need = Math.max(tt.floor, was * 0.5);
+    const peaks: Array<{ i: number; j: number; s: number }> = [];
+    for (let j = 1; j < W - 1; j++) {
+      for (let i = 1; i < W - 1; i++) {
+        const s = at[j * W + i];
+        if (s < need) continue;
+        let peak = true;
+        for (let dy = -1; dy <= 1 && peak; dy++) for (let dx = -1; dx <= 1; dx++) if ((dx || dy) && at[(j + dy) * W + i + dx] > s) { peak = false; break; }
+        if (peak) peaks.push({ i, j, s });
+      }
+    }
+    peaks.sort((a, b) => b.s - a.s);
+    const kept: typeof peaks = [];
+    for (const p of peaks) if (!kept.some((q) => Math.hypot(q.i - p.i, q.j - p.j) < r0 * 0.6)) kept.push(p);
+    // The nearest to where the corner was. A corner not seen last tick
+    // (completed from the other three, score 0) has no feature to follow:
+    // the strongest peak in reach is taken.
+    let best: CornerFix = { x: last[k].x, y: last[k].y, score: -Infinity, r: 0, sign: 0 };
+    let bestD = Infinity;
+    for (const p of kept) {
+      const d = was > 0 ? Math.hypot(p.i - R - 1, p.j - R - 1) : -p.s;
+      if (d >= bestD) continue;
+      bestD = d;
+      best = { x: ox + (x0 + p.i) / scale, y: oy + (y0 + p.j) / scale, score: p.s, r: rAt[p.j * W + p.i] / scale, sign: signAt[p.j * W + p.i] };
+    }
+    return best;
+  }) as [CornerFix, CornerFix, CornerFix, CornerFix];
+  const lost = (reason: string): null => {
+    if (opts.why) opts.why.reason = reason;
+    return null;
+  };
+  const found = fixes.filter((f) => f.score > -Infinity).length;
+  if (found < 3) return lost(`corners ${found}`);
+  const geo = boxFromCorners(fixes, tt.floor, w, h, t.maxAspect, t.maxEven, t.maxPar);
+  if (!geo) return lost("shape");
+  let signSum = 0;
+  for (const f of fixes) if (f.score > -Infinity) signSum += f.sign;
+  const sign = signSum > 0 ? 1 : signSum < 0 ? -1 : 0;
+  const sides: [number, number, number, number] = [1, 1, 1, 1];
+  let support = 1;
+  const crop = opts.support ?? null;
+  if (crop) {
+    const cg = blur3(crop.gray, crop.w, crop.h);
+    const toCrop = (p: Point): Point => ({ x: ((p.x - crop.sx) / crop.sw) * crop.w, y: ((p.y - crop.sy) / crop.sh) * crop.h });
+    let sum = 0;
+    for (let i = 0; i < 4; i++) {
+      const s = sideSupport(cg, crop.w, crop.h, toCrop(geo.quad.corners[i]), toCrop(geo.quad.corners[(i + 1) % 4]), sign, t.stepMin, t.band);
+      if (s < tt.sideMin) return lost(`side ${i} ${s.toFixed(2)}`);
+      sides[i] = s;
+      sum += s;
+    }
+    support = sum / 4;
+  }
+  return { quad: geo.quad, fixes, support, sides };
+}
+
 /**
  * The card from its four corners (frame pixels): each corner must have
  * scored at least `minScore`, or three must and the fourth is completed as

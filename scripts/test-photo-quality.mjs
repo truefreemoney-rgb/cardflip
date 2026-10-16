@@ -104,11 +104,11 @@ console.log("card corners (binder pages)");
   const FW = 480, FH = 560;
   const cardW = 240, cardH = Math.round(cardW / pq.CARD_ASPECT);
   const cx0 = (FW - cardW) / 2 + 9, cy0 = (FH - cardH) / 2 - 7;
-  const frame = (rounded) => {
+  const frame = (rounded, ox = cx0, oy = cy0) => {
     const g = new Uint8Array(FW * FH);
     const r = cardW * 0.045;
     for (let y = 0; y < FH; y++) for (let x = 0; x < FW; x++) {
-      const u = x - cx0, v = y - cy0;
+      const u = x - ox, v = y - oy;
       let inside = u >= 0 && v >= 0 && u < cardW && v < cardH;
       if (inside && rounded) {
         const dx = Math.max(0, Math.max(r - u, u - (cardW - r))), dy = Math.max(0, Math.max(r - v, v - (cardH - r)));
@@ -119,9 +119,10 @@ console.log("card corners (binder pages)");
     return g;
   };
   const guide = { x: (FW - cardW * 1.06) / 2, y: (FH - cardH * 1.06) / 2, w: cardW * 1.06, h: cardH * 1.06 };
-  const patchesOf = (g) => {
+  const guideCorners = [[guide.x, guide.y], [guide.x + guide.w, guide.y], [guide.x + guide.w, guide.y + guide.h], [guide.x, guide.y + guide.h]];
+  const patchesOf = (g, centres = guideCorners) => {
     const PATCH = 110, half = guide.w * 0.25, scale = PATCH / (guide.w * 0.5);
-    return [[guide.x, guide.y], [guide.x + guide.w, guide.y], [guide.x + guide.w, guide.y + guide.h], [guide.x, guide.y + guide.h]].map(([cx, cy]) => {
+    return centres.map(([cx, cy]) => {
       const left = Math.max(0, Math.round(cx - half)), top = Math.max(0, Math.round(cy - half));
       const right = Math.min(FW, Math.round(cx + half)), bottom = Math.min(FH, Math.round(cy + half));
       const pw = Math.round((right - left) * scale), ph = Math.round((bottom - top) * scale);
@@ -143,6 +144,28 @@ console.log("card corners (binder pages)");
   // (The corners' own scores: the box score caps each corner, 10-16.)
   const raw = (p) => p.fixes.reduce((s, f) => s + (f.score === -Infinity ? 0 : f.score), 0);
   check("a box with sharp corners scores under three quarters of the rounded card", !sharp || raw(sharp) < (rounded ? raw(rounded) : Infinity) * 0.75, sharp ? `sharp ${raw(sharp).toFixed(0)} vs rounded ${rounded ? raw(rounded).toFixed(0) : "-"}` : "");
+  // Tracking (10-16): the same card 6 px over on a noisier frame, the patches
+  // round the first pick's corners as CameraCapture cuts them: each corner is
+  // found again where the card moved to; a frame without the card loses the track.
+  if (rounded) {
+    const moved = frame(true, cx0 + 6, cy0 + 4);
+    let seed = 2463534242;
+    const rnd = () => { seed ^= seed << 13; seed >>>= 0; seed ^= seed >>> 17; seed ^= seed << 5; seed >>>= 0; return seed; };
+    for (let i = 0; i < moved.length; i++) moved[i] = Math.max(0, Math.min(255, moved[i] + (rnd() % 13) - 6));
+    const last = rounded.quad.corners;
+    const centres = last.map((p) => [p.x, p.y]);
+    // With how the corners read last tick, as the phone passes them: a peak must read at least half of that.
+    const lastScores = rounded.fixes.map((f) => (f.score === -Infinity ? 0 : f.score));
+    const track = pq.trackCardCorners(patchesOf(moved, centres), last, guide.w, FW, FH, { lastScores });
+    check("the card 6 px over on a noisy frame is tracked", track != null);
+    if (track) {
+      const want = [[cx0 + 6, cy0 + 4], [cx0 + 6 + cardW, cy0 + 4], [cx0 + 6 + cardW, cy0 + 4 + cardH], [cx0 + 6, cy0 + 4 + cardH]];
+      const off = Math.max(...track.quad.corners.map((p, i) => Math.hypot(p.x - want[i][0], p.y - want[i][1])));
+      check("each tracked corner within 1.5 % of where the card moved to", off <= cardW * 0.015, `worst ${off.toFixed(1)} px`);
+      check("all four corners re-found", track.fixes.every((f) => f.score > -Infinity));
+    }
+    check("a frame without the card loses the track", pq.trackCardCorners(patchesOf(frame(true, 9999, 9999), centres), last, guide.w, FW, FH, { lastScores }) == null);
+  }
 }
 
 console.log("warp");
