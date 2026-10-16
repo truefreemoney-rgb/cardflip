@@ -942,6 +942,7 @@ export default function CollectionPage() {
                     <span className="pointer-events-none absolute left-1.5 top-1/2 -translate-y-1/2 text-xs text-zinc-500">$</span>
                     <input
                       type="number"
+                      inputMode="decimal"
                       min="0"
                       step="0.01"
                       autoFocus
@@ -988,6 +989,7 @@ export default function CollectionPage() {
                       <span className="pointer-events-none absolute left-1.5 top-1/2 -translate-y-1/2 text-xs text-zinc-500">$</span>
                       <input
                         type="number"
+                        inputMode="decimal"
                         min="0"
                         step="0.01"
                         autoFocus
@@ -2426,6 +2428,7 @@ export default function CollectionPage() {
                     Discount
                     <input
                       type="number"
+                      inputMode="numeric"
                       min={5}
                       max={50}
                       value={offerPercent}
@@ -2504,6 +2507,7 @@ export default function CollectionPage() {
                     <label className="flex items-center gap-2 text-sm text-zinc-400">
                       <input
                         type="number"
+                        inputMode="numeric"
                         min={5}
                         max={50}
                         value={autoOfferPercent}
@@ -3203,6 +3207,7 @@ export default function CollectionPage() {
                           <span className="pointer-events-none absolute left-1.5 top-1/2 -translate-y-1/2 text-xs text-zinc-500">$</span>
                           <input
                             type="number"
+                            inputMode="decimal"
                             min="0"
                             step="0.01"
                             autoFocus
