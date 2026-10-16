@@ -4,6 +4,15 @@
 - [ ] Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
 
+## 10-16 ~3:05am ET: scanner screen + earlier unpushed batch (PUSHED 3f3ba57f 10-16 ~3:05am ET)
+- [ ] Scanner (phone, cardflip.io/app, Scan): corner brackets only, no moving box, no green; above them "Line the card's edges up with the corners". Too dark / glare shows the amber hint there instead.
+- [ ] Scanner: a binder card in its pocket scans as the card (no "slab"), three times in a row. (Tap crop grows at most 8 % past the guide now.)
+- [ ] Scan result facts panel: label reads "List it at", link "vs N listings" (shows after a real scan + "Yes, this is my card").
+- [ ] Login keeps the link's query: open cardflip.io/app?x=1 logged out, sign in, you land on /app?x=1 (15698b36). (Mine, pane.)
+- [ ] Emails with card pictures (price alert, digest): pictures load from cardflip.io/pics, not Scryfall / tcgdex (dcc21110). (Mine, /admin emails test send.)
+- [ ] /admin emails: the test button counts seconds while a slow email builds (f08f46b7). (Mine, pane.)
+- [ ] /api/dev/outline-dump answers 404 on cardflip.io. (Mine, curl.)
+
 ## 10-15 ~2:00pm ET: fixes found while working the open-tests list (in the 10-15 batch push)
 - [ ] Ad signup (A36): from cardflip.io/scan, Sign Up, finish: you land in the app with the SCANNER OPEN (it landed shut since 10-06). Close it, go to Inventory and back: it stays shut. (No new account for Chris and none made by me on prod: proven on local dev; on prod watch the next real ad signups reach a scan in the /admin funnel.)
 - [ ] Insights (A10): your Magic Insights headline equals the chart's last number; Opposition Agent shows its foil price there too. (Mine, pane.)
