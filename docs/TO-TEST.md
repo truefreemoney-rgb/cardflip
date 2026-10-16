@@ -14,6 +14,9 @@
 - [x] PASS 10-16 local: /api/ebay/comps with id base1-4 + name "Magikarp" searches "Charizard 4" (audit #1).
 - [x] PASS 10-16 local: /api/cron/emails?force=1 and /api/cron/social-video without a key -> 403 (audit #4).
 
+## 10-16: Inventory speed (NOT PUSHED, 2b110bac price guard "+game"; a6313308 folders once)
+- [ ] After push, mine: pane signed in on cardflip.io/app/collection, performance entries: /api/cards/live-prices and /api/cards/value-history under ~1 s each (were 5.7 s / 5.3 s), /api/cards/categories once. Also a card page + /cards/pokemon set page still load (same guard code).
+
 ## 10-16: cookie bar above the phone tab bar (NOT PUSHED, 605458fe; Chris approved the screenshots)
 - [ ] After push: only UK/IE visitors see it, so mine: pane at 375px on cardflip.io/app with sessionStorage cf_geo="GB" and no cf_consent cookie → bar sits above the tabs, tabs tappable.
 
