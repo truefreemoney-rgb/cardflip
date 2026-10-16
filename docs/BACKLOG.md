@@ -348,3 +348,5 @@ Nightly cron for all five games: add new sets/cards, self-host pictures, stand-i
 ## Later: auto-scan (added 10-16)
 - Fire the capture by itself when one card is lined up with the guide. Start from docs/research/scanner-outline-10-16.md (450 recorded frames, 18 labels, harness + strip cues, what failed). The live outline + green were removed 10-16; the corner finder still runs only to grow the tap's crop.
 
+
+- [ ] M — **push-catalog: send only changed rows (10-16, Chris asked)** — the nightly push resends whole tables (mtg_cards 98,930 + tcg_cards ~69k) because sync-mtg stamps every row's synced_at each run; ~5 min of slow Turso reads (10-16 3:13am smoke failed: 2 searches >15 s while the rerun pushed). Fix: hash each row locally vs a remote id->hash (or compare the price/identity columns) and REPLACE only differing/new ids. Test on a DB copy first.
