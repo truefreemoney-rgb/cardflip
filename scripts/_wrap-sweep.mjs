@@ -12,7 +12,9 @@ const ENGINE = process.env.ENGINE === "webkit" ? webkit : chromium;
 fs.mkdirSync(SHOTS, { recursive: true });
 
 const browser = await ENGINE.launch();
-const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, deviceScaleFactor: 2, isMobile: ENGINE === chromium, hasTouch: true });
+// serviceWorkers blocked on WebKit: Playwright's Windows WebKit has no push service, and pushManager.getSubscription()
+// (the Account page's notifications row) freezes the whole page there. Real iPhones have one (checked 10-16).
+const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, deviceScaleFactor: 2, isMobile: ENGINE === chromium, hasTouch: true, serviceWorkers: ENGINE === webkit ? "block" : "allow" });
 const page = await ctx.newPage();
 
 // --- a throwaway local account with watched + inventory cards (test data, local only) ---
