@@ -594,6 +594,18 @@ const SCHEMA = `
     created_at INTEGER NOT NULL
   );
 
+  -- Promo codes (10-16, lib/server/promoCodes.ts): one row per code per
+  -- account, so a code credits an account once. Not money: kept out of
+  -- scan_pack_purchases, which analytics counts as Booster sales.
+  CREATE TABLE IF NOT EXISTS promo_redemptions (
+    code TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    scans INTEGER NOT NULL,
+    bucket TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    PRIMARY KEY (code, user_id)
+  );
+
   -- Scan rollover ledger (09-30): one row per change to users.plan_scans, so a
   -- retried webhook (or the daily reconcile) credits an invoice once and every
   -- balance can be explained. credit_key is the Stripe invoice id for a payment

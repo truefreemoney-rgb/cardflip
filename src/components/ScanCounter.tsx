@@ -61,10 +61,11 @@ export default function ScanCounter({ user }: { user: SessionUser }) {
           <span>Get More Scans</span>
           {scans.frozen ? <span className="hidden font-normal opacity-70 sm:inline">· {fmt(scans.frozen)} paused</span> : null}
         </>
-      ) : subscriber ? (
+      ) : subscriber || Number(scans.remaining) > Number(scans.included) ? (
+        // A promo code (10-16) can lift a trial past its 5: "10 / 5" read as a bug, so it shows the count alone.
         <>
           <span>{fmt(scans.remaining)}</span>
-          <span className="font-normal opacity-70">scans</span>
+          <span className="font-normal opacity-70">{subscriber ? "scans" : "free scans"}</span>
         </>
       ) : (
         <>

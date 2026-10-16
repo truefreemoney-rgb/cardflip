@@ -13,7 +13,7 @@ import ListingTermsRow from "@/components/ListingTermsRow";
 import { useSession } from "@/components/SessionProvider";
 import { logout, type SessionUser } from "@/lib/client/auth";
 import { changeAccountEmail, changeLanded, mergeUser } from "@/lib/client/emailConfirm";
-import { FROZEN_SENTENCE, PRICE, PRICE_SHORT, ROLLOVER_SENTENCE, SCANS } from "@/lib/pricing";
+import { FROZEN_SENTENCE, PRICE, PRICE_SHORT, PRICING, ROLLOVER_SENTENCE, SCANS } from "@/lib/pricing";
 import { PASSWORD_MIN } from "@/lib/passwordRules";
 import type { ScanQuota } from "@/lib/quotaTypes";
 import { frozenSentence, hasPlanBalance, paymentCredited, planEndsSentence, shortDate } from "@/lib/scanCopy";
@@ -38,6 +38,7 @@ import {
   type TotpSetup,
 } from "@/lib/client/accountApi";
 import { etDate } from "@/lib/time";
+import { PromoCodeBox } from "@/components/PromoCode";
 
 /**
  * Account settings: who you are (name / sign-in email), password, eBay
@@ -739,6 +740,10 @@ function AccountSettings({
           billingReturn={billingReturn}
           billingPhase={billingPhase}
         />
+        {/* Promo codes (10-16, the FLIPBACK mail): the box is always open, a collapsed one nobody finds. */}
+        <Row title="Have a code?" status="Got a code in an email? Put it here for your free scans." open>
+          <PromoCodeBox onRedeemed={() => setReloadKey((k) => k + 1)} />
+        </Row>
         {REFERRALS_ON && (
           <div id="invite" className="scroll-mt-24">
             <InviteRow subscribed={subscribed} />
@@ -1336,7 +1341,7 @@ function PlanSection({
   ) : user.subStatus === "canceled" ? (
     `Your subscription has ended. Resubscribe, or buy a ${PRICE.pack} Booster, to keep scanning.${pausedNote}`
   ) : (
-    `Free trial: ${user.trialScansLeft ?? 0} of ${SCANS.trial} scans left. A Booster is ${SCANS.pack} scans for ${PRICE.pack} one time; a subscription is ${SCANS.standard} a month at ${PRICE.standard}, or Pro at ${SCANS.pro} for ${PRICE.pro}.${pausedNote}`
+    `Free trial: ${(user.trialScansLeft ?? 0) > PRICING.trial.scans ? `${user.trialScansLeft} free scans left` : `${user.trialScansLeft ?? 0} of ${SCANS.trial} scans left`}. A Booster is ${SCANS.pack} scans for ${PRICE.pack} one time; a subscription is ${SCANS.standard} a month at ${PRICE.standard}, or Pro at ${SCANS.pro} for ${PRICE.pro}.${pausedNote}`
   );
   const showBody = billingReturn !== null || (subscribed && !!q) || !!msg;
 

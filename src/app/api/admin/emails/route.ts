@@ -1,3 +1,4 @@
+import { comebackRecipients, sendComeback, sendComebackTest } from "@/lib/server/comebackMail";
 import { NextResponse } from "next/server";
 import { requireAdminOwner, AuthError } from "@/lib/server/auth";
 import { CAMPAIGN_IDS, VARIANT_KEYS, campaignOverview, sendCampaignTest, setCampaignsOn, sweepCampaigns, type CampaignId, type VariantKey } from "@/lib/server/campaigns";
@@ -50,6 +51,10 @@ export async function POST(req: Request) {
       await sendCampaignTest(body.test as VariantKey, OWNER_EMAIL);
       return NextResponse.json({ ok: true, to: OWNER_EMAIL });
     }
+    // The one-off FLIPBACK mail (10-16): "preview" lists who it would reach, "test" mails the owner, "send" is the real one.
+    if (body?.comeback === "preview") return NextResponse.json({ recipients: (await comebackRecipients()).map((u) => u.email) });
+    if (body?.comeback === "test") return NextResponse.json(await sendComebackTest());
+    if (body?.comeback === "send") return NextResponse.json(await sendComeback());
     if (typeof body?.runNow === "string" && (CAMPAIGN_IDS as readonly string[]).includes(body.runNow)) {
       return NextResponse.json(await sweepCampaigns(Date.now(), { force: true, only: body.runNow as CampaignId }));
     }

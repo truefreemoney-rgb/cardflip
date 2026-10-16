@@ -7,6 +7,7 @@ import OfflineWorker from "@/components/OfflineWorker";
 import Toaster from "@/components/Toaster";
 import TourOverlay from "@/components/TourOverlay";
 import { PendingWatch } from "@/components/WatchPrice";
+import { PromoCodeFromLink } from "@/components/PromoCode";
 import { NOT_AFFILIATED } from "@/lib/games";
 import { PRIVATE_META } from "@/lib/pageMeta";
 
@@ -30,6 +31,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <SubscriptionGate>{children}</SubscriptionGate>
         <TourOverlay />
         <PendingWatch />
+        <PromoCodeFromLink />
         <OfflineWorker />
       </div>
       <Toaster />
