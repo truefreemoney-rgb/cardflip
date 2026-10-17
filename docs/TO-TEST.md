@@ -4,6 +4,12 @@
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
 
+## 10-17 ~6:30pm ET: art versions are their own cards (#11 step 1; DATA LIVE on prod, code 47114b62 + 2109fd54 NOT PUSHED)
+- Now (data live): /cards/pokemon/xy/vivillon--xy1-17 $1.85 (was High Plains' $9.40); /cards/pokemon/xy/vivillon-high-plains-orange--xy1-17-highplains $9.40; /cards/pokemon/base-set-1st-edition/pikachu-red-cheeks--base1-58-redcheeks-1st $429.98; /cards/pokemon/pokemon-go/bidoof-peelable-ditto--swsh10.5-059-peelable $17.30. All PASS by curl 10-17.
+- OPEN until the push: /cards/pokemon/base-set-1st-edition/pikachu--base1-58-1st shows "This price looks off" because its series restarted today (1 priced day, vintage $187 = thin sign) and live code still blanks thin-only verdicts; the few-sales commit 2b43c844 turns that into "$187.13 + Few sales". Red Cheeks low/eBay rows already moved off it; prod has only the [187.13] series. After the push: curl it -> ~$187 with "Few sales", no "looks off" (deploy resets ISR; per-page refresh = POST api.vercel.com/v1/edge-cache/invalidate-by-tags with tag `_N_T_<path>`, worked 10-17).
+- Morning after (nightly 09:45 UTC): prod SELECT price_series for xy1-17 / xy1-17-highplains / base1-58-1st / base1-58-redcheeks-1st / swsh10.5-0xx(-peelable) each get today's point with the SAME values as TCGplayer (Meadow ~$1.85 holo, High Plains ~$9.40, 1st Ed yellow ~$187, Red Cheeks ~$430, Peelables $14-17, plain PoGO reverse ~$0.3-0.7). No card takes the other's price.
+- After push, scan: Vivillon 17/146 orange -> High Plains card; pink -> Vivillon. A plain reverse-holo Spinarak 006 -> plain Spinarak first, Peelable only offered in the list.
+
 ## 10-17 ~5pm ET: Ascended Heroes pattern reverses priced on their own (#11 part 1, 828b91b5, NOT PUSHED; screenshots still owed before push)
 - Morning after the push: /cards/pokemon/ascended-heroes/rayquaza--me02.5-153 lists 'Friend Ball Pattern' (~$0.45) and 'Energy Symbol Pattern' (~$2.22) rows, no plain 'Reverse Holofoil'.
 - Prod SELECT: `SELECT variant, COUNT(*) FROM price_series WHERE card_id LIKE 'me02.5-%' AND source='tcgplayer' GROUP BY variant` -> energySymbolPattern 140, poke/friend/love/dusk/quick/teamRocket ~140 together, reverseHolofoil gone.
