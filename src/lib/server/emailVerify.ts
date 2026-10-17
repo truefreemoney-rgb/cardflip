@@ -496,7 +496,8 @@ function sendWelcomeAfterConfirm(userId: string): Promise<void> {
 const isUniqueViolation = (err: unknown) => /UNIQUE|constraint/i.test(err instanceof Error ? err.message : String(err));
 
 export type ApplyOutcome =
-  | { status: "confirmed"; user: User; wasPending: boolean }
+  /** moved: an established account's sign-in email just changed (the caller signs out its other devices, #31). */
+  | { status: "confirmed"; user: User; wasPending: boolean; moved?: boolean }
   | { status: "taken" }
   | { status: "stale" };
 
@@ -551,11 +552,11 @@ async function applyRow(userId: string, row: VRow): Promise<ApplyOutcome> {
     .prepare("UPDATE email_verifications SET confirmed_at = ? WHERE user_id = ? AND email = ? AND confirmed_at IS NULL AND dead_at IS NULL")
     .run(Date.now(), userId, target);
   if (user.emailPending) await markEmailConfirmed(userId, { email: target });
-  return { status: "confirmed", user: (await findUserById(userId)) ?? user, wasPending: false };
+  return { status: "confirmed", user: (await findUserById(userId)) ?? user, wasPending: false, moved: true };
 }
 
 export type CodeResult =
-  | { state: "confirmed"; user: User; wasPending: boolean }
+  | { state: "confirmed"; user: User; wasPending: boolean; moved: boolean }
   | { state: "wrong"; triesLeft: number }
   | { state: "too_many" | "expired" | "taken" | "stale" };
 
@@ -595,7 +596,7 @@ export async function confirmWithCode(userId: string, code: string, now = Date.n
     .run(now, match.link_hash);
   if (used.changes < 1) return { state: "expired" }; // another request used it a moment ago
   const out = await applyRow(userId, match);
-  return out.status === "confirmed" ? { state: "confirmed", user: out.user, wasPending: out.wasPending } : { state: out.status };
+  return out.status === "confirmed" ? { state: "confirmed", user: out.user, wasPending: out.wasPending, moved: Boolean(out.moved) } : { state: out.status };
 }
 
 export type LinkState = "valid" | "confirmed" | "replaced" | "expired";
@@ -622,7 +623,7 @@ export async function peekLink(token: string, now = Date.now()): Promise<{ state
 
 export type LinkResult =
   /** userId: whose link it is; `signIn` is true only when this tap freshly lifted a signup wall. */
-  | { state: "confirmed"; already: boolean; email: string; userId: string; signIn: boolean }
+  | { state: "confirmed"; already: boolean; email: string; userId: string; signIn: boolean; moved?: boolean }
   | { state: "replaced" | "expired" | "taken" | "stale" };
 
 /**
@@ -653,7 +654,7 @@ export async function consumeLink(token: string, now = Date.now()): Promise<Link
   const out = await applyRow(row.user_id, row);
   // Only a link that just lifted a signup wall signs in; an email-change link on an established account does not.
   return out.status === "confirmed"
-    ? { state: "confirmed", already: false, email: maskEmail(row.email), userId: row.user_id, signIn: out.wasPending }
+    ? { state: "confirmed", already: false, email: maskEmail(row.email), userId: row.user_id, signIn: out.wasPending, moved: Boolean(out.moved) }
     : { state: out.status };
 }
 

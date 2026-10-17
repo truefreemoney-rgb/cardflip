@@ -1,7 +1,7 @@
 import "server-only";
 import { PRICE, PRICE_LINE } from "@/lib/pricing";
 import { cookies } from "next/headers";
-import { getSessionUserId, destroySession } from "@/lib/server/sessions";
+import { getSessionUserId, destroyOtherSessions, destroySession } from "@/lib/server/sessions";
 import { NextResponse } from "next/server";
 import { HOME_COOKIE, SESSION_COOKIE_NAME } from "@/lib/homeCookie";
 import { creditFirstUse, needsFirstUseCredit } from "@/lib/server/billingCredits";
@@ -51,6 +51,15 @@ export async function clearSessionCookie(): Promise<void> {
   if (token) await destroySession(token);
   store.delete(SESSION_COOKIE);
   store.delete(HOME_COOKIE); // signed out = no travel pass (lib/homeCookie.ts)
+}
+
+/**
+ * End every session of this user except the one making the request (#31: after 2FA on/off and an email move,
+ * like a password change). No cookie, or a cookie for someone else: every session of theirs goes.
+ */
+export async function signOutOtherDevices(userId: string): Promise<number> {
+  const store = await cookies();
+  return destroyOtherSessions(userId, store.get(SESSION_COOKIE)?.value ?? null);
 }
 
 export class AuthError extends Error {}

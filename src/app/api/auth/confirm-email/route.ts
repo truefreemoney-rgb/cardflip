@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { LIMITS, clientIp, limitOrRespond } from "@/lib/server/rateLimit";
 import { consumeLink, limitWithMessage, peekLink } from "@/lib/server/emailVerify";
 import { createSession, sessionCookieOptions } from "@/lib/server/sessions";
-import { SESSION_COOKIE } from "@/lib/server/auth";
+import { SESSION_COOKIE, signOutOtherDevices } from "@/lib/server/auth";
 import { findUserById } from "@/lib/server/users";
 import { setHomeCookie } from "@/lib/homeCookie";
 
@@ -44,6 +44,9 @@ export async function GET(req: Request) {
 
 async function confirmed(result: Extract<Awaited<ReturnType<typeof consumeLink>>, { state: "confirmed" }>) {
   const body = { ok: true, state: "confirmed", already: result.already, email: result.email };
+  // #31: an established account's sign-in email just moved: every other device signs in again. A browser already
+  // signed in to this account keeps its seat; the link opened anywhere else signs all of them out.
+  if (result.moved) await signOutOtherDevices(result.userId);
   const user = result.signIn ? await findUserById(result.userId) : null;
   if (!user) return NextResponse.json({ ...body, signedIn: false });
   const session = await createSession(user.id);

@@ -4,6 +4,10 @@
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
 
+## 10-17 ~4:15pm ET: other devices signed out on 2FA / email changes; sessions end after a year (A-H #31, NOT PUSHED)
+- After push, two browsers signed in to a TEST account (phone + pane): turn two-step on in Account on the phone -> the pane's next page load goes to /login, the phone stays in. Same for turning two-step off, and for changing the sign-in email (code typed on the phone). Your own account: you stay signed in on the device you did it on.
+- Prod SELECT after a day: `SELECT COUNT(*) FROM sessions WHERE created_at < strftime('%s','now','-365 days')*1000` = 0 once those rows are next used (old ones are refused and deleted on use).
+
 ## 10-17 ~3:30pm ET: refunds, chargebacks and failed payments (A-H #28, NOT PUSHED; Paywall copy changed, screenshot before push)
 - After push (Stripe TEST mode only, never a live card): subscribe a test account with card 4242..., then in the Stripe test dashboard refund that payment in FULL -> within a minute the subscription shows Canceled in Stripe and /app shows the paywall. A PARTIAL refund on another test subscription: still Active, scans drop by that share. A test dispute (card 4000 0000 0000 0259) -> subscription Canceled.
 - Failed renewal: a test subscription on card 4000 0000 0000 0341 goes past_due -> prod SELECT sub_past_due_at is set; it still scans for 14 days, then the paywall says "Your last payment didn't go through." with Update Card on top and no Subscribe button.

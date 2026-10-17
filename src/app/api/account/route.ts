@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { AuthError, SESSION_COOKIE, clearSessionCookie, requireUser } from "@/lib/server/auth";
+import { AuthError, SESSION_COOKIE, clearSessionCookie, requireUser, signOutOtherDevices } from "@/lib/server/auth";
 import { confirmsPassword } from "@/lib/server/password";
 import { LIMITS, clientIp, type RateLimitRule } from "@/lib/server/rateLimit";
 import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
@@ -185,6 +185,8 @@ export async function PATCH(req: NextRequest) {
     if (Object.keys(patch).length > 0) await updateUserProfile(user.id, patch);
     // Receipts go to the Stripe customer's email; a failure here must not block the change (it logs).
     if (patch.email) await updateCustomerEmail(user.stripeCustomerId, patch.email);
+    // #31: a written-at-once email move (code mail switched off) signs out every other device, like the code path does.
+    if (patch.email && patch.email !== user.email) await signOutOtherDevices(user.id);
 
     let current = user;
     const extra: Record<string, unknown> = {};

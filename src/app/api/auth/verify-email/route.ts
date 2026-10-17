@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { AuthError, requireUser } from "@/lib/server/auth";
+import { AuthError, requireUser, signOutOtherDevices } from "@/lib/server/auth";
 import { LIMITS, clientIp } from "@/lib/server/rateLimit";
 import { CODE_MAX_ATTEMPTS, cleanCode, confirmWithCode, limitWithMessage, nothingWaiting, publicUserWithEmailState } from "@/lib/server/emailVerify";
 import { findUserById, needsEmailConfirm } from "@/lib/server/users";
@@ -54,6 +54,8 @@ export async function POST(req: Request) {
     const result = await confirmWithCode(user.id, code);
     switch (result.state) {
       case "confirmed":
+        // #31: the sign-in email moved, so every other device signs in again (this one, typing the code, stays).
+        if (result.moved) await signOutOtherDevices(user.id);
         return NextResponse.json({ ok: true, wasPending: result.wasPending, user: await publicUserWithEmailState(result.user) });
       case "wrong": {
         if (result.triesLeft <= 0) {

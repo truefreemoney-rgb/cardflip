@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import QRCode from "qrcode";
-import { AuthError, requireUser } from "@/lib/server/auth";
+import { AuthError, requireUser, signOutOtherDevices } from "@/lib/server/auth";
 import { verifyPassword } from "@/lib/server/password";
 import { hasPassword } from "@/lib/googleAuth";
 import { LIMITS, clientIp } from "@/lib/server/rateLimit";
@@ -60,7 +60,10 @@ export async function POST(req: NextRequest) {
       // longer a hand-edited column.
       const backup = generateBackupCodes();
       await setTotpBackupCodes(user.id, backup.hashes);
-      return NextResponse.json({ ok: true, backupCodes: backup.codes });
+      // #31: two-step guards the next sign-in, so a session already open elsewhere (maybe the one it is meant to
+      // shut out) is ended now. This device stays signed in.
+      const signedOut = await signOutOtherDevices(user.id);
+      return NextResponse.json({ ok: true, backupCodes: backup.codes, signedOut });
     }
 
     if (action === "backup-codes") {
@@ -82,7 +85,9 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Password is incorrect" }, { status: 400 });
       }
       await disableTotp(user.id);
-      return NextResponse.json({ ok: true });
+      // #31: switching it off is the move a session thief would make; every other device has to sign in again.
+      const signedOut = await signOutOtherDevices(user.id);
+      return NextResponse.json({ ok: true, signedOut });
     }
 
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
