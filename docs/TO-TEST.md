@@ -4,6 +4,9 @@
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
 
+## 10-17 ~3:30am ET: exchange rates never go blank (A-H #16, NOT PUSHED)
+- After push + the next nightly price run: prod settings fx_rates (SELECT only) has rateAt for all 5 currencies dated today and triedAt set; Black Lotus page still shows a dollar price. Nothing new in the error mail unless a rate is over 2 days old.
+
 ## 10-17 ~2am ET: unsubscribe needs a tap (A-H #24, NOT PUSHED)
 - After push: open a real digest/update mail unsubscribe link on prod with a TEST account (owner): page says "Stop These Emails?" and the account is still subscribed (SELECT digest_off); tap Unsubscribe -> "You are Unsubscribed", digest_off = 1; set it back. Next campaign mail in Gmail shows its own Unsubscribe button at the top (List-Unsubscribe-Post header).
 

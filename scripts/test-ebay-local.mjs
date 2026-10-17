@@ -78,6 +78,13 @@ globalThis.fetch = async (input, init) => {
     const rates = day && world.fxDays.get(day);
     return rates ? json({ base: "USD", date: day, rates }) : json({ message: "not found" }, 404);
   }
+  // The backup rate source (lib/server/fx.ts, 10-17) is down whenever Frankfurter is, so these checks keep testing a stale rate.
+  if (host === "https://cdn.jsdelivr.net" || host === "https://latest.currency-api.pages.dev") {
+    log.push({ kind: "fxbackup", url });
+    if (world.fxDown) throw new TypeError("fetch failed");
+    const usd = Object.fromEntries(Object.entries(world.fxLatest.rates).map(([c, r]) => [c.toLowerCase(), r]));
+    return json({ date: world.fxLatest.date, usd });
+  }
   if (p.includes("/identity/v1/oauth2/token")) {
     log.push({ kind: "token", host });
     if (world.tokenStatus !== 200) return json({ error: "invalid_grant" }, world.tokenStatus);

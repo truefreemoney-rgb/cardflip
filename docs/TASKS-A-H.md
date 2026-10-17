@@ -23,7 +23,7 @@ Section D recovered from session a04629b6 transcript.
 ## C. Bugs and polish
 14. The Magic price limit cuts some old cards too low (e.g. Alpha Blaze of Glory $400 vs ~$579), and it has no lower limit for $1 junk listings [me] M
 15. Pokémon price-limit jump: a $99 card stays $99, but at $100 it drops to $72.50. Smooth it out [me] S
-16. Euro exchange rate is never checked for age, and one missing currency freezes them all [me] S
+16. DONE 10-17 locally: Euro exchange rate is never checked for age, and one missing currency freezes them all [me] S
 17. Nightly catalog upload resends everything; send only what changed [me] M
 18. Inventory still loads a couple of things twice; confirm and trim [me] S
 19. The support ticket photo picker allows gallery photos (camera-only rule?) [you decide] S

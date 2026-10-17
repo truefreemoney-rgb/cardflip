@@ -1,14 +1,25 @@
 import "server-only";
 import { getSetting, setSetting } from "@/lib/server/settings";
 import { COUNTRY_CURRENCY } from "@/lib/countries";
-import { fxStaleReason } from "@/lib/localPricing";
+import { FX_MAX_AGE_MS, fxStaleReason } from "@/lib/localPricing";
+import { reportServerError } from "@/lib/server/errorLog";
 
 /**
- * USD → home-currency rates for the "≈ £12.40" price hint (Chris 09-30).
+ * USD → home-currency rates for the "≈ £12.40" price hint (Chris 09-30), the
+ * Cardmarket-only Magic dollar prices (usdPerEur) and local eBay listings.
  * ECB reference rates via Frankfurter (free, no key), cached in settings
- * fx_rates and refreshed at most every 12 hours on demand, so no cron and no
- * billing job depends on it. A failed fetch keeps the last good rates; no
- * rates at all = no hint (USD is always shown).
+ * fx_rates and refreshed at most every 12 hours on demand; the nightly price
+ * crons ask for it, so it refreshes daily even with no visitors.
+ *
+ * 10-17 (A-H #16, Chris: "try to never leave a price unsure ... updated daily
+ * or weekly"): each currency stands on its own. Frankfurter first; any
+ * currency it fails or leaves out comes from the public-domain fawazahmed0
+ * currency API (jsDelivr, then its pages.dev mirror; no key, no credit line);
+ * any still missing keeps its last good rate. A rate is never dropped, so a
+ * price never goes blank for want of one. A failed refresh is retried at most
+ * every 30 minutes (not on every page view), and a rate over 2 days old is
+ * logged to error_events (the daily error mail). Local eBay listings still
+ * refuse a rate over FX_MAX_AGE_MS, per currency (listingFxRate).
  */
 export interface FxRates {
   /** ECB rate date (yyyy-mm-dd). */
@@ -16,10 +27,21 @@ export interface FxRates {
   fetchedAt: number;
   /** 1 USD = rates[CUR] units. */
   rates: Record<string, number>;
+  /** When each currency was last refreshed (ms); missing = fetchedAt (rows saved before 10-17). */
+  rateAt?: Record<string, number>;
+  /** The last refresh attempt, good or not (ms): the 30-minute retry gap. */
+  triedAt?: number;
 }
 
 const KEY = "fx_rates";
 const MAX_AGE_MS = 12 * 60 * 60 * 1000;
+const RETRY_GAP_MS = 30 * 60 * 1000;
+/** Older than this, a rate in use is reported to the daily error mail. */
+export const FX_ALERT_AGE_MS = 2 * 24 * 60 * 60 * 1000;
+const BACKUP_URLS = [
+  "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.min.json",
+  "https://latest.currency-api.pages.dev/v1/currencies/usd.min.json",
+];
 const WANTED = [...new Set(Object.values(COUNTRY_CURRENCY))].filter((c) => c !== "USD");
 
 function parse(raw: string | null): FxRates | null {
@@ -49,7 +71,10 @@ export class FxUnavailableError extends Error {
  */
 export async function listingFxRate(currency: string, siteLabel: string, now = Date.now()): Promise<{ rate: number; date: string }> {
   const fx = await getFxRates(now);
-  const reason = fxStaleReason(fx, now);
+  // Per currency: a rate kept from an older refresh is as old as ITS refresh, not the latest one.
+  const kept = fx ? rateAgeFrom(fx, currency) : 0;
+  const reason =
+    fxStaleReason(fx, now) ?? (fx && now - kept > FX_MAX_AGE_MS ? `the ${currency} rate was last updated ${new Date(kept).toISOString().slice(0, 10)}` : null);
   const rate = fx?.rates[currency];
   if (reason || !fx || !(typeof rate === "number" && rate > 0)) {
     throw new FxUnavailableError(
@@ -117,30 +142,87 @@ export async function usdPerEur(now = Date.now()): Promise<number | null> {
   return typeof eurPerUsd === "number" && eurPerUsd > 0 ? 1 / eurPerUsd : null;
 }
 
-export async function getFxRates(now = Date.now()): Promise<FxRates | null> {
-  const cached = parse(await getSetting(KEY));
-  if (cached && now - cached.fetchedAt < MAX_AGE_MS) return cached;
+const rateAgeFrom = (fx: FxRates, c: string): number => fx.rateAt?.[c] ?? fx.fetchedAt;
+const okRate = (r: unknown): r is number => typeof r === "number" && r > 0 && r < 1000;
+type Fetched = { date: string; rates: Record<string, number> };
+
+/** Frankfurter (ECB): the currencies it gave, or null. */
+async function fetchPrimary(): Promise<Fetched | null> {
   try {
     const res = await fetch(`https://api.frankfurter.dev/v1/latest?base=USD&symbols=${WANTED.join(",")}`, {
       signal: AbortSignal.timeout(4000),
       // Not "no-store" (10-13): this runs inside statically rendered card pages, where a no-store fetch throws
-      // Next's dynamic-usage error ("fx: rate refresh failed … Dynamic server usage") and flips the page to
-      // dynamic at runtime. A revalidated fetch is allowed there; the settings row above stays the real cache.
+      // Next's dynamic-usage error and flips the page to dynamic at runtime. A revalidated fetch is allowed
+      // there; the settings row stays the real cache.
       next: { revalidate: MAX_AGE_MS / 1000 },
     });
     if (!res.ok) throw new Error(`frankfurter ${res.status}`);
     const body = (await res.json()) as { date?: string; rates?: Record<string, number> };
     const rates: Record<string, number> = {};
-    for (const c of WANTED) {
-      const r = body.rates?.[c];
-      if (typeof r === "number" && r > 0 && r < 1000) rates[c] = r;
-    }
-    if (!body.date || Object.keys(rates).length !== WANTED.length) throw new Error("frankfurter: incomplete rates");
-    const fresh: FxRates = { date: body.date, fetchedAt: now, rates };
-    await setSetting(KEY, JSON.stringify(fresh));
-    return fresh;
+    for (const c of WANTED) if (okRate(body.rates?.[c])) rates[c] = body.rates![c];
+    return body.date && Object.keys(rates).length ? { date: body.date, rates } : null;
   } catch (err) {
-    console.error("fx: rate refresh failed, keeping the last good rates:", err);
-    return cached;
+    console.error("fx: Frankfurter failed:", err instanceof Error ? err.message : err);
+    return null;
   }
+}
+
+/** The backup (fawazahmed0 currency API, lower-case codes): the currencies it gave, or null. */
+async function fetchBackup(): Promise<Fetched | null> {
+  for (const url of BACKUP_URLS) {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(4000), next: { revalidate: MAX_AGE_MS / 1000 } });
+      if (!res.ok) throw new Error(`${res.status}`);
+      const body = (await res.json()) as { date?: string; usd?: Record<string, number> };
+      const rates: Record<string, number> = {};
+      for (const c of WANTED) {
+        const r = body.usd?.[c.toLowerCase()];
+        if (okRate(r)) rates[c] = r;
+      }
+      if (body.date && Object.keys(rates).length) return { date: body.date, rates };
+    } catch (err) {
+      console.error(`fx: backup ${new URL(url).host} failed:`, err instanceof Error ? err.message : err);
+    }
+  }
+  return null;
+}
+
+export async function getFxRates(now = Date.now()): Promise<FxRates | null> {
+  const cached = parse(await getSetting(KEY));
+  const complete = !!cached && WANTED.every((c) => okRate(cached.rates[c]));
+  if (cached && complete && now - cached.fetchedAt < MAX_AGE_MS) return cached;
+  if (cached?.triedAt && now - cached.triedAt < RETRY_GAP_MS) return cached;
+
+  const primary = await fetchPrimary();
+  const backup = WANTED.some((c) => !primary?.rates[c]) ? await fetchBackup() : null;
+  const rates: Record<string, number> = {};
+  const rateAt: Record<string, number> = {};
+  for (const c of WANTED) {
+    const fresh = primary?.rates[c] ?? backup?.rates[c];
+    if (fresh) {
+      rates[c] = fresh;
+      rateAt[c] = now;
+    } else if (cached && okRate(cached.rates[c])) {
+      rates[c] = cached.rates[c];
+      rateAt[c] = rateAgeFrom(cached, c);
+    }
+  }
+  const source = primary ?? backup;
+  if (!Object.keys(rates).length) {
+    // Nothing now and nothing before: remember the try so the next page view does not wait on it again.
+    await setSetting(KEY, JSON.stringify({ date: "", fetchedAt: 0, rates: {}, triedAt: now }));
+    return null;
+  }
+  const next: FxRates = source
+    ? { date: source.date, fetchedAt: now, rates, rateAt, triedAt: now }
+    : { ...(cached as FxRates), rates, rateAt, triedAt: now };
+  await setSetting(KEY, JSON.stringify(next));
+  const old = WANTED.filter((c) => rates[c] && now - rateAt[c] > FX_ALERT_AGE_MS);
+  if (old.length) {
+    await reportServerError(
+      "fx",
+      new Error(`exchange rate over 2 days old for ${old.join(", ")}: Frankfurter and the backup both failed, still using the last good rate`),
+    );
+  }
+  return next;
 }
