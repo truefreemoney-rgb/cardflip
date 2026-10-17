@@ -856,6 +856,10 @@ export async function deleteUser(userId: string, deleteBlobs?: (urls: string[]) 
       "DELETE FROM pending_watches WHERE user_id = ?",
       "DELETE FROM categories WHERE user_id = ?",
       "DELETE FROM packs WHERE user_id = ?",
+      // 10-16 (A1, app-store delete): the campaign log kept the address after the account went, and
+      // card_removals kept the seller's card names. Both are logs, not money.
+      "DELETE FROM email_sends WHERE user_id = ?1 OR lower(email) = (SELECT lower(email) FROM users WHERE id = ?1)",
+      "DELETE FROM card_removals WHERE user_id = ?",
       // A signup that never confirmed could not scan, so deleting it must not
       // burn the device's free trial (typo the address, delete, sign up again).
       // Confirmed accounts keep their row: delete-and-resign-up stays a repeat.
