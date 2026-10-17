@@ -32,6 +32,8 @@ export interface User {
   subPeriodEnd: number | null;
   /** When a subscription set to cancel ends (ms epoch); null = not ending. Banked plan scans pause then. */
   subCancelAt: number | null;
+  /** When the subscription first went past_due (ms epoch); null when it isn't past_due. */
+  subPastDueAt: number | null;
   /** 'standard' | 'pro' — from the Stripe price on the subscription. */
   plan: Plan | null;
   /**
@@ -102,6 +104,7 @@ export interface UserRow {
   sub_status: string | null;
   sub_period_end: number | null;
   sub_cancel_at: number | null;
+  sub_past_due_at: number | null;
   plan: string | null;
   scan_month: string | null;
   scans_used: number | null;
@@ -162,6 +165,7 @@ export function fromRow(row: UserRow): User {
     subStatus: row.sub_status ?? null,
     subPeriodEnd: row.sub_period_end ?? null,
     subCancelAt: row.sub_cancel_at ?? null,
+    subPastDueAt: row.sub_past_due_at ?? null,
     plan: row.plan === "pro" ? "pro" : row.plan === "standard" ? "standard" : null,
     scanMonth: row.scan_month ?? null,
     scansUsed: row.scans_used ?? 0,
@@ -205,8 +209,18 @@ export async function findUserByHandle(handle: string): Promise<User | null> {
 }
 
 /** An active (or grace-period) paid subscription. */
-export function isSubscribed(user: Pick<User, "subStatus">): boolean {
-  return user.subStatus === "active" || user.subStatus === "trialing" || user.subStatus === "past_due";
+/** A failed renewal keeps access this long while Stripe retries the card (its default retry window), then stops (#28). */
+export const PAST_DUE_GRACE_MS = 14 * 86_400_000;
+
+export function isSubscribed(user: Pick<User, "subStatus"> & Partial<Pick<User, "subPastDueAt" | "subPeriodEnd">>, now = Date.now()): boolean {
+  if (user.subStatus === "active" || user.subStatus === "trialing") return true;
+  if (user.subStatus !== "past_due") return false;
+  // Stamped: 14 days from the first failed payment. Unstamped (went past_due before the stamp existed): the
+  // period Stripe opened at the failed renewal bounds it. Neither known (a bare status, e.g. the webhook's own
+  // edge check; every real past_due row has a period end from the webhook): still subscribed, as before.
+  if (user.subPastDueAt) return now < user.subPastDueAt + PAST_DUE_GRACE_MS;
+  if (user.subPeriodEnd) return now < user.subPeriodEnd;
+  return true;
 }
 
 /**
@@ -497,8 +511,9 @@ export async function setSubscription(
   plan?: Plan | null,
   cancelAt?: number | null,
 ): Promise<void> {
-  const sets = ["sub_status = ?", "sub_period_end = ?"];
-  const args: (string | number | null)[] = [status, periodEnd];
+  // The past_due stamp keeps the FIRST moment it went past_due (repeat .updated events don't restart the grace) and clears on anything else.
+  const sets = ["sub_status = ?", "sub_period_end = ?", "sub_past_due_at = CASE WHEN ? = 'past_due' THEN COALESCE(sub_past_due_at, ?) ELSE NULL END"];
+  const args: (string | number | null)[] = [status, periodEnd, status, Date.now()];
   if (plan !== undefined) {
     sets.push("plan = ?");
     args.push(plan);
@@ -696,6 +711,7 @@ export async function createUser(
     subStatus: null,
     subPeriodEnd: null,
     subCancelAt: null,
+    subPastDueAt: null,
     plan: null,
     scanMonth: null,
     scansUsed: 0,

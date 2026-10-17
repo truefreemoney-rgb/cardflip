@@ -14,7 +14,9 @@ import {
   reversePlanScans,
 } from "@/lib/server/scanCredits";
 import {
+  cancelSubscriptionNow,
   fetchCharge,
+  fetchInvoice,
   invoiceIdForPaymentIntent,
   listCustomerPaidInvoices,
   listPaidInvoices,
@@ -24,7 +26,7 @@ import {
   type StripePlan,
   type SubscriptionState,
 } from "@/lib/server/stripe";
-import { OWNER_EMAIL, findUserById, findUserByStripeCustomer, isSubscribed, planSeedFor, reverseScanPack, spendsPlanScans, type User } from "@/lib/server/users";
+import { OWNER_EMAIL, findUserById, findUserByStripeCustomer, isSubscribed, planSeedFor, reverseScanPack, setSubscription, spendsPlanScans, type User } from "@/lib/server/users";
 
 /**
  * Turning Stripe money events into scan credits (Chris, 09-30). Scans are
@@ -252,6 +254,8 @@ export interface ReversalOutcome {
   result: "reversed" | "ignored" | "no_credit" | "nothing_more";
   scans?: number;
   note?: string;
+  /** The subscription this refund/dispute ended (#28). */
+  canceled?: string;
 }
 
 /**
@@ -313,34 +317,76 @@ async function reverseCredit(kind: "refund" | "dispute", key: string, row: { cre
   return { result: "reversed", scans: took };
 }
 
-/** charge.refunded: take back the credit in proportion to what was refunded (a partial refund takes a share, later ones the rest). */
-export async function handleChargeRefunded(charge: StripeObject): Promise<ReversalOutcome> {
-  const chargeId = str(charge.id);
-  if (!chargeId) return { result: "ignored", note: "charge without an id" };
-  const amount = typeof charge.amount === "number" ? charge.amount : 0;
-  const refunded = typeof charge.amount_refunded === "number" ? charge.amount_refunded : 0;
-  if (amount <= 0 || refunded <= 0) return { result: "ignored", note: "nothing refunded" };
-  const found = await creditBehind(chargeId, idOf(charge.payment_intent), idOf(charge.invoice), idOf(charge.customer));
-  if (!found.row) {
-    if (!found.invoiceId) return reversePack("refund", found.paymentIntent, refunded / amount);
-    // Refunded in full before its credit was written (a late webhook or reconcile): mark it so the credit lands as 0.
-    if (refunded >= amount && found.customerId) {
-      const user = await findUserByStripeCustomer(found.customerId);
-      if (user) await recordRefundBeforeCredit(user.id, `refund:${chargeId}:${refunded}`, found.invoiceId, chargeId);
-    }
-    return { result: "no_credit", note: found.invoiceId };
-  }
-  return reverseCredit("refund", `refund:${chargeId}:${refunded}`, found.row, refunded / amount, chargeId);
+/**
+ * #28 (audit 10-16): a chargeback, or a refund of the WHOLE payment, ends the subscription that invoice billed, now:
+ * the customer has the money back, so Stripe must not bill them again and they stop counting as subscribed. A
+ * partial refund (goodwill, a price fix) leaves the subscription alone. The status flips here at once when it is the
+ * subscription the account mirrors; customer.subscription.deleted then says the same. Called after the scans are
+ * taken back (keyed), so a Stripe failure here (500, Stripe retries) never takes them twice.
+ */
+async function endSubscriptionFor(kind: "refund" | "dispute", invoiceId: string | null, userId: string | null): Promise<string | null> {
+  if (!invoiceId) return null;
+  const inv = await fetchInvoice(invoiceId);
+  const subscriptionId = inv ? invoiceSubscriptionId(inv) : null;
+  if (!subscriptionId || !(await cancelSubscriptionNow(subscriptionId))) return null;
+  console.info(`stripe: ${kind} on invoice ${invoiceId}: canceled subscription ${subscriptionId}`);
+  const user = userId ? await findUserById(userId) : null;
+  if (user && user.stripeSubscriptionId === subscriptionId) await setSubscription(user.id, "canceled", user.subPeriodEnd, undefined, null);
+  return subscriptionId;
 }
 
-/** charge.dispute.created: a chargeback takes the whole credit back (a won dispute is put right by hand with the admin adjust-scans control). */
+async function userIdForCustomer(customerId: string | null): Promise<string | null> {
+  return customerId ? (await findUserByStripeCustomer(customerId))?.id ?? null : null;
+}
+
+/** charge.refunded: take back the credit in proportion to what was refunded (a partial refund takes a share, later ones the rest); a full refund also ends the subscription. */
+export async function handleChargeRefunded(charge: StripeObject): Promise<ReversalOutcome> {
+  const out = await reverseRefund(charge);
+  const amount = typeof charge.amount === "number" ? charge.amount : 0;
+  const refunded = typeof charge.amount_refunded === "number" ? charge.amount_refunded : 0;
+  if (amount > 0 && refunded >= amount && out.invoiceId) {
+    const canceled = await endSubscriptionFor("refund", out.invoiceId, out.userId ?? (await userIdForCustomer(idOf(charge.customer))));
+    if (canceled) return { ...out.outcome, canceled };
+  }
+  return out.outcome;
+}
+
+async function reverseRefund(charge: StripeObject): Promise<{ outcome: ReversalOutcome; invoiceId?: string | null; userId?: string | null }> {
+  const chargeId = str(charge.id);
+  if (!chargeId) return { outcome: { result: "ignored", note: "charge without an id" } };
+  const amount = typeof charge.amount === "number" ? charge.amount : 0;
+  const refunded = typeof charge.amount_refunded === "number" ? charge.amount_refunded : 0;
+  if (amount <= 0 || refunded <= 0) return { outcome: { result: "ignored", note: "nothing refunded" } };
+  const found = await creditBehind(chargeId, idOf(charge.payment_intent), idOf(charge.invoice), idOf(charge.customer));
+  if (!found.row) {
+    if (!found.invoiceId) return { outcome: await reversePack("refund", found.paymentIntent, refunded / amount) };
+    // Refunded in full before its credit was written (a late webhook or reconcile): mark it so the credit lands as 0.
+    const userId = await userIdForCustomer(found.customerId);
+    if (refunded >= amount && userId) await recordRefundBeforeCredit(userId, `refund:${chargeId}:${refunded}`, found.invoiceId, chargeId);
+    return { outcome: { result: "no_credit", note: found.invoiceId }, invoiceId: found.invoiceId, userId };
+  }
+  return {
+    outcome: await reverseCredit("refund", `refund:${chargeId}:${refunded}`, found.row, refunded / amount, chargeId),
+    invoiceId: found.invoiceId,
+    userId: found.row.user_id,
+  };
+}
+
+/**
+ * charge.dispute.created: a chargeback takes the whole credit back and ends the subscription (a won dispute is put
+ * right by hand: the admin adjust-scans control, and the customer subscribes again if they want to).
+ */
 export async function handleDisputeCreated(dispute: StripeObject): Promise<ReversalOutcome> {
   const disputeId = str(dispute.id);
   const chargeId = idOf(dispute.charge);
   if (!disputeId || !chargeId) return { result: "ignored", note: "dispute without a charge" };
   const found = await creditBehind(chargeId, idOf(dispute.payment_intent), null, null);
-  if (!found.row) return found.invoiceId ? { result: "no_credit", note: found.invoiceId } : reversePack("dispute", found.paymentIntent, 1);
-  return reverseCredit("dispute", `dispute:${disputeId}`, found.row, 1, chargeId);
+  if (!found.invoiceId) return reversePack("dispute", found.paymentIntent, 1);
+  const outcome: ReversalOutcome = found.row
+    ? await reverseCredit("dispute", `dispute:${disputeId}`, found.row, 1, chargeId)
+    : { result: "no_credit", note: found.invoiceId };
+  const canceled = await endSubscriptionFor("dispute", found.invoiceId, found.row?.user_id ?? (await userIdForCustomer(found.customerId)));
+  return canceled ? { ...outcome, canceled } : outcome;
 }
 
 // --- first use, deploy day ---------------------------------------------------------

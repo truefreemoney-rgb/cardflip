@@ -39,6 +39,10 @@ const subscriptions = new Map();
 // GET /charges/:id and GET /invoice_payments?payment[payment_intent]=... (refund and dispute lookups).
 const charges = new Map();
 const invoicePayments = new Map();
+// GET /invoices/:id (#28: a full refund or a dispute looks up the subscription the invoice billed) and every DELETE.
+const invoices = new Map();
+const deletes = [];
+let failDelete = false;
 const stripeCalls = [];
 const realFetch = globalThis.fetch;
 globalThis.fetch = async (url, init) => {
@@ -46,6 +50,17 @@ globalThis.fetch = async (url, init) => {
   if (!u.startsWith("https://api.stripe.com/")) return realFetch(url, init);
   stripeCalls.push(u);
   const reply = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+  if (init?.method === "DELETE") {
+    if (failDelete) return reply({ error: { message: "stripe is down" } }, 500);
+    deletes.push(u.replace("https://api.stripe.com/v1/", ""));
+    const s = subscriptions.get(u.split("/subscriptions/")[1]);
+    if (s) s.status = "canceled";
+    return reply({ id: u.split("/subscriptions/")[1], status: "canceled" });
+  }
+  if (u.includes("/invoices/")) {
+    const inv = invoices.get(u.split("/invoices/")[1]);
+    return inv ? reply(inv) : reply({ error: { message: "No such invoice" } }, 404);
+  }
   if (u.includes("/charges/")) {
     const c = charges.get(u.split("/charges/")[1]);
     return c ? reply(c) : reply({ error: { message: "no such charge" } }, 404);
@@ -524,7 +539,7 @@ const paid = (inv) => ({ type: "invoice.paid", data: { object: inv } });
   const calls0 = stripeCalls.length;
   await send({ type: "charge.refunded", data: { object: { id: "ch_r3", customer: p.cus, amount: 999, amount_refunded: 999, payment_intent: "pi_r3" } } });
   check("refund with no charge on the invoice: resolved through the charge and its invoice payment, credit taken back",
-    [await planScans(p.id), stripeCalls.slice(calls0).map((u) => u.replace("https://api.stripe.com/v1/", "").split("?")[0])], [0, ["invoice_payments"]]);
+    [await planScans(p.id), stripeCalls.slice(calls0).map((u) => u.replace("https://api.stripe.com/v1/", "").split("?")[0])], [0, ["invoice_payments", "invoices/in_r3"]]);
   // A second lookup is local now: the charge is remembered on the ledger row.
   const row = await db.prepare("SELECT charge_id FROM scan_credits WHERE credit_key = 'in_r3'").get();
   check("the charge is remembered so the next lookup needs no Stripe call", row.charge_id, "ch_r3");
@@ -569,6 +584,75 @@ const paid = (inv) => ({ type: "invoice.paid", data: { object: inv } });
   await send({ type: "charge.refunded", data: { object: { id: "ch_late", customer: late.cus, amount: 999, amount_refunded: 999, payment_intent: "pi_late" } } });
   await send(paid(newInvoice("in_late", late.cus, "sub_late", "price_std")));
   check("an invoice fully refunded BEFORE its credit arrived (a late webhook or reconcile) credits zero", await planScans(late.id), 0);
+}
+
+// --- #28 (audit 10-16): a full refund or a chargeback ends the subscription; a partial refund doesn't ---
+{
+  const { isSubscribed } = await import(at("lib/server/users.ts"));
+  const subscriber = async (sub) => {
+    const p = await mkPayer();
+    await db.prepare("UPDATE users SET stripe_subscription_id = ?, sub_status = 'active', sub_period_end = ? WHERE id = ?").run(sub, Date.now() + 20 * 86_400_000, p.id);
+    subscriptions.set(sub, { id: sub, status: "active", items: { data: [{ current_period_end: 1_900_000_000, price: { id: "price_std" } }] } });
+    return p;
+  };
+  const status = async (id) => (await findUserById(id)).subStatus;
+
+  const p = await subscriber("sub_x1");
+  const inv = newInvoice("in_x1", p.cus, "sub_x1", "price_std");
+  invoices.set("in_x1", inv);
+  await send(paid({ ...inv, charge: "ch_x1", payment_intent: "pi_x1" }));
+  deletes.length = 0;
+  await send({ type: "charge.refunded", data: { object: { id: "ch_x1", customer: p.cus, amount: 999, amount_refunded: 300, payment_intent: "pi_x1" } } });
+  check("a partial refund leaves the subscription alone (no cancel, still active)", [deletes, await status(p.id)], [[], "active"]);
+  const full = await send({ type: "charge.refunded", data: { object: { id: "ch_x1", customer: p.cus, amount: 999, amount_refunded: 999, payment_intent: "pi_x1" } } });
+  check("a full refund cancels the subscription that invoice billed, and the account stops counting as subscribed at once",
+    [full.status, deletes, await status(p.id), isSubscribed(await findUserById(p.id))], [200, ["subscriptions/sub_x1"], "canceled", false]);
+  check("...its scans are gone too", await planScans(p.id), 0);
+  deletes.length = 0;
+  await send({ type: "charge.refunded", data: { object: { id: "ch_x1", customer: p.cus, amount: 999, amount_refunded: 999, payment_intent: "pi_x1" } } });
+  check("the same refund again: already canceled, no second cancel", deletes, []);
+
+  const d = await subscriber("sub_x2");
+  const dinv = newInvoice("in_x2", d.cus, "sub_x2", "price_std");
+  invoices.set("in_x2", dinv);
+  await send(paid({ ...dinv, charge: "ch_x2", payment_intent: "pi_x2" }));
+  failDelete = true;
+  const down = await send({ type: "charge.dispute.created", data: { object: { id: "dp_x2", charge: "ch_x2", payment_intent: "pi_x2" } } });
+  failDelete = false;
+  check("a chargeback while Stripe is down: 500 so Stripe retries; the scans were taken back once, still active", [down.status, await planScans(d.id), await status(d.id)], [500, 0, "active"]);
+  const retry = await send({ type: "charge.dispute.created", data: { object: { id: "dp_x2", charge: "ch_x2", payment_intent: "pi_x2" } } });
+  check("the retry cancels it, and takes no scans twice", [retry.status, deletes, await status(d.id), (await ledgerOf(d.id)).length], [200, ["subscriptions/sub_x2"], "canceled", 2]);
+
+  // A refund of a second, unmirrored subscription's payment ends THAT one; the account's own subscription stays.
+  deletes.length = 0;
+  const two = await subscriber("sub_x3");
+  subscriptions.set("sub_x3b", { id: "sub_x3b", status: "active", items: { data: [] } });
+  const other = newInvoice("in_x3b", two.cus, "sub_x3b", "price_std");
+  invoices.set("in_x3b", other);
+  await send(paid({ ...other, charge: "ch_x3b", payment_intent: "pi_x3b" }));
+  await send({ type: "charge.refunded", data: { object: { id: "ch_x3b", customer: two.cus, amount: 999, amount_refunded: 999, payment_intent: "pi_x3b" } } });
+  check("full refund of a second subscription's payment: that one is canceled, the mirrored one stays active", [deletes, await status(two.id)], [["subscriptions/sub_x3b"], "active"]);
+}
+
+// --- #28: past_due keeps access for 14 days from the first failed payment, not forever ---
+{
+  const { isSubscribed, PAST_DUE_GRACE_MS } = await import(at("lib/server/users.ts"));
+  const p = await mkPayer();
+  const end = Date.now() + 25 * 86_400_000;
+  await setSubscription(p.id, "past_due", end, "standard");
+  const first = (await findUserById(p.id)).subPastDueAt;
+  check("going past_due stamps when it started", typeof first === "number" && Math.abs(first - Date.now()) < 5000, true);
+  await db.prepare("UPDATE users SET sub_past_due_at = ? WHERE id = ?").run(first - 3 * 86_400_000, p.id);
+  await setSubscription(p.id, "past_due", end, "standard");
+  check("another past_due event keeps the FIRST stamp (the grace doesn't restart)", (await findUserById(p.id)).subPastDueAt, first - 3 * 86_400_000);
+  const u = await findUserById(p.id);
+  check("inside the grace: still subscribed", isSubscribed(u), true);
+  check("after 14 days: not subscribed, even with the period still open", isSubscribed(u, u.subPastDueAt + PAST_DUE_GRACE_MS + 1), false);
+  await setSubscription(p.id, "active", end, "standard");
+  check("paid again: the stamp clears", (await findUserById(p.id)).subPastDueAt, null);
+  check("unstamped past_due (from before the stamp): bounded by the period end",
+    [isSubscribed({ subStatus: "past_due", subPastDueAt: null, subPeriodEnd: Date.now() + 1000 }), isSubscribed({ subStatus: "past_due", subPastDueAt: null, subPeriodEnd: Date.now() - 1000 })], [true, false]);
+  check("a bare past_due status (the webhook's own edge check) still counts", isSubscribed({ subStatus: "past_due" }), true);
 }
 
 // --- a database error is a 500 and leaves no half credit ---

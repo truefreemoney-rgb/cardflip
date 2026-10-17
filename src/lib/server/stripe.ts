@@ -261,6 +261,30 @@ export async function cancelAllSubscriptions(customerId: string | null, pinnedId
   return ids.size;
 }
 
+/** An invoice, or null when Stripe has no such invoice. Local dev and the test chain without a key answer null. */
+export async function fetchInvoice(invoiceId: string): Promise<StripeObject | null> {
+  if (!env().secretKey && process.env.VERCEL_ENV !== "production") return null;
+  return stripeRequest<StripeObject>(`invoices/${encodeURIComponent(invoiceId)}`).catch((err: Error) => {
+    if (/No such invoice/i.test(err.message)) return null;
+    throw err;
+  });
+}
+
+/**
+ * Cancel ONE subscription now (#28: its payment was disputed or refunded in full). False when it can no longer charge
+ * anyway (already canceled, gone). Throws when Stripe can't be reached, so the webhook answers 500 and Stripe retries.
+ */
+export async function cancelSubscriptionNow(subscriptionId: string): Promise<boolean> {
+  if (!env().secretKey && process.env.VERCEL_ENV !== "production") return false;
+  const s = await stripeRequest<{ status: string }>(`subscriptions/${encodeURIComponent(subscriptionId)}`).catch((err: Error) => {
+    if (/No such subscription/i.test(err.message)) return { status: "canceled" };
+    throw err;
+  });
+  if (!CHARGEABLE.has(s.status)) return false;
+  await stripeRequest(`subscriptions/${encodeURIComponent(subscriptionId)}`, undefined, "DELETE");
+  return true;
+}
+
 /** A Stripe invoice as far as scan crediting reads it (both API shapes; billingCredits.ts normalises). */
 export type StripeObject = Record<string, unknown>;
 

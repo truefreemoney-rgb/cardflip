@@ -1207,6 +1207,10 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
     "plan_credit_scans INTEGER NOT NULL DEFAULT 0",
     "plan_credit_at INTEGER",
     "sub_cancel_at INTEGER",
+    // When sub_status first turned past_due (#28, audit 10-16); NULL whenever it
+    // isn't. A failed renewal keeps access for PAST_DUE_GRACE_MS from here, not
+    // forever (Stripe can be set to leave a subscription past_due indefinitely).
+    "sub_past_due_at INTEGER",
     // Country the account was created in (x-vercel-ip-country at signup, Chris
     // 09-30). Access abroad + display currency follow it; NULL = legacy = allowed.
     "home_country TEXT",

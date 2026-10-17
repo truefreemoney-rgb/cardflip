@@ -4,6 +4,15 @@
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
 
+## 10-17 ~3:30pm ET: refunds, chargebacks and failed payments (A-H #28, NOT PUSHED; Paywall copy changed, screenshot before push)
+- After push (Stripe TEST mode only, never a live card): subscribe a test account with card 4242..., then in the Stripe test dashboard refund that payment in FULL -> within a minute the subscription shows Canceled in Stripe and /app shows the paywall. A PARTIAL refund on another test subscription: still Active, scans drop by that share. A test dispute (card 4000 0000 0000 0259) -> subscription Canceled.
+- Failed renewal: a test subscription on card 4000 0000 0000 0341 goes past_due -> prod SELECT sub_past_due_at is set; it still scans for 14 days, then the paywall says "Your last payment didn't go through." with Update Card on top and no Subscribe button.
+- Prod SELECT after deploy: `SELECT COUNT(*) FROM pragma_table_info('users') WHERE name = 'sub_past_due_at'` = 1.
+
+## 10-17 ~2:45pm ET: eBay selling checks (A-H #27, NOT PUSHED)
+- After push: a trial (unpaid) test account gets "Publishing on eBay starts with a Booster or a subscription" on Send Offer / auto-offers on / reprice of a live eBay listing; End listing still works. Your own paid account: Send Offer + reprice still work on a live listing. The 2am daily job log (`autoOffers`) shows `unpaid` counted, nothing sent for unpaid sellers.
+- Connect eBay on a second CardFlip account with an eBay login that is already linked to another CardFlip account -> /connect-ebay says "That eBay account is already linked to another CardFlip account..." (prod had 2 links, none shared, 10-17). A normal reconnect on the same account still works.
+
 ## 10-17 ~6:30pm ET: no account lookups through login/sign-up (A-H #30, NOT PUSHED; shot docs/shots/login-failed-message.png)
 - After push: cardflip.io/login with a made-up email and a wrong password shows "Incorrect email or password. Signed up with Google or X? Tap that button instead." Same words for a real email with a wrong password. Real login and Google sign-in still work on the phone. Sign up with your own existing email once: still "An account with that email already exists."
 

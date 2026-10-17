@@ -23,6 +23,15 @@ import path from "node:path";
 process.env.STRIPE_SECRET_KEY = "sk_test_x";
 process.env.STRIPE_PRICE_ID = "price_std";
 process.env.STRIPE_PRO_PRICE_ID = "price_pro";
+// A full refund or a dispute looks up the invoice's subscription to end it (#28). None of this file's invoices exist
+// in Stripe, so that lookup answers "no such invoice" here instead of reaching the real API with a fake key.
+{
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) =>
+    String(url).startsWith("https://api.stripe.com/v1/invoices/")
+      ? new Response(JSON.stringify({ error: { message: "No such invoice" } }), { status: 404, headers: { "content-type": "application/json" } })
+      : realFetch(url, init);
+}
 
 const work = mkdtempSync(path.join(tmpdir(), "cardflip-rollover-test-"));
 process.chdir(work);

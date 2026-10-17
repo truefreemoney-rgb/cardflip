@@ -29,6 +29,9 @@ export default function Paywall() {
   // "Ended" only when Stripe says the plan is gone. A trial override on a
   // subscribed account is still a trial, so it gets the trial copy.
   const lapsed = Boolean(user?.subStatus) && user?.tier !== "trial";
+  // #28: a failed renewal past its 14-day grace. Stripe is still retrying that subscription, so the way back is a new
+  // card in the billing portal; a second Subscribe here would leave two subscriptions billing the same seller.
+  const pastDue = user?.subStatus === "past_due";
   // Plan scans banked before the plan ended: paused, not lost (they come back on resubscribe).
   const paused = user?.scans?.frozen ?? 0;
   // Quick-buy box (10-07, first ad signup hit this wall): their card count up top, and
@@ -62,15 +65,17 @@ export default function Paywall() {
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col items-center px-4 py-8 sm:px-6 sm:py-12">
       <div className="mx-auto max-w-2xl text-center">
         <p className="text-sm font-semibold uppercase tracking-widest text-brand-400">
-          {lapsed ? "Welcome Back" : "Keep Scanning"}
+          {pastDue ? "Payment Failed" : lapsed ? "Welcome Back" : "Keep Scanning"}
         </p>
         <h1 className="mt-3 font-display text-3xl font-bold tracking-tight text-white sm:text-5xl">
-          {lapsed ? "Your subscription ended." : "You're out of scans."}
+          {pastDue ? "Your last payment didn't go through." : lapsed ? "Your subscription ended." : "You're out of scans."}
         </h1>
         <p className="mt-3 text-base text-zinc-400 sm:text-lg">
-          {lapsed
-            ? "Everything is still here. Pick a plan to pick it back up."
-            : "Everything you scanned is still here. Pick a plan to keep going."}
+          {pastDue
+            ? "Update your card and your plan starts again. Everything is still here."
+            : lapsed
+              ? "Everything is still here. Pick a plan to pick it back up."
+              : "Everything you scanned is still here. Pick a plan to keep going."}
         </p>
       </div>
 
@@ -102,27 +107,43 @@ export default function Paywall() {
           </p>
         )}
         <div className="flex flex-col gap-2">
+          {pastDue && (
+            <button
+              type="button"
+              onClick={() => void openPortal()}
+              disabled={busy !== null}
+              className="sheen flex w-full items-center justify-center gap-2 rounded-full bg-brand-500 px-7 py-3.5 text-center text-sm font-semibold text-white shadow-lg shadow-brand-500/25 transition hover:bg-brand-400 disabled:cursor-default disabled:opacity-60"
+            >
+              {busy === "portal" ? "Opening…" : "Update Card"}
+            </button>
+          )}
           <PlanCta
             tight
             plan="pack"
-            primary
+            primary={!pastDue}
             sessionUser={user ?? undefined}
             cta={<>Buy {SCANS.pack} Scans · <PlanPrice plan="pack" /></>}
           />
-          <PlanCta
-            tight
-            plan="standard"
-            primary={false}
-            sessionUser={user ?? undefined}
-            cta={<>Subscribe · <PlanPrice plan="standard" />/mo</>}
-          />
+          {!pastDue && (
+            <PlanCta
+              tight
+              plan="standard"
+              primary={false}
+              sessionUser={user ?? undefined}
+              cta={<>Subscribe · <PlanPrice plan="standard" />/mo</>}
+            />
+          )}
         </div>
         <p className="mt-2 text-center text-xs text-zinc-500">Booster: pay once, scans never expire.</p>
       </div>
 
-      <PlanCard trial={false} sessionUser={user ?? undefined} className="mt-6 w-full text-left" />
+      {!pastDue && (
+        <>
+          <PlanCard trial={false} sessionUser={user ?? undefined} className="mt-6 w-full text-left" />
 
-      <p className="mt-4 text-center text-xs text-zinc-500">{ROLLOVER_SENTENCE} Cancel any time.</p>
+          <p className="mt-4 text-center text-xs text-zinc-500">{ROLLOVER_SENTENCE} Cancel any time.</p>
+        </>
+      )}
 
       {error && (
         <p role="alert" className="mt-4 w-full max-w-md rounded-lg bg-red-500/10 px-3 py-2 text-center text-sm text-red-300">
@@ -130,7 +151,7 @@ export default function Paywall() {
         </p>
       )}
 
-      {lapsed && (
+      {lapsed && !pastDue && (
         <button type="button" onClick={() => void openPortal()} disabled={busy !== null} className={`mt-4 ${quiet}`}>
           {busy === "portal" ? "Opening…" : "Fix a Failed Card"}
         </button>
