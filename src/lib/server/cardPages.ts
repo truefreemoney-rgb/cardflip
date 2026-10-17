@@ -1,8 +1,8 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { cachedList, dropCachedLists } from "@/lib/server/listCache";
+import { cachedList, cachedListSwr, dropCachedLists } from "@/lib/server/listCache";
 import { gamePublic, type GatedGame } from "@/lib/server/settings";
-import { PRICE_TRUST, REF_ALT_SOURCE, lastPriced } from "@/lib/server/priceTrust";
+import { MTG_REFEREE_SQL, PRICE_TRUST, REF_ALT_SOURCE, lastPriced } from "@/lib/server/priceTrust";
 import { judgeFull, judgeSeries, loadTrustData, readEbayAsks, readListingLows, type TrustData, type TrustSeries } from "@/lib/server/priceTrustSite";
 import { largeImage } from "@/lib/server/mtgCards";
 import { addDays, dayIndex, decodePrices, todayUtc } from "@/lib/priceSeries";
@@ -154,6 +154,65 @@ async function buildSets(game: GameId): Promise<SetEntry[]> {
     .filter((r) => Number(r.n) > 0 && (r.name || r.code))
     .map((r) => ({ key: r.skey, name: tidySetName(r.name || r.code), code: r.code ?? "", release: r.rel ?? "", count: Number(r.n), qualifying: Number(r.q), priced: Number(r.p) }))
     .sort((a, b) => (b.release || "").localeCompare(a.release || "") || a.name.localeCompare(b.name));
+}
+
+/** A set's value (10-17, task #63): the sum of its cards' current prices, and how many cards that is. */
+export interface SetValue {
+  key: string;
+  total: number;
+  n: number;
+}
+
+/**
+ * Every set's value for one game, most valuable first, one grouped read a day. A sum over hundreds of sets cannot go
+ * through the full guard per card, so the cheap filters the catalog already trusts stand in: Pokemon takes each card's
+ * dearest fresh printing but skips a price 3x or more its level a week before (a fresh spike, the Charizard $1,400 ->
+ * $6,999 kind); Magic keeps only prices the Cardmarket referee lets through (MTG_REFEREE_SQL); the young games read
+ * the catalog price. Empty on any failure: the section just does not show.
+ */
+export async function setValues(game: GameId): Promise<SetValue[]> {
+  try {
+    // ~21 s on Turso for Pokemon (a json walk of every series): stale-while-revalidate, never on a visitor's clock.
+    const { value } = await cachedListSwr(`seo:setvalues:v1:${game}`, TOP_TTL_MS, async () => {
+      let rows: { skey: string; total: number; n: number }[];
+      if (game === "pokemon") {
+        rows = (await db
+          .prepare(
+            `SELECT c.set_id AS skey, SUM(v.p) AS total, COUNT(*) AS n FROM en_cards c JOIN (
+               SELECT card_id, MAX(json_extract(prices, '$[#-1]')) AS p FROM price_series
+                WHERE game = 'pokemon' AND source = 'tcgplayer' AND currency = 'USD' AND updated_day >= ?
+                  AND json_extract(prices, '$[#-1]') > 0
+                  AND NOT (json_extract(prices, '$[#-8]') > 0 AND json_extract(prices, '$[#-1]') >= 3 * json_extract(prices, '$[#-8]'))
+                GROUP BY card_id) v ON v.card_id = c.id
+              WHERE c.image_url <> '' GROUP BY c.set_id`,
+          )
+          .all(freshCutoff())) as unknown as typeof rows;
+      } else if (game === "mtg") {
+        rows = (await db
+          .prepare(
+            `SELECT set_code AS skey, SUM(price_usd) AS total, COUNT(*) AS n FROM mtg_cards
+              WHERE price_usd > 0 AND image_url <> '' AND lang = 'en' AND ${MTG_REFEREE_SQL} GROUP BY set_code`,
+          )
+          .all()) as unknown as typeof rows;
+      } else {
+        rows = (await db
+          .prepare(
+            `SELECT set_code || '|' || set_name AS skey, SUM(COALESCE(NULLIF(price_usd, 0), price_usd_foil)) AS total, COUNT(*) AS n
+               FROM tcg_cards WHERE game = ? AND image_url <> '' AND id NOT LIKE '%#%' AND (price_usd > 0 OR price_usd_foil > 0)
+              GROUP BY set_code, set_name`,
+          )
+          .all(game)) as unknown as typeof rows;
+      }
+      return rows
+        .map((r) => ({ key: r.skey, total: Math.round(Number(r.total) * 100) / 100, n: Number(r.n) }))
+        .filter((r) => r.total > 0)
+        .sort((a, b) => b.total - a.total);
+    }, [] as SetValue[]);
+    return value;
+  } catch (err) {
+    console.warn(`card pages: could not total the ${game} sets`, err);
+    return [];
+  }
 }
 
 export interface SetIndex {

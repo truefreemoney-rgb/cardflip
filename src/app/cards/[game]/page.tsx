@@ -9,7 +9,8 @@ import { Crumbs, GameTabs, ScanCta, TileGrid } from "@/components/CardPagesUi";
 import CatalogSearch from "@/components/CatalogSearch";
 import { gamePath, gameTitle, setPath } from "@/lib/cardPages";
 import { hasMovers } from "@/lib/server/moversPage";
-import { gameTopTiles, publicCardGame, publicCardGames, setIndex, type SetIndex, type Tile } from "@/lib/server/cardPages";
+import { gameTopTiles, publicCardGame, publicCardGames, setIndex, setValues, type SetIndex, type SetValue, type Tile } from "@/lib/server/cardPages";
+import { formatMoney } from "@/lib/listing";
 import { pageMetadata } from "@/lib/seo";
 import { breadcrumbGraph } from "@/lib/structuredData";
 import { etDate } from "@/lib/time";
@@ -30,6 +31,8 @@ interface Loaded {
   game: GameId;
   index: SetIndex;
   top: Tile[];
+  /** Sets by value, most valuable first (#63). */
+  values: SetValue[];
   /** Every public game hub, for the tab row. */
   games: GameId[];
 }
@@ -40,8 +43,8 @@ const load = cache(async (slug: string): Promise<Loaded | null> => {
   if (!game) return null;
   const index = await setIndex(game);
   if (index.sets.length === 0) return null;
-  const [top, games] = await Promise.all([gameTopTiles(game), publicCardGames()]);
-  return { game, index, top, games };
+  const [top, games, values] = await Promise.all([gameTopTiles(game), publicCardGames(), setValues(game)]);
+  return { game, index, top, games, values };
 });
 
 export async function generateMetadata({ params }: PageProps<"/cards/[game]">): Promise<Metadata> {
@@ -60,9 +63,11 @@ export default async function GameHubPage({ params }: PageProps<"/cards/[game]">
   const { game: slug } = await params;
   const l = await load(slug);
   if (!l) notFound();
-  const { game, index, top, games } = l;
+  const { game, index, top, games, values } = l;
   const name = gameTitle(game);
   const sets = index.sets.filter((s) => s.priced > 0);
+  const bySet = new Map(sets.map((s) => [s.key, s]));
+  const byValue = values.flatMap((v) => (bySet.has(v.key) ? [{ set: bySet.get(v.key)!, v }] : [])).slice(0, 10);
 
   return (
     <div className="flex min-h-dvh flex-col bg-background text-foreground">
@@ -88,6 +93,31 @@ export default async function GameHubPage({ params }: PageProps<"/cards/[game]">
           <section className="mt-8">
             <h2 className="font-display text-2xl font-semibold text-white">Most valuable cards</h2>
             <TileGrid game={game} tiles={top} showSet />
+          </section>
+        )}
+
+        {/* Most valuable sets (10-17, #63): the sum of current prices, a daily read (lib/server/cardPages.ts setValues). */}
+        {byValue.length > 0 && (
+          <section className="mt-10">
+            <h2 className="font-display text-2xl font-semibold text-white">Most valuable sets</h2>
+            <p className="mt-1 text-sm text-zinc-500">All the cards in a set added up, at today's prices.</p>
+            <ol className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {byValue.map(({ set, v }, i) => (
+                <li key={set.key}>
+                  <Link
+                    href={setPath(game, index.slugOf.get(set.key) ?? "")}
+                    className="flex h-full items-center gap-3 rounded-xl border border-edge bg-surface-1 px-3 py-2 transition hover:border-edge-strong"
+                  >
+                    <span className="w-6 shrink-0 text-sm font-semibold tabular-nums text-zinc-500">{i + 1}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium leading-tight text-white">{set.name}</span>
+                      <span className="text-xs leading-tight text-zinc-500">{v.n.toLocaleString("en-US")} {v.n === 1 ? "card" : "cards"}</span>
+                    </span>
+                    <span className="shrink-0 font-display text-sm font-semibold tabular-nums text-emerald-300">{formatMoney(v.total)}</span>
+                  </Link>
+                </li>
+              ))}
+            </ol>
           </section>
         )}
 

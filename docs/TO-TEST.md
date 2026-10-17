@@ -629,3 +629,10 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 - [ ] Homepage hero line reads "...adds up what your whole binder is worth. Selling? It writes the eBay listing. You tap Post." (Chris yes 10-16).
 
 - [ ] Pokemon listing cap (10-16, after push): Base Set 2 Mewtwo (base4-10) card page ~$68 not $129.77; Skyridge Piloswine H22 unchanged ~$388; a cheap holo under $20 unchanged; none of the capped ones show "looks off".
+
+## 10-17 competitor tasks (NOT PUSHED; commits 5aee281c, d90ee762, 4427a6fe, d7f10921, + #63)
+- #59 titles: card tab title "Name Number Set price: $X" (only where it fits 60, never a flagged price); set title has the year; set meta description has count, range, top card. Check: curl a live card + set page <title>/<meta description>.
+- #58 card pages "Common questions" (3 collapsed Q&As). Check on phone: open/close, LP/HP values = 85% / 55% of the price.
+- #61 "All" range pill on card charts + Inventory value chart. Check on phone: no overflow, All shows full history.
+- #62 set summary strip (7d/30d set value, typical card, most valuable). Check numbers on a live set vs the card list.
+- #63 "Most valuable sets" on /cards/<game> (top 10). SWR cache seo:setvalues:v1:<game> (~21 s query, built after the response): the section may be MISSING on the first build of a hub page and appears after ISR revalidates (<= 2 days). Check all 5 games show it within 2 days, and Pokemon top 5 ~ Skyridge, Legendary Collection, Holon Phantoms, Base Set 1st Ed, Aquapolis.
