@@ -22,8 +22,8 @@ import { ebaySearchUrl, ebaySoldSearchUrl, formatMoney, pickPrice, priceFlagOf, 
 import { PriceFlagText } from "@/components/PriceFlagNote";
 import { PRICE_FLAG_LINK, priceFlagLeftOut, type PriceFlag } from "@/lib/priceFlag";
 import { normalizeNumber } from "@/lib/cardNumber";
-import { displayCardNumber } from "@/lib/games";
-import type { PokemonCard, ScanLanguage } from "@/lib/types";
+import { displayCardNumber, GAME_IDS, GAMES } from "@/lib/games";
+import type { GameId, PokemonCard, ScanLanguage } from "@/lib/types";
 import { etDate } from "@/lib/time";
 
 const LANGUAGE_LABEL: Record<string, string> = {
@@ -513,6 +513,13 @@ export default function WishlistPage() {
 
   if (!user) return <PageSkeleton />;
 
+  // Watched cards per game, beside each name in the game picker (Chris 10-17).
+  const gameCounts: Partial<Record<GameId, number>> = {};
+  for (const i of items) {
+    const g = i.game ?? "pokemon";
+    gameCounts[g] = (gameCounts[g] ?? 0) + 1;
+  }
+
   // A row the price guard flags counts for nothing: its saved and current numbers are both left out.
   const total = items.reduce((sum, i) => sum + (nowFlags[i.id] ? 0 : (i.price ?? 0)), 0);
   // Current market where the repricing pass has answered, saved price elsewhere.
@@ -632,6 +639,7 @@ export default function WishlistPage() {
         </div>
         <CardSearchBox
           search={search}
+          gameCounts={gameCounts}
           hint={search.mode === "browse" ? "Every card in the set — tap any to watch it." : "Add a card by name — no need to have it in hand."}
         />
 
@@ -756,7 +764,28 @@ export default function WishlistPage() {
               </div>
             )}
           </div>
-          {visibleItems.length === 0 ? (
+          {visibleItems.length === 0 && !items.some((i) => (i.game ?? "pokemon") === game) ? (
+            // 10-17 (Chris, on Magic with 6 Pokémon cards): the list is split by the
+            // game picked above, so say so and offer the games that do have cards.
+            <div className="flex flex-col items-center gap-3 rounded-xl border border-edge bg-surface-1 px-4 py-6 text-center">
+              <p className="text-sm text-zinc-400">No {GAMES[game].label} cards on your watchlist.</p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {GAME_IDS.map((id) => {
+                  const n = gameCounts[id] ?? 0;
+                  return n > 0 ? (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => search.setGame(id)}
+                      className="rounded-full border border-brand-400/60 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-brand-500/20"
+                    >
+                      Show {GAMES[id].label} ({n})
+                    </button>
+                  ) : null;
+                })}
+              </div>
+            </div>
+          ) : visibleItems.length === 0 ? (
             <p className="rounded-xl border border-edge bg-surface-1 px-4 py-6 text-center text-sm text-zinc-500">
               Nothing matches that filter.
             </p>

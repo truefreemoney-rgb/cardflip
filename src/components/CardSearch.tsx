@@ -210,7 +210,7 @@ function useVisibleGames(): GameId[] {
 }
 
 /** The game, as one pill beside the box (10-14 redesign); the phone's own picker opens on a tap. */
-function GamePicker({ game, onChange }: { game: GameId; onChange: (game: GameId) => void }) {
+function GamePicker({ game, onChange, counts }: { game: GameId; onChange: (game: GameId) => void; counts?: Partial<Record<GameId, number>> }) {
   const visible = useVisibleGames();
   const hidden = !visible.includes(game);
   useEffect(() => {
@@ -220,6 +220,7 @@ function GamePicker({ game, onChange }: { game: GameId; onChange: (game: GameId)
   return (
     <label className="relative flex h-12 shrink-0 items-center rounded-2xl border border-edge bg-surface-2 pl-3.5 pr-8 text-sm font-semibold text-white transition hover:border-edge-strong focus-within:border-brand-400">
       {GAMES[game].label}
+      {counts && <span className="ml-1.5 font-normal text-zinc-400">· {counts[game] ?? 0}</span>}
       <select
         value={game}
         onChange={(e) => onChange(e.target.value as GameId)}
@@ -229,6 +230,7 @@ function GamePicker({ game, onChange }: { game: GameId; onChange: (game: GameId)
         {visible.map((id) => (
           <option key={id} value={id}>
             {GAMES[id].label}
+            {counts ? ` (${counts[id] ?? 0})` : ""}
           </option>
         ))}
       </select>
@@ -258,8 +260,11 @@ export function CardSearchBox({
   rowProps,
   hint,
   sticky = false,
+  gameCounts,
 }: {
   search: CardSearch;
+  /** Cards per game beside each game name (the Watchlist: its list is split by the picked game). */
+  gameCounts?: Partial<Record<GameId, number>>;
   /** The page is busy with something of its own (the Watchlist reading a photo). */
   disabled?: boolean;
   /** Buttons under the box (the Watchlist's "From a photo"). */
@@ -279,7 +284,7 @@ export function CardSearchBox({
     <>
       <div className={sticky ? "sticky top-12 z-30 -mx-4 bg-background/90 px-4 pb-3 pt-2 backdrop-blur-md sm:top-[4.25rem] sm:-mx-6 sm:px-6" : ""}>
         <div {...rowProps} className="flex gap-2">
-          <GamePicker game={game} onChange={search.setGame} />
+          <GamePicker game={game} onChange={search.setGame} counts={gameCounts} />
           {mode === "search" ? (
             <div className="flex h-12 min-w-0 flex-1 items-center rounded-2xl border border-edge-strong bg-black/40 transition focus-within:border-brand-400 focus-within:ring-4 focus-within:ring-brand-500/15">
               <SearchIcon className="ml-3.5 h-[18px] w-[18px] shrink-0 text-zinc-500" />
