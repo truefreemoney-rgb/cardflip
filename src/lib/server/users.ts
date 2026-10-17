@@ -380,6 +380,16 @@ export function scanTier(user: Pick<User, "email" | "role" | "subStatus" | "crea
 }
 
 /**
+ * Selling on eBay is paid (09-04): the same rule as auth.ts sellingGate, for
+ * code with no request to answer (the daily auto-offer sweep). Trial accounts
+ * never sell; the email wall only ever applies to trial accounts, so it is
+ * covered by the same check.
+ */
+export function canSell(user: Pick<User, "email" | "role" | "subStatus" | "createdAt" | "accessOverride" | "extraScans">): boolean {
+  return user.role === "admin" || scanTier(user) !== "trial";
+}
+
+/**
  * Email confirmation wall (lib/server/emailVerify.ts). Only a trial account
  * that signed up while the admin switch was on can be walled: scanTier already
  * exempts the owner, admins, every override but "trial", subscribers, legacy

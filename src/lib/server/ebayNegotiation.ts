@@ -1,6 +1,7 @@
 import "server-only";
 import { tokenOrSkip } from "@/lib/server/ebayAuth";
 import { db } from "@/lib/db";
+import { canSell, findUserById } from "@/lib/server/users";
 import { getCardForUser, setWatcherOfferSent, type CardRecord } from "@/lib/server/cards";
 import { EbaySellError, ebayFetch } from "@/lib/server/ebaySell";
 import { US_MARKETPLACE, marketplaceByEbayId, type Marketplace } from "@/lib/marketplaces";
@@ -131,6 +132,8 @@ export interface AutoOfferSweepResult {
   sellers: number;
   sent: number;
   failed: number;
+  /** Opted-in sellers skipped because they can't sell right now (no subscription/Booster). */
+  unpaid: number;
 }
 
 /**
@@ -152,7 +155,14 @@ export async function sweepAutoOffers(now = Date.now()): Promise<AutoOfferSweepR
   const cutoff = now - AUTO_OFFER_MIN_LISTED_DAYS * 86_400_000;
   let sent = 0;
   let failed = 0;
+  let unpaid = 0;
   for (const seller of sellers) {
+    // Opted in while paid, then lapsed (or a trial that set it before the gate): no sends until they pay again.
+    const owner = await findUserById(seller.id);
+    if (!owner || !canSell(owner)) {
+      unpaid++;
+      continue;
+    }
     const slow = (await db
       .prepare(
         `SELECT id, ebay_listing_id, ebay_marketplace FROM cards
@@ -196,5 +206,5 @@ export async function sweepAutoOffers(now = Date.now()): Promise<AutoOfferSweepR
       }
     }
   }
-  return { sellers: sellers.length, sent, failed };
+  return { sellers: sellers.length, sent, failed, unpaid };
 }

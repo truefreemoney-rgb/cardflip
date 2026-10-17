@@ -271,9 +271,11 @@ function signState(nonce: string, userId: string): string {
 export function verifyOAuthState(state: string, userId: string): boolean {
   const [nonce, sig] = state.split(".");
   if (!nonce || !sig) return false;
-  const expected = signState(nonce, userId);
-  if (expected.length !== sig.length) return false;
-  return timingSafeEqual(Buffer.from(expected), Buffer.from(sig));
+  const expected = Buffer.from(signState(nonce, userId));
+  const given = Buffer.from(sig);
+  // Byte lengths, not string lengths: a non-ASCII sig of the same char count would make timingSafeEqual throw.
+  if (expected.length !== given.length) return false;
+  return timingSafeEqual(expected, given);
 }
 
 // ---------------------------------------------------------------------------
@@ -333,6 +335,15 @@ async function tokenRequest(body: URLSearchParams): Promise<TokenResponse> {
  * Finish the connect: swap the callback code for tokens, look up who just
  * linked, and store it. Overwrites any previous link for this user.
  */
+/** The eBay account the seller just signed into is already linked to a different CardFlip account. */
+export class EbayAccountTakenError extends Error {
+  readonly ebayUsername: string | null;
+  constructor(ebayUsername: string | null) {
+    super("That eBay account is already linked to another CardFlip account");
+    this.ebayUsername = ebayUsername;
+  }
+}
+
 export async function completeEbayConnect(userId: string, code: string): Promise<EbayLink> {
   const { ruName } = config();
   const tokens = await tokenRequest(
@@ -352,6 +363,15 @@ export async function completeEbayConnect(userId: string, code: string): Promise
     console.error("eBay identity lookup failed:", err);
     return null;
   });
+
+  // One eBay account = one CardFlip account: two accounts on the same eBay seller would both sync its sales,
+  // both edit its listings, and both answer eBay's deletion notice. Relinking the SAME CardFlip account is fine.
+  if (identity?.userId) {
+    const holder = (await db
+      .prepare("SELECT user_id FROM ebay_tokens WHERE ebay_user_id = ? AND user_id != ? LIMIT 1")
+      .get(identity.userId, userId)) as { user_id: string } | undefined;
+    if (holder) throw new EbayAccountTakenError(identity.username);
+  }
 
   const now = Date.now();
   await db.prepare(

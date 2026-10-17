@@ -83,6 +83,8 @@ const NOW = Date.now();
 const DAY = 86_400_000;
 const seller = await createUser("Seller", "seller@example.com", "hunter22", "user");
 const uid = seller.id;
+// Selling is paid (#27): the sweep only sends for a seller who can sell, so this one subscribes.
+await db.prepare("UPDATE users SET sub_status = 'active' WHERE id = ?").run(uid);
 let n = 0;
 async function listedCard(opts = {}) {
   const card = await createCard(uid, { cardName: `Card ${++n}`, setName: "Base Set", cardNumber: String(n), imageUrl: "", condition: "NM", price: opts.price ?? 10, catalogCardId: opts.catalogId ?? null });
@@ -136,7 +138,7 @@ check("eligible: 500 → error", (await findEligibleListingIds(uid)).skipped, "e
 // --- auto-offer sweep ----------------------------------------------------------
 posts.length = 0;
 routes.eligible = [{ eligibleItems: [] }];
-check("sweep: nobody opted in → nothing", await sweepAutoOffers(NOW), { sellers: 0, sent: 0, failed: 0 });
+check("sweep: nobody opted in → nothing", await sweepAutoOffers(NOW), { sellers: 0, sent: 0, failed: 0, unpaid: 0 });
 
 await listedCard({ listingId: "A-old", listedAt: NOW - 20 * DAY });
 const young = await listedCard({ listingId: "A-young", listedAt: NOW - 3 * DAY });
@@ -145,7 +147,7 @@ const notEligible = await listedCard({ listingId: "A-noteligible", listedAt: NOW
 await db.prepare("UPDATE users SET auto_offer_percent = 15, auto_offer_message = 'Slow mover' WHERE id = ?").run(uid);
 routes.eligible = [{ eligibleItems: [{ listingId: "A-old" }, { listingId: "A-young" }, { listingId: "A-done" }] }];
 r = await sweepAutoOffers(NOW);
-check("sweep: only the 14+ day, never-offered, eligible listing", [r, posts.map((p) => p.offeredItems[0].listingId)], [{ sellers: 1, sent: 1, failed: 0 }, ["A-old"]]);
+check("sweep: only the 14+ day, never-offered, eligible listing", [r, posts.map((p) => p.offeredItems[0].listingId)], [{ sellers: 1, sent: 1, failed: 0, unpaid: 0 }, ["A-old"]]);
 check("sweep: uses the seller's percent + message", [posts[0].offeredItems[0].discountPercentage, posts[0].message], ["15", "Slow mover"]);
 check("sweep: young / already-offered / ineligible untouched", [
   Boolean((await getCardForUser(young.id, uid)).watcherOfferAt),
@@ -174,6 +176,17 @@ routes.sendOffer = json({ errors: [{ errorId: 1 }] }, 400);
 r = await sweepAutoOffers(NOW);
 check("sweep: send failures counted, run continues", r.failed, 2);
 routes.sendOffer = null;
+
+// #27: opted in while paid, then the subscription ended -> no sends until they pay again.
+await db.prepare("UPDATE cards SET watcher_offer_at = NULL WHERE id IN (SELECT id FROM cards WHERE user_id = ? AND ebay_listing_id IN ('C-10', 'C-11'))").run(uid);
+await db.prepare("UPDATE users SET sub_status = 'canceled' WHERE id = ?").run(uid);
+routes.eligible = [{ eligibleItems: [{ listingId: "C-11" }, { listingId: "C-10" }] }];
+posts.length = 0;
+r = await sweepAutoOffers(NOW);
+check("sweep: lapsed seller skipped, nothing sent", [r.unpaid, r.sent, posts.length], [1, 0, 0]);
+await db.prepare("UPDATE users SET sub_status = 'active' WHERE id = ?").run(uid);
+r = await sweepAutoOffers(NOW);
+check("sweep: paid again -> sends resume", [r.unpaid, r.sent], [0, 2]);
 
 // --- wishlist alerts -----------------------------------------------------------
 const mails = [];

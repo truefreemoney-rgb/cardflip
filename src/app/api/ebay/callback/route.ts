@@ -1,6 +1,7 @@
 import { getCurrentUser } from "@/lib/server/auth";
 import {
   completeEbayConnect,
+  EbayAccountTakenError,
   isEbayOAuthConfigured,
   verifyOAuthState,
 } from "@/lib/server/ebayAuth";
@@ -35,18 +36,25 @@ export async function GET(req: Request) {
   if (!code) return back("error=declined");
 
   const cookieHeader = req.headers.get("cookie") ?? "";
-  const cookieState = cookieHeader
+  const rawCookieState = cookieHeader
     .split(";")
     .map((c) => c.trim())
     .find((c) => c.startsWith(`${EBAY_STATE_COOKIE}=`))
     ?.slice(EBAY_STATE_COOKIE.length + 1);
+  // A mangled cookie ("%E0%A4%A" etc.) throws in decodeURIComponent: that's a bad state, not a 500.
+  let cookieState: string | null = null;
+  try {
+    cookieState = rawCookieState ? decodeURIComponent(rawCookieState) : null;
+  } catch {
+    cookieState = null;
+  }
 
   // Both halves must agree: the state eBay echoed back, and the one this
   // browser was issued — and it must have been minted for this very user.
   if (
     !state ||
     !cookieState ||
-    state !== decodeURIComponent(cookieState) ||
+    state !== cookieState ||
     !verifyOAuthState(state, user.id)
   ) {
     return back("error=state");
@@ -56,6 +64,7 @@ export async function GET(req: Request) {
     await completeEbayConnect(user.id, code);
     return finish("/app?ebay=connected");
   } catch (err) {
+    if (err instanceof EbayAccountTakenError) return back("error=taken");
     console.error("eBay connect failed:", err);
     return back("error=exchange");
   }

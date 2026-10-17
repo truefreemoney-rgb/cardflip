@@ -102,6 +102,22 @@ console.log("eBay connect stores the identity facts");
   check("a non-object identity body never breaks the connect", Boolean(link3), true);
 }
 
+console.log("One eBay account links to one CardFlip account (#27)");
+{
+  const { EbayAccountTakenError } = await import(at("lib/server/ebayAuth.ts"));
+  const owner = await createUser("Owner1", "owner1@example.com", "hunter22", "user");
+  const other = await createUser("Other1", "other1@example.com", "hunter22", "user");
+  identity = { status: 200, body: { userId: "eb-shared", username: "sharedseller" } };
+  await completeEbayConnect(owner.id, "code");
+  const err = await completeEbayConnect(other.id, "code").then(() => null, (e) => e);
+  check("a second CardFlip account signing into the same eBay account is refused", err instanceof EbayAccountTakenError, true);
+  check("...and nothing was stored for it", (await tokenRow(other.id)) ?? null, null);
+  check("...and the first account keeps its link", (await tokenRow(owner.id))?.ebay_user_id, "eb-shared");
+  check("the same CardFlip account reconnecting is fine", Boolean(await completeEbayConnect(owner.id, "code")), true);
+  await db.prepare("DELETE FROM ebay_tokens WHERE user_id = ?").run(owner.id);
+  check("once the first account disconnects, the other can link it", Boolean(await completeEbayConnect(other.id, "code")), true);
+}
+
 console.log("Switch ebay_local_markets");
 {
   check("missing row = off", await ebayLocalMarketsOn(), false);
@@ -118,8 +134,9 @@ console.log("Switch ebay_local_markets");
 
 console.log("Needs You: sellers abroad who connected eBay");
 {
-  identity = { status: 200, body: { userId: "x", username: "x", accountType: "INDIVIDUAL", registrationMarketplaceId: "EBAY_US" } };
   const connect = async (name, country) => {
+    // Each seller signs into their own eBay account (one eBay account = one CardFlip account, #27).
+    identity = { status: 200, body: { userId: `eb-${name}`, username: name, accountType: "INDIVIDUAL", registrationMarketplaceId: "EBAY_US" } };
     const u = await createUser(name, `${name.toLowerCase()}@example.com`, "hunter22", "user", { homeCountry: country });
     await completeEbayConnect(u.id, "code");
     return u;

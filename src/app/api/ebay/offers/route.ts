@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireUser, AuthError } from "@/lib/server/auth";
+import { requireUser, AuthError, sellingGate } from "@/lib/server/auth";
 import { setAutoOffer } from "@/lib/server/users";
 import { db } from "@/lib/db";
 import { getCardForUser } from "@/lib/server/cards";
@@ -64,6 +64,8 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const user = await requireUser();
+    const wall = sellingGate(user);
+    if (wall) return wall;
     const body = await req.json().catch(() => null);
     const cardId = typeof body?.cardId === "string" ? body.cardId : null;
     const discountPercent = Number(body?.discountPercent);
@@ -105,6 +107,11 @@ export async function PATCH(req: Request) {
       if (!Number.isFinite(percent) || percent < 5 || percent > 50) {
         return NextResponse.json({ error: "Discount must be between 5% and 50%." }, { status: 400 });
       }
+    }
+    // Turning auto-offers OFF always works; turning them on is selling, so it's paid like the rest.
+    if (percent !== null) {
+      const wall = sellingGate(user);
+      if (wall) return wall;
     }
     const message = percent === null ? null : cleanMessage(body.autoOfferMessage);
 

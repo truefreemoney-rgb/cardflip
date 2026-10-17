@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { belowFloor, belowFloorFor, floorRefusal, floorRefusalFor } from "@/lib/fees";
 import { toLocal } from "@/lib/localPricing";
 import { isLocalMarketplace, marketplaceByEbayId, marketplaceLabel } from "@/lib/marketplaces";
-import { requireUser, AuthError } from "@/lib/server/auth";
+import { requireUser, AuthError, sellingGate } from "@/lib/server/auth";
 import { getCardForUser, updateCard } from "@/lib/server/cards";
 import { EbayUnreachableError } from "@/lib/server/ebayAuth";
 import { ledgerFloorProblem, sellerAccountType } from "@/lib/server/ebayMarket";
@@ -35,6 +35,11 @@ export async function POST(req: NextRequest) {
 
     const existing = await getCardForUser(cardId, user.id);
     if (!existing) return NextResponse.json({ error: "Card not found" }, { status: 404 });
+    // Changing a live eBay offer is selling (paid). A card with no offer is just the ledger price, open to everyone.
+    if (existing.ebayOfferId) {
+      const wall = sellingGate(user);
+      if (wall) return wall;
+    }
     const mp = existing.ebayOfferId ? marketplaceByEbayId(existing.ebayMarketplace) : null;
 
     let localPrice: number | null = null;

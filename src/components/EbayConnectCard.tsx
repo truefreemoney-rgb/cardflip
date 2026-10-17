@@ -45,6 +45,10 @@ const OUTCOMES: Record<string, { tone: "ok" | "warn"; text: string }> = {
     tone: "warn",
     text: "eBay signed you in, but linking failed on our side — this is a problem with CardFlip, not your account, and trying again won't fix it. We've been alerted.",
   },
+  taken: {
+    tone: "warn",
+    text: "That eBay account is already linked to another CardFlip account. Sign in to that one and disconnect eBay there first.",
+  },
   unavailable: {
     tone: "warn",
     text: "eBay sign-in isn't live on this server yet.",
