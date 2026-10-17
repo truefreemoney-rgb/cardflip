@@ -4,7 +4,11 @@
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
 
-## 10-17 ~8:10pm ET: rate limits hold across servers (A-H #29, NOT PUSHED)
+## 10-17 ~9pm ET: push d11ec26d LIVE (Vercel READY, CI + Production smoke green)
+- [x] PASS by curl: "Few sales" on Shinx pl4-SH12, Volcanic Eruption leb-89, 1st Ed Pikachu base1-58-1st (no more "looks off"); Vivillon $1.85 + High Plains $9.40; "Price looks wrong?" button on card pages; 3 made-up card/set/game links = 404; /api/cron/uptime without key = 403; vision junk = 400 "That isn't a picture"; wrong login = new wording (401).
+- Still open in the blocks below: phone checks, nightly-run checks (10-18/10-19 mornings), admin console checks.
+
+## 10-17 ~8:10pm ET: rate limits hold across servers (A-H #29, PUSHED 10-17 ~8:50pm ET in d11ec26d)
 - After push: normal browsing (card pages, search a few cards, open Inventory) works with no "Too many requests".
 - Prod SELECT a day later: `SELECT COUNT(*) FROM rate_limits WHERE key LIKE 'visit:%'` is far below the number of visits (only busy IPs get a row now; before, every visitor had one), and `search:%` / `catalog:%` rows exist only for busy IPs.
 - Share a card from the app (Share picture) -> the picture loads; opening the same picture link again shows header `x-vercel-cache: HIT` (curl -I). 21 renders from one IP in 10 min -> the 21st is a 429.
@@ -14,108 +18,108 @@
 - 10-19 morning: the same lines show small N (new cards / changed pictures only, e.g. en_cards a few dozen, not 22,195), "catalog push finished in" well under the old 446 s, and remote counts still >= local (no "remote count ... < local" error).
 - Prod spot check 10-19: a card added by the 10-19 sync (any new set) is on cardflip.io.
 
-## 10-17 ~6:15pm ET: Pokémon scan reads the reverse-holo pattern and preselects it (#11 step 2, NOT PUSHED; screenshots owed before push)
+## 10-17 ~6:15pm ET: Pokémon scan reads the reverse-holo pattern and preselects it (#11 step 2, PUSHED 10-17 ~8:50pm ET in d11ec26d; screenshots owed before push)
 - After push, phone: scan a Prismatic Evolutions Master Ball reverse -> Printing shows "Master Ball Pattern" and its price (not the plain reverse). A Poké Ball one -> "Poke Ball Pattern".
 - Ascended Heroes theme-ball reverse (e.g. Erika's Oddish with the big Poké Ball behind the attack) -> that card's ball pattern; the big leaf/flame one -> "Energy Symbol Pattern".
 - A plain card (no symbol) -> Printing unchanged from before (default line). Magic foil scan -> the saved Inventory price is the FOIL price straight away (scan-time quote now uses the picked printing).
 - Admin scan ledger / logs: no new vision errors (Pokémon now uses POKEMON_READ_SCHEMA; a schema 400 would show as every Pokémon scan failing).
 
-## 10-17 ~6:30pm ET: art versions are their own cards (#11 step 1; DATA LIVE on prod, code 47114b62 + 2109fd54 NOT PUSHED)
+## 10-17 ~6:30pm ET: art versions are their own cards (#11 step 1; DATA LIVE on prod, code 47114b62 + 2109fd54 PUSHED 10-17 ~8:50pm ET in d11ec26d)
 - Now (data live): /cards/pokemon/xy/vivillon--xy1-17 $1.85 (was High Plains' $9.40); /cards/pokemon/xy/vivillon-high-plains-orange--xy1-17-highplains $9.40; /cards/pokemon/base-set-1st-edition/pikachu-red-cheeks--base1-58-redcheeks-1st $429.98; /cards/pokemon/pokemon-go/bidoof-peelable-ditto--swsh10.5-059-peelable $17.30. All PASS by curl 10-17.
 - OPEN until the push: /cards/pokemon/base-set-1st-edition/pikachu--base1-58-1st shows "This price looks off" because its series restarted today (1 priced day, vintage $187 = thin sign) and live code still blanks thin-only verdicts; the few-sales commit 2b43c844 turns that into "$187.13 + Few sales". Red Cheeks low/eBay rows already moved off it; prod has only the [187.13] series. After the push: curl it -> ~$187 with "Few sales", no "looks off" (deploy resets ISR; per-page refresh = POST api.vercel.com/v1/edge-cache/invalidate-by-tags with tag `_N_T_<path>`, worked 10-17).
 - Morning after (nightly 09:45 UTC): prod SELECT price_series for xy1-17 / xy1-17-highplains / base1-58-1st / base1-58-redcheeks-1st / swsh10.5-0xx(-peelable) each get today's point with the SAME values as TCGplayer (Meadow ~$1.85 holo, High Plains ~$9.40, 1st Ed yellow ~$187, Red Cheeks ~$430, Peelables $14-17, plain PoGO reverse ~$0.3-0.7). No card takes the other's price.
 - After push, scan: Vivillon 17/146 orange -> High Plains card; pink -> Vivillon. A plain reverse-holo Spinarak 006 -> plain Spinarak first, Peelable only offered in the list.
 
-## 10-17 ~5pm ET: Ascended Heroes pattern reverses priced on their own (#11 part 1, 828b91b5, NOT PUSHED; screenshots still owed before push)
+## 10-17 ~5pm ET: Ascended Heroes pattern reverses priced on their own (#11 part 1, 828b91b5, PUSHED 10-17 ~8:50pm ET in d11ec26d; screenshots still owed before push)
 - Morning after the push: /cards/pokemon/ascended-heroes/rayquaza--me02.5-153 lists 'Friend Ball Pattern' (~$0.45) and 'Energy Symbol Pattern' (~$2.22) rows, no plain 'Reverse Holofoil'.
 - Prod SELECT: `SELECT variant, COUNT(*) FROM price_series WHERE card_id LIKE 'me02.5-%' AND source='tcgplayer' GROUP BY variant` -> energySymbolPattern 140, poke/friend/love/dusk/quick/teamRocket ~140 together, reverseHolofoil gone.
 - Editor Printing dropdown on an Ascended Heroes card offers both patterns.
 
-## 10-17 ~5:15pm ET: last Art Series prices (task #46, NOT PUSHED)
+## 10-17 ~5:15pm ET: last Art Series prices (task #46, PUSHED 10-17 ~8:50pm ET in d11ec26d)
 - Morning after the push (nightly Magic refresh): `node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/_art-fill-dry.mjs` shows gaps 8 (5 Karlov Clues TCGplayer doesn't sell + Nefarious Imp, Treasure Keeper, Harness Infinity 27s); was 32. E.g. Gnoll Hunter aafr 11 ~$0.20, Aurelia amkm 46 ~$0.15.
 
-## 10-17 ~5:30pm ET: thin-market cards show their price with "Few sales" (task #1, NOT PUSHED; shots docs/shots/few-sales-1..2)
+## 10-17 ~5:30pm ET: thin-market cards show their price with "Few sales" (task #1, PUSHED 10-17 ~8:50pm ET in d11ec26d; shots docs/shots/few-sales-1..2)
 - After push, phone: open /cards/pokemon/arceus/shinx--pl4-SH12 -> big price $165-ish, amber dot "Few sales · check eBay sold" under it (was "This price looks off").
 - /cards/magic/limited-edition-beta/volcanic-eruption--leb-89 -> same note under ~$120.
 - A hard-flagged card still shows "This price looks off" (any spike/Cardmarket-gap card from `node ... scripts/_few-measure.mjs pokemon out.json`, kind "blank hard").
 - Inventory with a few-sales card: price shown with "Few recent sales. View Sold on eBay" under it, and it counts in the total.
 
-## 10-17 ~3:35pm ET: "Price looks wrong?" on card pages (A-H #9, NOT PUSHED; shots docs/shots/price-report-1..3)
+## 10-17 ~3:35pm ET: "Price looks wrong?" on card pages (A-H #9, PUSHED 10-17 ~8:50pm ET in d11ec26d; shots docs/shots/price-report-1..3)
 - After push, phone: open any priced card page -> grey "Price looks wrong?" under the price -> tap -> "Too high" -> "Thanks. We'll check it against real eBay sales."
 - /admin/prices -> "Readers flagged" lists that card with "1 too high", the price it saw and an eBay sold link (not yet seen rendered: local console sign-in skipped).
 - Tap again from the same phone -> still 1 vote (it changes, never stacks). Prod SELECT: `SELECT * FROM price_reports` has the row.
 
-## 10-17 ~3:05pm ET: 15-minute uptime ping (A-H #57, NOT PUSHED)
+## 10-17 ~3:05pm ET: 15-minute uptime ping (A-H #57, PUSHED 10-17 ~8:50pm ET in d11ec26d)
 - After push: Vercel dashboard -> Settings -> Cron Jobs lists /api/cron/uptime every 15 min; its log shows runs at :00/:15/:30/:45 with `"ok":true` (the GitHub smoke only managed every 2-4 h).
 - Without the key: `curl https://cardflip.io/api/cron/uptime` -> 403.
 - Alert path is the same mail as the smoke failures ("CardFlip: Uptime failed"), at most once an hour; it now also sends when the database itself is down (test:uptime).
 
-## 10-17 ~4:45pm ET: admin Sign Out really ends the session; 7-day limit (A-H #32, NOT PUSHED)
+## 10-17 ~4:45pm ET: admin Sign Out really ends the session; 7-day limit (A-H #32, PUSHED 10-17 ~8:50pm ET in d11ec26d)
 - Right after push: the admin console asks you to sign in ONCE (old cookies have the old format; email code as usual).
 - Then: sign in, copy the cardflip_admin cookie value (pane devtools), Sign Out, put the copied value back -> /admin goes to the login page. Your PC and phone sign-ins are separate: signing out on one leaves the other in.
 - Prod SELECT: `SELECT COUNT(*) FROM admin_logouts` goes up by one per Sign Out and old rows drop off after a week.
 
-## 10-17 ~4:15pm ET: other devices signed out on 2FA / email changes; sessions end after a year (A-H #31, NOT PUSHED)
+## 10-17 ~4:15pm ET: other devices signed out on 2FA / email changes; sessions end after a year (A-H #31, PUSHED 10-17 ~8:50pm ET in d11ec26d)
 - After push, two browsers signed in to a TEST account (phone + pane): turn two-step on in Account on the phone -> the pane's next page load goes to /login, the phone stays in. Same for turning two-step off, and for changing the sign-in email (code typed on the phone). Your own account: you stay signed in on the device you did it on.
 - Prod SELECT after a day: `SELECT COUNT(*) FROM sessions WHERE created_at < strftime('%s','now','-365 days')*1000` = 0 once those rows are next used (old ones are refused and deleted on use).
 
-## 10-17 ~3:30pm ET: refunds, chargebacks and failed payments (A-H #28, NOT PUSHED; Paywall copy changed, screenshot before push)
+## 10-17 ~3:30pm ET: refunds, chargebacks and failed payments (A-H #28, PUSHED 10-17 ~8:50pm ET in d11ec26d; Paywall copy changed, screenshot before push)
 - After push (Stripe TEST mode only, never a live card): subscribe a test account with card 4242..., then in the Stripe test dashboard refund that payment in FULL -> within a minute the subscription shows Canceled in Stripe and /app shows the paywall. A PARTIAL refund on another test subscription: still Active, scans drop by that share. A test dispute (card 4000 0000 0000 0259) -> subscription Canceled.
 - Failed renewal: a test subscription on card 4000 0000 0000 0341 goes past_due -> prod SELECT sub_past_due_at is set; it still scans for 14 days, then the paywall says "Your last payment didn't go through." with Update Card on top and no Subscribe button.
 - Prod SELECT after deploy: `SELECT COUNT(*) FROM pragma_table_info('users') WHERE name = 'sub_past_due_at'` = 1.
 
-## 10-17 ~2:45pm ET: eBay selling checks (A-H #27, NOT PUSHED)
+## 10-17 ~2:45pm ET: eBay selling checks (A-H #27, PUSHED 10-17 ~8:50pm ET in d11ec26d)
 - After push: a trial (unpaid) test account gets "Publishing on eBay starts with a Booster or a subscription" on Send Offer / auto-offers on / reprice of a live eBay listing; End listing still works. Your own paid account: Send Offer + reprice still work on a live listing. The 2am daily job log (`autoOffers`) shows `unpaid` counted, nothing sent for unpaid sellers.
 - Connect eBay on a second CardFlip account with an eBay login that is already linked to another CardFlip account -> /connect-ebay says "That eBay account is already linked to another CardFlip account..." (prod had 2 links, none shared, 10-17). A normal reconnect on the same account still works.
 
-## 10-17 ~6:30pm ET: no account lookups through login/sign-up (A-H #30, NOT PUSHED; shot docs/shots/login-failed-message.png)
+## 10-17 ~6:30pm ET: no account lookups through login/sign-up (A-H #30, PUSHED 10-17 ~8:50pm ET in d11ec26d; shot docs/shots/login-failed-message.png)
 - After push: cardflip.io/login with a made-up email and a wrong password shows "Incorrect email or password. Signed up with Google or X? Tap that button instead." Same words for a real email with a wrong password. Real login and Google sign-in still work on the phone. Sign up with your own existing email once: still "An account with that email already exists."
 
-## 10-17 ~6pm ET: input checks (A-H #33, NOT PUSHED)
+## 10-17 ~6pm ET: input checks (A-H #33, PUSHED 10-17 ~8:50pm ET in d11ec26d)
 - After push: one real scan in the app on the phone and one free scan on cardflip.io/scan both read a card (photo check lets real phone JPEGs through). Turn phone notifications off and on in Account: still works. curl -X POST https://cardflip.io/api/vision/trial -d '{"image":"hello"}' -H 'content-type: application/json' = 400 "That isn't a picture", no free scan used.
 
-## 10-17 ~5pm ET: per-account row caps (A-H #26, NOT PUSHED)
+## 10-17 ~5pm ET: per-account row caps (A-H #26, PUSHED 10-17 ~8:50pm ET in d11ec26d)
 - After push: scan-save, add to watchlist and a Search price check still work on prod (phone, one each). Prod SELECT: `SELECT name FROM sqlite_master WHERE name = 'idx_price_checks_user'` returns a row (made at deploy). Nothing in the error mail about rowCaps.
 
-## 10-17 ~4pm ET: app pages ask /api/auth/me once (A-H #24, NOT PUSHED)
+## 10-17 ~4pm ET: app pages ask /api/auth/me once (A-H #24, PUSHED 10-17 ~8:50pm ET in d11ec26d)
 - After push, pane signed in on cardflip.io/app/collection: performance resource entries show /api/auth/me 1 (was 2) and /api/watch/pending 1. A "Watch this price" from a public card page while signed out, then sign in: the card is on the watchlist with the "Added to your watchlist" toast.
 
-## 10-17 ~3pm ET: Pokémon price limit has no cliff (A-H #22, NOT PUSHED)
+## 10-17 ~3pm ET: Pokémon price limit has no cliff (A-H #22, PUSHED 10-17 ~8:50pm ET in d11ec26d)
 - After push + the next nightly price run: /cards/pokemon/boundaries-crossed (Cresselia-EX 143) shows about 1.45x its cheapest TCGplayer copy (~$103 on 10-17, was $122.05), Victini-EX Plasma Storm 131 ~$167 (was $201.35). A card under 1.45x its cheapest copy keeps TCGplayer's number. No new "looks off" on those pages.
 
-## 10-17 ~2pm ET: set lists never wait on a rebuild (A-H C0, NOT PUSHED)
+## 10-17 ~2pm ET: set lists never wait on a rebuild (A-H C0, PUSHED 10-17 ~8:50pm ET in d11ec26d)
 - After push: the 2am + 7am ET Production smoke ("set lists load") stays green for 2 days (`gh run list -R truefreemoney-rgb/cardflip -w prod-smoke.yml`). `curl -w '%{time_total}' https://cardflip.io/api/sets` under 3 s every time, including the first call after 6 hours.
 
-## 10-17 ~1:30pm ET: Watchlist picker counts + empty game (NOT PUSHED; shots docs/shots/wish/, Chris OK 10-17)
+## 10-17 ~1:30pm ET: Watchlist picker counts + empty game (PUSHED 10-17 ~8:50pm ET in d11ec26d; shots docs/shots/wish/, Chris OK 10-17)
 - Phone: Watchlist > the game pill says "Pokémon ·N"; pick a game with no cards -> "No Magic cards on your watchlist" + a "Show Pokémon (N)" button that switches back; "Name or number" fits in the search box; open the totals bar -> Alerts not under the arrow.
 
-## 10-17 ~3:30am ET: exchange rates never go blank (A-H #16, NOT PUSHED)
+## 10-17 ~3:30am ET: exchange rates never go blank (A-H #16, PUSHED 10-17 ~8:50pm ET in d11ec26d)
 - After push + the next nightly price run: prod settings fx_rates (SELECT only) has rateAt for all 5 currencies dated today and triedAt set; Black Lotus page still shows a dollar price. Nothing new in the error mail unless a rate is over 2 days old.
 
-## 10-17 ~2am ET: unsubscribe needs a tap (A-H #24, NOT PUSHED)
+## 10-17 ~2am ET: unsubscribe needs a tap (A-H #24, PUSHED 10-17 ~8:50pm ET in d11ec26d)
 - After push: open a real digest/update mail unsubscribe link on prod with a TEST account (owner): page says "Stop These Emails?" and the account is still subscribed (SELECT digest_off); tap Unsubscribe -> "You are Unsubscribed", digest_off = 1; set it back. Next campaign mail in Gmail shows its own Unsubscribe button at the top (List-Unsubscribe-Post header).
 
-## 10-17 ~midnight ET: made-up card/set links = real 404 (A-H #21, NOT PUSHED)
+## 10-17 ~midnight ET: made-up card/set links = real 404 (A-H #21, PUSHED 10-17 ~8:50pm ET in d11ec26d)
 - After push: curl -s -o /dev/null -w "%{http_code}" https://cardflip.io/cards/pokemon/base-set/not-a-card--zzz9-999 (and /cards/pokemon/no-such-set, /cards/notagame) = 404 with title "Page not found"; a real card, set, game and movers page = 200. Phone: tap into a few card pages from a set, they still open quickly (the loading skeleton is gone).
 
-## 10-16 ~11pm ET: no built-in admin/password (A-H #23, NOT PUSHED)
+## 10-16 ~11pm ET: no built-in admin/password (A-H #23, PUSHED, live by 10-17 9:18am ET (90033b03))
 - After push: the admin console still signs in on cardflip.io (uses ADMIN_PANEL_PASSWORD from Vercel, unchanged); /login shows no "Log In as Admin" button; no console banner about missing password.
 
-## 10-16 ~10pm ET: privacy policy A3 (NOT PUSHED; shots in docs/shots/privacy-*.png, need Chris yes before push)
+## 10-16 ~10pm ET: privacy policy A3 (PUSHED, live by 10-17 9:18am ET (90033b03); shots in docs/shots/privacy-*.png, need Chris yes before push)
 - After push: cardflip.io/privacy shows effective date October 17, 2026 and the new lines (Google/X sign-in, help chat, phone notifications, email, Delete account path, what stays after a delete, Fastmail).
 
-## 10-16 ~9:30pm ET: account delete takes the mail log + card-removal log (5299b9fe, NOT PUSHED; local test:deletesocial PASS)
+## 10-16 ~9:30pm ET: account delete takes the mail log + card-removal log (5299b9fe, PUSHED, live by 10-17 9:18am ET (90033b03); local test:deletesocial PASS)
 - After push: on prod, run (SELECT only) `SELECT COUNT(*) FROM email_sends WHERE user_id NOT IN (SELECT id FROM users)` once a deleted account exists, expect 0 for accounts deleted after the push. No phone test needed (the delete button itself is unchanged).
 
 ## 10-17 ~1am ET: price guard 1c, week's climb eBay asks don't back (b2a51efb, PUSHED 10-16 ~8:08pm ET; PASS ~8:20pm ET by curl: 3 hidden, Latias + Mewtwo shown)
 - After push, curl each and expect "This price looks off": /cards/pokemon/lost-thunder/lugia-gx--sm8-227, /cards/pokemon/hidden-legends/regice-ex--ex5-97, /cards/pokemon/delta-species/tyranitar--ex11-16. Still a price (fair climbs): /cards/pokemon/celestial-storm/latias--sm7-107, /cards/pokemon/team-rocket-returns/rockets-mewtwo-ex--ex7-99. Lugia Secret Wonders + Tyranitar H28 stay shown (admin 'keep').
-## 10-16 ~4pm ET: no extra rows sitewide (NOT PUSHED)
+## 10-16 ~4pm ET: no extra rows sitewide (PUSHED, live by 10-17 9:18am ET (90033b03))
 - Phone: Watchlist tab tiles, Search > My Watchlist, Inventory summary bar ("Show" stays; only the arrow when the totals are too long for it), homepage game tiles, a card page's price chart (date buttons always under the price on phones). Prices and the ▲/▼ % all stay on one line. Local check: iPhone WebKit shots at $99,999.99.
 
-## 10-16 ~2:30pm ET: Watchlist price pill on one line (NOT PUSHED)
+## 10-16 ~2:30pm ET: Watchlist price pill on one line (PUSHED, live by 10-17 9:18am ET (90033b03))
 - Phone: Search tab > My Watchlist. Every tile shows the price and the ▲/▼ % on ONE line (Charizard $134.86 ▼ 5.0% was 2 rows). Tiles are a bit wider (142px). Local check done with test tiles up to $99,999.99.
 
-## 10-16: FLIPBACK code + come-back mail (NOT PUSHED, b9ba3bd2..8cbfbacb). Local pass: link signed-out -> login -> +10 scans; Account box "already used"; header "10 free scans"; full npm test green
+## 10-16: FLIPBACK code + come-back mail (PUSHED, live by 10-17 9:18am ET (90033b03), b9ba3bd2..8cbfbacb). Local pass: link signed-out -> login -> +10 scans; Account box "already used"; header "10 free scans"; full npm test green
 - [ ] 10-17 morning: how many redeemed (SELECT COUNT(*) FROM promo_redemptions WHERE code='FLIPBACK') + returning visits in admin Analytics; tell Chris.
 - [x] DONE 10-16 ~12:10pm ET: preview 16, two [TEST] mails read by Chris (subject "Your CardFlip code is inside: 10 scans on us", no "free"), SENT 16/16, 0 failed; preview after = 0 (no repeats).
 - [ ] Prod: password reset mail arrives (forgot-password) — local has no SMTP, unchecked.
@@ -130,19 +134,19 @@
 - [ ] 10-17 1pm post: any card's "this week" old price is not a 30+ day flat number (read its series with scripts/_peek-series.mjs).
 - [ ] Delete route: the 5 junk 1pm posts (Bluesky/X/Facebook/Instagram/Threads) are gone; Instagram may need the app by hand.
 
-## 10-16: Inventory speed (NOT PUSHED, 2b110bac price guard "+game"; a6313308 folders once)
+## 10-16: Inventory speed (PUSHED, live by 10-17 9:18am ET (90033b03), 2b110bac price guard "+game"; a6313308 folders once)
 - [ ] After push, mine: pane signed in on cardflip.io/app/collection, performance entries: /api/cards/live-prices and /api/cards/value-history under ~1 s each (were 5.7 s / 5.3 s), /api/cards/categories once. Also a card page + /cards/pokemon set page still load (same guard code).
 
-## 10-16: cookie bar above the phone tab bar (NOT PUSHED, 605458fe; Chris approved the screenshots)
+## 10-16: cookie bar above the phone tab bar (PUSHED, live by 10-17 9:18am ET (90033b03), 605458fe; Chris approved the screenshots)
 - [ ] After push: only UK/IE visitors see it, so mine: pane at 375px on cardflip.io/app with sessionStorage cf_geo="GB" and no cf_consent cookie → bar sits above the tabs, tabs tappable.
 
-## 10-16: number keypad on price boxes (NOT PUSHED, d326a66b)
+## 10-16: number keypad on price boxes (PUSHED, live by 10-17 9:18am ET (90033b03), d326a66b)
 - [ ] Chris, phone, after push: 1. Open Inventory. 2. Tap a card's "What did you pay?" (cost) box. You should see a number keypad with a "." key, not the letter keyboard. Same for the sold-price box.
 
-## 10-16: duplicate-email fix, audit #9 (NOT PUSHED, eb95dd75). Local: test:campaigns + test:digest green incl. two overlapping runs
+## 10-16: duplicate-email fix, audit #9 (PUSHED, live by 10-17 9:18am ET (90033b03), eb95dd75). Local: test:campaigns + test:digest green incl. two overlapping runs
 - [ ] After push: next Sunday 10-18 digest + 6:30pm ET week mail: /admin/emails log shows one "sent" per person, no repeats; `SELECT COUNT(*) FROM email_claims` > 0. (Mine.)
 
-## 10-16 ~9:30am ET: site-audit fixes (NOT PUSHED, ddea8db2..36c2e6a5; docs/AUDIT-2026-10-16.md)
+## 10-16 ~9:30am ET: site-audit fixes (PUSHED, live by 10-17 9:18am ET (90033b03), ddea8db2..36c2e6a5; docs/AUDIT-2026-10-16.md)
 Mostly server guards, proven by local tests; these are the prod checks after the push.
 - [ ] eBay comps (#1): on a card page / scan result, "eBay listings" still loads comps for a Pokémon and a Magic card (catalog lookup in front of the cache). (Mine, pane.)
 - [ ] Cron routes (#4): `curl -s -o /dev/null -w "%{http_code}" https://cardflip.io/api/cron/emails` → 403 even when signed in to /admin in the pane (open it in the pane: 403). The 10am/6:30pm mail sweep and the 9:15pm TikTok net still run (Vercel cron with the key): check /admin Log next morning. (Mine.)
@@ -171,13 +175,13 @@ Mostly server guards, proven by local tests; these are the prod checks after the
 - [ ] Failed scan message reads "Couldn't read this card — retake..." with no "(0% sure)".
 - [x] PASS 10-16 (curl 404) /api/dev/outline-dump answers 404 on cardflip.io. (Mine, curl.)
 
-## 10-15 ~9:45am ET: scanner options button, game + card + scanner options in ONE sheet (NOT PUSHED, 3e8e0caa; Chris: keep them combined)
+## 10-15 ~9:45am ET: scanner options button, game + card + scanner options in ONE sheet (PUSHED, live by 10-17 9:18am ET (90033b03), 3e8e0caa; Chris: keep them combined)
 Phone steps: 1) Open the scanner. 2) Tap the "..." circle top right. You should see "Scanner options": Game chips (all five fit), New scans start as (5 conditions), Camera (Light on phones with one, Tips switch), Share, Help. 3) Tap Lightly Played, Done, scan a card: it starts as Lightly Played. 4) Tap Share: the phone share sheet opens with cardflip.io. 5) Help > Open lands on the help page.
 - [ ] Sheet opens from the "..." button, nothing cut off at phone width
 - [ ] Starting condition sticks on the next scan; Light switch turns the light on; Tips switch brings the tips back
 - [ ] Share opens the phone share sheet; Help opens the help page
 
-## 10-15 ~9:00am ET: scanner "Select Your Card" picker restyled (NOT PUSHED, 69f340c5 on top of the 5 scanner commits)
+## 10-15 ~9:00am ET: scanner "Select Your Card" picker restyled (PUSHED, live by 10-17 9:18am ET (90033b03), 69f340c5 on top of the 5 scanner commits)
 Phone steps: 1) Scan any card. 2) On the result card tap "Not this card?". You should see a sheet titled "Select Your Card" with a "Find matches" box and a Search button on top, then two columns of big card pictures with the name, set and number under each. 3) Tap one: the sheet closes and the result card swaps to it. 4) Open it again, type a name (e.g. "charizard"), tap Search: the grid fills with that name's printings. 5) Swipe the handle down: it closes.
 - [ ] Picker opens, pictures big and sharp, names/sets wrap (no cut-off text) at phone width
 - [ ] Tap a picture swaps the card; search by name fills the grid; swipe-down closes
@@ -185,7 +189,7 @@ Phone steps: 1) Scan any card. 2) On the result card tap "Not this card?". You s
 Things that shipped but were never exercised on a real phone or with real
 traffic. Tick when tested; note what you saw. Newest batch first.
 
-## 10-14 ~11:35pm ET: Magic hub phone overflow + Yu-Gi-Oh! tile alt text (NOT PUSHED, 7528e5ec + the next commit)
+## 10-14 ~11:35pm ET: Magic hub phone overflow + Yu-Gi-Oh! tile alt text (PUSHED, live by 10-17 9:18am ET (90033b03), 7528e5ec + the next commit)
 Found while ticking A22 in the pane at 375px: /cards/magic measured 386px wide (11px sideways scroll) because the Sets list's single phone column is auto-sized and the nowrap name "Teenage Mutant Ninja Turtles Source Material" widened it; /cards/pokemon was 375. Fix: grid-cols-1 on the list (minmax(0,1fr)); the same class change proved 375 live in the pane DOM. Also the homepage games strip Yu-Gi-Oh! tile alt text now drops "(Worldwide English)" like the visible name.
 - [ ] PROD after the push, phone: /cards/magic Sets list, no sideways scroll, long set names end in "…"; /cards/pokemon unchanged.
 - [ ] PROD: homepage HTML has no "(Worldwide English)" anywhere (curl).
@@ -275,11 +279,11 @@ Chris 10-13: "make the daily price check against eBay automatic". Every $100+ pr
 - [ ] PROD: on the phone, /admin/prices > Hand check: tap "eBay sold" (opens sold listings), then "Right, keep" or "Wrong, hide" on one row; it moves to Your calls; Undo returns it.
 - [ ] After a week: every $100+ card has a reading (counts line: fine + check + hidden + not on eBay ~ 4,500).
 
-## 10-12 night: marketing nav hydration error fixed (LOCAL, NOT PUSHED)
+## 10-12 night: marketing nav hydration error fixed (LOCAL, PUSHED, live by 10-17 9:18am ET (90033b03))
 Since 10-08 the nav read the signed-in hint from localStorage while rendering, so for a signed-in visitor the server HTML said "Log In" and the browser's first paint said "Log out": React threw a hydration error on every marketing page and rebuilt the page in the browser (slower first paint, console error; new prod errors in OPEN-TESTS E #73 may include it). Now read through useSyncExternalStore with a server snapshot of false. Pane 10-12: fresh tab, signed in, card page: no console errors, nav shows Log out at once.
 - [ ] PROD after the push, signed in on the phone: open cardflip.io and a /cards page: nav shows Log out + Open the App with no flash of Log In; error digest shows no new "Hydration failed" lines.
 
-## 10-12 ~11:20pm: card pictures served from cardflip.io/pics + hotlink firewall rule (LOCAL, NOT PUSHED; rule is on Vercel in LOG mode)
+## 10-12 ~11:20pm: card pictures served from cardflip.io/pics + hotlink firewall rule (LOCAL, PUSHED, live by 10-17 9:18am ET (90033b03); rule is on Vercel in LOG mode)
 Chris: "put in some safeguard so people cant use images hosted on our website". lib/pics.ts toPics() at the 4 readers, next.config rewrite /pics/* → Blob cards/, proxy.ts skips pics/, vision + ogArt fetch the store directly (fromPics). Local proof: Charizard 1st Ed page 19 of 19 card pictures on /pics, 200 image/webp, storage address 0 times in the HTML. Firewall rule "Card pictures: other sites' hotlinks" (Referer present and not cardflip.io/google/bing/ddg/yahoo/ebay/pinterest/facebook) added via API, action LOG.
 - [ ] PROD after the push: a card page's pictures come from https://cardflip.io/pics/..., and view-source shows no "blob.vercel-storage.com/cards".
 - [ ] PROD: `curl -I -H "Referer: https://example.com/" https://cardflip.io/pics/<a tile path>` → shows in Vercel Firewall as a LOG hit for the rule; `curl -I` with no Referer → 200 and no hit.
@@ -289,32 +293,32 @@ Chris: "put in some safeguard so people cant use images hosted on our website". 
 - [ ] Scan a Pokémon card on prod: the picture tiebreak still identifies (it fetches our copy straight from the store via fromPics).
 - [ ] A social/share picture (Share card) renders card art (ogArt fetches via fromPics).
 
-## 10-12 late night: One Piece + Pokémon pictures self-hosted (LOCAL, NOT PUSHED; runs done on Blob + Turso)
+## 10-12 late night: One Piece + Pokémon pictures self-hosted (LOCAL, PUSHED, live by 10-17 9:18am ET (90033b03); runs done on Blob + Turso)
 One Piece 5,546 of 5,549 (3 have no picture anywhere, BACKLOG), 4,249 sourced from TCGplayer per Chris. Pokémon 22,315 of 22,315 (TCGdex high.webp; en_cards own_* columns; scanner + card/list pages read them). Local = Turso for both. Local proof: /cards/pokemon 24 of ours, 0 tcgdex; 1st Ed Charizard page 42 of ours, 0 tcgdex.
 - [ ] PROD after the push: cardflip.io/cards/onepiece, open a set: tiles now SHOW (the optcgapi list-page block no longer applies, our copies are on our store) and right-click → ...blob.vercel-storage.com/cards/onepiece/...-tile.webp.
 - [ ] PROD: cardflip.io/cards/pokemon → a set → a card page: picture from ...blob.vercel-storage.com/cards/pokemon/, sharp.
 - [ ] PROD: scan any Pokémon card: candidate thumbnails load (now our store); identification unchanged.
 - [ ] PROD: /app/collection sets page set logos still show (derived from en_cards.image_url, untouched).
 
-## 10-12 night: Lorcana pictures self-hosted (LOCAL, NOT PUSHED; the run itself IS live on Blob + Turso)
+## 10-12 night: Lorcana pictures self-hosted (LOCAL, PUSHED, live by 10-17 9:18am ET (90033b03); the run itself IS live on Blob + Turso)
 Chris 10-12: "find card, save to our database and everything pulls from there." scripts/save-pictures.mjs --game lorcana --prod saved every Lorcana picture (3,469) to our Blob as cards/lorcana/<id>-<hash>.webp (500px page copy ~47 KB) + -tile.webp (240px ~15 KB) and wrote own_image_url / own_tile_url / own_image_src on the rows, local and Turso. Readers (tcgCards.ts, cardPages.ts, movers) prefer own_* and fall back to image_url; set-rank list cache bumped to v4 so lists switch at deploy. Nothing on the live site changes until this code is pushed.
 - [ ] PROD after the push: cardflip.io/cards/lorcana, open a set, right-click a tile → the picture URL is mlwovvakovcpakbr.public.blob.vercel-storage.com/cards/lorcana/...-tile.webp (not cards.lorcast.io); a card page shows the ...webp page copy, sharp, not blurry.
 - [ ] PROD: search "Elsa" from the header on a Lorcana page: result thumbnails come from our store too.
 - [ ] PROD: Lorcana scanner candidates (scan any Lorcana card): the printing thumbnails load from our store; the scan still identifies the card (tiebreak still reads ref_image_url / image_url, unchanged).
 - [ ] Weekly catalog sync (Sunday 10:30): sync:lorcana overwrites image_url but not own_*; a re-run of pictures:save --game lorcana afterwards saves only NEW or changed pictures (count printed on the first line, should be small).
 
-## 10-12 ~3:30pm: Inventory summary postage = each copy's real rate (LOCAL, NOT PUSHED)
+## 10-12 ~3:30pm: Inventory summary postage = each copy's real rate (LOCAL, PUSHED, live by 10-17 9:18am ET (90033b03))
 Was a flat $0.78 per copy everywhere (a $1,178.52 card read "Postage · 1 × $0.78"). Now salePostage (fees.ts): over $100 tracked $6.07 whatever was picked; otherwise the row's pick at its price (envelope $0.78 up to $20, stamps $1.31 to $100; tracked $6.07); no pick = the label up to $20, tracked above. Same rule in saleNet/saleBreakdown (sales report, CSV), the reprice sheet's "you keep", and the Listed panel. Pane 10-12: $41.12 no pick → "Postage · 1 × $6.07", fees $5.85, You Keep $29.20; hand-sold → "Postage $0.00".
 - [x] (10-12 ~3:15pm ET Chris on the tunnel: passed) Tunnel, Seller mode, Inventory summary: the $1,178.52 Pikachu (svp-085) reads "Postage · 1 × $6.07" and You Keep on eBay ≈ $1,015.90 (was $1,021.19).
 - [x] PASS 10-14 (Chris phone; OPEN-TESTS 10-13 A1): Mixed rates (one card under $20 with Envelope + one over $100): the line is plain "Postage" with the summed total, fees line still adds up to You Keep.
 - [ ] Earned ledger after a real eBay sale over $20: postage shows the sold row's pick ($1.31 stamps or $6.07 tracked), the sales report page says the same in its footnote.
 
-## 10-12 afternoon: Inventory Market Value = chart, Sales Report moved to Account (LOCAL, NOT PUSHED)
+## 10-12 afternoon: Inventory Market Value = chart, Sales Report moved to Account (LOCAL, PUSHED, live by 10-17 9:18am ET (90033b03))
 - [x] (10-12 ~2:45pm ET Chris on the tunnel, screenshots) Tunnel, Collector mode, Inventory: the big Market Value and the Inventory Value chart's last point are the SAME number (was $1,015.89 vs $1,178.52: the chart drew asking prices when it loaded before the Collector switch had saved; the page now sends ?basis= itself).
 - [x] (10-12 ~2:45pm ET Chris on the tunnel, screenshots) Switch Seller -> Collector -> Seller on Account, back to Inventory each time: Collector chart says "market" and matches Market Value; Seller chart says "asking".
 - [x] (10-12 ~2:45pm ET Chris on the tunnel, screenshots) Inventory summary has no "Sales Report for Taxes" link; Account > Selling has a "Sales report for taxes" row whose Open goes to the report.
 
-## 10-11 night Shipping: envelope up to $100, real eBay prices (LOCAL, NOT PUSHED)
+## 10-11 night Shipping: envelope up to $100, real eBay prices (LOCAL, PUSHED, live by 10-17 9:18am ET (90033b03))
 Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notice 123: eBay envelope label $0.78 (1 oz), stamps $0.82 + $0.49 nonmachinable = $1.31, Ground Advantage $6.07 (Miami → Seattle, same at 1 and 3 oz; nearby $5.38). Floor $1.25, a $0.25 card lists at $1.54.
 - [x] (10-12 ~2:40pm ET Chris on the tunnel: "looks fine") Tunnel, scan a card under $20: Envelope tile reads "$0.78 · eBay Standard Envelope, tracked"; Tracked mailer "$6.07". (The "$" was missing on these tiles since 10-08, fixed here.)
 - [x] (10-12 ~2:40pm ET Chris on the tunnel: "looks fine") Card between $20 and $100 (or type a price in that range): Envelope tile reads "$1.31 · Plain envelope with stamps" (no warning line, Chris 10-11); both tiles clickable.
@@ -723,7 +727,7 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 - #63 "Most valuable sets" on /cards/<game> (top 10). SWR cache seo:setvalues:v1:<game> (~21 s query, built after the response): the section may be MISSING on the first build of a hub page and appears after ISR revalidates (<= 2 days). Check all 5 games show it within 2 days, and Pokemon top 5 ~ Skyridge, Legendary Collection, Holon Phantoms, Base Set 1st Ed, Aquapolis.
 - #65 Top 100 page: PASS on prod 10-17: all 5 games 100 rows + link on each hub; top 5 look real (Pokemon 1st Ed Charizard $10,000, Magic Smaug $24,500, YGO Uria $999.97, Lorcana Elsa's Ice Palace promo $3,999.99, One Piece Luffy Gold $13,000). Cold builds: Pokemon 16.5 s, YGO 7.6 s, Magic 5.1 s; cached ~0.4 s. #63 Most valuable sets: still missing on all 5 hubs at 10:30am ET (expected; recheck by 10-19).
 
-## 10-17 Watchlist fixes (NOT PUSHED; 87cc9989, 36bbf0e1)
+## 10-17 Watchlist fixes (PUSHED 10-17 ~8:50pm ET in d11ec26d; 87cc9989, 36bbf0e1)
 - Game picker shows cards per game (pill 'Pokemon · 6', options 'Magic (0)'). Check on phone: pill fits beside the search box at 375px.
 - Game with 0 watched cards: 'No Magic cards on your watchlist.' + 'Show Pokemon (6)' button switches the list. Filter text that matches nothing still says 'Nothing matches that filter.'
 - Totals strip open: 'Alerts' label clear of the fold chevron (desktop). Phone layout unchanged.
