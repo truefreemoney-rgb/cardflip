@@ -5,6 +5,7 @@ import { recordScanUsage } from "@/lib/server/scanUsage";
 import { parseGame } from "@/lib/games";
 import { dayBudgetUsed, dayBump, readsKey } from "@/lib/server/dayBudget";
 import { LIMITS, RateLimitError, enforceRateLimit, rateLimitResponse } from "@/lib/server/rateLimit";
+import { readImageInput } from "@/lib/server/imageInput";
 
 /**
  * The picture tiebreak (docs/POKEMON-IDENTIFICATION.md, docs/MTG-IDENTIFICATION.md
@@ -17,8 +18,6 @@ import { LIMITS, RateLimitError, enforceRateLimit, rateLimitResponse } from "@/l
  */
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
-
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 /**
  * Durable per-account daily cap (a db counter: the in-memory limiter never
@@ -37,14 +36,17 @@ export async function POST(req: Request) {
     if (!isVisionConfigured()) return NextResponse.json({ id: null, reason: "unconfigured" });
 
     const body = await req.json().catch(() => null);
-    const image = body?.image as string | undefined;
-    const mediaType = (body?.mediaType as string | undefined) ?? "image/jpeg";
-    // Two ids, up to six for Yu-Gi-Oh! rarities of one code (lib/tiebreak.ts tiebreakIds).
-    const ids = Array.isArray(body?.ids) ? [...new Set((body.ids as unknown[]).filter((x): x is string => typeof x === "string"))].slice(0, 6) : [];
-    if (!image || ids.length < 2) {
+    // Two ids, up to six for Yu-Gi-Oh! rarities of one code (lib/tiebreak.ts tiebreakIds). A longer list is refused,
+    // not walked (#33): a real scan never sends more, and each id is a catalog id (80 chars at most).
+    const rawIds: unknown[] = Array.isArray(body?.ids) ? body.ids : [];
+    if (rawIds.length > 6) return NextResponse.json({ error: "Too many ids" }, { status: 400 });
+    const ids = [...new Set(rawIds.filter((x): x is string => typeof x === "string" && x.length > 0 && x.length <= 80))];
+    if (ids.length < 2) {
       return NextResponse.json({ error: "Need an image and two different ids" }, { status: 400 });
     }
-    if ((image.length * 3) / 4 > MAX_IMAGE_BYTES) return NextResponse.json({ error: "Image too large" }, { status: 413 });
+    const input = readImageInput(body?.image);
+    if (!input.ok) return NextResponse.json({ error: input.error }, { status: input.status });
+    const { image, mediaType } = input;
 
     // One tiebreak per card actually read today (10-01 sweep: the flat 500 let any account with a scan left call Opus
     // 500 times a day for free). The read is counted when /api/vision/scan returns, so its tiebreak always fits.

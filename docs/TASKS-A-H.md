@@ -45,7 +45,7 @@ C0. DONE 10-17 (local, not pushed; covers, set index and /api/sets serve the old
 30. Login and sign-up let someone check which emails have accounts [me] S
 31. Turning off 2FA or changing email doesn't sign out other devices, and sessions never expire [me] M
 32. Admin sign-out can't really end the session, and the admin key has a weak fallback [me] M
-33. A few input checks are missing (image type, list sizes, bad notification addresses) [me] S
+33. DONE 10-17 (local, not pushed; imageInput.ts: real picture or 400 before a scan is reserved, type read from the bytes; tiebreak >6 ids refused; bad push subscription 400 not 500): A few input checks are missing (image type, list sizes, bad notification addresses) [me] S
 34. Sign-up takeover (audit #2): on hold, your call [you] M
 
 ## E. Checks on things already live

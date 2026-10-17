@@ -14,6 +14,7 @@ import { clientIp } from "@/lib/server/rateLimit";
 import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
 import { DEVICE_COOKIE, DEVICE_COOKIE_MAX_AGE, deviceIdFrom, hashIp, newDeviceId } from "@/lib/server/signupGuard";
 import { recordTrialScan, trialScanUsedUp } from "@/lib/server/trialScan";
+import { readImageInput } from "@/lib/server/imageInput";
 
 /**
  * The ad landing page's free scan (10-05, /scan): one card read with no
@@ -25,7 +26,6 @@ import { recordTrialScan, trialScanUsedUp } from "@/lib/server/trialScan";
  * day at ~$3.30.
  */
 const TRIAL_DAILY_BUDGET = 300;
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 /** scan_usage rows for these reads, so the expenses page counts them. */
 const TRIAL_USER = "trial-scan";
 
@@ -55,10 +55,10 @@ export async function POST(req: Request) {
     if (!isVisionConfigured()) return send({ status: "unconfigured", card: null });
 
     const body = await req.json().catch(() => null);
-    const image = body?.image as string | undefined;
-    const mediaType = (body?.mediaType as string | undefined) ?? "image/jpeg";
-    if (!image) return send({ error: "Missing image" }, 400);
-    if ((image.length * 3) / 4 > MAX_IMAGE_BYTES) return send({ error: "Image too large" }, 413);
+    // A real picture or a 400 before the free scan is spent (#33: lib/server/imageInput.ts).
+    const input = readImageInput(body?.image);
+    if (!input.ok) return send({ error: input.error }, input.status);
+    const { image, mediaType } = input;
 
     const ipHash = hashIp(ip);
     if (await trialScanUsedUp(deviceId, ipHash)) return send({ status: "used", card: null }, 402);

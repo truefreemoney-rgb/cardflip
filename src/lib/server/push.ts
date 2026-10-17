@@ -79,10 +79,25 @@ export function isPushServiceUrl(endpoint: string): boolean {
   );
 }
 
+/** Real browser keys are ~87 (p256dh) and ~22 (auth) base64url characters. */
+const KEY_MAX = 200;
+const BASE64URL = /^[A-Za-z0-9_-]+={0,2}$/;
+
+/**
+ * Why a subscription can't be saved, or null when it can (#33, 10-16 audit: a bad endpoint threw inside the save and
+ * the route answered 500; the route now answers 400 with this first). The save keeps the same check as its backstop.
+ */
+export function pushSubscriptionProblem(sub: PushSubscriptionInput): string | null {
+  if (!sub.endpoint || sub.endpoint.length > ENDPOINT_MAX || !isPushServiceUrl(sub.endpoint)) return "Bad push endpoint";
+  const { p256dh, auth } = sub.keys ?? {};
+  if (!p256dh || !auth || p256dh.length > KEY_MAX || auth.length > KEY_MAX || !BASE64URL.test(p256dh) || !BASE64URL.test(auth)) return "Bad push keys";
+  return null;
+}
+
 /** Save (or re-own) a browser's subscription. One endpoint belongs to one user. */
 export async function savePushSubscription(userId: string, sub: PushSubscriptionInput, userAgent: string | null, now = Date.now()): Promise<void> {
-  if (sub.endpoint.length > ENDPOINT_MAX || !isPushServiceUrl(sub.endpoint)) throw new Error("Bad push endpoint");
-  if (!sub.keys?.p256dh || !sub.keys?.auth) throw new Error("Bad push keys");
+  const problem = pushSubscriptionProblem(sub);
+  if (problem) throw new Error(problem);
   await db
     .prepare(
       `INSERT INTO push_subscriptions (endpoint, user_id, p256dh, auth, user_agent, created_at)

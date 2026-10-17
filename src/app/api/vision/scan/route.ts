@@ -14,6 +14,7 @@ import { giveBackScans, outOfScansMessage, reserveScan, scanQuota, scanQuotaExha
 import type { ScanQuota, User } from "@/lib/server/users";
 import { dayBudgetSpent, dayBump, readsKey } from "@/lib/server/dayBudget";
 import { readIsEmpty } from "@/lib/server/scanGiveback";
+import { readImageInput } from "@/lib/server/imageInput";
 import {
   LIMITS,
   RateLimitError,
@@ -27,9 +28,6 @@ import {
  * daily rules carried; those stay as warm-instance burst guards per minute.
  */
 const SCAN_DAILY_BUDGET = 500;
-
-/** Photos arrive downscaled by the client; this is a backstop, not the budget. */
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 /** The 402 for an empty balance (the message names the next credit date, a Booster or the legacy reset: scanQuota.ts). */
 function outOfScans(user: User, usage: ScanQuota) {
@@ -59,18 +57,13 @@ export async function POST(req: Request) {
     if (scanQuotaExhausted(user)) return outOfScans(user, scanQuota(user));
 
     const body = await req.json().catch(() => null);
-    const image = body?.image as string | undefined;
-    const mediaType = (body?.mediaType as string | undefined) ?? "image/jpeg";
     const language: ScanLanguage =
       body?.language === "ja" || body?.language === "zh" ? body.language : "en";
 
-    if (!image) {
-      return NextResponse.json({ error: "Missing image" }, { status: 400 });
-    }
-    // base64 inflates by ~4/3, so compare against the decoded size.
-    if ((image.length * 3) / 4 > MAX_IMAGE_BYTES) {
-      return NextResponse.json({ error: "Image too large" }, { status: 413 });
-    }
+    // A real picture or a 400 before any scan is reserved (#33: lib/server/imageInput.ts).
+    const input = readImageInput(body?.image);
+    if (!input.ok) return NextResponse.json({ error: input.error }, { status: input.status });
+    const { image, mediaType } = input;
 
     // Last gate before spending money — a well-formed request that clears the
     // burst limiter still has to fit the durable daily budget.

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { AuthError, requireUser } from "@/lib/server/auth";
 import { LIMITS, clientIp } from "@/lib/server/rateLimit";
 import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
-import { countPushSubscriptions, isPushConfigured, removePushSubscription, savePushSubscription, sendPushToUser, vapidPublicKey } from "@/lib/server/push";
+import { countPushSubscriptions, isPushConfigured, pushSubscriptionProblem, removePushSubscription, savePushSubscription, sendPushToUser, vapidPublicKey } from "@/lib/server/push";
 
 /**
  * Phone notifications (Tier 2 #9).
@@ -36,8 +36,10 @@ export async function POST(req: NextRequest) {
     const endpoint = typeof body?.endpoint === "string" ? body.endpoint : "";
     const p256dh = typeof body?.keys?.p256dh === "string" ? body.keys.p256dh : "";
     const auth = typeof body?.keys?.auth === "string" ? body.keys.auth : "";
-    if (!endpoint || !p256dh || !auth) return NextResponse.json({ error: "That doesn't look like a push subscription." }, { status: 400 });
-    await savePushSubscription(user.id, { endpoint, keys: { p256dh, auth } }, req.headers.get("user-agent"));
+    const sub = { endpoint, keys: { p256dh, auth } };
+    // A bad address or keys is the browser's problem, not a server error (#33: was a 500).
+    if (pushSubscriptionProblem(sub)) return NextResponse.json({ error: "That doesn't look like a push subscription." }, { status: 400 });
+    await savePushSubscription(user.id, sub, req.headers.get("user-agent"));
     return NextResponse.json({ ok: true, devices: await countPushSubscriptions(user.id) });
   } catch (err) {
     return unauthorized(err);
