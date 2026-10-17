@@ -82,7 +82,7 @@ console.log("/api/search-card (Magic by id)");
   const junk = await get(searchCard, "/api/search-card?id=mtg-junk&game=mtg");
   const prices = junk.body.cards[0].prices;
   const row = (variant, source = "tcgplayer") => prices.find((p) => p.variant === variant && p.source === source);
-  check("the foil TCGplayer row is flagged (its foil Cardmarket price is EUR 12)", row("foil").untrusted, { hard: true, reason: "cardmarket 11.4x" });
+  check("the foil TCGplayer row is flagged (its foil Cardmarket price is EUR 12)", row("foil").untrusted, { hard: true, reason: "cardmarket 11.4x", fallback: 13.2, fallbackFrom: "cardmarket" });
   check("the nonfoil row of the same card is not", row("nonfoil").untrusted === undefined);
   check("the Cardmarket EUR rows carry no flag", [row("foil", "cardmarket").untrusted, row("nonfoil", "cardmarket").untrusted], [undefined, undefined]);
   check("the market number is still in the payload (the page decides not to present it)", row("foil").market, 150);
