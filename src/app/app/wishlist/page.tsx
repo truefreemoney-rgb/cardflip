@@ -596,7 +596,8 @@ export default function WishlistPage() {
               </dd>
             </div>
             <div
-              className="px-4 py-3 sm:px-5"
+              // sm:pr-12 keeps "Alerts" clear of the fold chevron in the corner (Chris 10-17).
+              className="px-4 py-3 sm:pl-5 sm:pr-12"
               title="Cards with a dip alert set — we email you when the market reaches your price"
             >
               <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Alerts</dt>
