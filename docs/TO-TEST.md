@@ -4,6 +4,11 @@
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
 
+## 10-17 ~4:45pm ET: admin Sign Out really ends the session; 7-day limit (A-H #32, NOT PUSHED)
+- Right after push: the admin console asks you to sign in ONCE (old cookies have the old format; email code as usual).
+- Then: sign in, copy the cardflip_admin cookie value (pane devtools), Sign Out, put the copied value back -> /admin goes to the login page. Your PC and phone sign-ins are separate: signing out on one leaves the other in.
+- Prod SELECT: `SELECT COUNT(*) FROM admin_logouts` goes up by one per Sign Out and old rows drop off after a week.
+
 ## 10-17 ~4:15pm ET: other devices signed out on 2FA / email changes; sessions end after a year (A-H #31, NOT PUSHED)
 - After push, two browsers signed in to a TEST account (phone + pane): turn two-step on in Account on the phone -> the pane's next page load goes to /login, the phone stays in. Same for turning two-step off, and for changing the sign-in email (code typed on the phone). Your own account: you stay signed in on the device you did it on.
 - Prod SELECT after a day: `SELECT COUNT(*) FROM sessions WHERE created_at < strftime('%s','now','-365 days')*1000` = 0 once those rows are next used (old ones are refused and deleted on use).

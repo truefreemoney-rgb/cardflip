@@ -16,6 +16,7 @@ const AUTH_CALLS = [
   "requireAdmin",
   "requireAdminPanel",
   "adminRole",
+  "adminSession",
   "opsKeyOk",
   "getSessionUser",
   "cronAuthError",

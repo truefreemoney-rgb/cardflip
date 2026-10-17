@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { adminUsingDefaults, verifyAdminLogin } from "@/lib/adminAuth";
+import { adminSessionsAvailable, adminUsingDefaults, verifyAdminLogin } from "@/lib/adminAuth";
 import { ADMIN_COOKIE, adminCookieOptions, issueAdminSession } from "@/lib/server/adminGate";
 import { LIMITS, clientIp } from "@/lib/server/rateLimit";
 import { accountLockout, limitOrRespondAsync } from "@/lib/server/rateLimitDb";
@@ -14,6 +14,10 @@ export async function POST(req: Request) {
   // No owner password set (there is no built-in one, 10-16): say so instead of a bare "incorrect".
   if (adminUsingDefaults() && !process.env.ADMIN_HELPER_PASSWORD) {
     return NextResponse.json({ error: "The console is locked until ADMIN_PANEL_PASSWORD is set in the environment." }, { status: 503 });
+  }
+  // #32: no weak built-in signing secret on production.
+  if (!adminSessionsAvailable()) {
+    return NextResponse.json({ error: "The console is locked until EBAY_TOKEN_KEY is set in the environment." }, { status: 503 });
   }
   const body = await req.json().catch(() => null);
   const user = typeof body?.username === "string" ? body.username : "";

@@ -470,6 +470,16 @@ const SCHEMA = `
     window_start INTEGER NOT NULL
   );
 
+  -- Admin console sign-outs (adminGate.ts, #32). The console cookie is signed,
+  -- not stored, so Sign Out records the sign-in it ended; every copy of that
+  -- session (a touch re-signs it) is refused until it would have died anyway.
+  CREATE TABLE IF NOT EXISTS admin_logouts (
+    role TEXT NOT NULL,
+    login_at INTEGER NOT NULL,
+    until INTEGER NOT NULL,
+    PRIMARY KEY (role, login_at)
+  );
+
   -- Order lines the sales sync has already applied to the ledger
   -- (ebayOrders.ts). The sync re-reads a 90-day order window every pass; a
   -- fully-sold card leaves 'listed' and self-dedupes, but a partial sale on

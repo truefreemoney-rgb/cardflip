@@ -24,6 +24,14 @@ export const ADMIN_COOKIE = "cardflip_admin";
  */
 export const ADMIN_SESSION_TTL_MS = 8 * 60 * 60 * 1000; // owner, 8 hours idle
 export const HELPER_SESSION_TTL_MS = 5 * 60 * 1000; // helper, 5 minutes idle
+/**
+ * Hard limits from the sign-in itself (#32, audit 10-16): touches keep a
+ * session alive only this long after the login that started it, so a cookie
+ * copied off a machine can't be kept alive forever. Owner a week, helper 12 h.
+ */
+export const ADMIN_MAX_LIFE_MS = 7 * 24 * 60 * 60 * 1000;
+export const HELPER_MAX_LIFE_MS = 12 * 60 * 60 * 1000;
+export const maxLifeOf = (role: AdminRole) => (role === "helper" ? HELPER_MAX_LIFE_MS : ADMIN_MAX_LIFE_MS);
 /** A token that expires further out than its TTL was issued under an older rule: refuse it. */
 const CLOCK_SKEW_MS = 60 * 1000;
 export function tokenLifeOk(expiresAt: number, now: number, ttl = ADMIN_SESSION_TTL_MS): boolean {
@@ -111,50 +119,104 @@ export function verifyAdminLogin(user: string, password: string, env: NodeJS.Pro
   return null;
 }
 
-function signingKey(creds: AdminCredentials, env: NodeJS.ProcessEnv): Buffer {
-  return createHmac("sha256", `${creds.user}:${creds.password}:${env.EBAY_TOKEN_KEY ?? env.EBAY_CLIENT_SECRET ?? "cardflip"}`)
-    .update("admin-session-key")
-    .digest();
-}
-
-export function signAdminToken(now = Date.now(), creds = adminCredentials(), env: NodeJS.ProcessEnv = process.env): { token: string; expiresAt: number } {
-  const expiresAt = now + ADMIN_SESSION_TTL_MS;
-  const mac = createHmac("sha256", signingKey(creds, env)).update(String(expiresAt)).digest("base64url");
-  return { token: `${expiresAt}.${mac}`, expiresAt };
-}
-
-export function verifyAdminToken(token: string | undefined | null, now = Date.now(), creds = adminCredentials(), env: NodeJS.ProcessEnv = process.env): boolean {
-  if (!token || !creds.password) return false;
-  const dot = token.indexOf(".");
-  if (dot <= 0) return false;
-  const expiresAt = Number(token.slice(0, dot));
-  const mac = token.slice(dot + 1);
-  if (!tokenLifeOk(expiresAt, now)) return false;
-  const expected = createHmac("sha256", signingKey(creds, env)).update(String(expiresAt)).digest("base64url");
-  return safeEqual(mac, expected);
+function isProduction(env: NodeJS.ProcessEnv): boolean {
+  return env.VERCEL_ENV === "production" || env.NODE_ENV === "production";
 }
 
 /**
- * Helper session: "<expiresAtMs>.h.<hmac>" signed with the helper's own
+ * The app secret mixed into the session key. Production has EBAY_TOKEN_KEY (it also seals eBay tokens); without
+ * it or EBAY_CLIENT_SECRET there is NO admin session on production (#32: the old "cardflip" fallback left the
+ * password as the only secret). Local dev without either still works on a fixed dev-only value.
+ */
+function appSecret(env: NodeJS.ProcessEnv): string | null {
+  const secret = env.EBAY_TOKEN_KEY || env.EBAY_CLIENT_SECRET;
+  if (secret) return secret;
+  return isProduction(env) ? null : "cardflip-dev-only";
+}
+
+/** False when this server cannot sign admin sessions at all (production with no app secret). */
+export function adminSessionsAvailable(env: NodeJS.ProcessEnv = process.env): boolean {
+  return appSecret(env) !== null;
+}
+
+function signingKey(creds: AdminCredentials, env: NodeJS.ProcessEnv): Buffer | null {
+  const secret = appSecret(env);
+  if (!secret) return null;
+  return createHmac("sha256", `${creds.user}:${creds.password}:${secret}`).update("admin-session-key").digest();
+}
+
+/** "x" is never a valid MAC: a server with no key hands out tokens nothing will accept. */
+function mac(key: Buffer | null, payload: string): string {
+  return key ? createHmac("sha256", key).update(payload).digest("base64url") : "x";
+}
+
+/**
+ * Owner token "<expiresAtMs>.<loginAtMs>.<hmac>". loginAt is the sign-in that started the session; a touch keeps
+ * it, so the hard limit (ADMIN_MAX_LIFE_MS) and a sign-out (adminGate.endAdminSession) cover every re-signed copy.
+ */
+export function signAdminToken(now = Date.now(), creds = adminCredentials(), env: NodeJS.ProcessEnv = process.env, loginAt = now): { token: string; expiresAt: number } {
+  const expiresAt = Math.min(now + ADMIN_SESSION_TTL_MS, loginAt + ADMIN_MAX_LIFE_MS);
+  return { token: `${expiresAt}.${loginAt}.${mac(signingKey(creds, env), `${expiresAt}.${loginAt}`)}`, expiresAt };
+}
+
+export interface AdminSession {
+  role: AdminRole;
+  expiresAt: number;
+  loginAt: number;
+}
+
+function lifeOk(expiresAt: number, loginAt: number, now: number, ttl: number, maxLife: number): boolean {
+  return (
+    tokenLifeOk(expiresAt, now, ttl) &&
+    Number.isFinite(loginAt) &&
+    loginAt <= now + CLOCK_SKEW_MS &&
+    now - loginAt <= maxLife &&
+    expiresAt <= loginAt + maxLife + CLOCK_SKEW_MS
+  );
+}
+
+function ownerSession(token: string, now: number, creds: AdminCredentials, env: NodeJS.ProcessEnv): AdminSession | null {
+  if (!creds.password) return null;
+  const m = /^(\d+)\.(\d+)\.([A-Za-z0-9_-]+)$/.exec(token);
+  if (!m) return null;
+  const expiresAt = Number(m[1]);
+  const loginAt = Number(m[2]);
+  if (!lifeOk(expiresAt, loginAt, now, ADMIN_SESSION_TTL_MS, ADMIN_MAX_LIFE_MS)) return null;
+  const key = signingKey(creds, env);
+  return key && safeEqual(m[3], mac(key, `${expiresAt}.${loginAt}`)) ? { role: "owner", expiresAt, loginAt } : null;
+}
+
+export function verifyAdminToken(token: string | undefined | null, now = Date.now(), creds = adminCredentials(), env: NodeJS.ProcessEnv = process.env): boolean {
+  return token ? ownerSession(token, now, creds, env) !== null : false;
+}
+
+/**
+ * Helper session: "<expiresAtMs>.h.<loginAtMs>.<hmac>" signed with the helper's own
  * credentials, so the owner's key never verifies it and changing the helper
  * password ends her sessions alone. The ".h." segment is inside the MAC.
  */
-export function signHelperToken(now = Date.now(), creds = helperCredentials(), env: NodeJS.ProcessEnv = process.env): { token: string; expiresAt: number } {
+export function signHelperToken(now = Date.now(), creds = helperCredentials(), env: NodeJS.ProcessEnv = process.env, loginAt = now): { token: string; expiresAt: number } {
   if (!creds) throw new Error("No helper login is configured");
-  const expiresAt = now + HELPER_SESSION_TTL_MS;
-  const mac = createHmac("sha256", signingKey(creds, env)).update(`h:${expiresAt}`).digest("base64url");
-  return { token: `${expiresAt}.h.${mac}`, expiresAt };
+  const expiresAt = Math.min(now + HELPER_SESSION_TTL_MS, loginAt + HELPER_MAX_LIFE_MS);
+  return { token: `${expiresAt}.h.${loginAt}.${mac(signingKey(creds, env), `h:${expiresAt}.${loginAt}`)}`, expiresAt };
 }
 
-/** Which role a cookie value carries — owner, helper, or nothing. */
-export function adminRoleOf(token: string | undefined | null, now = Date.now(), env: NodeJS.ProcessEnv = process.env): AdminRole | null {
+/** The session a cookie value carries (role + when its sign-in happened), or null. */
+export function adminSessionOf(token: string | undefined | null, now = Date.now(), env: NodeJS.ProcessEnv = process.env): AdminSession | null {
   if (!token) return null;
-  if (verifyAdminToken(token, now, adminCredentials(env), env)) return "owner";
-  const m = /^(\d+)\.h\.([A-Za-z0-9_-]+)$/.exec(token);
+  const owner = ownerSession(token, now, adminCredentials(env), env);
+  if (owner) return owner;
+  const m = /^(\d+)\.h\.(\d+)\.([A-Za-z0-9_-]+)$/.exec(token);
   const creds = helperCredentials(env);
   if (!m || !creds) return null;
   const expiresAt = Number(m[1]);
-  if (!tokenLifeOk(expiresAt, now, HELPER_SESSION_TTL_MS)) return null;
-  const expected = createHmac("sha256", signingKey(creds, env)).update(`h:${expiresAt}`).digest("base64url");
-  return safeEqual(m[2], expected) ? "helper" : null;
+  const loginAt = Number(m[2]);
+  if (!lifeOk(expiresAt, loginAt, now, HELPER_SESSION_TTL_MS, HELPER_MAX_LIFE_MS)) return null;
+  const key = signingKey(creds, env);
+  return key && safeEqual(m[3], mac(key, `h:${expiresAt}.${loginAt}`)) ? { role: "helper", expiresAt, loginAt } : null;
+}
+
+/** Which role a cookie value carries — owner, helper, or nothing. (Signature only: adminGate also checks sign-outs.) */
+export function adminRoleOf(token: string | undefined | null, now = Date.now(), env: NodeJS.ProcessEnv = process.env): AdminRole | null {
+  return adminSessionOf(token, now, env)?.role ?? null;
 }
