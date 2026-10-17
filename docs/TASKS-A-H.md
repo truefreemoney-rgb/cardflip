@@ -12,7 +12,7 @@ tasks #58 #59 #61 #62 #63 #65 (+ #66 #67 already existed, #57 skipped). All push
 4. After the sub: PriceCharting as the main price, matched by TCGplayer ID, TCGplayer only where it has none [me] M
 5. After the sub: "Based on N sales" + "few sales" label on card pages and scan results [me] S
 6. Daily 4-source price cross-check (PriceCharting, TCGplayer, eBay asks, Cardmarket); big jumps go to a check queue [me] M
-7. Prices by condition (Near Mint and played values) [me] S
+7. CHECKED 10-17, nothing built: prices by condition already show as an ESTIMATE (card pages "Estimated price by condition" + the app asking price use NM 100% / LP 85% / MP 70% / HP 55% / DMG 40%). No free source has real played prices (TCGplayer feed = one market price per printing, no condition; eBay sold API denied); revisit with PriceCharting [me] S
 8. Weekly accuracy scorecard: 20 random cards vs eBay sold, cause fixed same day [me] S weekly. Week 1 (10-17): 11 of 17 = 65% within 25% (docs/price-scorecard/2026-10-17; sampler scripts/_scorecard-sample.mjs). Misses = TCGplayer market frozen/lagging (Zubat RH 153 days flat, Exodia Necross 25th $52 vs ~$15, Electrode 1st $36 vs $21); fix = PriceCharting first (finale). Next run ~10-24
 9. DONE 10-17 (local, not pushed; Chris OK on shots docs/shots/price-report-1..3): "Price looks wrong?" button feeding the manual check (card pages; /admin/prices "Readers flagged") [me] S
 10. Reapply for eBay Marketplace Insights (sold data) [me writes, you send] S
@@ -31,7 +31,7 @@ tasks #58 #59 #61 #62 #63 #65 (+ #66 #67 already existed, #57 skipped). All push
 
 ## C. Bugs and polish
 C0. DONE 10-17 (local, not pushed; covers, set index and /api/sets serve the old copy and rebuild after): Pokémon set list rebuild takes ~21 s once a day (seo:sets:v4, json walk of price_series): the first visitor waits and the 2am + 7am ET Production smoke failed 10-17 on it. Serve the stale list while rebuilding (cachedListSwr; block only when no row exists) [me] S
-21. The Magic price limit cuts some old cards too low (e.g. Alpha Blaze of Glory $400 vs ~$579), and it has no lower limit for $1 junk listings [me] M
+21. CHECKED 10-17, no code change: The Magic price limit cuts some old cards too low (e.g. Alpha Blaze of Glory $400 vs ~$579), and it has no lower limit for $1 junk listings [me] M. The soft cap (1.45x the cheapest listing for pre-1996 / $100+, live since 10-16) now lands in eBay sold ranges: Blaze $579.99 (sold $579-695), Bog Wraith $80.11 ($79-91), Jace WWK foil $194.56 ($180-205), Pirate Ship shows $369.50 ($359). A floor from listings would be wrong: 486 Magic prices sit 1.5x+ under the cheapest listing, but those listings include absurd asks ($66,656 for a $300 serialized foil). Fury/Grief SLD (~$650 vs ~$1,000 sold) need sold data = PriceCharting. $1 junk floor: no case found (Metamorphic Wurm $1.30 matched eBay $2-8). FOUND: Blaze's page shows NO price (LESSONS 10-17) = #1
 22. DONE 10-17 (local, not pushed; limit now starts at 1.45x, eBay sold sample 9 of 10 closer): Pokémon price-limit jump: a $99 card stays $99, but at $100 it drops to $72.50. Smooth it out [me] S
 23. Nightly catalog upload resends everything; send only what changed [me] M
 24. DONE 10-17 (local, not pushed; prod showed only /api/auth/me twice, the second from PendingWatch: now uses the app's session, /api/watch/pending once too): Inventory still loads a couple of things twice; confirm and trim [me] S

@@ -4,6 +4,11 @@ Chris (10-14): every support ticket and every social comment is a learning
 experience while the site is new and not fully tested. One entry each: what
 they said, what it taught, what changed, what is still open. Newest first.
 
+## 10-17 · Alpha Blaze of Glory card page shows no price (found by me during task #21)
+- What: /cards/magic/limited-edition-alpha/blaze-of-glory--lea-6 has no price in its title or headline. Our stored value is $579.99 (soft cap 1.45x the $399.99 cheapest listing; eBay sold raw $579-695 = right).
+- Cause: TCGplayer stopped giving Blaze a dollar price after 10-13, so the nightly run fills it from the Cardmarket euro price (series "cardmarket-converted", fresh daily). The card page still reads the old TCGplayer series (8 priced days, flagged "thin") and shows nothing instead of the fresh trusted series. Same family as the Eevee $0: a flagged series = no price.
+- Fix: A-H #1 (a flagged price falls back to the best trusted number), proposed to Chris as the next task 10-17. Open.
+
 ## 10-17 · New Google Ads user's Eevee scanned at $0 (Chris spotted the 83% scanner tile)
 - What: user 7b93884f (signed up 7:17am ET from Leads - Search) scanned 6 cards in 3 min. Scan 2 = photo with no card in it (vision "seen: other", conf 0): no card, trial scan refunded (working as meant). Scan 6 = Eevee svp-173 saved at $0; the same card 25 s earlier was saved at $14.03.
 - Cause: TCGplayer market for svp-173 jumped to $79.66 (eBay sold raw 10-15..17: $9-$20, median $12.99; the $60-85 sales are the Pokemon Center stamped print, a different card). The guard correctly flagged it hard ("spike 7.1x still 5.8x"), but every consumer treats a flag as NO price (listing.ts quotePrice returns null -> $0 saved; card page "looks off"). The $14.03 came from a second re-quote path (chart current point), not reliably.

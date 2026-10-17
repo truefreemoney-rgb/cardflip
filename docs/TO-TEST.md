@@ -4,12 +4,12 @@
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
 
-## 10-17 ~5:30pm ET: "Price looks wrong?" on card pages (A-H #9, NOT PUSHED; shots docs/shots/price-report-1..3)
+## 10-17 ~3:35pm ET: "Price looks wrong?" on card pages (A-H #9, NOT PUSHED; shots docs/shots/price-report-1..3)
 - After push, phone: open any priced card page -> grey "Price looks wrong?" under the price -> tap -> "Too high" -> "Thanks. We'll check it against real eBay sales."
 - /admin/prices -> "Readers flagged" lists that card with "1 too high", the price it saw and an eBay sold link (not yet seen rendered: local console sign-in skipped).
 - Tap again from the same phone -> still 1 vote (it changes, never stacks). Prod SELECT: `SELECT * FROM price_reports` has the row.
 
-## 10-17 ~3:40pm ET: 15-minute uptime ping (A-H #57, NOT PUSHED)
+## 10-17 ~3:05pm ET: 15-minute uptime ping (A-H #57, NOT PUSHED)
 - After push: Vercel dashboard -> Settings -> Cron Jobs lists /api/cron/uptime every 15 min; its log shows runs at :00/:15/:30/:45 with `"ok":true` (the GitHub smoke only managed every 2-4 h).
 - Without the key: `curl https://cardflip.io/api/cron/uptime` -> 403.
 - Alert path is the same mail as the smoke failures ("CardFlip: Uptime failed"), at most once an hour; it now also sends when the database itself is down (test:uptime).
