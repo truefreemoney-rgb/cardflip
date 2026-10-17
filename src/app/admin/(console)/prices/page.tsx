@@ -3,6 +3,7 @@ import PriceCallButtons from "@/components/admin/PriceCallButtons";
 import { requireOwnerPage } from "@/lib/server/adminPage";
 import { askCounts, lastRefereeRun, listAsks, type AskListRow } from "@/lib/server/ebayReferee";
 import { db } from "@/lib/db";
+import { listPriceReports, reportLabel, type PriceReportRow } from "@/lib/server/priceReports";
 import { RAW_ONLY_TERMS } from "@/lib/listing";
 
 export const dynamic = "force-dynamic";
@@ -37,6 +38,37 @@ async function lastCatalogRun(): Promise<CatalogRun | null> {
     return null;
   }
 }
+/** Readers' "Price looks wrong?" votes (A-H #9): the card page, which way, and an eBay sold search for its name. */
+function ReaderTable({ rows }: { rows: PriceReportRow[] }) {
+  if (rows.length === 0) return <p className="rounded-2xl border border-edge bg-surface-1 px-4 py-3 text-sm text-zinc-500">No reader has flagged a price yet.</p>;
+  return (
+    <ul className="divide-y divide-white/5 rounded-2xl border border-edge bg-surface-1 text-sm">
+      {rows.map((r) => {
+        const l = reportLabel(r.path);
+        const finish = r.variant === "foil" || r.variant === "etched" ? " foil" : r.variant === "reverseHolofoil" ? " reverse holo" : r.variant.startsWith("1stEdition") ? " 1st edition" : "";
+        const sold = `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(`${l.name} ${l.set.replace(/-/g, " ")}${finish} ${RAW_ONLY_TERMS}`)}&LH_Sold=1&LH_Complete=1`;
+        return (
+          <li key={`${r.path}|${r.variant}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3">
+            <a href={r.path} target="_blank" rel="noreferrer" className="font-medium text-white hover:underline">
+              {l.name}
+            </a>
+            <span className="text-xs text-zinc-500">
+              {GAME_LABEL[l.game] ?? l.game} · {l.set} · {r.variant}
+            </span>
+            <span className="tabular-nums text-white">{r.price != null ? money(r.price) : "no price"}</span>
+            <span className="text-xs text-zinc-300">
+              {[r.high ? `${num(r.high)} too high` : "", r.low ? `${num(r.low)} too low` : ""].filter(Boolean).join(" · ")} · {ago(r.last)}
+            </span>
+            <a href={sold} target="_blank" rel="noreferrer" className="text-xs font-medium text-sky-300 hover:underline">
+              eBay sold
+            </a>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 function Table({ rows, empty }: { rows: AskListRow[]; empty: string }) {
   if (rows.length === 0) return <p className="rounded-2xl border border-edge bg-surface-1 px-4 py-3 text-sm text-zinc-500">{empty}</p>;
   return (
@@ -106,7 +138,15 @@ function Table({ rows, empty }: { rows: AskListRow[]; empty: string }) {
  */
 export default async function AdminPricesPage() {
   await requireOwnerPage();
-  const [run, counts, check, high, manual, catalog] = await Promise.all([lastRefereeRun(), askCounts(), listAsks("check"), listAsks("high"), listAsks("manual"), lastCatalogRun()]);
+  const [run, counts, check, high, manual, catalog, readers] = await Promise.all([
+    lastRefereeRun(),
+    askCounts(),
+    listAsks("check"),
+    listAsks("high"),
+    listAsks("manual"),
+    lastCatalogRun(),
+    listPriceReports(),
+  ]);
   return (
     <section className="space-y-6">
       <div>
@@ -152,7 +192,13 @@ export default async function AdminPricesPage() {
       </div>
       <div>
         <h2 className="mb-2 text-lg font-semibold text-white">
-          Hand check <span className="text-sm font-normal text-zinc-500">({num(counts.check)}, shown on the site, 1.5x+ the typical eBay ask)</span>
+          Readers flagged <span className="text-sm font-normal text-zinc-500">({num(readers.length)}, &quot;Price looks wrong?&quot; on card pages, last 90 days)</span>
+        </h2>
+        <ReaderTable rows={readers} />
+      </div>
+      <div>
+        <h2 className="mb-2 text-lg font-semibold text-white">
+          Hand check<span className="text-sm font-normal text-zinc-500">({num(counts.check)}, shown on the site, 1.5x+ the typical eBay ask)</span>
         </h2>
         <Table rows={check} empty="Nothing to check." />
       </div>

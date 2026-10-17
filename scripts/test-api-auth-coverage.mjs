@@ -44,6 +44,7 @@ const ALLOWLIST = {
   "/vision/trial": "ad-landing free scan: public by design, gated by device/IP limits and a daily budget",
   "/visit": "anonymous visitor ping: public by design, IP rate limited, path shape validated",
   "/waitlist": "public signup form: honeypot plus IP rate limit",
+  "/price-report": "card page Price looks wrong? vote: public like the page, IP rate limited, path shape validated, one vote per visitor",
   "/digest/unsubscribe": "emailed link: the per-user digest token is the proof; GET only shows the button (A-H #24), POST unsubscribes",
 };
 

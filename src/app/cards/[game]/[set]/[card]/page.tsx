@@ -9,6 +9,7 @@ import ArtImg from "@/components/ArtImg";
 import WatchPrice from "@/components/WatchPrice";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import PriceConfidenceBadge from "@/components/PriceConfidenceBadge";
+import PriceReport from "@/components/PriceReport";
 import BuyOnEbayLink from "@/components/BuyOnEbayLink";
 import { BuyNote, Crumbs, PriceCell, ScanCta, StickyPriceBar, TileGrid, buyCard } from "@/components/CardPagesUi";
 import {
@@ -130,6 +131,7 @@ function PriceBlock({ page }: { page: CardPage }) {
         <PriceConfidenceBadge days={historyDays(page)} staleDays={headline.stale?.days ?? null} className="mt-1.5" />
         {/* The value has stood 45+ days (10-02): the number stands, this says how old it is. */}
         {headline.stale && <p className="mt-0.5 text-sm text-zinc-400">{priceStaleNote(headline.stale.days)}.</p>}
+        <PriceReport variant={headline.variant} price={headline.price} className="mt-1.5" />
         {page.changes.length > 0 && (
           <ul className="mt-3 space-y-0.5 text-sm text-zinc-300">
             {page.changes.map((c) => (

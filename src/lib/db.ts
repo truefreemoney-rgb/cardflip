@@ -909,6 +909,18 @@ const SCHEMA = `
     created_at INTEGER NOT NULL,
     ip_hash TEXT
   );
+  -- "Price looks wrong?" on card pages (A-H #9, 10-17, lib/server/priceReports.ts): one row per card page +
+  -- printing + visitor (hashed IP), so one person counts once; read by /admin/prices, pruned after 90 days.
+  CREATE TABLE IF NOT EXISTS price_reports (
+    path TEXT NOT NULL,
+    variant TEXT NOT NULL,
+    reporter TEXT NOT NULL,
+    direction TEXT NOT NULL CHECK (direction IN ('high', 'low')),
+    price_usd REAL,
+    at INTEGER NOT NULL,
+    PRIMARY KEY (path, variant, reporter)
+  );
+  CREATE INDEX IF NOT EXISTS idx_price_reports_at ON price_reports(at);
 `;
 
 /**

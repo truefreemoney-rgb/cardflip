@@ -159,6 +159,8 @@ export const LIMITS = {
   waitlist: [{ limit: 5, windowMs: 10 * MINUTE }, { limit: 20, windowMs: DAY }] as RateLimitRule[],
   /** Reset mails to one address, from anywhere (10-01 sweep: 10 per 15 min was ~960 a day into a victim's inbox). */
   resetMail: [{ limit: 3, windowMs: 60 * MINUTE }, { limit: 6, windowMs: DAY }] as RateLimitRule[],
+  /** "Price looks wrong?" on card pages (A-H #9), per IP: a reader flags a few cards, never dozens. */
+  priceReport: [{ limit: 10, windowMs: 10 * MINUTE }, { limit: 30, windowMs: DAY }] as RateLimitRule[],
   /** Visitor pings (/api/visit), per IP: a reader opens a few hundred pages a day at most; a script writing rows does not stop. */
   visit: [{ limit: 300, windowMs: DAY }] as RateLimitRule[],
   /** Pack tracker writes (create, rename, delete), per user: a person opens a few packs an hour. */
