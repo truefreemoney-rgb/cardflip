@@ -5,7 +5,6 @@ import { mtgCardsBySet } from "@/lib/server/mtgCards";
 import { isTcgGame, tcgCardsBySet } from "@/lib/server/tcgCards";
 import { heldPriceEntry } from "@/lib/server/priceHistory";
 import { latestUsdWithTrust, withPriceFlags } from "@/lib/server/priceTrustSite";
-import { flagBlocks, hasFallback } from "@/lib/priceFlag";
 import type { PokemonCard } from "@/lib/types";
 import { LIMITS, clientIp, limitOrRespond } from "@/lib/server/rateLimit";
 
@@ -54,9 +53,7 @@ export async function GET(req: NextRequest) {
     for (const card of cards) {
       const p = prices.get(card.id);
       if (!p) continue;
-      // A flag with a fallback (10-17) prices the row, like withPriceFlags; only a flag with none is untrusted.
-      const fixed = hasFallback(p.flag) ? { market: p.flag.fallback, checked: p.flag, checkedWas: p.price } : {};
-      card.prices = [{ ...heldPriceEntry(p), ...fixed, ...(flagBlocks(p.flag) ? { untrusted: p.flag } : {}), ...(p.stale ? { stale: p.stale } : {}) }];
+      card.prices = [{ ...heldPriceEntry(p), ...(p.flag ? { untrusted: p.flag } : {}), ...(p.stale ? { stale: p.stale } : {}) }];
     }
     return NextResponse.json({ cards }, { headers: CDN_CACHE });
   } catch (err) {

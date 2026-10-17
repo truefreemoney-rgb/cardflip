@@ -4,8 +4,8 @@ import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { pickPrice } from "@/lib/listing";
 import { latestUsdByVariant, latestUsdPrice, variantRank } from "@/lib/server/priceHistory";
-import { storablePrice, storedPriceFlags } from "@/lib/server/priceTrustSite";
-import { hasFallback, type PriceFlag } from "@/lib/priceFlag";
+import { marketPriceFlagged, storedPriceFlags } from "@/lib/server/priceTrustSite";
+import type { PriceFlag } from "@/lib/priceFlag";
 import type { GameId, PokemonCard, ScanLanguage } from "@/lib/types";
 import { parseGame } from "@/lib/games";
 import { trimPriceChecks } from "@/lib/server/rowCaps";
@@ -130,8 +130,8 @@ export async function logPriceCheck(
   const checkedAt = Date.now();
   let representativePrice =
     pickPrice(card)?.market ?? (card.id ? await latestUsdPrice(card.id).catch(() => null) : null);
-  // The price guard: a flagged market is stored as its fallback, or not at all (the history would show junk as its number).
-  if (representativePrice != null) representativePrice = await storablePrice(card, representativePrice);
+  // The price guard: a flagged market is not stored as the lookup's price (the history would show junk as its number).
+  if (representativePrice != null && (await marketPriceFlagged(card, representativePrice))) representativePrice = null;
 
   const recent = (await db
     .prepare(
@@ -220,20 +220,14 @@ export async function listPriceChecks(userId: string, limit = 100): Promise<Pric
   const entries = rows.map(fromRow);
   // One batched trust read for the whole page of history (<= 100 rows), annotated on the way out.
   try {
-    const flags = await storedPriceFlags(entries.map((e) => ({ cardId: e.cardId, game: e.game, prices: e.prices, asLive: e.representativePrice == null || pickPrice({ prices: e.prices } as PokemonCard)?.market !== e.representativePrice })));
+    const flags = await storedPriceFlags(entries.map((e) => ({ cardId: e.cardId, game: e.game, prices: e.prices, asLive: e.representativePrice == null })));
     entries.forEach((e, i) => {
       const f = flags.get(i);
       if (!f) return;
-      // A flag with a fallback (10-17) prices the row (the flagged number rides along as checkedWas); only a flag with none is marked untrusted.
-      e.prices = e.prices.map((p) => {
-        const fl = p.source === "tcgplayer" && p.currency === "USD" ? f.get(p.variant) : undefined;
-        if (!fl) return p;
-        return hasFallback(fl) ? { ...p, market: fl.fallback, checked: fl, checkedWas: p.market ?? undefined } : { ...p, untrusted: fl };
-      });
+      e.prices = e.prices.map((p) => (p.source === "tcgplayer" && p.currency === "USD" && f.has(p.variant) ? { ...p, untrusted: f.get(p.variant) } : p));
       // The row the history shows: a lookup saved with no price (flagged at the time) or one whose saved number is still the flagged row.
       const shown = pickPrice({ prices: e.prices } as PokemonCard);
       if (shown?.untrusted && (e.representativePrice == null || shown.market === e.representativePrice)) e.flag = shown.untrusted;
-      else if (shown?.checked && shown.market != null && (e.representativePrice == null || shown.checkedWas === e.representativePrice)) e.representativePrice = shown.market;
     });
   } catch (err) {
     console.warn("price checks: price guard unavailable", err);
@@ -247,9 +241,7 @@ export async function listPriceChecks(userId: string, limit = 100): Promise<Pric
       if (!byVariant || e.flag) continue;
       const saved = e.prices.find((p) => p.currency === "USD" && p.market != null && p.market === e.representativePrice)?.variant;
       const variant = saved && byVariant.has(saved) ? saved : [...byVariant.keys()].sort((a, b) => variantRank(a) - variantRank(b))[0];
-      // A variant priced from a fallback (10-17) is today's market at its fallback, not the series' junk latest.
-      const fixed = e.prices.find((p) => p.variant === variant && p.checked && p.market != null);
-      e.currentPrice = fixed ? (fixed.market as number) : (byVariant.get(variant) ?? null);
+      e.currentPrice = byVariant.get(variant) ?? null;
     }
   } catch (err) {
     console.warn("price checks: current prices unavailable", err);

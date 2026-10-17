@@ -744,24 +744,6 @@ console.log("A stale market price refuses a local listing");
   check("the editor's server quote carries the same message", [quote.local, /too old/.test(quote.error ?? "")], [true, true]);
 }
 
-console.log("The price guard (10-17): a flagged market prices a local listing from its fallback; only a flag with none refuses");
-{
-  const { junkPrices, hideByAdmin } = await import("./lib/liquid-series.mjs");
-  const u = await seller("GB", "BUSINESS");
-  const spiked = async (hide) => {
-    const catalogId = `test-card-${++seq}`;
-    const prices = junkPrices(500);
-    await db.prepare(`INSERT OR REPLACE INTO price_series (card_id, game, variant, source, currency, start_day, prices, updated_day) VALUES (?, 'pokemon', 'holofoil', 'tcgplayer', 'USD', ?, ?, ?)`)
-      .run(catalogId, addDays(TODAY, -(prices.length - 1)), encodePrices(prices), TODAY);
-    if (hide) await hideByAdmin(db, addDays, TODAY, catalogId, "pokemon", "holofoil", 500);
-    const c = await createCard(u.id, { cardName: "Charizard", setName: "Base Set", cardNumber: "4", imageUrl: "https://img/4.png", condition: "Near Mint", price: 5, catalogCardId: catalogId });
-    return getCardForUser(c.id, u.id);
-  };
-  const fb = await marketValueUsd(await spiked(false));
-  check("a 5x spike WITH a fallback is valued at the level before the jump (~$100), not the $500", [fb > 90 && fb < 120], [true]);
-  check("... a flag with NO fallback (hidden by an admin) has no value", await marketValueUsd(await spiked(true)), null);
-}
-
 console.log("Offer id and site are written together");
 {
   const u = await seller("GB", "BUSINESS");

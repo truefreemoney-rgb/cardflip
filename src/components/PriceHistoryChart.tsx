@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatMoney, formatVariantLabel } from "@/lib/listing";
 import type { Currency } from "@/lib/types";
-import { PRICE_FLAG_NOTE, hasFallback, priceStaleNote } from "@/lib/priceFlag";
+import { PRICE_FLAG_NOTE, priceStaleNote } from "@/lib/priceFlag";
 import { cache, loadSeries, pickSeries, type Series, type TrendAverages } from "@/lib/client/priceHistoryData";
 
 // Compatibility: callers import the data helpers from here; they live in lib/client/priceHistoryData.ts so light users skip the chart code.
@@ -264,9 +264,6 @@ export default function PriceHistoryChart({ cardId, initialSeries, preferVariant
   const up = (changeAbs ?? 0) >= 0;
   // The price guard: the history is still drawn, but its latest point is not presented as the card's price.
   const flagged = Boolean(series?.untrusted);
-  // A flag with a fallback (10-17) headlines the fallback in place of the note (the drawn history stays as is); only a flag with none shows the note.
-  const flag = series?.untrusted;
-  const fallbackPrice = hasFallback(flag) ? Math.round(flag.fallback * factor * 100) / 100 : null;
   const stroke = up ? "#34d399" : "#f87171"; // emerald-400 / red-400 — stock convention
   const rangeLo = geo && !geo.single ? shown[geo.minI].price : null;
   const rangeHi = geo && !geo.single ? shown[geo.maxI].price : null;
@@ -302,10 +299,8 @@ export default function PriceHistoryChart({ cardId, initialSeries, preferVariant
           </div>
           {last && (
             <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2">
-              {flagged && !hovered && fallbackPrice == null ? (
+              {flagged && !hovered ? (
                 <span className={`${compact ? "text-xs" : "text-sm"} font-medium text-amber-300`}>{PRICE_FLAG_NOTE}</span>
-              ) : flagged && !hovered && fallbackPrice != null ? (
-                <span className={`font-display ${compact ? "text-xl" : "text-2xl"} font-semibold tabular-nums text-white`}>{formatMoney(fallbackPrice, currency)}</span>
               ) : (
                 <span className={`font-display ${compact ? "text-xl" : "text-2xl"} font-semibold tabular-nums text-white`}>
                   {formatMoney(hovered ? hovered.p.price : last.price, currency)}

@@ -3,7 +3,7 @@ import { GAMES, printedCardNumber, SET_IN_NUMBER_GAMES } from "@/lib/games";
 import { formatMoney, formatVariantLabel } from "@/lib/listing";
 import { addDays, dayIndex, todayUtc, type HistoryPoint } from "@/lib/priceSeries";
 import { cleanSeriesPoints } from "@/lib/priceOutliers";
-import { hasFallback, type PriceFlag, type PriceStale } from "@/lib/priceFlag";
+import type { PriceFlag, PriceStale } from "@/lib/priceFlag";
 import { etDate } from "@/lib/time";
 import { clipDescription, pageMetadata } from "@/lib/seo";
 import type { GameId } from "@/lib/types";
@@ -257,8 +257,6 @@ export interface VariantPrice {
   flag: PriceFlag | null;
   /** The value has stood 45+ days (10-02): printed, with a note. */
   stale?: PriceStale | null;
-  /** `price` is this flag's fallback (10-17): the series' own number was flagged. */
-  checked?: PriceFlag;
 }
 
 /** A price too high to stand on a day or two of history (VERIFY_ABOVE_USD): never featured or indexed until it has some. */
@@ -290,11 +288,6 @@ export function variantPrices(game: GameId, series: SeriesInput[], today: string
     if (!last || !isFresh(last.day, today)) continue;
     const days = s.prices.filter((p) => p != null && p > 0).length;
     // A four-figure price on a few days of history is never printed either (a $213k Yu-Gi-Oh! common got past the guard on day one).
-    // A flag with a sound fallback (10-17, Chris: "we cant have unpriced cards") prices the printing from that, unflagged.
-    if (hasFallback(s.flag)) {
-      out.push({ variant: s.variant, label: variantLabel(game, s.variant), price: s.flag.fallback, day: last.day, days, flag: null, checked: s.flag });
-      continue;
-    }
     const young = !s.flag && isUnverified({ price: last.price, days });
     const flag = young ? { hard: false, reason: `unverified ${days}d` } : s.flag;
     out.push({ variant: s.variant, label: variantLabel(game, s.variant), price: last.price, day: last.day, days, flag, ...(s.stale && !flag ? { stale: s.stale } : {}) });

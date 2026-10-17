@@ -6,7 +6,6 @@ import { heldSeries, preferredVariants, usdSeries } from "@/lib/server/priceHist
 import { inventoryValueSeries } from "@/lib/server/inventoryValue";
 import { heldTrustOrOpen } from "@/lib/server/priceTrustSite";
 import { addDays, dayIndex, todayUtc } from "@/lib/priceSeries";
-import { flagBlocks, hasFallback } from "@/lib/priceFlag";
 import type { GameId } from "@/lib/types";
 
 /**
@@ -134,16 +133,13 @@ export async function collectionInsights(userId: string, game: GameId, now = Dat
     const held = r.catalog_card_id ? { ...own(r), game: r.game } : null;
     // A flagged market never prices a copy: the seller's own price still counts (below, as always), anything else is left out.
     // A live listing's price is the seller's real ask, typed or suggested, so it counts like a typed one.
-    // A flag with a fallback (10-17) prices the card; only a flag with none is skipped. No week-ago for a fallback (the series is the junk).
-    const flag = held != null && s != null ? trust.flag(held) : null;
-    const fb = hasFallback(flag) ? flag.fallback : null;
-    const junkMarket = flagBlocks(flag);
+    const junkMarket = held != null && s != null && trust.flag(held) != null;
     if (junkMarket && !r.price_locked && r.status !== "listed") {
       leftOut += qty;
       continue;
     }
-    const marketNow = fb ?? (s && !junkMarket ? onDay(s, today) : null);
-    let marketThen = fb == null && s && !junkMarket ? onDay(s, lastWeek) : null;
+    const marketNow = s && !junkMarket ? onDay(s, today) : null;
+    let marketThen = s && !junkMarket ? onDay(s, lastWeek) : null;
     if (held && marketThen != null && marketThen > 0 && trust.flagOld(held, 7, marketThen)) marketThen = null;
     // A hand-set price is the seller's number; otherwise today's market
     // through the condition math, falling back to the stored price.

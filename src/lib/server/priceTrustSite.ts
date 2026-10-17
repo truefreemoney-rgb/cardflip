@@ -4,7 +4,7 @@ import { addDays, dayIndex, decodePrices, todayUtc } from "@/lib/priceSeries";
 import { pickPrice } from "@/lib/listing";
 import { PRICE_TRUST, REF_ALT_SOURCE, isVintage, lastPriced, priceTrust } from "@/lib/server/priceTrust";
 import { variantRank } from "@/lib/server/priceHistory";
-import { hasFallback, type PriceFlag, type PriceStale } from "@/lib/priceFlag";
+import type { PriceFlag, PriceStale } from "@/lib/priceFlag";
 import { EBAY_REFEREE, refereeVerdict, type AskReading } from "@/lib/ebayReferee";
 import type { CardPrice, GameId, PokemonCard } from "@/lib/types";
 
@@ -71,17 +71,7 @@ export interface TrustData {
   lows?: Record<string, number>;
   /** The nightly eBay referee per variant (ebay_asks): the ask reading when fresh, and an admin's binding call. */
   asks?: Record<string, EbayAsksRow>;
-  /**
-   * A fresh dollar price per variant from a series the rule does not judge (CardTrader, Cardmarket converted), last point
-   * within ALT_MAX_AGE_DAYS: a fallback only (10-17, Alpha Blaze of Glory: TCGplayer stopped, "thin", converted $579.99 = eBay sold).
-   */
-  alt?: Record<string, { usd: number; source: string }>;
 }
-
-/** An other-source series counts as a fallback while its last point is at most this old. */
-export const ALT_MAX_AGE_DAYS = 7;
-/** The dollar series a flagged card may fall back to (never judged, never the headline while TCGplayer has a line). */
-export const ALT_SOURCES = ["cardtrader", "cardmarket-converted"] as const;
 
 /** One ebay_asks row as the guard reads it. `reading` is null when older than EBAY_REFEREE.maxAgeDays (a manual call has no age limit). */
 export interface EbayAsksRow {
@@ -107,16 +97,6 @@ export interface JudgeOpts {
 const YOUNG_GAMES: ReadonlySet<GameId> = new Set(["lorcana", "onepiece", "yugioh"]);
 
 const lastIn = (s: TrustSeries) => lastPriced(s.prices);
-
-/** The last point of an other-source series when it falls on or after `since`, else null. Pure. */
-export function altReading(startDay: string, prices: (number | null)[], since: string): number | null {
-  for (let i = prices.length - 1; i >= 0; i--) {
-    const v = prices[i];
-    if (v == null) continue;
-    return v > 0 && addDays(startDay, i) >= since ? v : null;
-  }
-  return null;
-}
 
 /** The default series: the printing people usually mean (same order as usdSeries). */
 function defaultSeries(series: TrustSeries[]): TrustSeries | undefined {
@@ -199,29 +179,26 @@ export function judgeFull(data: TrustData, opts: JudgeOpts = {}): { flag: PriceF
   const priced = prices.reduce<number>((n, v) => n + (v != null ? 1 : 0), 0);
   // Unverified only (soft signs): not evidence on a series too young to have any, or a price the table has no series for.
   if (!verdict.hard && (!s || (YOUNG_GAMES.has(data.game) && priced < PRICE_TRUST.minPricedDays))) return NONE;
-  const alt = data.alt?.[variant] ?? (cmSpeaks ? data.alt?.average : undefined) ?? null;
-  const fb = fallbackOf(verdict, data.asks?.[variant]?.reading ?? null, listingLowUsd, siblings, alt);
+  const fb = fallbackOf(verdict, data.asks?.[variant]?.reading ?? null, listingLowUsd, siblings);
   return { flag: { hard: !!verdict.hard, reason: verdict.reason, ...fb }, stale: null };
 }
 
 /**
  * The price a flagged card shows instead of none (10-17): the value the failed test measured against, else the median Near
- * Mint eBay ask (3+ asks), else a fresh price from another source's series (TrustData.alt), else, for a number frozen
- * above the cheapest live listing, that listing, else for a printing 3x every sibling, the highest sibling. Pure.
+ * Mint eBay ask (3+ asks), else, for a number frozen above the cheapest live listing, that listing, else for a printing 3x
+ * every sibling, the highest sibling. Pure.
  */
 export function fallbackOf(
   verdict: { reason: string; hard?: boolean; ref?: number },
   ask: AskReading | null,
   listingLowUsd: number | null,
   siblings: readonly number[],
-  alt: { usd: number; source: string } | null = null,
 ): { fallback?: number; fallbackFrom?: string } {
   if (verdict.ref != null && verdict.ref > 0) {
     const from = /^(spike|doubled)/.test(verdict.reason) ? "before jump" : verdict.reason.startsWith("cardmarket") ? "cardmarket" : "ebay ask";
     return { fallback: verdict.ref, fallbackFrom: from };
   }
   if (ask && ask.median != null && ask.median > 0 && ask.nNm >= PRICE_TRUST.climbMinAsks) return { fallback: ask.median, fallbackFrom: "ebay ask" };
-  if (alt && alt.usd > 0) return { fallback: alt.usd, fallbackFrom: alt.source };
   if (/^flat \d+d, [\d.]+x the cheapest listing/.test(verdict.reason) && listingLowUsd != null && listingLowUsd > 0) return { fallback: listingLowUsd, fallbackFrom: "cheapest listing" };
   const sib = siblings.reduce((m, v) => (v > m ? v : m), 0);
   if (/^sibling /.test(verdict.reason) && sib > 0) return { fallback: sib, fallbackFrom: "sibling" };
@@ -320,17 +297,15 @@ export async function readEbayAsks(game: GameId, cardIds: string[], day = todayU
 async function readChunk(game: GameId, chunk: string[], day: string): Promise<Map<string, TrustData>> {
   const marks = chunk.map(() => "?").join(",");
   const cmSince = addDays(day, -PRICE_TRUST.refMaxAgeDays);
-  const altSince = addDays(day, -ALT_MAX_AGE_DAYS);
   // "+game" keeps SQLite off idx_price_series_family (game, source): it chose that index and walked every row of the
   // game, 5-14 s on Turso for an Inventory of ~40 cards (prod 10-16). The primary key (card_id, ...) answers in ~40 ms.
   const seriesQ = db
     .prepare(
       `SELECT card_id, variant, source, start_day, prices FROM price_series
         WHERE +game = ? AND card_id IN (${marks})
-          AND ((source = 'tcgplayer' AND currency = 'USD') OR (source IN ('cardmarket', '${REF_ALT_SOURCE}') AND variant = 'average' AND updated_day >= ?)
-               OR (source IN (${ALT_SOURCES.map((s) => `'${s}'`).join(",")}) AND currency = 'USD' AND updated_day >= ?))`,
+          AND ((source = 'tcgplayer' AND currency = 'USD') OR (source IN ('cardmarket', '${REF_ALT_SOURCE}') AND variant = 'average' AND updated_day >= ?))`,
     )
-    .all(game, ...chunk, cmSince, altSince) as unknown as Promise<SeriesRow[]>;
+    .all(game, ...chunk, cmSince) as unknown as Promise<SeriesRow[]>;
   const metaQ =
     game === "pokemon"
       ? (db.prepare(`SELECT id, set_release_date FROM en_cards WHERE id IN (${marks})`).all(...chunk) as unknown as Promise<{ id: string; set_release_date: string }[]>)
@@ -360,10 +335,7 @@ async function readChunk(game: GameId, chunk: string[], day: string): Promise<Ma
     const prices = decodePrices(r.prices);
     if (r.source === "cardmarket") d.cmEur = lastPriced(prices);
     else if (r.source === REF_ALT_SOURCE) d.cmEurAlt = lastPriced(prices);
-    else if ((ALT_SOURCES as readonly string[]).includes(r.source)) {
-      const a = altReading(r.start_day, prices, altSince);
-      if (a && !d.alt?.[r.variant]) d.alt = { ...(d.alt ?? {}), [r.variant]: { usd: a, source: r.source } };
-    } else if (prices.some((p) => p != null)) d.series.push({ variant: r.variant, startDay: r.start_day, prices });
+    else if (prices.some((p) => p != null)) d.series.push({ variant: r.variant, startDay: r.start_day, prices });
   }
   for (const [id, l] of lows) {
     const d = built.get(id);
@@ -496,57 +468,36 @@ export async function withPriceFlags(cards: PokemonCard[], day = todayUtc()): Pr
       prices: c.prices.map((p) => {
         if (!marked(c, p)) return p;
         const k = trustKey(c.id, p.variant);
-        const f = flags.get(k);
-        if (!f) return { ...p, stale: stale.get(k) };
-        // A sound fallback prices the row (10-17): the screens show it like any market, the flagged number rides along.
-        return hasFallback(f) ? { ...p, market: f.fallback, checked: f, checkedWas: p.market as number } : { ...p, untrusted: f };
+        return flags.has(k) ? { ...p, untrusted: flags.get(k) } : { ...p, stale: stale.get(k) };
       }),
     };
   });
 }
 
 /**
- * The number to SAVE for `price` (a market number about to be stored: a lookup's
- * price, a wishlist baseline): the price itself when the rule passes it, the
- * flag's fallback when it carries one (10-17), null when the flag leaves
- * nothing. A TCGplayer row of the card that carries this number is judged the
- * way the search that showed it judged it (its own variant, the live number as
- * today's point), so a live price a cent off the series' last point is still
- * caught. A number no row carries (read from our own series) is matched to the
- * series whose latest point it is. A number neither explains is not judged.
- * Advisory: a failed read saves the price as before.
+ * Is `price` (a market number that is about to be saved: a lookup's price, a
+ * wishlist baseline) one the rule flags? A TCGplayer row of the card that
+ * carries this number is judged the way the search that showed it judged it
+ * (its own variant, the live number as today's point), so a live price a cent
+ * off the series' last point is still caught. A number no row carries (read
+ * from our own series) is matched to the series whose latest point it is. A
+ * number neither explains is not judged. Advisory: a failed read is "fine".
  */
-export async function storablePrice(card: PokemonCard, price: number, day = todayUtc()): Promise<number | null> {
-  if (!card.id) return price;
+export async function marketPriceFlagged(card: PokemonCard, price: number, day = todayUtc()): Promise<boolean> {
+  if (!card.id) return false;
   const game = card.game ?? "pokemon";
-  const verdict = (f: PriceFlag | null | undefined) => (!f ? price : hasFallback(f) ? f.fallback : null);
   try {
-    // A flag the client sent along is not evidence: judged fresh, on a copy (a row it sent already priced from a fallback is put back first).
-    const bare = {
-      ...card,
-      prices: (Array.isArray(card.prices) ? card.prices : []).map((p) => {
-        const was = p.checked && typeof p.checkedWas === "number" && Math.abs((p.market ?? -1) - price) < 0.005 ? p.checkedWas : null;
-        if (was != null) price = was;
-        return { ...p, ...(was != null ? { market: was } : {}), untrusted: undefined, stale: undefined, checked: undefined, checkedWas: undefined };
-      }),
-    };
+    // A flag the client sent along is not evidence: judged fresh, on a copy.
+    const bare = { ...card, prices: (Array.isArray(card.prices) ? card.prices : []).map((p) => ({ ...p, untrusted: undefined, stale: undefined })) };
     const [annotated] = await withPriceFlags([bare], day);
-    const carrying = annotated.prices.filter((p) => isTrustedRow(p) && Math.abs(((p.checked ? p.checkedWas : p.market) as number) - price) < 0.005);
-    if (carrying.length > 0) {
-      const flagged = carrying.find((p) => p.untrusted || p.checked);
-      return verdict(flagged ? (flagged.untrusted ?? flagged.checked) : null);
-    }
+    const carrying = annotated.prices.filter((p) => isTrustedRow(p) && Math.abs((p.market as number) - price) < 0.005);
+    if (carrying.length > 0) return carrying.some((p) => p.untrusted);
     const d = (await loadTrustData([{ cardId: card.id, game }], day)).get(card.id);
-    if (!d) return price;
-    for (const s of d.series) {
-      if (Math.abs((lastIn(s) ?? -1) - price) >= 0.005) continue;
-      const f = judgeSeries(d, { variant: s.variant, exact: true, day });
-      if (f) return verdict(f);
-    }
-    return price;
+    if (!d) return false;
+    return d.series.some((s) => Math.abs((lastIn(s) ?? -1) - price) < 0.005 && judgeSeries(d, { variant: s.variant, exact: true, day }) != null);
   } catch (err) {
     console.warn("price guard: could not judge a price to store, saving it as before", err);
-    return price;
+    return false;
   }
 }
 

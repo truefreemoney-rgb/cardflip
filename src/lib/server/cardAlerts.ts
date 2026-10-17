@@ -6,7 +6,6 @@ import { isMailConfigured, sendCardAlertEmail, type CardAlertHit } from "@/lib/s
 import { heldSeries, preferredVariants, usdSeries } from "@/lib/server/priceHistory";
 import { heldTrust } from "@/lib/server/priceTrustSite";
 import { addDays, dayIndex, todayUtc } from "@/lib/priceSeries";
-import { flagBlocks, hasFallback } from "@/lib/priceFlag";
 import { sendPushToUser } from "@/lib/server/push";
 import { cardAlertPush } from "@/lib/pushMessages";
 
@@ -98,19 +97,15 @@ export async function sweepCardAlerts(
   for (const r of rows) {
     const s = heldSeries(series, r);
     if (!s) continue;
-    const seriesMarket = onDay(s, today);
-    if (seriesMarket == null || !(seriesMarket > 0)) continue;
-    // A flag with a fallback (10-17) prices the card (target alerts compare against it, no spike: the series is the junk); only a flag with none is skipped.
-    const flag = trust.flag(r);
-    const fb = hasFallback(flag) ? flag.fallback : null;
-    if (flagBlocks(flag)) continue;
-    const market = fb ?? seriesMarket;
+    const market = onDay(s, today);
+    if (market == null || !(market > 0)) continue;
+    if (trust.flag(r)) continue;
     const price = Math.round(askingPriceFor(market, r.condition, shipMethodOf(r)) * 100) / 100;
     const hits: Array<CardAlertHit & { rowId: string }> = [];
     if (r.alert_price != null && r.alerted_at == null && price >= r.alert_price) {
       hits.push({ rowId: r.id, name: r.card_name, set: r.set_name, number: r.card_number, price, target: r.alert_price, kind: "target" });
     }
-    if (fb == null && (r.spike_alerted_at == null || r.spike_alerted_at < cooldown)) {
+    if (r.spike_alerted_at == null || r.spike_alerted_at < cooldown) {
       const firstIdx = s.prices.findIndex((p) => p != null);
       const firstDay = firstIdx >= 0 ? addDays(s.startDay, firstIdx) : today;
       const marketBefore = firstDay > weekAgo ? null : onDay(s, weekAgo);

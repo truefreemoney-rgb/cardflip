@@ -4,7 +4,6 @@ import { isMailConfigured, sendWishlistAlertEmail, type WishlistAlertHit } from 
 import { latestUsdPrices } from "@/lib/server/priceHistory";
 import { heldTrust } from "@/lib/server/priceTrustSite";
 import { sendPushToUser } from "@/lib/server/push";
-import { flagBlocks, hasFallback } from "@/lib/priceFlag";
 import { tcgCatalogPrices } from "@/lib/server/tcgCards";
 import { wishlistDipPush } from "@/lib/pushMessages";
 
@@ -73,14 +72,9 @@ export async function sweepWishlistAlerts(
   const trust = await heldTrust(rows.map((r) => ({ catalog_card_id: r.card_id, variant: null, game: r.game })));
   const hitsByUser = new Map<string, { email: string; userId: string; hits: (WishlistAlertHit & { rowId: string })[] }>();
   for (const row of rows) {
-    const shown = prices.get(row.card_id)?.price ?? catalog.get(row.card_id) ?? null;
-    if (shown == null) continue;
-    // A flag with a fallback (10-17) prices the card, the alert compares against it; only a flag with none is skipped.
-    const flag = trust.flag({ catalog_card_id: row.card_id, variant: null, game: row.game });
-    const fb = hasFallback(flag) ? flag.fallback : null;
-    if (flagBlocks(flag)) continue;
-    const price = fb ?? shown;
-    if (price > row.alert_price) continue;
+    const price = prices.get(row.card_id)?.price ?? catalog.get(row.card_id) ?? null;
+    if (price == null || price > row.alert_price) continue;
+    if (trust.flag({ catalog_card_id: row.card_id, variant: null, game: row.game })) continue;
     const entry = hitsByUser.get(row.user_id) ?? { email: row.email, userId: row.user_id, hits: [] };
     entry.hits.push({
       rowId: row.id,

@@ -80,10 +80,9 @@ check("a row with an off-list picture shows the empty tile", (await publicCollec
 
 console.log("\nthe price guard (priceTrustSite)");
 {
-  const { junkPrices, liquidPrices, recordSeries, hideByAdmin } = await import("./lib/liquid-series.mjs");
+  const { junkPrices, liquidPrices, recordSeries } = await import("./lib/liquid-series.mjs");
   const { addDays, todayUtc } = await import(at("lib/priceSeries.ts"));
-  await recordSeries(recordPoint, addDays, todayUtc(), "g-junk", "pokemon", "holofoil", junkPrices(500)); // a 5x spike that never came back (hidden) ...
-  await hideByAdmin(db, addDays, todayUtc(), "g-junk", "pokemon", "holofoil", 500); // ... and hidden by an admin, so it has NO fallback (10-17): the only flag that still blanks a price
+  await recordSeries(recordPoint, addDays, todayUtc(), "g-junk", "pokemon", "holofoil", junkPrices(500)); // a 5x spike that never came back (hidden)
   await card("Junk Draft", { price: 480, catalogCardId: "g-junk" });
   const typed = await card("Typed Draft", { price: 450, catalogCardId: "g-junk" });
   await db.prepare("UPDATE cards SET price_locked = 1 WHERE id = ?").run(typed.id);
@@ -91,7 +90,6 @@ console.log("\nthe price guard (priceTrustSite)");
   await db.prepare("UPDATE cards SET status = 'listed', listed_at = 1, ebay_listing_id = '2' WHERE id = ?").run(live.id);
   // A foil-held row at $0: the fallback price is the DEFAULT series' (junk $500 normal), so it is judged there, not on the healthy holofoil line.
   await recordSeries(recordPoint, addDays, todayUtc(), "g-mix", "pokemon", "normal", junkPrices(500));
-  await hideByAdmin(db, addDays, todayUtc(), "g-mix", "pokemon", "normal", 500);
   await recordSeries(recordPoint, addDays, todayUtc(), "g-mix", "pokemon", "holofoil", liquidPrices(300));
   await card("Mixed Holo", { catalogCardId: "g-mix", variant: "holofoil" });
   const g = await publicCollection("chris");
@@ -100,16 +98,6 @@ console.log("\nthe price guard (priceTrustSite)");
   check("a draft priced off a flagged market shows no price", by["Junk Draft"], null);
   check("the seller's typed price and a live eBay ask still show", [by["Typed Draft"], by["Live Ask"]], [450, 500]);
   check("the junk draft adds nothing to the total", g.value, Math.round((800 + 150 + 100 + askingPriceFor(10, "Lightly Played") + 450 + 500) * 100) / 100);
-  // 10-17: a flag WITH a fallback (the level before the spike) prices the row through the same condition math, and counts in the total.
-  await recordSeries(recordPoint, addDays, todayUtc(), "g-spike", "pokemon", "holofoil", junkPrices(500));
-  await card("Spiked Draft", { price: 480, catalogCardId: "g-spike" });
-  await card("Spiked Zero", { catalogCardId: "g-spike" });
-  const g2 = await publicCollection("chris");
-  const by2 = Object.fromEntries(g2.cards.map((x) => [x.name, x.price]));
-  const fbPrice = by2["Spiked Draft"];
-  check("a draft priced off a flagged market WITH a fallback shows the fallback's price (not its stored $480 and not blank)", [fbPrice > askingPriceFor(90, "Near Mint") && fbPrice < askingPriceFor(120, "Near Mint"), fbPrice !== 480], [true, true]);
-  check("... the same for an unpriced row whose default series has the fallback", by2["Spiked Zero"], fbPrice);
-  check("... and both count in the total", g2.value, Math.round((g.value + fbPrice * 2) * 100) / 100);
 }
 
 console.log("\nswitching off");

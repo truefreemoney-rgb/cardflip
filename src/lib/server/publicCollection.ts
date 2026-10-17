@@ -4,7 +4,6 @@ import { findUserByHandle } from "@/lib/server/users";
 import { latestUsdPrices } from "@/lib/server/priceHistory";
 import { heldTrustOrOpen } from "@/lib/server/priceTrustSite";
 import { askingPriceFor } from "@/lib/listing";
-import { hasFallback } from "@/lib/priceFlag";
 import { shipMethodOf } from "@/lib/fees";
 import { ebayListingUrl } from "@/lib/ebayInventory";
 import { formatLocalAmount, marketplaceByEbayId } from "@/lib/marketplaces";
@@ -148,12 +147,7 @@ export async function publicCollection(handle: string): Promise<PublicCollection
       judgedVariant = null;
     }
     // A price that came from a flagged market is not shown (nor counted); the seller's own price and a live ask are.
-    // A flag with a fallback (10-17) prices the card from it, through the same condition math; only a flag with none blanks it.
-    if (price != null && r.catalog_card_id && r.kind !== "sealed" && !r.price_locked && r.status !== "listed") {
-      const flag = trust.flag({ catalog_card_id: r.catalog_card_id, variant: judgedVariant, game: r.game });
-      if (hasFallback(flag)) price = askingPriceFor(flag.fallback, r.condition, shipMethodOf(r));
-      else if (flag) price = null;
-    }
+    if (price != null && r.catalog_card_id && r.kind !== "sealed" && !r.price_locked && r.status !== "listed" && trust.flag({ catalog_card_id: r.catalog_card_id, variant: judgedVariant, game: r.game })) price = null;
     if (price != null) value += price;
     const site = marketplaceByEbayId(r.ebay_marketplace);
     const ebayUrl = r.status === "listed" && r.ebay_listing_id ? ebayListingUrl(r.ebay_listing_id, site) : null;

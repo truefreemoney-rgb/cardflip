@@ -79,12 +79,10 @@ check("no cards → null", await buildDigest(empty.id, SUNDAY), null);
 
 console.log("the price guard (priceTrustSite)");
 {
-  const { flatPrices, junkPrices, liquidPrices, recordSeries, hideByAdmin } = await import("./lib/liquid-series.mjs");
+  const { flatPrices, junkPrices, liquidPrices, recordSeries } = await import("./lib/liquid-series.mjs");
   const { addDays } = await import(at("lib/priceSeries.ts"));
   const g = await createUser("Guard", "guard@example.com", "hunter22", "user");
-  await recordSeries(recordPoint, addDays, "2026-09-27", "g-junk", "pokemon", "holofoil", junkPrices(500)); // a 5x spike that never came back (hidden) ...
-  await hideByAdmin(db, addDays, "2026-09-27", "g-junk", "pokemon", "holofoil", 500); // ... and hidden by an admin, so it has NO fallback (10-17): the only flag that still leaves a card out
-  await recordSeries(recordPoint, addDays, "2026-09-27", "g-spike", "pokemon", "holofoil", junkPrices(500)); // the same spike WITH a fallback: the level before the jump
+  await recordSeries(recordPoint, addDays, "2026-09-27", "g-junk", "pokemon", "holofoil", junkPrices(500)); // a 5x spike that never came back (hidden)
   await recordSeries(recordPoint, addDays, "2026-09-27", "g-fine", "pokemon", "holofoil", [...liquidPrices(200, 50), 260]); // a real +30% week
   // The week-ago side is a junk plateau (flat $100 for 40 days) that then moved: no honest "before".
   await recordSeries(recordPoint, addDays, "2026-09-27", "g-old", "pokemon", "holofoil", [...flatPrices(100, 41), 110, 120, 130, 140, 145, 148, 150]);
@@ -104,12 +102,6 @@ console.log("the price guard (priceTrustSite)");
   check("the normal +30% mover is still a gainer", gd.gainers.map((c) => c.name).includes("Fine"), true);
   check("a junk week-ago price makes no honest mover: 'Old' counts as unchanged", gd.gainers.concat(gd.losers).some((c) => c.name === "Old"), false);
   check("a seller with nothing flagged has no leftOut key", "leftOut" in (await buildDigest(u.id, SUNDAY)), false);
-  // 10-17: a flag WITH a fallback prices the card from it (counted flat: its series is the junk), it is not left out.
-  await mk("Spiked", "g-spike");
-  const gd2 = await buildDigest(g.id, SUNDAY);
-  const added = Math.round((gd2.valueNow - gd.valueNow) * 100) / 100;
-  check("a flagged card with a fallback is priced at it (not the $500 spike, not left out): held +1, leftOut unchanged", [gd2.held, gd2.leftOut, added > ask(90, "NM") && added < ask(120, "NM")], [6, 1, true]);
-  check("... counted flat: it adds the same to the value a week ago, and is no mover", [Math.round((gd2.valueBefore - gd.valueBefore) * 100) / 100 === added, gd2.gainers.concat(gd2.losers).some((c) => c.name === "Spiked")], [true, false]);
   await db.prepare("DELETE FROM cards WHERE user_id = ?").run(g.id);
 }
 

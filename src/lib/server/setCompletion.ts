@@ -4,7 +4,6 @@ import { cachedList } from "@/lib/server/listCache";
 import { judgeSeries, latestUsdWithTrust, loadTrustData } from "@/lib/server/priceTrustSite";
 import { displayNumber, headlinePrice, variantPrices } from "@/lib/cardPages";
 import { todayUtc } from "@/lib/priceSeries";
-import { flagBlocks, hasFallback } from "@/lib/priceFlag";
 import { toPics } from "@/lib/pics";
 import type { GameId } from "@/lib/types";
 
@@ -184,11 +183,7 @@ async function marketPrices(game: GameId, ids: string[]): Promise<Map<string, nu
   const out = new Map<string, number>();
   if (ids.length === 0) return out;
   if (game === "pokemon") {
-    // A flag with a fallback (10-17) prices the card from it; only a flag with none is absent.
-    for (const [id, e] of await latestUsdWithTrust(ids)) {
-      const fb = hasFallback(e.flag) ? e.flag.fallback : null;
-      if (!flagBlocks(e.flag)) out.set(id, fb ?? e.price);
-    }
+    for (const [id, e] of await latestUsdWithTrust(ids)) if (!e.flag) out.set(id, e.price);
     return out;
   }
   const day = todayUtc();

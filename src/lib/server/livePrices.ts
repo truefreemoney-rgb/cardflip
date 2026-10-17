@@ -5,7 +5,7 @@ import { shipMethodOf } from "@/lib/fees";
 import { heldSeries, preferredVariants, usdSeries } from "@/lib/server/priceHistory";
 import { dayIndex } from "@/lib/priceSeries";
 import { heldTrust } from "@/lib/server/priceTrustSite";
-import { hasFallback, type PriceFlag, type PriceStale } from "@/lib/priceFlag";
+import type { PriceFlag, PriceStale } from "@/lib/priceFlag";
 
 /**
  * "Live" Inventory prices (Chris, 09-07: "it stays at the original value when
@@ -100,12 +100,10 @@ export async function refreshLivePrices(userId: string, now = Date.now()): Promi
   const moves: { id: string; price: number }[] = [];
   for (const row of rows) {
     const s = heldSeries(series, row);
-    let market = s ? lastOf(s.prices) : null;
+    const market = s ? lastOf(s.prices) : null;
     if (!s || market == null || !(market > 0)) continue;
     const flag = trust.flag(row);
-    // A flag with a sound fallback (10-17): the card is priced from the fallback like any market, nothing is blanked.
-    if (hasFallback(flag)) market = flag.fallback;
-    else if (flag) {
+    if (flag) {
       // An unlocked draft price is by definition the last market suggestion (every typed price sets the lock), so
       // it cannot stay: it would show as the card's price and pre-fill the editor.
       const blank = row.status === "ready" && row.price_locked !== 1 && row.price > 0;

@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { cachedList, cachedListSwr, cachedStaleOk, dropCachedLists } from "@/lib/server/listCache";
 import { gamePublic, type GatedGame } from "@/lib/server/settings";
 import { MTG_REFEREE_SQL, PRICE_TRUST, REF_ALT_SOURCE, lastPriced } from "@/lib/server/priceTrust";
-import { ALT_MAX_AGE_DAYS, altReading, judgeFull, judgeSeries, loadTrustData, readEbayAsks, readListingLows, type TrustData, type TrustSeries } from "@/lib/server/priceTrustSite";
+import { judgeFull, judgeSeries, loadTrustData, readEbayAsks, readListingLows, type TrustData, type TrustSeries } from "@/lib/server/priceTrustSite";
 import { largeImage } from "@/lib/server/mtgCards";
 import { addDays, dayIndex, decodePrices, todayUtc } from "@/lib/priceSeries";
 import { cleanSeriesPoints } from "@/lib/priceOutliers";
@@ -406,14 +406,9 @@ export async function loadCardPage(rec: CardRecord, today = todayUtc()): Promise
   let cmEurAlt: number | null = null;
   let convertedUsd: number | null = null;
   let convertedLabel = "Cardmarket (converted from €)";
-  const alt: NonNullable<TrustData["alt"]> = {};
-  const altSince = addDays(today, -ALT_MAX_AGE_DAYS);
   for (const r of rows) {
     const prices = decodePrices(r.prices);
     if (r.source === "cardmarket-converted" || r.source === "cardtrader") {
-      // A flagged TCGplayer line falls back to this (10-17, Alpha Blaze of Glory), same reading as priceTrustSite.readChunk.
-      const a = r.currency === "USD" ? altReading(r.start_day, prices, altSince) : null;
-      if (a != null && (!alt[r.variant] || r.source === "cardtrader")) alt[r.variant] = { usd: a, source: r.source };
       // CardTrader (Yu-Gi-Oh listings, 10-06) outranks a converted Cardmarket figure when both are fresh.
       if (r.updated_day >= cmSince && (convertedUsd == null || r.source === "cardtrader")) {
         convertedUsd = lastPriced(prices);
@@ -427,7 +422,7 @@ export async function loadCardPage(rec: CardRecord, today = todayUtc()): Promise
       series.push({ variant: r.variant, startDay: r.start_day, prices });
     }
   }
-  const data: TrustData = { game: facts.game, series, cmEur, cmEurAlt, eur: rec.eur, released: rec.released, lows, asks, alt };
+  const data: TrustData = { game: facts.game, series, cmEur, cmEurAlt, eur: rec.eur, released: rec.released, lows, asks };
 
   let inputs: SeriesInput[];
   try {
@@ -459,9 +454,6 @@ export async function loadCardPage(rec: CardRecord, today = todayUtc()): Promise
   }
   const decision = indexDecision(prices, indexFloorUsd(facts.game));
   if (!headline) return { facts, prices, headline, decision, chart: null, trackingSince: null, changes: [], range: null };
-  // A headline priced from a fallback (10-17): the line's own history ends on the number the guard threw out, so no chart,
-  // change words or range are drawn from it.
-  if (headline.checked) return { facts, prices, headline, decision, chart: null, trackingSince: null, changes: [], range: null };
 
   const line = series.find((s) => s.variant === headline.variant);
   const points = line ? cleanSeriesPoints(line) : []; // junk blips out (lib/priceOutliers.ts): chart, high/low and change words all read these

@@ -21,12 +21,6 @@ export interface PriceFlag {
   fallbackFrom?: string;
 }
 
-/** A flag with a sound price to show instead: the screens price from `fallback`, nothing is blanked. */
-export const hasFallback = (f: PriceFlag | null | undefined): f is PriceFlag & { fallback: number } => !!f && f.fallback != null && f.fallback > 0;
-
-/** A flag that still leaves the card with no price (no fallback): the only kind the screens blank. */
-export const flagBlocks = (f: PriceFlag | null | undefined): f is PriceFlag => !!f && !hasFallback(f);
-
 /** The sentence a flagged card shows instead of its market price. */
 export const PRICE_FLAG_NOTE = "This price looks off, check sold listings";
 
