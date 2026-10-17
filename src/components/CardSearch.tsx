@@ -218,9 +218,9 @@ function GamePicker({ game, onChange, counts }: { game: GameId; onChange: (game:
   }, [hidden, onChange]);
   if (visible.length < 2) return null;
   return (
-    <label className="relative flex h-12 shrink-0 items-center rounded-2xl border border-edge bg-surface-2 pl-3.5 pr-8 text-sm font-semibold text-white transition hover:border-edge-strong focus-within:border-brand-400">
+    <label className={`relative flex h-12 shrink-0 items-center rounded-2xl border border-edge bg-surface-2 text-sm font-semibold text-white transition hover:border-edge-strong focus-within:border-brand-400 ${counts ? "pl-3 pr-7" : "pl-3.5 pr-8"}`}>
       {GAMES[game].label}
-      {counts && <span className="ml-1.5 font-normal text-zinc-400">· {counts[game] ?? 0}</span>}
+      {counts && <span className="ml-1 font-normal tabular-nums text-zinc-400">·{counts[game] ?? 0}</span>}
       <select
         value={game}
         onChange={(e) => onChange(e.target.value as GameId)}
@@ -298,7 +298,7 @@ export function CardSearchBox({
                 aria-label={`Search ${GAMES[game].label} cards by name or number`}
                 // The field's border carries focus (focus-within); the global :focus-visible ring would draw a second box inside it.
                 style={{ outline: "none" }}
-                className="h-full min-w-0 flex-1 bg-transparent px-2.5 text-base text-white outline-none placeholder:text-zinc-500 [&::-webkit-search-cancel-button]:hidden"
+                className="h-full min-w-0 flex-1 bg-transparent pl-2.5 pr-1 text-base text-white outline-none placeholder:text-zinc-500 [&::-webkit-search-cancel-button]:hidden"
               />
               {search.searching ? (
                 <Spinner className="mr-3.5 h-4 w-4 shrink-0" />
