@@ -53,6 +53,12 @@ Trigger: new Google Ads user's Eevee svp-173 scanned at $0 (LESSONS.md 10-17). F
   wing patterns we lump), Alakazam EX xy10-125 (PC $169 vs a mixed eBay median $105, unclear). => the accuracy problem is
   most cards, not the flagged few; PriceCharting first + TCGplayer where PC has nothing. Other games NOT measured yet.
 
+- MAGIC (8 random $5+, scripts/_fb-random-mtg.mjs): PriceCharting found the EXACT printing every time (serialized, retro,
+  extended art, The List, TSR timeshifted foil) and was within 25% of OUR price on 8/8 (Mox Pearl 2ed $3,513 vs PC $2,850 vs
+  eBay ~$3,000; Command Beacon tdc $9.77 / $9.73 / $7.99; Blight Mound EA $6.45 / $6.54 / $6.29). eBay sold is thin for Magic
+  (1 or 0 sales on 5 of 8): Magic trades on TCGplayer, so our Magic prices are already near sold. PC gain for Magic = small.
+- LICENSE (Chris 10-17, from PriceCharting): we may show their prices free until CardFlip makes $1,000/month revenue, then they want a cut.
+
 ## Tests that pin today's hide behaviour (update with the change)
 test-pricing.mjs ~690-731 (flagged row = null quote, currentPrice 0), test-live-prices.mjs 153-160 (flagged draft zeroed),
 test-price-trust-site.mjs 204/222 (deepEqual flag shape), test-price-trust-routes.mjs 85-148 (flag shape in responses,
