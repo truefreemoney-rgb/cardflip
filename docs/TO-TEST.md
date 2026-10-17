@@ -636,3 +636,4 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 - #61 "All" range pill on card charts + Inventory value chart. Check on phone: no overflow, All shows full history.
 - #62 set summary strip (7d/30d set value, typical card, most valuable). Check numbers on a live set vs the card list.
 - #63 "Most valuable sets" on /cards/<game> (top 10). SWR cache seo:setvalues:v1:<game> (~21 s query, built after the response): the section may be MISSING on the first build of a hub page and appears after ISR revalidates (<= 2 days). Check all 5 games show it within 2 days, and Pokemon top 5 ~ Skyridge, Legendary Collection, Holon Phantoms, Base Set 1st Ed, Aquapolis.
+- #65 Top 100 page /cards/<game>/most-valuable (+ 'See the top 100' link under Most valuable cards on each game page). Check: 100 rows on phone, no junk at the top, cold build time of seo:top100:v1 on prod (400-candidate guarded read).

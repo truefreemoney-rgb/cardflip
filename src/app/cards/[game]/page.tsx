@@ -93,6 +93,11 @@ export default async function GameHubPage({ params }: PageProps<"/cards/[game]">
           <section className="mt-8">
             <h2 className="font-display text-2xl font-semibold text-white">Most valuable cards</h2>
             <TileGrid game={game} tiles={top} showSet />
+            <p className="mt-4 text-sm">
+              <Link href={`${gamePath(game)}/most-valuable`} className="font-medium text-brand-300 transition hover:text-brand-200">
+                See the top 100 →
+              </Link>
+            </p>
           </section>
         )}
 
@@ -100,7 +105,7 @@ export default async function GameHubPage({ params }: PageProps<"/cards/[game]">
         {byValue.length > 0 && (
           <section className="mt-10">
             <h2 className="font-display text-2xl font-semibold text-white">Most valuable sets</h2>
-            <p className="mt-1 text-sm text-zinc-500">All the cards in a set added up, at today's prices.</p>
+            <p className="mt-1 text-sm text-zinc-500">All the cards in a set added up, at today&apos;s prices.</p>
             <ol className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {byValue.map(({ set, v }, i) => (
                 <li key={set.key}>

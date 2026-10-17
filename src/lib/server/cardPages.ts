@@ -799,25 +799,33 @@ async function topCandidates(game: GameId, limit: number): Promise<{ id: string;
  * prices are exactly where the junk is) and kept only when it has a fresh, believed price. Built once a day.
  */
 export async function gameTopTiles(game: GameId): Promise<Tile[]> {
-  return cachedTiles(`seo:top:v3:${game}`, async () => {
-    const candidates = await topCandidates(game, TOP_TILES * 10);
-    if (candidates.length === 0) return [];
-    const index = await setIndex(game);
-    // The candidates' catalog rows and ONE guarded read for all of them.
-    const rows = await catalogByIds(game, candidates.map((c) => c.id));
-    const trust = await loadTrustData(rows.map((r) => ({ cardId: r.id, game })));
-    const today = todayUtc();
-    const out: Tile[] = [];
-    for (const r of rows) {
-      const data = trust.get(r.id);
-      if (!data) continue;
-      const head = headlinePrice(variantPrices(game, judgedSeries(data, today), today));
-      if (!head || isUnverified(head) || head.stale) continue;
-      const f = factsOf(game, r, "");
-      out.push({ key: r.key, name: f.name, number: f.number, tags: f.tags, image: f.image, tile: f.tile, price: head.price, flagged: false, unverified: false, setSlug: index.slugOf.get(r.set_key) ?? slugify(r.set_name, 80), setName: r.set_name });
-    }
-    return out.sort((a, b) => (b.price ?? 0) - (a.price ?? 0)).slice(0, TOP_TILES);
-  });
+  return cachedTiles(`seo:top:v3:${game}`, () => buildTopTiles(game, TOP_TILES, TOP_TILES * 10));
+}
+
+/** The Top 100 page (10-17, #65): the same guarded build, 100 deep from 400 candidates. Built once a day. */
+export const TOP_LIST = 100;
+export async function gameTop100(game: GameId): Promise<Tile[]> {
+  return cachedTiles(`seo:top100:v1:${game}`, () => buildTopTiles(game, TOP_LIST, TOP_LIST * 4));
+}
+
+async function buildTopTiles(game: GameId, n: number, pool: number): Promise<Tile[]> {
+  const candidates = await topCandidates(game, pool);
+  if (candidates.length === 0) return [];
+  const index = await setIndex(game);
+  // The candidates' catalog rows and ONE guarded read for all of them.
+  const rows = await catalogByIds(game, candidates.map((c) => c.id));
+  const trust = await loadTrustData(rows.map((r) => ({ cardId: r.id, game })));
+  const today = todayUtc();
+  const out: Tile[] = [];
+  for (const r of rows) {
+    const data = trust.get(r.id);
+    if (!data) continue;
+    const head = headlinePrice(variantPrices(game, judgedSeries(data, today), today));
+    if (!head || isUnverified(head) || head.stale) continue;
+    const f = factsOf(game, r, "");
+    out.push({ key: r.key, name: f.name, number: f.number, tags: f.tags, image: f.image, tile: f.tile, price: head.price, flagged: false, unverified: false, setSlug: index.slugOf.get(r.set_key) ?? slugify(r.set_name, 80), setName: r.set_name });
+  }
+  return out.sort((a, b) => (b.price ?? 0) - (a.price ?? 0)).slice(0, n);
 }
 
 /** Where a catalog id's public page lives and what a list shows for it (the movers page). Ids with no page are left out. */
