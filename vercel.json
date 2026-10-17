@@ -7,6 +7,10 @@
   },
   "crons": [
     {
+      "path": "/api/cron/uptime",
+      "schedule": "*/15 * * * *"
+    },
+    {
       "path": "/api/cron/mtg-prices",
       "schedule": "0 9 * * *"
     },

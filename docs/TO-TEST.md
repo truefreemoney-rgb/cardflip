@@ -4,6 +4,11 @@
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
 
+## 10-17 ~3:40pm ET: 15-minute uptime ping (A-H #57, NOT PUSHED)
+- After push: Vercel dashboard -> Settings -> Cron Jobs lists /api/cron/uptime every 15 min; its log shows runs at :00/:15/:30/:45 with `"ok":true` (the GitHub smoke only managed every 2-4 h).
+- Without the key: `curl https://cardflip.io/api/cron/uptime` -> 403.
+- Alert path is the same mail as the smoke failures ("CardFlip: Uptime failed"), at most once an hour; it now also sends when the database itself is down (test:uptime).
+
 ## 10-17 ~4:45pm ET: admin Sign Out really ends the session; 7-day limit (A-H #32, NOT PUSHED)
 - Right after push: the admin console asks you to sign in ONCE (old cookies have the old format; email code as usual).
 - Then: sign in, copy the cardflip_admin cookie value (pane devtools), Sign Out, put the copied value back -> /admin goes to the login page. Your PC and phone sign-ins are separate: signing out on one leaves the other in.

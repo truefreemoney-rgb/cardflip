@@ -28,7 +28,9 @@ export async function opsAlert(
   const get = deps.get ?? getSetting;
   const set = deps.set ?? setSetting;
   const key = `ops_alert:${a.workflow.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
-  const last = Number((await get(key)) ?? 0);
+  // A dead database is one of the things being reported (uptime ping, 10-17): the hourly gap can't be read then,
+  // so the mail goes anyway (one per 15-minute ping at worst) instead of the outage silencing its own alert.
+  const last = Number((await get(key).catch(() => null)) ?? 0);
   if (now - last < OPS_ALERT_GAP_MS) return "quiet";
   if (deps.send) await deps.send(a);
   else {
@@ -36,6 +38,6 @@ export async function opsAlert(
     const { OWNER_EMAIL } = await import("@/lib/server/users");
     await sendOpsAlertEmail(OWNER_EMAIL, a);
   }
-  await set(key, String(now));
+  await set(key, String(now)).catch(() => {});
   return "sent";
 }

@@ -51,7 +51,7 @@ C0. DONE 10-17 (local, not pushed; covers, set index and /api/sets serve the old
 ## E. Checks on things already live
 35. After today's push: titles, Common questions, chart "All", set strip, Most valuable sets, Top 100, not-found pages, unsubscribe, privacy page (docs/TO-TEST.md) [me] S
 36. After today's push: a quick look on your phone at a card page, a set page and a game page, plus the tiles with long prices from the 10-16 push (was B13, never confirmed) [you] S
-37. FLIPBACK: recheck who came back (0 of 16 so far; code good to 11-16) [me] S
+37. FLIPBACK: recheck who came back (10-17 3pm ET recheck: still 0 of 16 back, 0 redeemed, 0 scans; code good to 11-16; recheck weekly) [me] S
 38. Number keypad on Inventory price boxes, on your phone [you] S
 39. A "No match found" scan gives the scan back [you] S
 40. My checks: password-reset email, the come-back email button, inventory thumbnails, Google sign-in, Inventory speed, the UK cookie bar, Sunday's digest sends once, eBay sold prices load, the night jobs ran, renewals still add scans, ad sign-ups get 5 free scans [me] S each
@@ -59,8 +59,8 @@ C0. DONE 10-17 (local, not pushed; covers, set index and /api/sets serve the old
 42. Real-money checks: welcome email, price-dip email, Finances after a sale, ended-listing sync, offers, a multi-quantity order [you] M
 
 ## F. Catalog
-43. Hand-check odd high prices on eBay (Smaug foil $24,500, a One Piece card at $13,000, 1st Edition Base Charizard $10,000 flat) [me] S
-44. Uria at $999.97 sits 3¢ under the $1,000 hand-check limit; consider moving the limit [me] S
+43. DONE 10-17 (eBay sold, no slabs; all three real, nothing hidden): Smaug Gleaming Gold foil $24,500: auctions $19,365 (9-29) + $22,600 (9-10), Aug best-offers listed $30-35k = a bit high, falling, keep. Luffy OP05-119 Gold SP $13,000: English sold $7,600-16,375 (the $3.6-3.8k sales are the Japanese gold) = keep (matches 10-14 keep). 1st Ed Base Charizard $10,000: 14 English raw sold $2,000-15,000 by condition, best auctions $12,700 (78 bids) + $7,066 (50 bids), median ~$7,650 = right for a clean copy, keep [me] S
+44. DONE 10-17, no change: Uria SOI-EN001 Ultimate Rare 1st $999.97 is real (eBay raw auctions $1,025 10-11, $910 10-04, $1,005, $990); the Ultra Rare 1st is its own card ($26.83, eBay $6-35). The $1,000 limit only holds back prices with under 14 days of history, Uria has 16+, so moving it changes nothing [me] S
 45. 3 One Piece cards with no picture [you're hunting] S
 46. Magic Art Series cards have no prices [me] M
 47. Unpriced old cards (about 900 total): hide or leave? [you decide] S
@@ -77,7 +77,7 @@ C0. DONE 10-17 (local, not pushed; covers, set index and /api/sets serve the old
 56. Pokémon character pages (all of one Pokémon's cards, total value, top 10): held for the same ~10-23 check [me] L
 
 ## H. Ops and later
-57. Uptime ping every 15 minutes [me] S
+57. DONE 10-17 (local, not pushed): Uptime ping every 15 minutes. GitHub's "every 15 min" smoke really ran every 2-4 h, so Vercel Cron /api/cron/uptime now checks database + home page + a card search every 15 min, retries once, mails on failure (also when the database is down); $0 [me] S
 58. Revisit hosting plans at 10,000+ users [me] S
 59. Soft launch to 20 to 30 invited sellers [you] L
 60. Parked by the freeze: auto-scan, reveal sounds, the "Not this card?" redesign, invite rewards, sales tax estimate, dealer tier, more grading/price sources, selling on TCGplayer.
