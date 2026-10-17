@@ -34,10 +34,22 @@ export const PRICE_FLAG_NOTE = "This price looks off, check sold listings";
  */
 export interface PriceStale {
   days: number;
+  /**
+   * 10-17 (Chris: "we cant have unpriced cards"): set instead of a flag when the guard's only complaint is a thin market
+   * (thin, round, few priced days) with nothing saying the number is wrong. The number shows with "Few recent sales";
+   * `days` is 0. Sold-checked on 20 flagged cards: the flagged number was within 25% of eBay sold about half the time,
+   * a blank never is (docs/price-fallback-sample-2026-10-17.json).
+   */
+  few?: boolean;
 }
 
-/** "Market hasn't updated this in 4 months" (weeks under two months). No full stop. */
-export function priceStaleNote(days: number): string {
+/** The note for a few-sales price. No full stop. */
+export const PRICE_FEW_NOTE = "Few recent sales";
+
+/** "Market hasn't updated this in 4 months" (weeks under two months), or "Few recent sales" for a thin market. No full stop. */
+export function priceStaleNote(s: number | PriceStale): string {
+  if (typeof s !== "number" && s.few) return PRICE_FEW_NOTE;
+  const days = typeof s === "number" ? s : s.days;
   if (days >= 60) {
     const months = Math.round(days / 30);
     return `Market hasn't updated this in ${months} month${months === 1 ? "" : "s"}`;

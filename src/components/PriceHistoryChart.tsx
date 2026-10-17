@@ -320,7 +320,7 @@ export default function PriceHistoryChart({ cardId, initialSeries, preferVariant
           )}
           {/* The latest value has stood 45+ days (10-02): the number stands, this says how old it is. */}
           {last && !flagged && !hovered && series?.stale && (
-            <p className={`${label} mt-0.5 text-zinc-400`}>{priceStaleNote(series.stale.days)}</p>
+            <p className={`${label} mt-0.5 text-zinc-400`}>{priceStaleNote(series.stale)}</p>
           )}
           {last && !hovered && nearNote && (
             <p className={`${label} mt-0.5 font-medium text-zinc-300`}>

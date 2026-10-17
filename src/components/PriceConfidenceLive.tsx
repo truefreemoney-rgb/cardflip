@@ -9,18 +9,18 @@ import { loadSeries, pickSeries } from "@/lib/client/priceHistoryData";
  * and shows nothing until it arrives or if there is no dollar series. Days = recorded points of the quote's series.
  */
 export default function PriceConfidenceLive({ cardId, variant, className = "" }: { cardId: string; variant?: string | null; className?: string }) {
-  const [state, setState] = useState<{ id: string; days: number; staleDays: number | null } | null>(null);
+  const [state, setState] = useState<{ id: string; days: number; staleDays: number | null; few: boolean } | null>(null);
   useEffect(() => {
     if (!cardId) return;
     let alive = true;
     loadSeries(cardId)
       .then((all) => {
         const s = pickSeries(all, variant);
-        if (alive && s && s.points.length > 0 && !s.untrusted) setState({ id: cardId, days: s.points.length, staleDays: s.stale?.days ?? null });
+        if (alive && s && s.points.length > 0 && !s.untrusted) setState({ id: cardId, days: s.points.length, staleDays: s.stale?.days ?? null, few: Boolean(s.stale?.few) });
       })
       .catch(() => {});
     return () => { alive = false; };
   }, [cardId, variant]);
   if (!state || state.id !== cardId) return null;
-  return <PriceConfidenceBadge days={state.days} staleDays={state.staleDays} className={className} />;
+  return <PriceConfidenceBadge days={state.days} staleDays={state.staleDays} few={state.few} className={className} />;
 }

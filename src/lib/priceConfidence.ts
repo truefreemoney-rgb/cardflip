@@ -19,8 +19,9 @@ export const FAIR_DAYS = 7;
 const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
 
 /** `days` = recorded days of history behind this price; `staleDays` = how long the value has stood, when the guard says 45+. */
-export function priceConfidence(days: number, staleDays?: number | null): PriceConfidence {
+export function priceConfidence(days: number, staleDays?: number | null, few?: boolean): PriceConfidence {
   const d = Math.max(0, Math.floor(days));
+  if (few) return { level: "thin", text: "Few sales · check eBay sold" };
   if (staleDays != null && staleDays > 0) return { level: "thin", text: "Old price · check eBay sold" };
   if (d >= SOLID_DAYS) return { level: "solid", text: `Solid price · ${d} days of data` };
   if (d >= FAIR_DAYS) return { level: "fair", text: `Some data · ${d} days of history` };

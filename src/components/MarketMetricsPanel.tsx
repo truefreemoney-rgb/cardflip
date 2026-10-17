@@ -20,7 +20,7 @@ import type {
 import PriceHistoryChart from "@/components/PriceHistoryChartLazy";
 import { cardTrend, useLastRecordedPrice } from "@/lib/client/priceHistoryData";
 import { etDate } from "@/lib/time";
-import { PRICE_FLAG_NOTE, priceStaleNote } from "@/lib/priceFlag";
+import { PRICE_FLAG_NOTE, priceStaleNote, type PriceStale } from "@/lib/priceFlag";
 
 interface Props {
   card: PokemonCard;
@@ -62,7 +62,7 @@ function Metric({
   driving,
   tone = "default",
   flagged = false,
-  staleDays = null,
+  stale = null,
 }: {
   label: string;
   value: string;
@@ -71,8 +71,8 @@ function Metric({
   tone?: "default" | "strong";
   /** The price guard does not believe this number: the note replaces it (lib/priceFlag.ts). */
   flagged?: boolean;
-  /** The number has not changed in this many days (45+): it stands, a line under it says so (10-02). */
-  staleDays?: number | null;
+  /** The number has not changed in 45+ days (10-02), or few recent sales (10-17): it stands, a line under it says so. */
+  stale?: PriceStale | null;
 }) {
   return (
     <div
@@ -97,7 +97,7 @@ function Metric({
         </p>
       )}
       <p className="mt-0.5 text-[11px] leading-snug text-zinc-500">{detail}</p>
-      {!flagged && staleDays != null && <p className="mt-0.5 text-[11px] leading-snug text-zinc-400">{priceStaleNote(staleDays)}</p>}
+      {!flagged && stale != null && <p className="mt-0.5 text-[11px] leading-snug text-zinc-400">{priceStaleNote(stale)}</p>}
       {driving && (
         <p className="mt-1 text-[10px] font-medium text-emerald-400">
           Setting your price
@@ -284,7 +284,7 @@ export default function MarketMetricsPanel({
           }
           driving={driving === tcg?.variant && tcg != null && !tcgFlag}
           flagged={Boolean(tcgFlag)}
-          staleDays={tcgStale?.days ?? null}
+          stale={tcgStale ?? null}
         />
       </div>
 

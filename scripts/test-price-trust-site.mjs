@@ -20,7 +20,7 @@ process.once("exit", () => {
 });
 
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
-const { judgeSeries, judgeStale, siteTrust, siteTrustFull, withPriceFlags, loadTrustData, clearTrustMemo, trustKey, marketPriceFlagged, heldTrustOrOpen } = await import(at("lib/server/priceTrustSite.ts"));
+const { judgeSeries, judgeStale, isThinOnly, siteTrust, siteTrustFull, withPriceFlags, loadTrustData, clearTrustMemo, trustKey, marketPriceFlagged, heldTrustOrOpen } = await import(at("lib/server/priceTrustSite.ts"));
 const { recordPoint } = await import(at("lib/server/priceHistory.ts"));
 const { addDays, todayUtc, encodePrices } = await import(at("lib/priceSeries.ts"));
 const { PRICE_FLAG_NOTE, priceStaleNote } = await import(at("lib/priceFlag.ts"));
@@ -104,7 +104,14 @@ check("... a lower third printing is not the anchor and is left alone", verdict(
 check("... nor clears a stale note (Charizard bw8-136, TCGdex EUR 378.97)", judgeStale(data("pokemon", [ser("holofoil", CHARIZARD_PLASMA)], { cmEur: 302.44, cmEurAlt: 378.97, released: "2013-02-06" })), { days: 128 });
 check("a liquid $300 card is fine", verdict(data("pokemon", [ser("holofoil", liquid(300))])), null);
 check("a $12 card is never looked at", verdict(data("pokemon", [ser("normal", [12, 12, 12])], { cmEur: 0.5 })), null);
-check("soft signs only come back as unverified (hard false)", verdict(data("pokemon", [ser("holofoil", liquid(499.99, 8))])), [false, "round, 9 priced days"]);
+// 10-17: a thin market only (thin, round, few priced days) is shown with "Few recent sales", never blanked.
+check("thin-market signs only: no flag ...", verdict(data("pokemon", [ser("holofoil", liquid(499.99, 8))])), null);
+check("... the number shows with the few-sales note", judgeStale(data("pokemon", [ser("holofoil", liquid(499.99, 8))])), { days: 0, few: true });
+check("... and the note reads", priceStaleNote({ days: 0, few: true }), "Few recent sales");
+check("... but the OLD side of a move with the same signs is still doubted", verdict(data("pokemon", [ser("holofoil", liquid(499.99, 8))]), { old: { back: 0, value: 499.99 } })?.[0], false);
+check("a soft Cardmarket gap next to a thin sign stays flagged (Primal Adversary dbl-194: thin, cardmarket 3.7x)", isThinOnly("thin, cardmarket 3.7x"), false);
+check("... so does a sibling gap or a soft spike", [isThinOnly("thin, sibling 2.4x"), isThinOnly("round, spike")], [false, false]);
+check("... thin, round and priced days are thin-market signs", [isThinOnly("thin, round"), isThinOnly("thin, round, 8 priced days"), isThinOnly("thin")], [true, true, true]);
 check("a card with no series at all is not judged on soft signs", verdict(data("pokemon", []), { liveUsd: 250, variant: "holofoil", exact: true }), null);
 check("... but a second source that says 5x still proves it wrong", verdict(data("pokemon", [], { cmEur: 20 }), { liveUsd: 250, variant: "holofoil", exact: true })?.[0], true);
 
@@ -148,7 +155,7 @@ console.log("Lorcana / One Piece / Yu-Gi-Oh: hard verdicts only until the series
   check("young round $500 (soft) is not flagged", verdict(data("onepiece", [ser("normal", [500])])), null);
   check("young but hard (a doubling to $100+) still is", verdict(data("lorcana", [ser("normal", [40, 41, 42, 43, 44, 45, 46, 47, 150])]))?.[0], true);
   const old = data("lorcana", [ser("normal", Array(20).fill(500))]);
-  check("with 14+ priced days the full rule applies (flat 20d round $500)", verdict(old)?.[0], false);
+  check("with 14+ priced days the full rule applies (flat 20d round $500: shown with the few-sales note)", judgeStale(old), { days: 0, few: true });
   check("a young game's stale note is not held back: it is not a verdict against the price", judgeStale(data("onepiece", [ser("normal", Array(50).fill(500))])), { days: 50 });
 }
 

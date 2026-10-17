@@ -20,10 +20,10 @@ export function PriceFlagText({ className = "" }: { className?: string }) {
  * has not updated it and hands over the sold-listings search. Muted, not amber:
  * nothing is wrong with the price, it is only old.
  */
-export function PriceStaleNote({ days, soldUrl, className = "" }: { days: number; soldUrl?: string | null; className?: string }) {
+export function PriceStaleNote({ days, few, soldUrl, className = "" }: { days: number; few?: boolean; soldUrl?: string | null; className?: string }) {
   return (
     <p className={`text-[11px] leading-snug text-zinc-400 ${className}`}>
-      {priceStaleNote(days)}.
+      {priceStaleNote({ days, few })}.
       {soldUrl && (
         <>
           {" "}

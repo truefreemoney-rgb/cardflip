@@ -179,6 +179,9 @@ export function judgeFull(data: TrustData, opts: JudgeOpts = {}): { flag: PriceF
   const priced = prices.reduce<number>((n, v) => n + (v != null ? 1 : 0), 0);
   // Unverified only (soft signs): not evidence on a series too young to have any, or a price the table has no series for.
   if (!verdict.hard && (!s || (YOUNG_GAMES.has(data.game) && priced < PRICE_TRUST.minPricedDays))) return NONE;
+  // A thin market only (10-17): the number shows with "Few recent sales". A second source disagreeing (cardmarket, sibling),
+  // a soft spike, or the OLD side of a move stays flagged.
+  if (!verdict.hard && !opts.old && isThinOnly(verdict.reason)) return { flag: null, stale: { days: 0, few: true } };
   const fb = fallbackOf(verdict, data.asks?.[variant]?.reading ?? null, listingLowUsd, siblings);
   return { flag: { hard: !!verdict.hard, reason: verdict.reason, ...fb }, stale: null };
 }
@@ -206,6 +209,9 @@ export function fallbackOf(
 }
 
 const NONE: { flag: null; stale: null } = { flag: null, stale: null };
+
+/** Every sign in a soft reason is about a thin market ("thin, round, 8 priced days"), none says the number is wrong. Pure. */
+export const isThinOnly = (reason: string): boolean => reason.split(", ").every((r) => /^(thin|round|\d+ priced days)$/.test(r));
 
 /** A manual call binds while the price stays within this of the price that was checked. */
 const MANUAL_BAND = 0.1;

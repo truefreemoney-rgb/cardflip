@@ -102,7 +102,7 @@ function PriceTable({ page }: { page: CardPage }) {
           <dd className="text-right">
             <PriceCell price={p.flag ? null : p.price} flagged={Boolean(p.flag)} className="text-base" />
             <span className="ml-2 text-xs text-zinc-500">{priceDayLabel(p.day)}</span>
-            {p.stale && !p.flag && <span className="block text-xs text-zinc-400">{priceStaleNote(p.stale.days)}</span>}
+            {p.stale && !p.flag && <span className="block text-xs text-zinc-400">{priceStaleNote(p.stale)}</span>}
           </dd>
         </div>
       ))}
@@ -128,9 +128,9 @@ function PriceBlock({ page }: { page: CardPage }) {
         <p className="font-display text-4xl font-bold tabular-nums text-emerald-300 sm:text-5xl">{formatMoney(headline.price)}</p>
         <p className="mt-1 text-sm text-zinc-500">As of {priceDayLabel(headline.day)}. Recorded daily by CardFlip.</p>
         {/* How much history stands behind the number (audit G1): only facts we hold, never a sales count. */}
-        <PriceConfidenceBadge days={historyDays(page)} staleDays={headline.stale?.days ?? null} className="mt-1.5" />
+        <PriceConfidenceBadge days={historyDays(page)} staleDays={headline.stale?.days ?? null} few={headline.stale?.few} className="mt-1.5" />
         {/* The value has stood 45+ days (10-02): the number stands, this says how old it is. */}
-        {headline.stale && <p className="mt-0.5 text-sm text-zinc-400">{priceStaleNote(headline.stale.days)}.</p>}
+        {headline.stale && !headline.stale.few && <p className="mt-0.5 text-sm text-zinc-400">{priceStaleNote(headline.stale.days)}.</p>}
         <PriceReport variant={headline.variant} price={headline.price} className="mt-1.5" />
         {page.changes.length > 0 && (
           <ul className="mt-3 space-y-0.5 text-sm text-zinc-300">

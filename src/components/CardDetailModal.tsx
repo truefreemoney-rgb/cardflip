@@ -333,7 +333,7 @@ export default function CardDetailModal({
                           <td className="py-2 text-right font-semibold text-emerald-400">
                             {formatMoney(p.market, p.currency)}
                             {/* The market has not updated in 45+ days (10-02): the number stands, this says how old it is. */}
-                            {p.stale && <PriceStaleNote className="mt-0.5 font-normal" days={p.stale.days} soldUrl={ebaySoldSearchUrl(card)} />}
+                            {p.stale && <PriceStaleNote className="mt-0.5 font-normal" days={p.stale.days} few={p.stale.few} soldUrl={ebaySoldSearchUrl(card)} />}
                           </td>
                         )}
                       </tr>

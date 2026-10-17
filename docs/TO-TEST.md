@@ -4,6 +4,12 @@
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
 
+## 10-17 ~5:30pm ET: thin-market cards show their price with "Few sales" (task #1, NOT PUSHED; shots docs/shots/few-sales-1..2)
+- After push, phone: open /cards/pokemon/arceus/shinx--pl4-SH12 -> big price $165-ish, amber dot "Few sales · check eBay sold" under it (was "This price looks off").
+- /cards/magic/limited-edition-beta/volcanic-eruption--leb-89 -> same note under ~$120.
+- A hard-flagged card still shows "This price looks off" (any spike/Cardmarket-gap card from `node ... scripts/_few-measure.mjs pokemon out.json`, kind "blank hard").
+- Inventory with a few-sales card: price shown with "Few recent sales. View Sold on eBay" under it, and it counts in the total.
+
 ## 10-17 ~3:35pm ET: "Price looks wrong?" on card pages (A-H #9, NOT PUSHED; shots docs/shots/price-report-1..3)
 - After push, phone: open any priced card page -> grey "Price looks wrong?" under the price -> tap -> "Too high" -> "Thanks. We'll check it against real eBay sales."
 - /admin/prices -> "Readers flagged" lists that card with "1 too high", the price it saw and an eBay sold link (not yet seen rendered: local console sign-in skipped).
