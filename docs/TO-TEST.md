@@ -4,6 +4,9 @@
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
 
+## 10-16 ~10pm ET: privacy policy A3 (NOT PUSHED; shots in docs/shots/privacy-*.png, need Chris yes before push)
+- After push: cardflip.io/privacy shows effective date October 17, 2026 and the new lines (Google/X sign-in, help chat, phone notifications, email, Delete account path, what stays after a delete, Fastmail).
+
 ## 10-16 ~9:30pm ET: account delete takes the mail log + card-removal log (5299b9fe, NOT PUSHED; local test:deletesocial PASS)
 - After push: on prod, run (SELECT only) `SELECT COUNT(*) FROM email_sends WHERE user_id NOT IN (SELECT id FROM users)` once a deleted account exists, expect 0 for accounts deleted after the push. No phone test needed (the delete button itself is unchanged).
 

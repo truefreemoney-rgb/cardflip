@@ -6,7 +6,7 @@ Section D recovered from session a04629b6 transcript.
 ## A. App store prep (the main goal)
 1. DONE 10-16 locally (5299b9fe): Test in-app account deletion end to end for Google, X and TikTok sign-ups [me] M
 2. Sign in with Apple: required if Google/X logins stay on iPhone [you decide, I build] M
-3. Check the privacy policy against what Apple and Google require [me] S
+3. DONE 10-16 locally: Check the privacy policy against what Apple and Google require [me] S
 4. Decide how iPhone payments work: Apple's in-app purchase vs our web checkout [you] M
 5. Build the app shell (Capacitor) around the site [me] L
 6. Developer accounts: Apple $99 a year, Google $25 once [you] S
