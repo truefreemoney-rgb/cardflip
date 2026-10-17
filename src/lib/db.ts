@@ -178,6 +178,8 @@ const SCHEMA = `
   );
 
   CREATE INDEX IF NOT EXISTS idx_price_checks_checked_at ON price_checks(checked_at);
+  -- One account's history, newest first (the page read and the 500-row trim, #26 10-17): no full-table walk.
+  CREATE INDEX IF NOT EXISTS idx_price_checks_user ON price_checks(user_id, checked_at);
 
   -- Server-side error log (lib/server/errorLog.ts): error-ONLY monitoring,
   -- no request/user tracking beyond what the error itself carries — /privacy

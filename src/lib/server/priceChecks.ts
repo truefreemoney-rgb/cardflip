@@ -8,6 +8,7 @@ import { marketPriceFlagged, storedPriceFlags } from "@/lib/server/priceTrustSit
 import type { PriceFlag } from "@/lib/priceFlag";
 import type { GameId, PokemonCard, ScanLanguage } from "@/lib/types";
 import { parseGame } from "@/lib/games";
+import { trimPriceChecks } from "@/lib/server/rowCaps";
 
 export interface PriceCheckEntry {
   id: string;
@@ -183,6 +184,8 @@ export async function logPriceCheck(
     game,
     card.imageSmall,
   );
+  // A history, never refused: the newest ROW_CAPS.priceChecks rows stay (#26).
+  await trimPriceChecks(userId);
 
   return {
     id,

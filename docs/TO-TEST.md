@@ -4,6 +4,9 @@
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
 
+## 10-17 ~5pm ET: per-account row caps (A-H #26, NOT PUSHED)
+- After push: scan-save, add to watchlist and a Search price check still work on prod (phone, one each). Prod SELECT: `SELECT name FROM sqlite_master WHERE name = 'idx_price_checks_user'` returns a row (made at deploy). Nothing in the error mail about rowCaps.
+
 ## 10-17 ~4pm ET: app pages ask /api/auth/me once (A-H #24, NOT PUSHED)
 - After push, pane signed in on cardflip.io/app/collection: performance resource entries show /api/auth/me 1 (was 2) and /api/watch/pending 1. A "Watch this price" from a public card page while signed out, then sign in: the card is on the watchlist with the "Added to your watchlist" toast.
 

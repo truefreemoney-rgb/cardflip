@@ -36,7 +36,7 @@ C0. DONE 10-17 (local, not pushed; covers, set index and /api/sets serve the old
 23. Nightly catalog upload resends everything; send only what changed [me] M
 24. DONE 10-17 (local, not pushed; prod showed only /api/auth/me twice, the second from PendingWatch: now uses the app's session, /api/watch/pending once too): Inventory still loads a couple of things twice; confirm and trim [me] S
 25. The support ticket photo picker allows gallery photos (camera-only rule?) [you decide] S
-26. No per-user limit on how many cards, price checks or watchlist items an account can add [me] S
+26. DONE 10-17 (local, not pushed; 25,000 unsold cards, 1,000 watched, newest 500 lookups kept; prod max today 45/6/14): No per-user limit on how many cards, price checks or watchlist items an account can add [me] S
 
 ## D. Security cleanup (from the 10-16 audit)
 27. eBay actions skip the subscription check, one eBay account can link to several users, and the eBay connect step can crash [me] M

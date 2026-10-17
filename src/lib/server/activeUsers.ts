@@ -79,7 +79,7 @@ export function parseActiveWindow(raw: string | undefined): ActiveWindow {
 // One statement, one round trip. Every branch is bounded by the 30-day
 // start. scan_usage is the one ledger that grows with every scan, so it is
 // pinned to its time index (a bare plan walked the whole table through
-// idx_scan_usage_user) and read once: the same pass gives the Scanned
+// idx_scan_usage_user; price_checks likewise since idx_price_checks_user, #26) and read once: the same pass gives the Scanned
 // signal and the per-window scan counts. Its multi-card locate and picture
 // tiebreak rows are extra vision calls, not scans, so they are skipped
 // (matched with LIKE: `read` is cut at 2000 characters, which json_extract
@@ -95,7 +95,7 @@ WITH scans AS (
 ), sig(user_id, at, what) AS (
   SELECT id, last_seen_at, 'Opened the App' FROM users WHERE last_seen_at >= ?
   UNION ALL SELECT user_id, at, 'Scanned' FROM scans
-  UNION ALL SELECT user_id, MAX(checked_at), 'Checked a Price' FROM price_checks WHERE checked_at >= ? GROUP BY user_id
+  UNION ALL SELECT user_id, MAX(checked_at), 'Checked a Price' FROM price_checks INDEXED BY idx_price_checks_checked_at WHERE checked_at >= ? GROUP BY user_id
   UNION ALL SELECT user_id, MAX(created_at), 'Saved a Card' FROM cards WHERE created_at >= ? GROUP BY user_id
   UNION ALL SELECT user_id, MAX(added_at), 'Added to Watchlist' FROM wishlist_items WHERE added_at >= ? GROUP BY user_id
   UNION ALL SELECT user_id, MAX(created_at), 'Used Help Chat' FROM help_messages WHERE role = 'user' AND created_at >= ? GROUP BY user_id

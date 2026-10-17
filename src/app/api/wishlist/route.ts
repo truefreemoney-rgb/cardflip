@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireUser, AuthError } from "@/lib/server/auth";
 import { addToWishlist, listWishlist } from "@/lib/server/wishlist";
+import { WISHLIST_CAP_MESSAGE, wishlistFull } from "@/lib/server/rowCaps";
 import type { PokemonCard, ScanLanguage } from "@/lib/types";
 
 export async function GET() {
@@ -27,6 +28,9 @@ export async function POST(req: Request) {
 
     if (typeof card?.name !== "string" || !card.name) {
       return NextResponse.json({ error: "Missing card" }, { status: 400 });
+    }
+    if (await wishlistFull(user.id)) {
+      return NextResponse.json({ error: WISHLIST_CAP_MESSAGE }, { status: 409 });
     }
 
     const item = await addToWishlist(user.id, card, language, price);

@@ -5,6 +5,7 @@ import { createCard, deleteCards, listCardsForUser } from "@/lib/server/cards";
 import { ownsPack } from "@/lib/server/packs";
 import { scannedRecently } from "@/lib/server/scanUsage";
 import { ledgerFloorProblem } from "@/lib/server/ebayMarket";
+import { CARDS_CAP_MESSAGE, cardsFull } from "@/lib/server/rowCaps";
 
 export async function GET() {
   try {
@@ -72,6 +73,9 @@ export async function POST(req: Request) {
 
     if (!cardName) {
       return NextResponse.json({ error: "cardName is required" }, { status: 400 });
+    }
+    if (await cardsFull(user.id)) {
+      return NextResponse.json({ error: CARDS_CAP_MESSAGE }, { status: 409 });
     }
 
     // A pack id that is not this user's is dropped, not trusted: the card still saves, just unlinked.
