@@ -13,7 +13,7 @@ tasks #58 #59 #61 #62 #63 #65 (+ #66 #67 already existed, #57 skipped). All push
 5. After the sub: "Based on N sales" + "few sales" label on card pages and scan results [me] S
 6. Daily 4-source price cross-check (PriceCharting, TCGplayer, eBay asks, Cardmarket); big jumps go to a check queue [me] M
 7. Prices by condition (Near Mint and played values) [me] S
-8. Weekly accuracy scorecard: 20 random cards vs eBay sold, cause fixed same day [me] S weekly
+8. Weekly accuracy scorecard: 20 random cards vs eBay sold, cause fixed same day [me] S weekly. Week 1 (10-17): 11 of 17 = 65% within 25% (docs/price-scorecard/2026-10-17; sampler scripts/_scorecard-sample.mjs). Misses = TCGplayer market frozen/lagging (Zubat RH 153 days flat, Exodia Necross 25th $52 vs ~$15, Electrode 1st $36 vs $21); fix = PriceCharting first (finale). Next run ~10-24
 9. "Price looks wrong?" button feeding the manual check [me] S
 10. Reapply for eBay Marketplace Insights (sold data) [me writes, you send] S
 11. Catalog: Vivillon wing patterns (and similar) are lumped into one card [me] M
