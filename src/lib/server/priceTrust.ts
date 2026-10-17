@@ -26,6 +26,8 @@
  *     (test 6, and the under-$100 line below), never a verdict alone.
  * 1b. eBay asks (10-13, `ebay.high`, $100+ printings read nightly): far above
  *     every ask for the same printing -> no. See lib/ebayReferee.ts.
+ * 1c. A climb eBay does not back (10-17): up >= 25% in 7 days and now >= 1.4x
+ *     the median Near Mint eBay ask (3+ asks) -> no.
  *  2. A spike that never came back (>= $50): a one-step rise >= 3x and the
  *     price is still >= 3x the level before it (the higher of the 7- and
  *     30-point medians, so a short glitch-low that recovers is not a spike).
@@ -128,6 +130,13 @@ export const PRICE_TRUST = {
   softOneMinUsd: 500,
   /** Sets released before this are vintage (thin and round are their normal state). */
   vintageBefore: "2010-01-01",
+  /** Test 1c: a rise of at least this over the last climbDays calendar days ... */
+  climbRise: 1.25,
+  climbDays: 7,
+  /** ... that leaves the price >= this x the median Near Mint eBay ask ... */
+  climbOverAsk: 1.4,
+  /** ... with at least this many such asks. */
+  climbMinAsks: 3,
 } as const;
 
 /**
@@ -195,7 +204,7 @@ export interface PriceTrustInput {
    * same printing is asked for on eBay (test 1b). `manual` = an admin's call after an eBay SOLD check, binding over every
    * test while the price stays within 10% of the checked one ('keep' vouches, 'hide' is wrong). The caller decides both.
    */
-  ebay?: { high: boolean; reason: string; manual?: "hide" | "keep" | null } | null;
+  ebay?: { high: boolean; reason: string; manual?: "hide" | "keep" | null; medianAsk?: number | null; nNm?: number } | null;
   /** Pokemon, a non-default printing that is the default's highest sibling: the default's price (test 3b). */
   anchorFor?: number | null;
 }
@@ -412,6 +421,18 @@ export function priceTrust({ to, prices, siblings = [], refEur = null, refAltEur
   // 1b. eBay asks (10-13): far above everything the same printing is listed for (a $68,000 ultra rare listed by 111 sellers at
   // ~$4). After the Cardmarket vouch above: two sources agreeing still outrank asks, which run in every condition.
   if (!old && ebay?.high) return wrong(ebay.reason);
+  // 1c. A climb eBay does not back (10-17): TCGplayer's market is its last sale, so a few sales a week apart walk a thin card up
+  // in steps no spike test sees (Lugia Secret Wonders $220 -> $376 in a week, eBay sold ~$117; Lugia GX 227 $240 -> $370, sold
+  // ~$210). A real climb is a card catching up to what it is already listed for (Prism Star Latias $21 -> $67, sold ~$65), so it
+  // only fails while the new price stands far above the Near Mint asks. Labelled 10-17 on 18 climbers against eBay sold: every
+  // fair one was <= 1.13x its median ask, the too-high ones 1.42x and up.
+  if (!old && ebay?.medianAsk != null && ebay.medianAsk > 0 && (ebay.nNm ?? 0) >= T.climbMinAsks && to >= T.climbOverAsk * ebay.medianAsk) {
+    let back: number | null = null;
+    for (let i = prices.length - 1 - T.climbDays; i >= 0 && back == null; i--) back = prices[i];
+    if (back != null && back > 0 && to / back >= T.climbRise) {
+      return wrong(`up ${Math.round((to / back - 1) * 100)}% in ${T.climbDays}d, ${x(to / ebay.medianAsk)} the median ebay ask (${ebay.nNm} listed)`);
+    }
+  }
 
   // 2. A spike that never came back.
   if (to >= T.spikeMinUsd && f.hardSpike) return wrong(`spike ${x(f.hardSpike[0])} still ${x(f.hardSpike[1])}`);

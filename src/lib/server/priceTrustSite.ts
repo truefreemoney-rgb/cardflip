@@ -188,12 +188,15 @@ const NONE: { flag: null; stale: null } = { flag: null, stale: null };
 const MANUAL_BAND = 0.1;
 
 /** The eBay referee's say on `to`: the verdict is recomputed against the price being judged (it may have moved since the nightly read). Pure. */
-export function ebayCall(row: EbayAsksRow | undefined, to: number): { high: boolean; reason: string; manual: "hide" | "keep" | null } | null {
+export function ebayCall(row: EbayAsksRow | undefined, to: number): { high: boolean; reason: string; manual: "hide" | "keep" | null; medianAsk: number | null; nNm: number } | null {
   if (!row) return null;
   const manual = row.manual && row.manualPrice && Math.abs(to - row.manualPrice) <= MANUAL_BAND * row.manualPrice ? row.manual : null;
-  const v = row.reading && to >= EBAY_REFEREE.minUsd ? refereeVerdict(to, row.reading) : null;
-  if (!manual && v?.verdict !== "high") return null;
-  return { high: v?.verdict === "high", reason: v?.reason ?? "", manual };
+  const reading = row.reading && to >= EBAY_REFEREE.minUsd ? row.reading : null;
+  const v = reading ? refereeVerdict(to, reading) : null;
+  // The median Near Mint ask goes along for test 1c (a climb eBay does not back) even when the referee itself has nothing to say.
+  const medianAsk = reading && reading.nNm > 0 ? reading.median : null;
+  if (!manual && v?.verdict !== "high" && medianAsk == null) return null;
+  return { high: v?.verdict === "high", reason: v?.reason ?? "", manual, medianAsk, nNm: reading?.nNm ?? 0 };
 }
 
 // ---------------------------------------------------------------------------

@@ -253,5 +253,19 @@ check("thresholds are the calibrated ones", [PRICE_TRUST.refExtreme, PRICE_TRUST
   check("no eBay reading = the rule as before", judge(fine, { ebay: null }).ok, true);
 }
 
+// 10-17: test 1c, a climb eBay does not back (Lugia Secret Wonders $220 -> $376 in a week, median NM ask $90, eBay sold ~$117).
+{
+  const base = Array.from({ length: 40 }, (_, i) => 218 + (i % 4));
+  const climb = [...base, 250, 250, 290, 330, 376.2, 376.2];
+  const ask = (medianAsk, nNm = 28) => ({ high: false, reason: "", manual: null, medianAsk, nNm });
+  check("the climb alone is fine (no eBay reading)", priceTrust({ to: 376.2, prices: climb }).ok, true);
+  check("a 71% climb at 4.2x the median ask hides, hard", priceTrust({ to: 376.2, prices: climb, ebay: ask(90) }), { ok: false, hard: true, reason: "up 71% in 7d, 4.2x the median ebay ask (28 listed)" });
+  check("a climb the asks back (Prism Star Latias catching up) stands", priceTrust({ to: 376.2, prices: climb, ebay: ask(340) }).ok, true);
+  check("too few asks: no verdict", priceTrust({ to: 376.2, prices: climb, ebay: ask(90, 2) }).ok, true);
+  check("far above the asks but no climb: test 1c is silent", priceTrust({ to: 220, prices: [...base, 220], ebay: ask(100) }).ok, true);
+  check("an OLD price is not judged by today's asks", priceTrust({ to: 376.2, prices: climb, old: true, ebay: ask(90) }).reason.startsWith("up "), false);
+  check("an admin's 'keep' still wins", priceTrust({ to: 376.2, prices: climb, ebay: { ...ask(90), manual: "keep" } }).ok, true);
+}
+
 if (failures) { console.log(`\n${failures} failing`); process.exit(1); }
 console.log("\nall green");
