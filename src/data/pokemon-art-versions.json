@@ -1,0 +1,48 @@
+[
+  {
+    "id": "xy1-17-highplains",
+    "baseId": "xy1-17",
+    "name": "Vivillon (High Plains Orange)",
+    "groupId": 1387,
+    "productId": 90395,
+    "baseProductId": 91249,
+    "note": "XY Vivillon 17/146 came in two wing patterns; the catalog's picture is Meadow (pink), TCGplayer sells High Plains (orange) separately at ~5x."
+  },
+  {
+    "id": "base1-58-redcheeks-1st",
+    "baseId": "base1-58-1st",
+    "name": "Pikachu (Red Cheeks)",
+    "groupId": 1663,
+    "productId": 147229,
+    "baseProductId": 107055,
+    "baseImage": true,
+    "note": "Base Set Shadowless Pikachu 58/102: early 1st Edition sheets had red cheeks (yellow on the rest); the -1st twin had been mapped to the red-cheeks product."
+  },
+  {
+    "id": "swsh10.5-006-peelable",
+    "baseId": "swsh10.5-006",
+    "name": "Spinarak (Peelable Ditto)",
+    "groupId": 3064,
+    "productId": 277793,
+    "baseProductId": 276944,
+    "note": "Pokemon GO: a Ditto sticker over the art, reverse holo only."
+  },
+  {
+    "id": "swsh10.5-013-peelable",
+    "baseId": "swsh10.5-013",
+    "name": "Numel (Peelable Ditto)",
+    "groupId": 3064,
+    "productId": 277791,
+    "baseProductId": 276947,
+    "note": "Pokemon GO: a Ditto sticker over the art, reverse holo only."
+  },
+  {
+    "id": "swsh10.5-059-peelable",
+    "baseId": "swsh10.5-059",
+    "name": "Bidoof (Peelable Ditto)",
+    "groupId": 3064,
+    "productId": 277788,
+    "baseProductId": 276982,
+    "note": "Pokemon GO: a Ditto sticker over the art, reverse holo only."
+  }
+]

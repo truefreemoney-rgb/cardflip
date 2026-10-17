@@ -89,6 +89,9 @@ const seed = [
   // Promo numbers carry the set code ("SVP 212"); the mirror files it as "212".
   ["svp-212",  "Reuniclus",        "svp",   "SVP Black Star Promos","212","2023-03-31",225, ""],
   ["sv10.5b-039","Reuniclus",      "sv10.5b","Black Bolt",    "039","2025-07-17",86,  ""],
+  // An art version (src/data/pokemon-art-versions.json): same set and number, its own card.
+  ["xy1-17",   "Vivillon",         "xy1",   "XY",             "17", "2014-02-05",146, "XY"],
+  ["xy1-17-highplains","Vivillon (High Plains Orange)","xy1","XY","17","2014-02-05",146,"XY"],
 ];
 for (const [id, name, setId, setName, local, date, official, code] of seed) {
   await db.prepare(
@@ -146,6 +149,14 @@ check("no number, no set clues: still the newest printing",
       { id: "swsh5-62", rankScore: 21, number: "62", setName: "Battle Styles" },
     ], "pokemon", true), ["swsh9-068", "swsh9.5tg-TG16", "base3-13-1st", "swsh5-62"]);
   check("picture check, no number read: no near-tie, no call", tiebreakIds([{ id: "a", rankScore: 10 }, { id: "b", rankScore: 12 }], "pokemon", true), []);
+  // 10-17 #11: the printed card says "Vivillon" on both arts, so the version ties
+  // the plain card on the bare name and the picture decides between the two.
+  const viv = (await searchEnglishCardsLocal("Vivillon", { number: "17", setTotal: 146, setCode: null, isSecretRare: false }, 5)).cards;
+  check("art version: ties the plain card on the printed name and number",
+    [viv.slice(0, 2).map((c) => c.id).sort(), viv[0].rankScore === viv[1].rankScore], [["xy1-17", "xy1-17-highplains"], true]);
+  check("art version: the picture check gets both arts", tiebreakIds(viv, "pokemon").sort(), ["xy1-17", "xy1-17-highplains"]);
+  check("art version: no number read, still its own face",
+    tiebreakIds(viv.map((c) => ({ ...c, rankScore: 9 })), "pokemon", true).sort(), ["xy1-17", "xy1-17-highplains"]);
 }
 check("misread numerator can't outvote an agreeing set total",
   await top("Zamazenta", { number: "140", setTotal: 182, setCode: null, isSecretRare: false }), "sv10-146");

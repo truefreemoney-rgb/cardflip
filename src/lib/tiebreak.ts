@@ -5,6 +5,7 @@
  */
 
 import { ONE_PIECE_PROMO_SET, onePieceKey } from "@/lib/onepiece";
+import { isArtVersionId } from "@/lib/artVersions";
 
 /** Score gap at or under which #1 and #2 count as a tie (both rankers use 1-point tiebreaks). */
 export const TIEBREAK_GAP = 1;
@@ -41,7 +42,8 @@ export function tiebreakIds(
   // The mirror files a Trainer Gallery card under two set ids (swsh9tg and
   // swsh9.5tg, same set name and number): one face, or the picture is asked
   // to choose between two copies of one card and keeps the order.
-  if (game === "pokemon" && noNumber) return facesWithinGap(cards, 4, (c) => (c.setName && c.number ? `${c.setName}|${c.number}` : null));
+  // An art version (lib/artVersions.ts) shares set and number with the plain card but not its face.
+  if (game === "pokemon" && noNumber) return facesWithinGap(cards, 4, (c) => (c.setName && c.number && !isArtVersionId(c.id) ? `${c.setName}|${c.number}` : null));
   if (game !== "yugioh") return [cards[0].id, cards[1].id];
   return facesWithinGap(cards, 6);
 }

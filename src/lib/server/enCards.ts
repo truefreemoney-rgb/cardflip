@@ -14,6 +14,7 @@ import type { ArtStyle, CardPrice, PokemonCard } from "@/lib/types";
 import { decodePrices } from "@/lib/priceSeries";
 import { formatVariantLabel } from "@/lib/listing";
 import { toPics } from "@/lib/pics";
+import { printedName } from "@/lib/artVersions";
 
 /**
  * English card identification, served from our own mirror of TCGdex.
@@ -359,7 +360,8 @@ export async function searchEnglishCardsLocal(
     rows.some((r) => r.set_name === row.set_name && normalizeName(r.name) === normalizeName(row.name) && numeric(r) < numeric(row));
 
   const score = (row: EnCardRow): number => {
-    const rowName = normalizeName(row.name);
+    // An art version ranks on the name printed on it, level with the plain card (lib/artVersions.ts).
+    const rowName = normalizeName(printedName(row.id, row.name));
     const exactName = rowName === needle || (needles.includes(rowName) && !setsWithFullName.has(row.set_name)) || looseExact.has(row.id);
     // Lettered sub-series (RC1/RC25, TG01/TG30, SH1/SH12, GG16/GG70) print
     // their own denominator, not the set's official count, so a read total
