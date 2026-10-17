@@ -4,6 +4,10 @@ Chris (10-14): every support ticket and every social comment is a learning
 experience while the site is new and not fully tested. One entry each: what
 they said, what it taught, what changed, what is still open. Newest first.
 
+## 10-17 · Chris: "why do the prices look too high?" (asked in chat)
+- What: Lugia-EX bw8-108 posted at 7pm as +60% ($94.69 -> $151.44); eBay sold ~$90-98. Charmander dp7-101, Rayquaza pop1-3, Lugia GX, Regice ex etc. 1.4-3x eBay sold.
+- Cause: not the 10-16 cap (it only lowers prices; median weekly change 1.000 every week). TCGplayer market = last sale, and a few sales walked thin cards up in 1.1-1.7x steps over a week; every guard test looked for ONE big step.
+- Fix: guard test 1c (b2a51efb): up >= 25% in 7d and >= 1.4x the median NM eBay ask (3+) = hidden. Labelled on 18 climbers first (fair <= 1.13x, too high >= 1.42x). Gap left: cards with no eBay ask row (under $100, or not yet read: Lugia-EX) and 1.2-1.4x overprices (Charmander, Reshiram) still show; the real fix is sold data (PriceCharting, Chris's call).
 ## 10-16 · Junk 1pm post + Dynadot DNS fault (found by me, not a ticket)
 **What happened:** the 1pm head to head printed parked Alpha/Beta listings as "slipped 69% / 78.8% this week" on 5 sites. Then, ~1:15pm ET, Dynadot's ns2.dyna-ns.net began answering cardflip.io / www with 54.215.31.113 (TTL 60) on ~10-15% of queries: wrong-certificate errors for some visitors and GitHub posting pings.
 **What it taught:** (1) the price guard checked an old price against today's Cardmarket before its flat test, so a 52-day parked number passed; (2) our own 10-14 Magic cap (6f3fc80f) made every Magic "this week" move junk for 7 days; (3) one registrar nameserver is a single point of failure.
