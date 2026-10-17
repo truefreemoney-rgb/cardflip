@@ -225,6 +225,12 @@ export interface PriceTrust {
    * $1,150 flat 128 days was a fair Near Mint price that the hide buried.
    */
   stale?: number;
+  /**
+   * Set when not ok and the test that failed compared the price against a sound value (10-17, price fallback): the level the
+   * screens price the card at instead of leaving it blank. USD. Spike / doubling: the level before the jump; Cardmarket 10x:
+   * the Cardmarket price; eBay asks too high / 1c climb: the median Near Mint ask. Absent = the test had no value to offer.
+   */
+  ref?: number;
 }
 
 interface Features {
@@ -240,6 +246,9 @@ interface Features {
   softSpike: boolean;
   /** The biggest one-step rise >= doubleRise among the last doubleWindow priced points (0 = none). */
   doubled: number;
+  /** The level before the jump test 2 / test 5 named (the fallback, see PriceTrust.ref). */
+  spikeFrom: number | null;
+  doubledFrom: number | null;
 }
 
 function median(sorted: number[]): number {
@@ -272,6 +281,8 @@ function features(prices: readonly (number | null)[], to: number): Features {
   let hardSpike: [number, number] | null = null;
   let softSpike = false;
   let doubled = 0;
+  let spikeFrom: number | null = null;
+  let doubledFrom: number | null = null;
   for (let k = 1; k < n; k++) {
     const rise = vals[k] / vals[k - 1];
     if (rise < PRICE_TRUST.softSpike) continue;
@@ -282,12 +293,19 @@ function features(prices: readonly (number | null)[], to: number): Features {
     // a spike, so the short median is never allowed to be lower than the month before it.
     const med7 = median(vals.slice(Math.max(0, k - PRICE_TRUST.spikeLookback), k).sort((a, b) => a - b));
     const med30 = median(back.slice(-PRICE_TRUST.spikeLookbackLong).sort((a, b) => a - b));
-    const hold = to / Math.max(med7, med30);
+    const level = Math.max(med7, med30);
+    const hold = to / level;
     if (hold >= PRICE_TRUST.softSpike) softSpike = true;
-    if (hold >= PRICE_TRUST.doubleRise && k >= n - PRICE_TRUST.doubleWindow) doubled = Math.max(doubled, rise);
-    if (rise >= PRICE_TRUST.spikeRise && hold >= PRICE_TRUST.spikeHold && (!hardSpike || hold > hardSpike[1])) hardSpike = [rise, hold];
+    if (hold >= PRICE_TRUST.doubleRise && k >= n - PRICE_TRUST.doubleWindow && rise > doubled) {
+      doubled = rise;
+      doubledFrom = level;
+    }
+    if (rise >= PRICE_TRUST.spikeRise && hold >= PRICE_TRUST.spikeHold && (!hardSpike || hold > hardSpike[1])) {
+      hardSpike = [rise, hold];
+      spikeFrom = level;
+    }
   }
-  return { n, runDays, k30, hardSpike, softSpike, doubled };
+  return { n, runDays, k30, hardSpike, softSpike, doubled, spikeFrom, doubledFrom };
 }
 
 /** Vintage print: a 1st Edition variant, or a set released before 2010 (release date "YYYY-MM-DD" or "YYYY/MM/DD"; "" = unknown). */
@@ -388,7 +406,7 @@ export function priceTrust({ to, prices, siblings = [], refEur = null, refAltEur
   if (!(to > 0)) return { ok: false, hard: true, reason: "no price" };
   // Nothing below $10 is worth a second look: the mover and pool floors sit there.
   if (to < T.refMinUsd) return { ok: true, reason: "" };
-  const wrong = (reason: string): PriceTrust => ({ ok: false, hard: true, reason });
+  const wrong = (reason: string, ref?: number | null): PriceTrust => ({ ok: false, hard: true, reason, ...(ref != null && ref > 0 ? { ref: Math.round(ref * 100) / 100 } : {}) });
   // 0. An admin checked this price against eBay sold listings: that beats every heuristic below (a past price is not the one checked).
   if (!old && ebay?.manual === "keep") return { ok: true, reason: "checked against ebay sold", agrees: true };
   if (!old && ebay?.manual === "hide") return wrong("checked against ebay sold: too high");
@@ -411,7 +429,7 @@ export function priceTrust({ to, prices, siblings = [], refEur = null, refAltEur
   const listedNear = listingReferee && listingLowUsd != null && listingLowUsd > 0 && to <= T.staleOverLow * listingLowUsd && to * T.staleOverLow >= listingLowUsd;
   if (ref != null && !listedNear) {
     refRatio = to / (ref * T.eurToUsd);
-    if (refRatio >= T.refExtreme) return wrong(`cardmarket ${x(refRatio)}`);
+    if (refRatio >= T.refExtreme) return wrong(`cardmarket ${x(refRatio)}`, ref * T.eurToUsd);
     if (refRatio < T.refClear) {
       if (ref === primary) return { ok: true, reason: `cardmarket ${x(refRatio)} agrees`, agrees: true };
       refRatio = null;
@@ -420,7 +438,7 @@ export function priceTrust({ to, prices, siblings = [], refEur = null, refAltEur
 
   // 1b. eBay asks (10-13): far above everything the same printing is listed for (a $68,000 ultra rare listed by 111 sellers at
   // ~$4). After the Cardmarket vouch above: two sources agreeing still outrank asks, which run in every condition.
-  if (!old && ebay?.high) return wrong(ebay.reason);
+  if (!old && ebay?.high) return wrong(ebay.reason, ebay.medianAsk);
   // 1c. A climb eBay does not back (10-17): TCGplayer's market is its last sale, so a few sales a week apart walk a thin card up
   // in steps no spike test sees (Lugia Secret Wonders $220 -> $376 in a week, eBay sold ~$117; Lugia GX 227 $240 -> $370, sold
   // ~$210). A real climb is a card catching up to what it is already listed for (Prism Star Latias $21 -> $67, sold ~$65), so it
@@ -430,12 +448,12 @@ export function priceTrust({ to, prices, siblings = [], refEur = null, refAltEur
     let back: number | null = null;
     for (let i = prices.length - 1 - T.climbDays; i >= 0 && back == null; i--) back = prices[i];
     if (back != null && back > 0 && to / back >= T.climbRise) {
-      return wrong(`up ${Math.round((to / back - 1) * 100)}% in ${T.climbDays}d, ${x(to / ebay.medianAsk)} the median ebay ask (${ebay.nNm} listed)`);
+      return wrong(`up ${Math.round((to / back - 1) * 100)}% in ${T.climbDays}d, ${x(to / ebay.medianAsk)} the median ebay ask (${ebay.nNm} listed)`, ebay.medianAsk);
     }
   }
 
   // 2. A spike that never came back.
-  if (to >= T.spikeMinUsd && f.hardSpike) return wrong(`spike ${x(f.hardSpike[0])} still ${x(f.hardSpike[1])}`);
+  if (to >= T.spikeMinUsd && f.hardSpike) return wrong(`spike ${x(f.hardSpike[0])} still ${x(f.hardSpike[1])}`, f.spikeFrom);
   // 3. Sibling anchor.
   const sib = siblings.reduce((m, v) => (v > m ? v : m), 0);
   const sibRatio = sib > 0 ? to / sib : null;
@@ -469,7 +487,7 @@ export function priceTrust({ to, prices, siblings = [], refEur = null, refAltEur
     return { ok: true, reason: "" };
   }
   // 5. A fresh doubling nobody confirmed (a second source that agreed already returned above).
-  if (f.doubled > 0) return wrong(`doubled ${x(f.doubled)} in the last ${T.doubleWindow} priced days`);
+  if (f.doubled > 0) return wrong(`doubled ${x(f.doubled)} in the last ${T.doubleWindow} priced days`, f.doubledFrom);
   // 6. Graded evidence. From $500 thin and round are a vintage print's ordinary state (a 1st Edition Charizard is one flat, round $10,000), so they are no sign there,
   // unless a second source disagrees (a 3-10x Cardmarket gap): then nothing excuses them.
   const signs: string[] = [];

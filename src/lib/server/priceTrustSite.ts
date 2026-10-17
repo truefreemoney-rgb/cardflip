@@ -179,7 +179,30 @@ export function judgeFull(data: TrustData, opts: JudgeOpts = {}): { flag: PriceF
   const priced = prices.reduce<number>((n, v) => n + (v != null ? 1 : 0), 0);
   // Unverified only (soft signs): not evidence on a series too young to have any, or a price the table has no series for.
   if (!verdict.hard && (!s || (YOUNG_GAMES.has(data.game) && priced < PRICE_TRUST.minPricedDays))) return NONE;
-  return { flag: { hard: !!verdict.hard, reason: verdict.reason }, stale: null };
+  const fb = fallbackOf(verdict, data.asks?.[variant]?.reading ?? null, listingLowUsd, siblings);
+  return { flag: { hard: !!verdict.hard, reason: verdict.reason, ...fb }, stale: null };
+}
+
+/**
+ * The price a flagged card shows instead of none (10-17): the value the failed test measured against, else the median Near
+ * Mint eBay ask (3+ asks), else, for a number frozen above the cheapest live listing, that listing, else for a printing 3x
+ * every sibling, the highest sibling. Pure.
+ */
+export function fallbackOf(
+  verdict: { reason: string; hard?: boolean; ref?: number },
+  ask: AskReading | null,
+  listingLowUsd: number | null,
+  siblings: readonly number[],
+): { fallback?: number; fallbackFrom?: string } {
+  if (verdict.ref != null && verdict.ref > 0) {
+    const from = /^(spike|doubled)/.test(verdict.reason) ? "before jump" : verdict.reason.startsWith("cardmarket") ? "cardmarket" : "ebay ask";
+    return { fallback: verdict.ref, fallbackFrom: from };
+  }
+  if (ask && ask.median != null && ask.median > 0 && ask.nNm >= PRICE_TRUST.climbMinAsks) return { fallback: ask.median, fallbackFrom: "ebay ask" };
+  if (/^flat \d+d, [\d.]+x the cheapest listing/.test(verdict.reason) && listingLowUsd != null && listingLowUsd > 0) return { fallback: listingLowUsd, fallbackFrom: "cheapest listing" };
+  const sib = siblings.reduce((m, v) => (v > m ? v : m), 0);
+  if (/^sibling /.test(verdict.reason) && sib > 0) return { fallback: sib, fallbackFrom: "sibling" };
+  return {};
 }
 
 const NONE: { flag: null; stale: null } = { flag: null, stale: null };

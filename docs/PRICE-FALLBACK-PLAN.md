@@ -41,6 +41,18 @@ Trigger: new Google Ads user's Eevee svp-173 scanned at $0 (LESSONS.md 10-17). F
    and as the referee. Bring numbers: how far TCGplayer market is from eBay sold on a sample.
 3. Every consumer: social/marketing lists can keep skipping flagged cards (posts must be sure); seller-facing + public pages must not blank.
 
+## Measured 10-17 (s185)
+- Flagged today (Pokemon, cards only, sealed excluded): 337 printings. Fallback offered by the new code: 233
+  (before jump 70, ebay ask hard 73 / soft 73, cheapest listing 9, sibling 3, cardmarket 2); none: 104 soft (thin/round/young)
+  + 3 manual "checked: too high". Script: scripts/_fb-measure.mjs <game> [out.json] (prod SELECTs only).
+- 16 RANDOM UNFLAGGED Pokemon cards ($5+, scripts/_fb-random.mjs) vs eBay sold raw (median of last <=15 single raw sales,
+  slabs/lots/"choose" excluded): ours within 25% = 5/16 (31%); 10 too high 1.4x-2.8x (Vivillon xy1-17 RH $10.92 vs $3.99,
+  Espeon hgss3-2 RH $72.49 vs $26.03, Switch dp3-128 RH $11.98 vs $5.99, Lucario C $26.40 vs $15.99, Eevee neo2-38-1st $41.94 vs ~$30).
+- PriceCharting public ungraded price on the same 16: within 25% = 12/16 (75%), fixes ~9 of our 11 misses. Misses: Boost Energy
+  pop5-8 (no ungraded price), Volcarona MB (PC $10.58 vs sold $15.99, ours right), Vivillon (PC $2.97 vs $3.99; PC splits 5
+  wing patterns we lump), Alakazam EX xy10-125 (PC $169 vs a mixed eBay median $105, unclear). => the accuracy problem is
+  most cards, not the flagged few; PriceCharting first + TCGplayer where PC has nothing. Other games NOT measured yet.
+
 ## Tests that pin today's hide behaviour (update with the change)
 test-pricing.mjs ~690-731 (flagged row = null quote, currentPrice 0), test-live-prices.mjs 153-160 (flagged draft zeroed),
 test-price-trust-site.mjs 204/222 (deepEqual flag shape), test-price-trust-routes.mjs 85-148 (flag shape in responses,

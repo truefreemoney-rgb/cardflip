@@ -11,6 +11,14 @@ export interface PriceFlag {
   hard: boolean;
   /** Short, for logs and tooltips ("cardmarket 20.4x", "flat 87d"). */
   reason: string;
+  /**
+   * The price the screens show instead (10-17, Chris: "we cant have unpriced cards"), USD, absent = nothing sound to offer.
+   * The value the failed test compared against (the level before a spike, Cardmarket, the median eBay ask), else the next
+   * best reading the guard holds. See priceTrustSite.judgeFull.
+   */
+  fallback?: number;
+  /** Where `fallback` came from, for logs and the admin: "before jump", "cardmarket", "ebay ask", "cheapest listing", "sibling". */
+  fallbackFrom?: string;
 }
 
 /** The sentence a flagged card shows instead of its market price. */
