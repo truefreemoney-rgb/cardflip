@@ -1,0 +1,112 @@
+[
+ {
+  "game": "pokemon",
+  "band": "low",
+  "id": "hgss1-61",
+  "variant": "reverseHolofoil",
+  "name": "Cyndaquil",
+  "set": "HeartGold SoulSilver",
+  "num": "61",
+  "rarity": "",
+  "ours": 17.18
+ },
+ {
+  "game": "pokemon",
+  "band": "low",
+  "id": "xyp-XY167",
+  "variant": "holofoil",
+  "name": "Garchomp-EX",
+  "set": "XY Black Star Promos",
+  "num": "XY167",
+  "rarity": "",
+  "ours": 21.01
+ },
+ {
+  "game": "pokemon",
+  "band": "low",
+  "id": "sm5-142",
+  "variant": "holofoil",
+  "name": "Xurkitree GX",
+  "set": "Ultra Prism",
+  "num": "142",
+  "rarity": "",
+  "ours": 18.68
+ },
+ {
+  "game": "pokemon",
+  "band": "low",
+  "id": "sv04-246",
+  "variant": "holofoil",
+  "name": "Golisopod ex",
+  "set": "Paradox Rift",
+  "num": "246",
+  "rarity": "",
+  "ours": 25.57
+ },
+ {
+  "game": "pokemon",
+  "band": "low",
+  "id": "sm6-95",
+  "variant": "holofoil",
+  "name": "Ultra Necrozma GX",
+  "set": "Forbidden Light",
+  "num": "95",
+  "rarity": "",
+  "ours": 6.67
+ },
+ {
+  "game": "pokemon",
+  "band": "low",
+  "id": "smp-SM189",
+  "variant": "holofoil",
+  "name": "Blastoise GX",
+  "set": "SM Black Star Promos",
+  "num": "SM189",
+  "rarity": "",
+  "ours": 20.43
+ },
+ {
+  "game": "pokemon",
+  "band": "low",
+  "id": "ex8-7",
+  "variant": "holofoil",
+  "name": "Dusclops",
+  "set": "Deoxys",
+  "num": "7",
+  "rarity": "",
+  "ours": 18.13
+ },
+ {
+  "game": "pokemon",
+  "band": "low",
+  "id": "neo2-27-1st",
+  "variant": "1stEdition",
+  "name": "Politoed",
+  "set": "Neo Discovery (1st Edition)",
+  "num": "27",
+  "rarity": "",
+  "ours": 32.39
+ },
+ {
+  "game": "pokemon",
+  "band": "low",
+  "id": "ex7-90",
+  "variant": "reverseHolofoil",
+  "name": "Rocket's Tricky Gym",
+  "set": "Team Rocket Returns",
+  "num": "90",
+  "rarity": "",
+  "ours": 14.72
+ },
+ {
+  "game": "pokemon",
+  "band": "low",
+  "id": "bw7-32",
+  "variant": "normal",
+  "name": "Psyduck",
+  "set": "Boundaries Crossed",
+  "num": "32",
+  "rarity": "",
+  "ours": 16.23
+ }
+]

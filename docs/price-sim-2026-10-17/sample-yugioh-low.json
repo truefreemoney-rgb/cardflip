@@ -1,0 +1,112 @@
+[
+ {
+  "game": "yugioh",
+  "band": "low",
+  "id": "ygo-206285",
+  "variant": "normal",
+  "name": "Fusion Party!",
+  "set": "Speed Duel: Trials of the Kingdom",
+  "num": "SBTK-ENSP6",
+  "rarity": "Common",
+  "ours": 5.04
+ },
+ {
+  "game": "yugioh",
+  "band": "low",
+  "id": "ygo-94091-1st",
+  "variant": "normal",
+  "name": "Debunk",
+  "set": "Legendary Collection 5D's",
+  "num": "LC5D-EN255",
+  "rarity": "Secret Rare",
+  "ours": 17.43
+ },
+ {
+  "game": "yugioh",
+  "band": "low",
+  "id": "ygo-22010-1st",
+  "variant": "normal",
+  "name": "Gearfried the Iron Knight",
+  "set": "Pharaoh's Servant",
+  "num": "PSV-101",
+  "rarity": "Super Rare",
+  "ours": 10.86
+ },
+ {
+  "game": "yugioh",
+  "band": "low",
+  "id": "ygo-24517",
+  "variant": "normal",
+  "name": "Silent Magician LV4",
+  "set": "Nintendo DS Nightmare of Troubadour",
+  "num": "NTR-EN001",
+  "rarity": "Super Rare",
+  "ours": 8.02
+ },
+ {
+  "game": "yugioh",
+  "band": "low",
+  "id": "ygo-28389-1st",
+  "variant": "normal",
+  "name": "Evil Hero Infernal Prodigy",
+  "set": "Duelist Pack 6: Jaden Yuki 3",
+  "num": "DP06-EN008",
+  "rarity": "Super Rare",
+  "ours": 11.52
+ },
+ {
+  "game": "yugioh",
+  "band": "low",
+  "id": "ygo-22003",
+  "variant": "normal",
+  "name": "Gaia The Fierce Knight",
+  "set": "The Legend of Blue Eyes White Dragon",
+  "num": "LOB-006",
+  "rarity": "Ultra Rare",
+  "ours": 18.75
+ },
+ {
+  "game": "yugioh",
+  "band": "low",
+  "id": "ygo-67274",
+  "variant": "normal",
+  "name": "Abyss-sphere",
+  "set": "Abyss Rising",
+  "num": "ABYR-EN072",
+  "rarity": "Ultimate Rare",
+  "ours": 33.59
+ },
+ {
+  "game": "yugioh",
+  "band": "low",
+  "id": "ygo-58682",
+  "variant": "normal",
+  "name": "Cyber Barrier Dragon",
+  "set": "Shadow of Infinity",
+  "num": "SOI-EN006",
+  "rarity": "Ultimate Rare",
+  "ours": 27.99
+ },
+ {
+  "game": "yugioh",
+  "band": "low",
+  "id": "ygo-200199",
+  "variant": "normal",
+  "name": "Kinetic Soldier",
+  "set": "The Falsebound Kingdom",
+  "num": "TFK-EN002",
+  "rarity": "Super Rare",
+  "ours": 24.97
+ },
+ {
+  "game": "yugioh",
+  "band": "low",
+  "id": "ygo-22812",
+  "variant": "normal",
+  "name": "Metalzoa",
+  "set": "The Falsebound Kingdom",
+  "num": "TFK-002",
+  "rarity": "Prismatic Secret Rare",
+  "ours": 8.95
+ }
+]

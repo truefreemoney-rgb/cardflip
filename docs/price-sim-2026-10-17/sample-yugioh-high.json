@@ -1,0 +1,112 @@
+[
+ {
+  "game": "yugioh",
+  "band": "high",
+  "id": "ygo-58491-1st",
+  "variant": "normal",
+  "name": "Trident Dragion",
+  "set": "Raging Battle",
+  "num": "RGBT-EN043",
+  "rarity": "Ultimate Rare",
+  "ours": 71.72
+ },
+ {
+  "game": "yugioh",
+  "band": "high",
+  "id": "ygo-654232-1st",
+  "variant": "normal",
+  "name": "Radiant Typhoon Swen",
+  "set": "Doom of Dimensions",
+  "num": "DOOD-EN014",
+  "rarity": "Starlight Rare",
+  "ours": 51.26
+ },
+ {
+  "game": "yugioh",
+  "band": "high",
+  "id": "ygo-66689",
+  "variant": "normal",
+  "name": "Gladiator Beast Heraklinos",
+  "set": "Turbo Pack: Booster Two",
+  "num": "TU02-EN000",
+  "rarity": "Ultimate Rare",
+  "ours": 197.98
+ },
+ {
+  "game": "yugioh",
+  "band": "high",
+  "id": "ygo-25313",
+  "variant": "normal",
+  "name": "Toon Table of Contents",
+  "set": "Tournament Pack 6",
+  "num": "TP6-EN002",
+  "rarity": "Super Rare",
+  "ours": 163.29
+ },
+ {
+  "game": "yugioh",
+  "band": "high",
+  "id": "ygo-58442-1st",
+  "variant": "normal",
+  "name": "Solemn Warning",
+  "set": "Duelist Revolution",
+  "num": "DREV-EN077",
+  "rarity": "Ultimate Rare",
+  "ours": 189.01
+ },
+ {
+  "game": "yugioh",
+  "band": "high",
+  "id": "ygo-58429-1st",
+  "variant": "normal",
+  "name": "Red Nova Dragon",
+  "set": "Starstrike Blast",
+  "num": "STBL-EN042",
+  "rarity": "Ultimate Rare",
+  "ours": 99.2
+ },
+ {
+  "game": "yugioh",
+  "band": "high",
+  "id": "ygo-58818",
+  "variant": "normal",
+  "name": "Mystic Swordsman LV2",
+  "set": "Soul of the Duelist",
+  "num": "SOD-EN011",
+  "rarity": "Ultimate Rare",
+  "ours": 81.73
+ },
+ {
+  "game": "yugioh",
+  "band": "high",
+  "id": "ygo-25719",
+  "variant": "normal",
+  "name": "Nova Summoner",
+  "set": "Strike of Neos",
+  "num": "STON-EN065",
+  "rarity": "Secret Rare",
+  "ours": 52.94
+ },
+ {
+  "game": "yugioh",
+  "band": "high",
+  "id": "ygo-58505",
+  "variant": "normal",
+  "name": "Tytannial, Princess of Camellias",
+  "set": "Crossroads of Chaos",
+  "num": "CSOC-EN029",
+  "rarity": "Ultimate Rare",
+  "ours": 51.63
+ },
+ {
+  "game": "yugioh",
+  "band": "high",
+  "id": "ygo-723039-1st",
+  "variant": "normal",
+  "name": "Destiny HERO - Doom Overlord",
+  "set": "Beyond the Brave",
+  "num": "BETB-EN022",
+  "rarity": "Starlight Rare",
+  "ours": 57.68
+ }
+]

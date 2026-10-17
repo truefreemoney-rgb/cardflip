@@ -1,0 +1,112 @@
+[
+ {
+  "game": "mtg",
+  "band": "low",
+  "id": "96503ed7-aa68-439f-95b0-6ac2c48e3935",
+  "variant": "foil",
+  "name": "Forbidding Watchtower",
+  "set": "ulg",
+  "num": "140",
+  "rarity": "uncommon",
+  "ours": 6.49
+ },
+ {
+  "game": "mtg",
+  "band": "low",
+  "id": "c8753b80-aa9e-4f82-9a02-6b3997169dbb",
+  "variant": "foil",
+  "name": "Serum Powder",
+  "set": "ima",
+  "num": "228",
+  "rarity": "rare",
+  "ours": 8.36
+ },
+ {
+  "game": "mtg",
+  "band": "low",
+  "id": "bd836fe0-932c-4d5c-9a52-94fc423c3d57",
+  "variant": "nonfoil",
+  "name": "Deathrender",
+  "set": "lrw",
+  "num": "255",
+  "rarity": "rare",
+  "ours": 5.59
+ },
+ {
+  "game": "mtg",
+  "band": "low",
+  "id": "d29307e6-f323-4b86-b9ce-4c2d6f995743",
+  "variant": "foil",
+  "name": "Dakmor Salvage",
+  "set": "mma",
+  "num": "222",
+  "rarity": "uncommon",
+  "ours": 5.13
+ },
+ {
+  "game": "mtg",
+  "band": "low",
+  "id": "5e161489-ecfb-4018-a907-fd4d11cd3bfb",
+  "variant": "nonfoil",
+  "name": "Defense Grid",
+  "set": "brr",
+  "num": "76",
+  "rarity": "rare",
+  "ours": 7.8
+ },
+ {
+  "game": "mtg",
+  "band": "low",
+  "id": "c99037f6-6c3d-4070-85af-07098ef0153d",
+  "variant": "nonfoil",
+  "name": "Harabaz Druid",
+  "set": "plst",
+  "num": "WWK-105",
+  "rarity": "rare",
+  "ours": 7.89
+ },
+ {
+  "game": "mtg",
+  "band": "low",
+  "id": "1f343724-6ecd-494f-8bfc-93676af4e173",
+  "variant": "nonfoil",
+  "name": "Mental Note",
+  "set": "jud",
+  "num": "46",
+  "rarity": "common",
+  "ours": 8.36
+ },
+ {
+  "game": "mtg",
+  "band": "low",
+  "id": "ce427213-4ce5-478e-83d8-fe80ec446a58",
+  "variant": "foil",
+  "name": "Stuffy Doll",
+  "set": "tsr",
+  "num": "274",
+  "rarity": "rare",
+  "ours": 8.93
+ },
+ {
+  "game": "mtg",
+  "band": "low",
+  "id": "7dce06ba-c1e1-45ec-82a7-fc10b0fa8870",
+  "variant": "foil",
+  "name": "God-Pharaoh's Statue",
+  "set": "war",
+  "num": "238",
+  "rarity": "uncommon",
+  "ours": 15.93
+ },
+ {
+  "game": "mtg",
+  "band": "low",
+  "id": "e3b62616-c1a3-45f7-a329-f1305c462eaf",
+  "variant": "foil",
+  "name": "Animist's Awakening",
+  "set": "ori",
+  "num": "169",
+  "rarity": "rare",
+  "ours": 11.7
+ }
+]

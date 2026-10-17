@@ -637,3 +637,8 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 - #62 set summary strip: PASS on prod (Base Set: 7d -11.3%, 30d -14.5%, typical $2.60 of 100, most valuable Blastoise $224.98 = top of the card list).
 - #63 "Most valuable sets" on /cards/<game> (top 10). SWR cache seo:setvalues:v1:<game> (~21 s query, built after the response): the section may be MISSING on the first build of a hub page and appears after ISR revalidates (<= 2 days). Check all 5 games show it within 2 days, and Pokemon top 5 ~ Skyridge, Legendary Collection, Holon Phantoms, Base Set 1st Ed, Aquapolis.
 - #65 Top 100 page: PASS on prod 10-17: all 5 games 100 rows + link on each hub; top 5 look real (Pokemon 1st Ed Charizard $10,000, Magic Smaug $24,500, YGO Uria $999.97, Lorcana Elsa's Ice Palace promo $3,999.99, One Piece Luffy Gold $13,000). Cold builds: Pokemon 16.5 s, YGO 7.6 s, Magic 5.1 s; cached ~0.4 s. #63 Most valuable sets: still missing on all 5 hubs at 10:30am ET (expected; recheck by 10-19).
+
+## 10-17 Watchlist fixes (NOT PUSHED; 87cc9989, 36bbf0e1)
+- Game picker shows cards per game (pill 'Pokemon · 6', options 'Magic (0)'). Check on phone: pill fits beside the search box at 375px.
+- Game with 0 watched cards: 'No Magic cards on your watchlist.' + 'Show Pokemon (6)' button switches the list. Filter text that matches nothing still says 'Nothing matches that filter.'
+- Totals strip open: 'Alerts' label clear of the fold chevron (desktop). Phone layout unchanged.

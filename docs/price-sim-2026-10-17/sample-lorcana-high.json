@@ -1,0 +1,112 @@
+[
+ {
+  "game": "lorcana",
+  "band": "high",
+  "id": "crd_8fed60626775467d90a99dbb2a5d881b",
+  "variant": "foil",
+  "name": "Mickey Mouse",
+  "set": "Promo Set 3",
+  "num": "13",
+  "rarity": "Promo",
+  "ours": 177.03
+ },
+ {
+  "game": "lorcana",
+  "band": "high",
+  "id": "crd_d01b88e57beb41db97537585ad763334",
+  "variant": "foil",
+  "name": "Elsa",
+  "set": "Promo Set 1",
+  "num": "3",
+  "rarity": "Promo",
+  "ours": 5999.99
+ },
+ {
+  "game": "lorcana",
+  "band": "high",
+  "id": "crd_5b53a4c5b3854ab0ba71dd388aaa0d9f",
+  "variant": "foil",
+  "name": "Ariel",
+  "set": "Whispers in the Well",
+  "num": "241",
+  "rarity": "Iconic",
+  "ours": 1482.58
+ },
+ {
+  "game": "lorcana",
+  "band": "high",
+  "id": "crd_eb10018264004dc59f9bf0f31295d757",
+  "variant": "foil",
+  "name": "Captain Amelia",
+  "set": "Azurite Sea",
+  "num": "221",
+  "rarity": "Enchanted",
+  "ours": 50.86
+ },
+ {
+  "game": "lorcana",
+  "band": "high",
+  "id": "crd_2bedf469328740d9b6fe36a9842a548e",
+  "variant": "foil",
+  "name": "Miguel Rivera",
+  "set": "Hyperia City",
+  "num": "224",
+  "rarity": "Enchanted",
+  "ours": 300
+ },
+ {
+  "game": "lorcana",
+  "band": "high",
+  "id": "crd_fbad358f2f804554838545c738341380",
+  "variant": "foil",
+  "name": "Angel",
+  "set": "Winterspell",
+  "num": "238",
+  "rarity": "Enchanted",
+  "ours": 283.31
+ },
+ {
+  "game": "lorcana",
+  "band": "high",
+  "id": "crd_8197b190acad44c7a28b50a83fb573f1",
+  "variant": "foil",
+  "name": "Kida",
+  "set": "Wilds Unknown",
+  "num": "236",
+  "rarity": "Enchanted",
+  "ours": 57.85
+ },
+ {
+  "game": "lorcana",
+  "band": "high",
+  "id": "crd_bbd9d2a6b1194759b18eb6e58a3c3d3e",
+  "variant": "foil",
+  "name": "Minnie Mouse",
+  "set": "Promo Set 3",
+  "num": "17",
+  "rarity": "Promo",
+  "ours": 217.51
+ },
+ {
+  "game": "lorcana",
+  "band": "high",
+  "id": "crd_c233fd3627b24b02bd616aa62bbdc83a",
+  "variant": "foil",
+  "name": "Pongo",
+  "set": "Fabled",
+  "num": "223",
+  "rarity": "Enchanted",
+  "ours": 321.57
+ },
+ {
+  "game": "lorcana",
+  "band": "high",
+  "id": "crd_6d0b490fddd34aab828b26cb90a827d6",
+  "variant": "foil",
+  "name": "Vanellope von Schweetz",
+  "set": "Shimmering Skies",
+  "num": "206",
+  "rarity": "Enchanted",
+  "ours": 64.85
+ }
+]

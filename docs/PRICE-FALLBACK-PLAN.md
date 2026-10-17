@@ -63,6 +63,14 @@ Trigger: new Google Ads user's Eevee svp-173 scanned at $0 (LESSONS.md 10-17). F
   overpay, "2 sales in 12 months"): show the evidence with the price ("based on N sales", from PriceCharting sales-volume),
   label few-sales cards, keep the "View Sold on eBay" link. Honesty about the number, fits the freeze.
 
+- FULL 5-GAME TEST (10-17, finished s187; docs/price-sim-2026-10-17/, scorer scripts/_sim-score.mjs): 100 sampled cards,
+  94 with an eBay sold median (last <=15 raw English singles; slabs, lots, JP, consignment rows skipped). Within 25% of sold:
+  site today 62% (Pokemon 45, Magic 53, Lorcana 79, One Piece 59, YGO 74); PriceCharting first 78% (Pokemon 85, Magic 63,
+  Lorcana 89, One Piece 65*, YGO 84). *One Piece PC prices were blocked by Cloudflare (only 3/20 have PC), so One Piece's
+  PC gain is untested. Unscorable (0 raw sales): Lorcana Elsa 3/P1 D23, OP Kid & Killer finalist, Enel EB02 SPR, Nekomamushi finalist.
+  Big One Piece misses: Sanji ST01-004 Finalist ours $75 vs sold $250; Makino 1st Anniv ours $46 vs $20; Ulti CS 25-26 ours
+  $12 vs $20; Belo Betty PRB01 ours $30 vs $15 (thin). Lorcana: Mickey 34/P1 ours $7.76 vs $13 (PC $7.93 also low).
+
 ## Tests that pin today's hide behaviour (update with the change)
 test-pricing.mjs ~690-731 (flagged row = null quote, currentPrice 0), test-live-prices.mjs 153-160 (flagged draft zeroed),
 test-price-trust-site.mjs 204/222 (deepEqual flag shape), test-price-trust-routes.mjs 85-148 (flag shape in responses,

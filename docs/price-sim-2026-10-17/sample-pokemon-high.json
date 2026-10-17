@@ -1,0 +1,112 @@
+[
+ {
+  "game": "pokemon",
+  "band": "high",
+  "id": "ex7-72",
+  "variant": "reverseHolofoil",
+  "name": "Rattata",
+  "set": "Team Rocket Returns",
+  "num": "72",
+  "rarity": "",
+  "ours": 74.95
+ },
+ {
+  "game": "pokemon",
+  "band": "high",
+  "id": "sv03.5-199",
+  "variant": "holofoil",
+  "name": "Charizard ex",
+  "set": "151",
+  "num": "199",
+  "rarity": "",
+  "ours": 319.84
+ },
+ {
+  "game": "pokemon",
+  "band": "high",
+  "id": "ecard1-15",
+  "variant": "reverseHolofoil",
+  "name": "Kingler",
+  "set": "Expedition Base Set",
+  "num": "15",
+  "rarity": "",
+  "ours": 50.32
+ },
+ {
+  "game": "pokemon",
+  "band": "high",
+  "id": "ex3-100",
+  "variant": "holofoil",
+  "name": "Charizard",
+  "set": "Dragon",
+  "num": "100",
+  "rarity": "",
+  "ours": 489.99
+ },
+ {
+  "game": "pokemon",
+  "band": "high",
+  "id": "sm11-222",
+  "variant": "holofoil",
+  "name": "Mewtwo & Mew GX",
+  "set": "Unified Minds",
+  "num": "222",
+  "rarity": "",
+  "ours": 205.48
+ },
+ {
+  "game": "pokemon",
+  "band": "high",
+  "id": "basep-40",
+  "variant": "normal",
+  "name": "Pokémon Center",
+  "set": "Wizards Black Star Promos",
+  "num": "40",
+  "rarity": "",
+  "ours": 1224.09
+ },
+ {
+  "game": "pokemon",
+  "band": "high",
+  "id": "sv10.5w-166",
+  "variant": "holofoil",
+  "name": "Reshiram ex",
+  "set": "White Flare",
+  "num": "166",
+  "rarity": "",
+  "ours": 175.82
+ },
+ {
+  "game": "pokemon",
+  "band": "high",
+  "id": "lc-43",
+  "variant": "reverseHolofoil",
+  "name": "Golduck",
+  "set": "Legendary Collection",
+  "num": "43",
+  "rarity": "",
+  "ours": 375
+ },
+ {
+  "game": "pokemon",
+  "band": "high",
+  "id": "lc-3",
+  "variant": "reverseHolofoil",
+  "name": "Charizard",
+  "set": "Legendary Collection",
+  "num": "3",
+  "rarity": "",
+  "ours": 6999
+ },
+ {
+  "game": "pokemon",
+  "band": "high",
+  "id": "ecard3-69",
+  "variant": "reverseHolofoil",
+  "name": "Kadabra",
+  "set": "Skyridge",
+  "num": "69",
+  "rarity": "",
+  "ours": 74.99
+ }
+]

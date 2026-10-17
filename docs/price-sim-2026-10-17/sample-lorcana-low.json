@@ -1,0 +1,112 @@
+[
+ {
+  "game": "lorcana",
+  "band": "low",
+  "id": "crd_26dd3cd037974467a3c4078d58f4ae25",
+  "variant": "foil",
+  "name": "Madam Mim",
+  "set": "Rise of the Floodborn",
+  "num": "208",
+  "rarity": "Enchanted",
+  "ours": 42.47
+ },
+ {
+  "game": "lorcana",
+  "band": "low",
+  "id": "crd_23040e61b60249f5b87587befb367d10",
+  "variant": "foil",
+  "name": "Meilin Lee",
+  "set": "Attack of the Vine!",
+  "num": "210",
+  "rarity": "Epic",
+  "ours": 5.23
+ },
+ {
+  "game": "lorcana",
+  "band": "low",
+  "id": "crd_ee4bc5f80eb74a19b749e0b31be7d920",
+  "variant": "foil",
+  "name": "Hercules",
+  "set": "Whispers in the Well",
+  "num": "118",
+  "rarity": "Legendary",
+  "ours": 8.99
+ },
+ {
+  "game": "lorcana",
+  "band": "low",
+  "id": "crd_7422061cabf943a19d4d197fa055609e",
+  "variant": "foil",
+  "name": "Mushu",
+  "set": "D23 Collection",
+  "num": "12",
+  "rarity": "Promo",
+  "ours": 43.45
+ },
+ {
+  "game": "lorcana",
+  "band": "low",
+  "id": "crd_532b770c7fa9416384f1f413b08a4bd0",
+  "variant": "foil",
+  "name": "Baymax",
+  "set": "Hyperia City",
+  "num": "85",
+  "rarity": "Rare",
+  "ours": 8.98
+ },
+ {
+  "game": "lorcana",
+  "band": "low",
+  "id": "crd_10e4bced869f4a60b7bdbb256506a2c1",
+  "variant": "foil",
+  "name": "Stitch",
+  "set": "Reign of Jafar",
+  "num": "166",
+  "rarity": "Legendary",
+  "ours": 18.29
+ },
+ {
+  "game": "lorcana",
+  "band": "low",
+  "id": "crd_fdaea5bd7f31497a8284771dd57894cf",
+  "variant": "normal",
+  "name": "Stitch",
+  "set": "Fabled",
+  "num": "24",
+  "rarity": "Legendary",
+  "ours": 15.62
+ },
+ {
+  "game": "lorcana",
+  "band": "low",
+  "id": "crd_96d515e8823e42ce96c3aab0ad415d01",
+  "variant": "foil",
+  "name": "Mickey Mouse",
+  "set": "Promo Set 1",
+  "num": "34",
+  "rarity": "Promo",
+  "ours": 7.76
+ },
+ {
+  "game": "lorcana",
+  "band": "low",
+  "id": "crd_7ed94ab06dc44f91895dd7b9bf648b97",
+  "variant": "foil",
+  "name": "Stitch",
+  "set": "Promo Set 1",
+  "num": "21",
+  "rarity": "Promo",
+  "ours": 24.55
+ },
+ {
+  "game": "lorcana",
+  "band": "low",
+  "id": "crd_bf600b734e644e82ab7a90529c6f0cb8",
+  "variant": "foil",
+  "name": "Mushu",
+  "set": "Attack of the Vine!",
+  "num": "97",
+  "rarity": "Legendary",
+  "ours": 9.91
+ }
+]

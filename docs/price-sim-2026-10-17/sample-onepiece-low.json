@@ -1,0 +1,112 @@
+[
+ {
+  "game": "onepiece",
+  "band": "low",
+  "id": "OP08-062_pr1#promo",
+  "variant": "normal",
+  "name": "Charlotte Katakuri",
+  "set": "One Piece Promotion Cards",
+  "num": "OP08-062",
+  "rarity": "UC",
+  "ours": 18.05
+ },
+ {
+  "game": "onepiece",
+  "band": "low",
+  "id": "OP12-108_p2",
+  "variant": "normal",
+  "name": "Donquixote Rosinante",
+  "set": "The Azure Sea's Seven",
+  "num": "OP12-108",
+  "rarity": "TR",
+  "ours": 27.33
+ },
+ {
+  "game": "onepiece",
+  "band": "low",
+  "id": "OP02-015#promo",
+  "variant": "normal",
+  "name": "Makino",
+  "set": "One Piece Promotion Cards",
+  "num": "OP02-015",
+  "rarity": "UC",
+  "ours": 46.06
+ },
+ {
+  "game": "onepiece",
+  "band": "low",
+  "id": "OP03-116_p6",
+  "variant": "normal",
+  "name": "Shirahoshi",
+  "set": "Premium Booster -The Best-",
+  "num": "OP03-116",
+  "rarity": "UC",
+  "ours": 12.06
+ },
+ {
+  "game": "onepiece",
+  "band": "low",
+  "id": "P-077#promo",
+  "variant": "normal",
+  "name": "Ulti",
+  "set": "One Piece Promotion Cards",
+  "num": "P-077",
+  "rarity": "PR",
+  "ours": 12.18
+ },
+ {
+  "game": "onepiece",
+  "band": "low",
+  "id": "ST13-002_p1",
+  "variant": "normal",
+  "name": "Portgas.D.Ace",
+  "set": "Ultra Deck: The Three Brothers",
+  "num": "ST13-002",
+  "rarity": "L",
+  "ours": 22.48
+ },
+ {
+  "game": "onepiece",
+  "band": "low",
+  "id": "OP01-006_pr4#promo",
+  "variant": "normal",
+  "name": "Otama",
+  "set": "One Piece Promotion Cards",
+  "num": "OP01-006",
+  "rarity": "PR",
+  "ours": 5.14
+ },
+ {
+  "game": "onepiece",
+  "band": "low",
+  "id": "OP09-117#promo",
+  "variant": "normal",
+  "name": "Dereshi!",
+  "set": "One Piece Promotion Cards",
+  "num": "OP09-117",
+  "rarity": "R",
+  "ours": 12.02
+ },
+ {
+  "game": "onepiece",
+  "band": "low",
+  "id": "OP16-085_p1",
+  "variant": "normal",
+  "name": "Kouzuki Momonosuke",
+  "set": "The Time of Battle",
+  "num": "OP16-085",
+  "rarity": "R",
+  "ours": 16.28
+ },
+ {
+  "game": "onepiece",
+  "band": "low",
+  "id": "OP05-015_p5",
+  "variant": "normal",
+  "name": "Belo Betty",
+  "set": "Premium Booster -The Best-",
+  "num": "OP05-015",
+  "rarity": "R",
+  "ours": 29.59
+ }
+]

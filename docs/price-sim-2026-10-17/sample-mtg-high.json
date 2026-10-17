@@ -1,0 +1,112 @@
+[
+ {
+  "game": "mtg",
+  "band": "high",
+  "id": "b7ba7d7e-c285-4e99-9ee1-135bf343677d",
+  "variant": "nonfoil",
+  "name": "Witch Enchanter // Witch-Blessed Meadow",
+  "set": "sld",
+  "num": "2655",
+  "rarity": "rare",
+  "ours": 60.83
+ },
+ {
+  "game": "mtg",
+  "band": "high",
+  "id": "d3016d92-a5ee-44d7-aa0a-775fa04a7c6a",
+  "variant": "foil",
+  "name": "Flooded Strand",
+  "set": "mh3",
+  "num": "436",
+  "rarity": "rare",
+  "ours": 111.92
+ },
+ {
+  "game": "mtg",
+  "band": "high",
+  "id": "e7ac727c-80ab-475f-86e9-0c5984283f7d",
+  "variant": "foil",
+  "name": "Sphinx's Revelation",
+  "set": "rvr",
+  "num": "383z",
+  "rarity": "rare",
+  "ours": 199.99
+ },
+ {
+  "game": "mtg",
+  "band": "high",
+  "id": "2138dfbb-a4e3-49db-b908-95d0b2b7e82f",
+  "variant": "foil",
+  "name": "Urza's Saga",
+  "set": "mh2",
+  "num": "380",
+  "rarity": "rare",
+  "ours": 61.51
+ },
+ {
+  "game": "mtg",
+  "band": "high",
+  "id": "b3724e40-0622-4aee-9334-6c9fff88bcd5",
+  "variant": "nonfoil",
+  "name": "Plague Rats",
+  "set": "lea",
+  "num": "121",
+  "rarity": "common",
+  "ours": 73.52
+ },
+ {
+  "game": "mtg",
+  "band": "high",
+  "id": "81d73362-43c1-4dd0-87dd-9aa7ae13ff2f",
+  "variant": "nonfoil",
+  "name": "Basalt Monolith",
+  "set": "leb",
+  "num": "232",
+  "rarity": "uncommon",
+  "ours": 240
+ },
+ {
+  "game": "mtg",
+  "band": "high",
+  "id": "a2773d8f-f906-475d-aaff-b7ca3b01f188",
+  "variant": "foil",
+  "name": "Stomping Ground",
+  "set": "gpt",
+  "num": "165",
+  "rarity": "rare",
+  "ours": 104.99
+ },
+ {
+  "game": "mtg",
+  "band": "high",
+  "id": "d5ac2428-87a3-4aea-8c91-a02c0b401469",
+  "variant": "foil",
+  "name": "Simian Spirit Guide",
+  "set": "sld",
+  "num": "1548★",
+  "rarity": "rare",
+  "ours": 107.21
+ },
+ {
+  "game": "mtg",
+  "band": "high",
+  "id": "7be413dd-d6e0-4bd3-8c14-4dbe44e8ee41",
+  "variant": "foil",
+  "name": "Copper-Leaf Angel",
+  "set": "pcy",
+  "num": "137",
+  "rarity": "rare",
+  "ours": 60
+ },
+ {
+  "game": "mtg",
+  "band": "high",
+  "id": "a3baaf97-171a-40c0-a1dc-74ae05db0e25",
+  "variant": "foil",
+  "name": "Isshin, Two Heavens as One",
+  "set": "fca",
+  "num": "54",
+  "rarity": "rare",
+  "ours": 84.77
+ }
+]
