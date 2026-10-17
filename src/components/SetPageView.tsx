@@ -6,7 +6,8 @@ import MarketingNav from "@/components/MarketingNav";
 import Footer from "@/components/Footer";
 import JsonLd from "@/components/JsonLd";
 import { Crumbs, ScanCta, TileGrid } from "@/components/CardPagesUi";
-import { gamePath, gameTitle, setPath, type SetEntry } from "@/lib/cardPages";
+import { cardPath, gamePath, gameTitle, setPath, type SetEntry } from "@/lib/cardPages";
+import { setSummary, type SetSummary } from "@/lib/cardStory";
 import { formatMoney } from "@/lib/listing";
 import { SET_PAGE_CARDS, loadSetCards, publicCardGame, setBySlug, type SetCard } from "@/lib/server/cardPages";
 import { pageMetadata } from "@/lib/seo";
@@ -83,6 +84,49 @@ export function setDescription(setName: string, gameName: string, cards: SetCard
   return tries.find((t) => t.length <= 155) ?? tries[tries.length - 1];
 }
 
+/** "+2.3%" / "-1.1%", green up, red down; "-" with no reading. */
+function Change({ v }: { v: number | null }) {
+  if (v == null) return <span className="text-zinc-500">-</span>;
+  const pct = Math.round(v * 1000) / 10;
+  return <span className={pct > 0 ? "text-emerald-300" : pct < 0 ? "text-rose-300" : "text-zinc-200"}>{`${pct > 0 ? "+" : ""}${pct.toFixed(1)}%`}</span>;
+}
+
+/** The set at a glance (10-17, #62): value change, a typical card, the most valuable card. Page 1 only. */
+function SummaryStrip({ s, game, slug }: { s: SetSummary; game: GameId; slug: string }) {
+  if (s.priced < 2) return null;
+  const cell = "min-w-0 rounded-xl border border-edge bg-surface-1 px-3 py-2.5";
+  const label = "truncate text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500";
+  const value = "mt-0.5 truncate font-display text-lg font-semibold tabular-nums text-white";
+  return (
+    <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className={cell}>
+        <p className={label}>Set value 7 days</p>
+        <p className={value}>
+          <Change v={s.change7} />
+        </p>
+      </div>
+      <div className={cell}>
+        <p className={label}>Set value 30 days</p>
+        <p className={value}>
+          <Change v={s.change30} />
+        </p>
+      </div>
+      <div className={cell}>
+        <p className={label}>Typical card</p>
+        <p className={value}>{s.typical != null ? formatMoney(s.typical) : "-"}</p>
+        <p className="truncate text-xs text-zinc-500">middle of {s.priced.toLocaleString("en-US")} cards</p>
+      </div>
+      {s.top && (
+        <Link href={cardPath(game, slug, s.top.name, s.top.key)} className={`${cell} transition hover:border-edge-strong`}>
+          <p className={label}>Most valuable</p>
+          <p className={value}>{formatMoney(s.top.price)}</p>
+          <p className="truncate text-xs text-brand-300">{s.top.name}</p>
+        </Link>
+      )}
+    </div>
+  );
+}
+
 function Pager({ game, slug, page, pages }: { game: GameId; slug: string; page: number; pages: number }) {
   if (pages <= 1) return null;
   const cell = "flex h-10 min-w-10 items-center justify-center rounded-xl border px-3 text-sm transition";
@@ -148,6 +192,7 @@ export async function SetView({ gameSlug, setSlug, page }: { gameSlug: string; s
           {set.release ? `, ${set.release > todayUtc() ? "out" : "released"} ${etDate(`${set.release}T12:00:00Z`)}${set.release > todayUtc() ? " (preorder prices)" : ""}` : ""}. Most valuable first. A price
           that looks wrong is not shown.
         </p>
+        {page === 1 && <SummaryStrip s={setSummary(cards)} game={game} slug={slug} />}
 
         {tiles.length === 0 ? (
           <p className="mt-8 rounded-2xl border border-edge bg-surface-1 px-4 py-10 text-center text-sm text-zinc-400">

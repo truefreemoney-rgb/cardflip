@@ -438,6 +438,17 @@ export interface SetCard {
   unverified: boolean;
   /** Price unmoved 45+ days (the guard's stale note): shown on its own page, never ranked or featured. */
   stale?: boolean;
+  /** The same printing's value 7 / 30 days back (the set summary strip, 10-17 #62); null = no point that far back. */
+  was7?: number | null;
+  was30?: number | null;
+}
+
+/** A series' value `back` days before `today` (the last point on or before that day), or null. */
+function valueBack(s: TrustSeries | undefined, today: string, back: number): number | null {
+  if (!s) return null;
+  const i = Math.min(dayIndex(s.startDay, addDays(today, -back)), s.prices.length - 1);
+  for (let j = i; j >= 0; j--) if (s.prices[j] != null) return s.prices[j];
+  return null;
 }
 
 /** The columns every list read selects, per catalog table, shaped as a CatalogRow. */
@@ -504,7 +515,8 @@ export async function loadSetCards(game: GameId, set: SetEntry, today = todayUtc
     if (prices.length === 0) continue;
     const head = headlinePrice(prices);
     const f = factsOf(game, r, "");
-    out.push({ key: r.key, name: f.name, number: f.number, tags: f.tags, image: f.image, tile: f.tile, price: head ? head.price : null, flagged: !head, unverified: head ? isUnverified(head) : false, ...(head?.stale ? { stale: true } : {}) });
+    const own = head ? data.series.find((s) => s.variant === head.variant) : undefined;
+    out.push({ key: r.key, name: f.name, number: f.number, tags: f.tags, image: f.image, tile: f.tile, price: head ? head.price : null, flagged: !head, unverified: head ? isUnverified(head) : false, ...(head?.stale ? { stale: true } : {}), was7: valueBack(own, today, 7), was30: valueBack(own, today, 30) });
   }
   return out.sort((a, b) => (b.price ?? -1) - (a.price ?? -1) || a.name.localeCompare(b.name) || a.number.localeCompare(b.number, "en", { numeric: true }));
 }

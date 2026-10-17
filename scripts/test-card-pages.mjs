@@ -369,6 +369,13 @@ check("... a pricier other printing is named", faq1[1].a, (a) => a.startsWith("E
 check("... this one when it is the top", cs.cardFaq(faqF, { price: 99, label: "Holofoil", day: "2026-10-17" }, [{ name: "Espeon", setName: "Neo Discovery", price: 85.1 }], "2026-10-17")[1].a, (a) => a.startsWith("This one."));
 check("... no price: no worth or most-valuable question", cs.cardFaq(faqF, null, [{ name: "Espeon", setName: "x", price: 5 }], "2026-10-17").map((x) => x.q), ["When did Undaunted come out?"]);
 check("... under $10 no condition estimates (cheap-card floors bend them)", cs.cardFaq(faqF, { price: 4, label: "Normal", day: "2026-10-17" }, [], "2026-10-17")[0].a.includes("Played"), false);
+// #62: set summary strip.
+const sc = (key, price, was7, was30, extra = {}) => ({ key, name: key, price, flagged: false, unverified: false, was7, was30, ...extra });
+const sumCards = [sc("a", 100, 90, 50), sc("b", 10, 10, 10), sc("c", 5, 5, 5), sc("d", 2, 2, 2), sc("e", 1, 1, 1), sc("x", 999, 1, 1, { flagged: true }), sc("s", 500, 500, 500, { stale: true })];
+const sum = cs.setSummary(sumCards);
+check("set summary: sure cards only, median, top", [sum.priced, sum.typical, sum.top?.key], [5, 5, "a"]);
+check("... 7d change is the same cards now vs then", Math.round(sum.change7 * 1000) / 1000, Math.round((118 / 108 - 1) * 1000) / 1000);
+check("... under 5 cards with history: no change", cs.setSummary(sumCards.slice(0, 4)).change30, null);
 check("... a preorder set has no release question", cs.cardFaq({ ...faqF, release: "2026-11-13" }, null, [], "2026-10-17"), []);
 const fees = await import(at("lib/fees.ts"));
 const quarter = cs.sellMath(0.25);

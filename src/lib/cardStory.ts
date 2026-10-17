@@ -220,3 +220,41 @@ export function cardFaq(
   }
   return out;
 }
+
+// ---------------------------------------------------------------------------
+// Set summary strip (10-17, task #62): the set at a glance, from the set page's own guarded list.
+
+export interface SetSummary {
+  /** Cards with a sure price (not flagged, unverified or stale). */
+  priced: number;
+  /** The median sure price: "a typical card", which one chase card cannot drag up the way an average is. */
+  typical: number | null;
+  top: { name: string; key: string; price: number } | null;
+  /** The set's value change over 7 / 30 days: the same cards' sum now against then (cards with both readings only), or null. */
+  change7: number | null;
+  change30: number | null;
+}
+
+type SummaryCard = { key: string; name: string; price: number | null; flagged: boolean; unverified: boolean; stale?: boolean; was7?: number | null; was30?: number | null };
+
+export function setSummary(cards: SummaryCard[]): SetSummary {
+  const sure = cards.filter((c) => c.price != null && c.price > 0 && !c.flagged && !c.unverified && !c.stale);
+  const prices = sure.map((c) => c.price as number).sort((a, b) => a - b);
+  const mid = prices.length ? prices[Math.floor((prices.length - 1) / 2)] : null;
+  const top = sure.reduce<SummaryCard | null>((m, c) => (!m || (c.price as number) > (m.price as number) ? c : m), null);
+  const change = (pick: (c: SummaryCard) => number | null | undefined) => {
+    let now = 0;
+    let then = 0;
+    let n = 0;
+    for (const c of sure) {
+      const was = pick(c);
+      if (was == null || !(was > 0)) continue;
+      now += c.price as number;
+      then += was;
+      n++;
+    }
+    // Fewer than 5 cards with history says nothing about a set.
+    return n >= 5 && then > 0 ? now / then - 1 : null;
+  };
+  return { priced: sure.length, typical: mid, top: top ? { name: top.name, key: top.key, price: top.price as number } : null, change7: change((c) => c.was7), change30: change((c) => c.was30) };
+}
