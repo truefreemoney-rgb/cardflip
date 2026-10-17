@@ -27,7 +27,7 @@ import {
   type CardFacts,
 } from "@/lib/cardPages";
 import { STRIP_TILES, loadCardPage, loadCardRecord, otherPrintings, publicCardGame, setIndex, setNeighbors, setStanding, setTopTiles, type CardPage, type Neighbor, type Tile } from "@/lib/server/cardPages";
-import { conditionLadder, rangeWords, rankWords, scanHeading, scanWords, sellMath, sellWords, type SetStanding } from "@/lib/cardStory";
+import { cardFaq, conditionLadder, rangeWords, rankWords, scanHeading, scanWords, sellMath, sellWords, type SetStanding } from "@/lib/cardStory";
 import { formatMoney } from "@/lib/listing";
 import { dayIndex, todayUtc } from "@/lib/priceSeries";
 import { priceStaleNote } from "@/lib/priceFlag";
@@ -254,6 +254,7 @@ export default async function CardPricePage({ params }: PageProps<"/cards/[game]
   const name = gameTitle(game);
   // Rank in the set (SEO 10-02): one sentence from the daily set ranking, only when the set has company to compare against.
   const rank = standing && page.headline ? rankWords(f.name, f.setName, page.headline.price, standing) : null;
+  const faq = cardFaq(f, page.headline, printings, todayUtc());
 
   return (
     <div className="flex min-h-dvh flex-col bg-background pb-[calc(4.5rem+env(safe-area-inset-bottom))] text-foreground md:pb-0">
@@ -356,6 +357,25 @@ export default async function CardPricePage({ params }: PageProps<"/cards/[game]
                 {name} Card Prices
               </Link>
             </p>
+          </section>
+        )}
+        {/* Common questions (10-17, #58): the search phrasing, answered from this page's own numbers; collapsed, so no clutter. */}
+        {faq.length > 0 && (
+          <section className="mt-10">
+            <h2 className="font-display text-2xl font-semibold text-white">Common questions</h2>
+            <div className="mt-3 divide-y divide-edge rounded-2xl border border-edge bg-surface-1">
+              {faq.map((item) => (
+                <details key={item.q} className="group px-4 py-3">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium text-white">
+                    <h3>{item.q}</h3>
+                    <span className="shrink-0 text-zinc-500 transition group-open:rotate-45" aria-hidden>
+                      +
+                    </span>
+                  </summary>
+                  <p className="mt-2 text-sm leading-relaxed text-zinc-300">{item.a}</p>
+                </details>
+              ))}
+            </div>
           </section>
         )}
         {/* Previous / next card in the set by collector number (audit G17). */}

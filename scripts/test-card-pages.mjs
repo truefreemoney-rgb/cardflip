@@ -360,6 +360,16 @@ check("not-found is noindex", /PRIVATE_META\.notFound/.test(read("src/app/not-fo
 
 console.log("card story");
 const cs = await import(at("lib/cardStory.ts"));
+// #58 (10-17): common questions, only from what the page holds.
+const faqF = { name: "Espeon", number: "2/90", setName: "Undaunted", release: "2010-08-18" };
+const faq1 = cs.cardFaq(faqF, { price: 26.03, label: "Reverse Holofoil", day: "2026-10-17" }, [{ name: "Espeon", setName: "Neo Discovery", price: 85.1 }], "2026-10-17");
+check("faq: worth, most valuable, release", faq1.map((x) => x.q), ["How much is Espeon 2/90 worth?", "What is the most valuable Espeon card?", "When did Undaunted come out?"]);
+check("... worth answer has the price and the played estimates", faq1[0].a, (a) => a.includes("$26.03") && a.includes("Lightly Played copy is about $22.13") && a.includes("Heavily Played one about $14.32"));
+check("... a pricier other printing is named", faq1[1].a, (a) => a.startsWith("Espeon from Neo Discovery, at $85.10"));
+check("... this one when it is the top", cs.cardFaq(faqF, { price: 99, label: "Holofoil", day: "2026-10-17" }, [{ name: "Espeon", setName: "Neo Discovery", price: 85.1 }], "2026-10-17")[1].a, (a) => a.startsWith("This one."));
+check("... no price: no worth or most-valuable question", cs.cardFaq(faqF, null, [{ name: "Espeon", setName: "x", price: 5 }], "2026-10-17").map((x) => x.q), ["When did Undaunted come out?"]);
+check("... under $10 no condition estimates (cheap-card floors bend them)", cs.cardFaq(faqF, { price: 4, label: "Normal", day: "2026-10-17" }, [], "2026-10-17")[0].a.includes("Played"), false);
+check("... a preorder set has no release question", cs.cardFaq({ ...faqF, release: "2026-11-13" }, null, [], "2026-10-17"), []);
 const fees = await import(at("lib/fees.ts"));
 const quarter = cs.sellMath(0.25);
 check("sell math: a $0.25 card lists at $1.54 (Chris 09-30) and the seller keeps its value", [quarter.ask, quarter.covers, quarter.net >= 0.25], [1.54, "all", true]);

@@ -1,5 +1,5 @@
 import { POSTAGE_USD, coversAllCosts, coversCosts, estimatedEbayFees } from "./fees.ts";
-import { CONDITIONS, askingPriceFor, formatMoney } from "./listing.ts";
+import { CONDITIONS, CONDITION_MULTIPLIER, askingPriceFor, formatMoney } from "./listing.ts";
 import { priceDayLabel, type CardFacts } from "./cardPages.ts";
 import { SCANS } from "./pricing.ts";
 import { dayIndex, type HistoryPoint } from "./priceSeries.ts";
@@ -173,4 +173,50 @@ export function scanWords(f: Pick<CardFacts, "game" | "name" | "number" | "setNa
     `The scanner reads ${SCAN_MARKS[f.game]} off the card, so it picks out ${f.name} ${f.number}, ${f.setName}${printing}, from every other printing. ` +
     `Your first ${SCANS.trial} scans are free.`
   );
+}
+
+// ---------------------------------------------------------------------------
+// Common questions (10-17, task #58): the questions people type into search, answered from the page's own numbers.
+
+export interface FaqItem {
+  q: string;
+  a: string;
+}
+
+/**
+ * Up to three short questions and answers for a card page, only from facts the page already holds: the guarded headline
+ * price, the condition values (the scanner's multipliers, from $10 up), the other printings' guarded prices
+ * and the release date. Nothing is asked that the page cannot answer; no price, no "worth" question.
+ */
+export function cardFaq(
+  f: Pick<CardFacts, "name" | "number" | "setName" | "release">,
+  headline: { price: number; label: string; day: string } | null,
+  printings: { name: string; setName: string; price: number | null }[],
+  today: string,
+): FaqItem[] {
+  const out: FaqItem[] = [];
+  const who = [f.name, f.number].filter(Boolean).join(" ");
+  if (headline && headline.price > 0) {
+    let a = `${who} from ${f.setName} is worth about ${formatMoney(headline.price)} (${headline.label}, Near Mint) as of ${priceDayLabel(headline.day)}.`;
+    if (headline.price >= 10) {
+      // The value by condition (the scanner's multipliers), not askingPriceFor: that is an eBay ask with the fees on top.
+      const ask = (c: Condition) => Math.round(headline.price * CONDITION_MULTIPLIER[c] * 100) / 100;
+      a += ` A Lightly Played copy is about ${formatMoney(ask("Lightly Played"))}, a Heavily Played one about ${formatMoney(ask("Heavily Played"))}.`;
+    }
+    out.push({ q: `How much is ${who} worth?`, a });
+    const priced = printings.filter((p) => p.price != null && p.price > 0);
+    if (priced.length > 0) {
+      const top = priced[0];
+      a =
+        headline.price >= (top.price as number)
+          ? `This one. At ${formatMoney(headline.price)}, the ${f.setName} printing is worth more than the other ${priced.length} ${f.name} ${priced.length === 1 ? "card" : "cards"} with a price.`
+          : `${top.name} from ${top.setName}, at ${formatMoney(top.price as number)}. It is the most valuable of ${priced.length + 1} ${f.name} cards with a price.`;
+      out.push({ q: `What is the most valuable ${f.name} card?`, a });
+    }
+  }
+  if (f.release && f.release <= today) {
+    const d = new Date(`${f.release}T12:00:00Z`).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "America/New_York" });
+    out.push({ q: `When did ${f.setName} come out?`, a: `${f.setName} was released on ${d}.` });
+  }
+  return out;
 }
