@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { isGameId } from "@/lib/games";
 import { AuthError, requireUser } from "@/lib/server/auth";
-import { LIMITS, clientIp, limitOrRespond } from "@/lib/server/rateLimit";
+import { LIMITS, clientIp } from "@/lib/server/rateLimit";
+import { limitOrRespondShared } from "@/lib/server/rateLimitDb";
 
 /**
  * "Watch this price" tapped while signed out, held on the server (10-08).
@@ -38,7 +39,7 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const user = await requireUser();
-    const limited = limitOrRespond(`watch:pending:${clientIp(req)}`, LIMITS.authAttempt);
+    const limited = await limitOrRespondShared(`watch:pending:${clientIp(req)}`, LIMITS.authAttempt);
     if (limited) return limited;
     let body: { game?: unknown; id?: unknown } | null = null;
     try {

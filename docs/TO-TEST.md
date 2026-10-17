@@ -4,6 +4,11 @@
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
 
+## 10-17 ~8:10pm ET: rate limits hold across servers (A-H #29, NOT PUSHED)
+- After push: normal browsing (card pages, search a few cards, open Inventory) works with no "Too many requests".
+- Prod SELECT a day later: `SELECT COUNT(*) FROM rate_limits WHERE key LIKE 'visit:%'` is far below the number of visits (only busy IPs get a row now; before, every visitor had one), and `search:%` / `catalog:%` rows exist only for busy IPs.
+- Share a card from the app (Share picture) -> the picture loads; opening the same picture link again shows header `x-vercel-cache: HIT` (curl -I). 21 renders from one IP in 10 min -> the 21st is a 429.
+
 ## 10-17 ~7:45pm ET: nightly catalog push sends only changed rows (A-H #23, LIVE tonight: Task Scheduler runs the working copy)
 - 10-18 morning: backups/catalog-sync.log has "pushing N changed of M rows" lines (tonight N = M: no fingerprints yet, the last full push), "done (failed:)", and data/catalog-push-state.db exists (~190k rows in `pushed`).
 - 10-19 morning: the same lines show small N (new cards / changed pictures only, e.g. en_cards a few dozen, not 22,195), "catalog push finished in" well under the old 446 s, and remote counts still >= local (no "remote count ... < local" error).

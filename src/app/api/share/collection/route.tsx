@@ -7,6 +7,8 @@ import { artDataUri } from "@/lib/server/ogArt";
 import { ogFonts } from "@/lib/server/ogFonts";
 import { publicImageUrl } from "@/lib/server/publicCollection";
 import { GAMES, parseGame } from "@/lib/games";
+import { LIMITS } from "@/lib/server/rateLimit";
+import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
 
 /**
  * The signed-in user's collection value as a 1080x1920 share picture (audit G2).
@@ -22,6 +24,9 @@ export async function GET(req: NextRequest) {
   let props: Parameters<typeof CollectionShare>[0];
   try {
     const user = await requireUser();
+    // A fresh render each time (task #29): exact cross-instance cap per account.
+    const limited = await limitOrRespondAsync(`share:collection:${user.id}`, LIMITS.shareRender);
+    if (limited) return limited;
     const game = parseGame(req.nextUrl.searchParams.get("game"));
     const data = await collectionInsights(user.id, game);
     const copies = data.split.live.count + data.split.draft.count + data.split.ended.count;

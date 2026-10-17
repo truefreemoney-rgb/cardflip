@@ -7,7 +7,8 @@
  * On Vercel this map is per function instance, so it is only a burst guard
  * on a warm instance. Anything that must bind across instances — the auth
  * brute-force limit — goes through rateLimitDb.ts (`rate_limits` table),
- * which runs this first and then the shared counter. Windows are
+ * which runs this first and then the shared counter; busy public routes use
+ * its limitOrRespondShared (shared counter only once a key is busy, task #29). Windows are
  * keyed by an arbitrary string — the caller decides whether that's a user
  * id, an IP, or a route+user combo — so the same helper protects a paid
  * upstream (Anthropic vision) per account and a public route per IP.
@@ -28,7 +29,10 @@ export type RateLimitRule = {
   windowMs: number;
 };
 
-type Bucket = { count: number; resetAt: number };
+/** `synced`: how much of `count` this instance has already added to the shared counter (rateLimitDb.ts limitOrRespondShared). */
+export type Bucket = { count: number; resetAt: number; synced?: number };
+/** One rule's window after a served hit. */
+export type RuleUse = { rule: RateLimitRule; bucket: Bucket };
 
 const buckets = new Map<string, Bucket>();
 
@@ -49,11 +53,12 @@ function sweep(now: number) {
  * Count one hit against `key`. Throws RateLimitError once the window's limit
  * is exceeded; the hit that trips the limit is not counted as served.
  * Multiple rules (e.g. per-minute AND per-day) are checked in order.
+ * Returns each rule's window after the hit (the shared limiter reads the counts).
  */
-export function enforceRateLimit(key: string, ...rules: RateLimitRule[]): void {
+export function enforceRateLimit(key: string, ...rules: RateLimitRule[]): RuleUse[] {
   const now = Date.now();
   sweep(now);
-  const rulesToTake: [string, Bucket][] = [];
+  const rulesToTake: [RateLimitRule, Bucket][] = [];
   for (const rule of rules) {
     const bucketKey = `${key}|${rule.windowMs}`;
     let b = buckets.get(bucketKey);
@@ -64,11 +69,12 @@ export function enforceRateLimit(key: string, ...rules: RateLimitRule[]): void {
     if (b.count >= rule.limit) {
       throw new RateLimitError(Math.max(1, Math.ceil((b.resetAt - now) / 1000)));
     }
-    rulesToTake.push([bucketKey, b]);
+    rulesToTake.push([rule, b]);
   }
   // Only consume when every rule allowed it, so a per-day refusal doesn't
   // still eat the per-minute budget.
   for (const [, b] of rulesToTake) b.count += 1;
+  return rulesToTake.map(([rule, bucket]) => ({ rule, bucket }));
 }
 
 /** Best-effort client IP behind Fly's proxy; falls back to a shared bucket. */
@@ -171,6 +177,8 @@ export const LIMITS = {
   supportNote: [{ limit: 10, windowMs: 10 * MINUTE }, { limit: 40, windowMs: DAY }] as RateLimitRule[],
   /** Ticket photo uploads. Per IP. */
   supportImage: [{ limit: 20, windowMs: 10 * MINUTE }, { limit: 60, windowMs: DAY }] as RateLimitRule[],
+  /** 1080x1920 share pictures drawn on request (/api/share/*), per IP or user: a person shares a few cards, a script redraws thousands. */
+  shareRender: [{ limit: 20, windowMs: 10 * MINUTE }, { limit: 100, windowMs: DAY }] as RateLimitRule[],
 };
 
 /** Reset all windows — for tests only. */

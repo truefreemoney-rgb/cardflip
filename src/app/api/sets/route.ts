@@ -5,7 +5,8 @@ import { parseGame } from "@/lib/games";
 import { listMtgSets } from "@/lib/server/mtgCards";
 import { isTcgGame, listTcgSets } from "@/lib/server/tcgCards";
 import { cachedStaleOk, SET_LIST_TTL_MS } from "@/lib/server/listCache";
-import { LIMITS, clientIp, limitOrRespond } from "@/lib/server/rateLimit";
+import { LIMITS, clientIp } from "@/lib/server/rateLimit";
+import { limitOrRespondShared } from "@/lib/server/rateLimitDb";
 import { setCovers } from "@/lib/server/setCovers";
 import type { GameId } from "@/lib/types";
 
@@ -26,7 +27,7 @@ interface SetRow {
 }
 
 export async function GET(req: NextRequest) {
-  const limited = limitOrRespond(`catalog:${clientIp(req)}`, LIMITS.publicCatalog);
+  const limited = await limitOrRespondShared(`catalog:${clientIp(req)}`, LIMITS.publicCatalog);
   if (limited) return limited;
   try {
     return await listSets(req);

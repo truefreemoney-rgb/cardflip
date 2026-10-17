@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { AuthError, requireUser } from "@/lib/server/auth";
-import { LIMITS, clientIp, limitOrRespond } from "@/lib/server/rateLimit";
+import { LIMITS, clientIp } from "@/lib/server/rateLimit";
+import { limitOrRespondShared } from "@/lib/server/rateLimitDb";
 
 /**
  * The card scanned on /scan before signup, held on the server (10-05). Ad
@@ -48,7 +49,7 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const user = await requireUser();
-    const limited = limitOrRespond(`trial:pending:${clientIp(req)}`, LIMITS.authAttempt);
+    const limited = await limitOrRespondShared(`trial:pending:${clientIp(req)}`, LIMITS.authAttempt);
     if (limited) return limited;
     const raw = await req.text();
     if (raw.length > MAX_BODY_CHARS) return NextResponse.json({ error: "Too large" }, { status: 413 });

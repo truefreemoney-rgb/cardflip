@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { deviceClass, referrerHost } from "@/lib/visit";
 import { classifySource, clean } from "@/lib/attribution";
 import { LIMITS, clientIp } from "@/lib/server/rateLimit";
-import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
+import { limitOrRespondShared } from "@/lib/server/rateLimitDb";
 
 /**
  * Visitor ping for the admin console's daily-visitors tiles (09-25).
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return new NextResponse(null, { status: 204 });
     // Per IP (Vercel's own header, not the spoofable first x-forwarded-for), counted in the db: an unauthenticated
     // writer with no cap was a free way to fill page_views (10-01 sweep). Over the cap the ping is dropped, silently.
-    if (await limitOrRespondAsync(`visit:${clientIp(req)}`, LIMITS.visit)) return new NextResponse(null, { status: 204 });
+    if (await limitOrRespondShared(`visit:${clientIp(req)}`, LIMITS.visit)) return new NextResponse(null, { status: 204 });
     const now = Date.now();
     const day = new Date(now).toISOString().slice(0, 10);
     const salt =

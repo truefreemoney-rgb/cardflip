@@ -3,7 +3,8 @@ import { getPriceHistory, summarize } from "@/lib/server/priceHistory";
 import { siteTrustFull, trustKey } from "@/lib/server/priceTrustSite";
 import type { PriceFlag, PriceStale } from "@/lib/priceFlag";
 import type { GameId } from "@/lib/types";
-import { LIMITS, clientIp, limitOrRespond } from "@/lib/server/rateLimit";
+import { LIMITS, clientIp } from "@/lib/server/rateLimit";
+import { limitOrRespondShared } from "@/lib/server/rateLimitDb";
 
 /**
  * Every price series we hold for one card, with 30/90-day stats per series.
@@ -18,7 +19,7 @@ import { LIMITS, clientIp, limitOrRespond } from "@/lib/server/rateLimit";
  * no extra series scan.
  */
 export async function GET(req: NextRequest) {
-  const limited = limitOrRespond(`history:${clientIp(req)}`, LIMITS.searchCard);
+  const limited = await limitOrRespondShared(`history:${clientIp(req)}`, LIMITS.searchCard);
   if (limited) return limited;
   const cardId = req.nextUrl.searchParams.get("cardId")?.trim() ?? "";
   if (!cardId) return NextResponse.json({ error: "Missing cardId" }, { status: 400 });

@@ -2,7 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { magicPublic } from "@/lib/server/settings";
 import { getGameStageCards, getStageCards } from "@/lib/server/stageCards";
 import { isGameId } from "@/lib/games";
-import { LIMITS, clientIp, limitOrRespond } from "@/lib/server/rateLimit";
+import { LIMITS, clientIp } from "@/lib/server/rateLimit";
+import { limitOrRespondShared } from "@/lib/server/rateLimitDb";
 
 /** The reel is the same for every visitor and already cached six hours server-side. */
 const CDN_CACHE = { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=3600" };
@@ -23,7 +24,7 @@ const CDN_CACHE = { "Cache-Control": "public, s-maxage=300, stale-while-revalida
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
-  const limited = limitOrRespond(`catalog:${clientIp(req)}`, LIMITS.publicCatalog);
+  const limited = await limitOrRespondShared(`catalog:${clientIp(req)}`, LIMITS.publicCatalog);
   if (limited) return limited;
   const game = req.nextUrl.searchParams.get("game");
   if (game && game !== "pokemon" && isGameId(game)) {

@@ -6,7 +6,8 @@ import { isTcgGame, tcgCardsBySet } from "@/lib/server/tcgCards";
 import { heldPriceEntry } from "@/lib/server/priceHistory";
 import { latestUsdWithTrust, withPriceFlags } from "@/lib/server/priceTrustSite";
 import type { PokemonCard } from "@/lib/types";
-import { LIMITS, clientIp, limitOrRespond } from "@/lib/server/rateLimit";
+import { LIMITS, clientIp } from "@/lib/server/rateLimit";
+import { limitOrRespondShared } from "@/lib/server/rateLimitDb";
 
 /** Same for everyone: the CDN holds a set 5 min, serves stale for a day while it refreshes. */
 const CDN_CACHE = { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=86400" };
@@ -35,7 +36,7 @@ async function flagged(cards: PokemonCard[]): Promise<PokemonCard[]> {
 }
 
 export async function GET(req: NextRequest) {
-  const limited = limitOrRespond(`catalog:${clientIp(req)}`, LIMITS.publicCatalog);
+  const limited = await limitOrRespondShared(`catalog:${clientIp(req)}`, LIMITS.publicCatalog);
   if (limited) return limited;
   const set = (req.nextUrl.searchParams.get("set") ?? "").trim().slice(0, 120);
   if (!set) return NextResponse.json({ error: "Missing set" }, { status: 400 });

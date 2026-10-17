@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { LIMITS, RateLimitError, limitOrRespond, rateLimitResponse, type RateLimitRule } from "@/lib/server/rateLimit";
+import { LIMITS, RateLimitError, enforceRateLimit, limitOrRespond, rateLimitResponse, type RateLimitRule, type RuleUse } from "@/lib/server/rateLimit";
 
 /**
  * DB-backed fixed-window limiter for the auth brute-force guard.
@@ -21,19 +21,19 @@ let warned = false;
 let lastSweep = 0;
 const SWEEP_EVERY_MS = 60 * 60 * 1000;
 
-/** One atomic hit against `key` for `rule`; returns the window's count and start. */
-async function hit(key: string, rule: RateLimitRule, now: number): Promise<{ count: number; window_start: number }> {
+/** One atomic hit (`by` hits at once) against `key` for `rule`; returns the window's count and start. */
+async function hit(key: string, rule: RateLimitRule, now: number, by = 1): Promise<{ count: number; window_start: number }> {
   const row = await db
     .prepare(
-      `INSERT INTO rate_limits (key, count, window_start) VALUES (?, 1, ?)
+      `INSERT INTO rate_limits (key, count, window_start) VALUES (?, ?, ?)
        ON CONFLICT(key) DO UPDATE SET
-         count = CASE WHEN window_start + ? <= ? THEN 1 ELSE count + 1 END,
+         count = CASE WHEN window_start + ? <= ? THEN ? ELSE count + ? END,
          window_start = CASE WHEN window_start + ? <= ? THEN ? ELSE window_start END
        RETURNING count, window_start`,
     )
     .get<{ count: number; window_start: number }>(
-      `${key}|${rule.windowMs}`, now,
-      rule.windowMs, now,
+      `${key}|${rule.windowMs}`, by, now,
+      rule.windowMs, now, by, by,
       rule.windowMs, now, now,
     );
   if (!row) throw new Error("rate_limits upsert returned no row");
@@ -83,6 +83,49 @@ export async function limitOrRespondAsync(key: string, rules: RateLimitRule[] = 
     if (!warned) {
       warned = true;
       console.error("rate_limits counter unavailable — auth limiter is memory-only until it recovers:", err);
+    }
+    return null;
+  }
+}
+
+/**
+ * From this share of a rule's budget seen on one instance, that instance counts the key in
+ * the shared table too. A visitor reading a few pages never writes a row.
+ */
+export const SHARED_FROM = 0.25;
+
+/**
+ * Busy public routes (search, catalog reads, price history, share pictures; task #29, 10-17):
+ * the memory window decides alone until one instance has seen SHARED_FROM of a rule's
+ * budget from this key. From then on every hit also goes to `rate_limits`, the first one
+ * carrying the hits this instance had already served (bucket.synced), so the shared count
+ * is the real total once a client is busy anywhere. Spread thin across K instances a client
+ * gets at most K x SHARED_FROM of a budget unseen before the shared window binds, against
+ * an unbounded K x budget before. Fails open like the auth limiter.
+ */
+export async function limitOrRespondShared(key: string, rules: RateLimitRule[], now = Date.now()): Promise<Response | null> {
+  let uses: RuleUse[];
+  try {
+    uses = enforceRateLimit(key, ...rules);
+  } catch (err) {
+    if (err instanceof RateLimitError) return rateLimitResponse(err);
+    throw err;
+  }
+  try {
+    await sweep(now);
+    for (const { rule, bucket } of uses) {
+      if (bucket.count < Math.ceil(rule.limit * SHARED_FROM)) continue;
+      const by = bucket.count - (bucket.synced ?? 0);
+      if (by <= 0) continue;
+      const { count, window_start } = await hit(key, rule, now, by);
+      bucket.synced = bucket.count;
+      if (count > rule.limit) return rateLimitResponse(new RateLimitError(Math.max(1, Math.ceil((window_start + rule.windowMs - now) / 1000))));
+    }
+    return null;
+  } catch (err) {
+    if (!warned) {
+      warned = true;
+      console.error("rate_limits counter unavailable — public limiter is memory-only until it recovers:", err);
     }
     return null;
   }

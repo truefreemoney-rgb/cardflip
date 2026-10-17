@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AuthError, requireUser } from "@/lib/server/auth";
-import { LIMITS, clientIp, limitOrRespond } from "@/lib/server/rateLimit";
+import { LIMITS, clientIp } from "@/lib/server/rateLimit";
+import { limitOrRespondShared } from "@/lib/server/rateLimitDb";
 import { HELP_DAILY_CAP, HelpCapError, HelpNotConfiguredError, askHelp, clearHelpHistory, helpHistory } from "@/lib/server/helpChat";
 
 /**
@@ -24,7 +25,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const limited = limitOrRespond(`help:${clientIp(req)}`, LIMITS.helpChat);
+  const limited = await limitOrRespondShared(`help:${clientIp(req)}`, LIMITS.helpChat);
   if (limited) return limited;
   try {
     const user = await requireUser();

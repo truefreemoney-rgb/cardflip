@@ -193,6 +193,56 @@ db.prepare = realPrepare;
   }
 }
 
+// Task #29 (10-17): busy public routes share their count across instances, but a light visitor never writes a row.
+{
+  const { limitOrRespondShared, SHARED_FROM } = await import(at("lib/server/rateLimitDb.ts"));
+  _resetRateLimits();
+  _resetRateLimitDb();
+  const rule = [{ limit: 20, windowMs: 60_000 }];
+  const from = Math.ceil(20 * SHARED_FROM); // 5
+  const rowsFor = async (k) => (await db.prepare("SELECT count FROM rate_limits WHERE key LIKE ?").all(`${k}|%`)).map((r) => Number(r.count));
+  for (let i = 0; i < from - 1; i++) await limitOrRespondShared("pub1", rule);
+  check("shared: a light visitor writes no row", await rowsFor("pub1"), []);
+  await limitOrRespondShared("pub1", rule);
+  check("shared: at the threshold the hits so far go up in one write", await rowsFor("pub1"), [from]);
+  await limitOrRespondShared("pub1", rule);
+  check("shared: after that each hit adds one", await rowsFor("pub1"), [from + 1]);
+  // Three more "instances", each seeing the client busy: the shared total binds at the limit.
+  let last = null, served = from + 1;
+  for (let inst = 0; inst < 3 && !last; inst++) {
+    _resetRateLimits();
+    for (let i = 0; i < 20 && !last; i++) { last = await limitOrRespondShared("pub1", rule); if (!last) served++; }
+  }
+  check("shared: a client spread over instances is refused at the shared limit", [last?.status, served], [429, 20]);
+  advance(60_000);
+  _resetRateLimits();
+  check("shared: the next window opens", await limitOrRespondShared("pub1", rule), null);
+
+  // Fails open like the auth limiter.
+  _resetRateLimits();
+  _resetRateLimitDb();
+  const realPrep = db.prepare.bind(db);
+  db.prepare = (sql) => { if (/rate_limits/.test(sql)) throw new Error("rate_limits gone"); return realPrep(sql); };
+  const realErr = console.error;
+  console.error = () => {};
+  let open = null;
+  for (let i = 0; i < 10; i++) open = open ?? (await limitOrRespondShared("pub2", rule));
+  check("shared: fail open when the table throws", open, null);
+  console.error = realErr;
+  db.prepare = realPrep;
+
+  // The routes the 10-16 audit named use it (or the exact limiter for share pictures).
+  const { readFileSync } = await import("node:fs");
+  for (const r of ["search-card", "sets", "set-cards", "sealed/price", "price-history", "cards/featured", "visit"]) {
+    const src = readFileSync(new URL(`../src/app/api/${r}/route.ts`, import.meta.url), "utf8");
+    check(`${r}: shared limiter`, src.includes("limitOrRespondShared("), true);
+  }
+  for (const r of ["share/card", "share/collection"]) {
+    const src = readFileSync(new URL(`../src/app/api/${r}/route.tsx`, import.meta.url), "utf8");
+    check(`${r}: exact shared limiter`, src.includes("limitOrRespondAsync(") && src.includes("LIMITS.shareRender"), true);
+  }
+}
+
 Date.now = realNow;
 console.log(failures === 0 ? "\nAll rate-limit checks passed" : `\n${failures} rate-limit check(s) failed`);
 process.exit(failures === 0 ? 0 : 1);

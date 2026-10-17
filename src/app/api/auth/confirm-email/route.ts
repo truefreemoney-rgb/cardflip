@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { LIMITS, clientIp, limitOrRespond } from "@/lib/server/rateLimit";
+import { LIMITS, clientIp } from "@/lib/server/rateLimit";
+import { limitOrRespondShared } from "@/lib/server/rateLimitDb";
 import { consumeLink, limitWithMessage, peekLink } from "@/lib/server/emailVerify";
 import { createSession, sessionCookieOptions } from "@/lib/server/sessions";
 import { SESSION_COOKIE, signOutOtherDevices } from "@/lib/server/auth";
@@ -35,7 +36,7 @@ const MESSAGES = {
 } as const;
 
 export async function GET(req: Request) {
-  const limited = limitOrRespond(`auth:confirm:peek:${clientIp(req)}`, LIMITS.authAttempt);
+  const limited = await limitOrRespondShared(`auth:confirm:peek:${clientIp(req)}`, LIMITS.authAttempt);
   if (limited) return limited;
   const token = new URL(req.url).searchParams.get("t") ?? "";
   const peek = token ? await peekLink(token) : { state: "expired" as const, email: null };
