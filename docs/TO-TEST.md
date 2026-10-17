@@ -4,6 +4,11 @@
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
 
+## 10-17 ~5pm ET: Ascended Heroes pattern reverses priced on their own (#11 part 1, 828b91b5, NOT PUSHED; screenshots still owed before push)
+- Morning after the push: /cards/pokemon/ascended-heroes/rayquaza--me02.5-153 lists 'Friend Ball Pattern' (~$0.45) and 'Energy Symbol Pattern' (~$2.22) rows, no plain 'Reverse Holofoil'.
+- Prod SELECT: `SELECT variant, COUNT(*) FROM price_series WHERE card_id LIKE 'me02.5-%' AND source='tcgplayer' GROUP BY variant` -> energySymbolPattern 140, poke/friend/love/dusk/quick/teamRocket ~140 together, reverseHolofoil gone.
+- Editor Printing dropdown on an Ascended Heroes card offers both patterns.
+
 ## 10-17 ~5:15pm ET: last Art Series prices (task #46, NOT PUSHED)
 - Morning after the push (nightly Magic refresh): `node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/_art-fill-dry.mjs` shows gaps 8 (5 Karlov Clues TCGplayer doesn't sell + Nefarious Imp, Treasure Keeper, Harness Infinity 27s); was 32. E.g. Gnoll Hunter aafr 11 ~$0.20, Aurelia amkm 46 ~$0.15.
 
