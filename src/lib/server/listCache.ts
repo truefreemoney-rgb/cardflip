@@ -85,14 +85,15 @@ export async function cachedListSwr<T>(
  * Stale-while-revalidate that never answers empty: fresh → the value; stale → the old value now and a rebuild after
  * the response; missing (first ever) → built and stored right now. For the sitemap files (10-16): every deploy empties
  * the per-deployment ISR copies, and a cold Magic file was an 18 s build that 504'd for Googlebot; the memo outlives
- * deploys, so a crawler only ever waits on the very first build. `deps` is for tests.
+ * deploys, so a crawler only ever waits on the very first build. `deps.later` is for tests. `deps.skipEmpty` never
+ * stores an empty list or object (set lists, 10-17: empty means an unsynced mirror, not an answer to keep).
  */
 export async function cachedStaleOk<T>(
   key: string,
   ttlMs: number,
   build: () => Promise<T>,
   now = Date.now(),
-  deps: { later?: (fn: () => Promise<void>) => void } = {},
+  deps: { later?: (fn: () => Promise<void>) => void; skipEmpty?: boolean } = {},
 ): Promise<T> {
   let row: { payload: string; cached_at: number } | undefined;
   try {
@@ -100,14 +101,16 @@ export async function cachedStaleOk<T>(
   } catch {
     // Cache miss is fine.
   }
-  const store = (value: T, at: number) =>
-    db
+  const store = async (value: T, at: number) => {
+    if (deps.skipEmpty && isEmpty(value)) return;
+    await db
       .prepare(
         `INSERT INTO card_cache (key, payload, cached_at) VALUES (?, ?, ?)
          ON CONFLICT(key) DO UPDATE SET payload = excluded.payload, cached_at = excluded.cached_at`,
       )
       .run(key, JSON.stringify(value), at)
       .catch(() => {});
+  };
   let old: T | undefined;
   if (row) {
     try {
@@ -139,6 +142,11 @@ export async function cachedStaleOk<T>(
     }
   }
   return old;
+}
+
+function isEmpty(v: unknown): boolean {
+  if (Array.isArray(v)) return v.length === 0;
+  return v !== null && typeof v === "object" && Object.keys(v).length === 0;
 }
 
 /** Set lists refresh with the daily mirror sync; six hours is plenty. */

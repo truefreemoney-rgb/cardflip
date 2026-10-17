@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { cachedList, SET_LIST_TTL_MS } from "@/lib/server/listCache";
+import { cachedStaleOk, SET_LIST_TTL_MS } from "@/lib/server/listCache";
 import { toPics } from "@/lib/pics";
 import type { GameId } from "@/lib/types";
 
@@ -64,7 +64,9 @@ async function build(game: GameId): Promise<Record<string, SetCover>> {
 }
 
 export async function setCovers(game: GameId): Promise<Record<string, SetCover>> {
-  const cached = await cachedList(`sets:covers:v2:${game}`, SET_LIST_TTL_MS, () => build(game));
+  // Stale-ok (10-17): the Pokemon build walks every price series (~21 s on Turso) and failed the 2am + 7am smoke on a
+  // cold memo; the old covers serve while it rebuilds after the response.
+  const cached = await cachedStaleOk(`sets:covers:v2:${game}`, SET_LIST_TTL_MS, () => build(game), Date.now(), { skipEmpty: true });
   const out: Record<string, SetCover> = {};
   for (const [k, c] of Object.entries(cached)) out[k] = { ...c, coverUrl: toPics(c.coverUrl) };
   return out;

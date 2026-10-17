@@ -4,7 +4,7 @@ import { setLogoFromCardImage, type SetInfo } from "@/lib/grading";
 import { parseGame } from "@/lib/games";
 import { listMtgSets } from "@/lib/server/mtgCards";
 import { isTcgGame, listTcgSets } from "@/lib/server/tcgCards";
-import { cachedList, SET_LIST_TTL_MS } from "@/lib/server/listCache";
+import { cachedStaleOk, SET_LIST_TTL_MS } from "@/lib/server/listCache";
 import { LIMITS, clientIp, limitOrRespond } from "@/lib/server/rateLimit";
 import { setCovers } from "@/lib/server/setCovers";
 import type { GameId } from "@/lib/types";
@@ -47,8 +47,8 @@ async function listSets(req: NextRequest) {
     return NextResponse.json({ sets: await withCovers(game, await listTcgSets(game)) }, { headers: CDN_CACHE });
   }
 
-  // Memoed: the GROUP BY walks all 20k en_cards per call (Turso outage 09-06).
-  const sets = await cachedList<SetInfo[]>("sets:v1:pokemon", SET_LIST_TTL_MS, async () => {
+  // Memoed: the GROUP BY walks all 20k en_cards per call (Turso outage 09-06). Stale-ok: a rebuild never blocks a visitor.
+  const sets = await cachedStaleOk<SetInfo[]>("sets:v1:pokemon", SET_LIST_TTL_MS, async () => {
     const rows = (await db
       .prepare(
         `SELECT set_name,
@@ -65,7 +65,7 @@ async function listSets(req: NextRequest) {
       releaseDate: row.release_date,
       logoUrl: setLogoFromCardImage(row.sample_image ?? ""),
     }));
-  });
+  }, Date.now(), { skipEmpty: true });
 
   return NextResponse.json({ sets: await withCovers("pokemon", sets) }, { headers: CDN_CACHE });
 }

@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { cachedList, cachedListSwr, dropCachedLists } from "@/lib/server/listCache";
+import { cachedList, cachedListSwr, cachedStaleOk, dropCachedLists } from "@/lib/server/listCache";
 import { gamePublic, type GatedGame } from "@/lib/server/settings";
 import { MTG_REFEREE_SQL, PRICE_TRUST, REF_ALT_SOURCE, lastPriced } from "@/lib/server/priceTrust";
 import { judgeFull, judgeSeries, loadTrustData, readEbayAsks, readListingLows, type TrustData, type TrustSeries } from "@/lib/server/priceTrustSite";
@@ -230,7 +230,8 @@ export async function setIndex(game: GameId): Promise<SetIndex> {
   if (hit && Date.now() - hit.at < MEMO_MS) return hit.index;
   let sets: SetEntry[] = [];
   try {
-    sets = await cachedList(`seo:sets:v4:${game}`, SETS_TTL_MS, () => buildSets(game));
+    // Stale-ok (10-17): the Pokemon build is two json walks of every price series; a visitor never waits on a rebuild.
+    sets = await cachedStaleOk(`seo:sets:v4:${game}`, SETS_TTL_MS, () => buildSets(game), Date.now(), { skipEmpty: true });
   } catch (err) {
     console.warn(`card pages: could not read the ${game} set list`, err);
   }

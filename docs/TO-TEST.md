@@ -4,6 +4,12 @@
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
 
+## 10-17 ~2pm ET: set lists never wait on a rebuild (A-H C0, NOT PUSHED)
+- After push: the 2am + 7am ET Production smoke ("set lists load") stays green for 2 days (`gh run list -R truefreemoney-rgb/cardflip -w prod-smoke.yml`). `curl -w '%{time_total}' https://cardflip.io/api/sets` under 3 s every time, including the first call after 6 hours.
+
+## 10-17 ~1:30pm ET: Watchlist picker counts + empty game (NOT PUSHED; shots docs/shots/wish/, Chris OK 10-17)
+- Phone: Watchlist > the game pill says "Pokémon ·N"; pick a game with no cards -> "No Magic cards on your watchlist" + a "Show Pokémon (N)" button that switches back; "Name or number" fits in the search box; open the totals bar -> Alerts not under the arrow.
+
 ## 10-17 ~3:30am ET: exchange rates never go blank (A-H #16, NOT PUSHED)
 - After push + the next nightly price run: prod settings fx_rates (SELECT only) has rateAt for all 5 currencies dated today and triedAt set; Black Lotus page still shows a dollar price. Nothing new in the error mail unless a rate is over 2 days old.
 

@@ -79,7 +79,17 @@ await sleep(50);
   await later.shift()();
   check("stale-ok: a failed rebuild keeps serving the old copy", await cachedStaleOk("swr-ok", 10 ** 12, b(["e"]), Date.now(), deps), ["c"]);
   check("stale-ok: an empty file is a real answer, kept", [await cachedStaleOk("swr-empty", 1000, b([]), T0, deps), await cachedStaleOk("swr-empty", 1000, b(["x"]), T0 + 1, deps)], [[], []]);
+  // 10-17: set lists (skipEmpty): an empty build (unsynced mirror) answers but is never stored, list or object.
+  const skip = { ...deps, skipEmpty: true };
+  check("stale-ok skipEmpty: empty list not kept", [await cachedStaleOk("swr-skip", 1000, b([]), T0, skip), await cachedStaleOk("swr-skip", 1000, b(["x"]), T0 + 1, skip)], [[], ["x"]]);
+  check("stale-ok skipEmpty: empty object not kept", [await cachedStaleOk("swr-skipo", 1000, b({}), T0, skip), await cachedStaleOk("swr-skipo", 1000, b({ a: 1 }), T0 + 1, skip)], [{}, { a: 1 }]);
+  await cachedStaleOk("swr-skip", 1000, b([]), T0 + 5000, skip);
+  await later.shift()();
+  check("stale-ok skipEmpty: an empty rebuild keeps the old copy", await cachedStaleOk("swr-skip", 10 ** 12, b(["y"]), Date.now(), skip), ["x"]);
   const { readFileSync } = await import("node:fs");
+  for (const f of ["../src/lib/server/setCovers.ts", "../src/lib/server/cardPages.ts", "../src/app/api/sets/route.ts"]) {
+    check(`set list stale-ok: ${f.split("/").pop()}`, readFileSync(new URL(f, import.meta.url), "utf8").includes("{ skipEmpty: true }"));
+  }
   const route = readFileSync(new URL("../src/app/sitemaps/[name]/route.ts", import.meta.url), "utf8");
   check("sitemap route serves the stored copy", route.includes("await cachedCardSitemapEntries(file.game, file.chunk)"));
 }

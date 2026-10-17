@@ -30,7 +30,7 @@ tasks #58 #59 #61 #62 #63 #65 (+ #66 #67 already existed, #57 skipped). All push
 20. Stripe receipts show your home address. That's a blocker before launch; it needs a business address [you] M
 
 ## C. Bugs and polish
-C0. FIRST: Pokémon set list rebuild takes ~21 s once a day (seo:sets:v4, json walk of price_series): the first visitor waits and the 2am + 7am ET Production smoke failed 10-17 on it. Serve the stale list while rebuilding (cachedListSwr; block only when no row exists) [me] S
+C0. DONE 10-17 (local, not pushed; covers, set index and /api/sets serve the old copy and rebuild after): Pokémon set list rebuild takes ~21 s once a day (seo:sets:v4, json walk of price_series): the first visitor waits and the 2am + 7am ET Production smoke failed 10-17 on it. Serve the stale list while rebuilding (cachedListSwr; block only when no row exists) [me] S
 21. The Magic price limit cuts some old cards too low (e.g. Alpha Blaze of Glory $400 vs ~$579), and it has no lower limit for $1 junk listings [me] M
 22. Pokémon price-limit jump: a $99 card stays $99, but at $100 it drops to $72.50. Smooth it out [me] S
 23. Nightly catalog upload resends everything; send only what changed [me] M
