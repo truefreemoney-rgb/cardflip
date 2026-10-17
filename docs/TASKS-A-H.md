@@ -77,17 +77,17 @@ Section D recovered from session a04629b6 transcript.
 
 ## I. Competitor ideas (Chris 10-17: tiers S, A, B approved, start today; FINAL after both reviews: docs/COMPETITOR-POKEMONWIZARD-2026-10-17.md + docs/COMPETITOR-POKEDATA-2026-10-17.md). Order: 59, 57, 58, 60, 61, 62, 63, 67, 64, 65, 66
 S tier
-57. Search-result markup on card + set pages: Product (with price), FAQPage, ItemList [me] S
-58. Short FAQ block on every card page (worth / sell? / set / other printings), answers from our own numbers, matching the markup [me] S
-59. Better titles + meta descriptions: year, card count, price range ("Base Set prices 2026: 102 cards, $0.25-$420") [me] S
-60. "Based on N sales" next to prices + "few sales" label on card pages AND scan results (needs PriceCharting sales-volume; see PRICE-FALLBACK-PLAN.md) [me] S
+57. SKIPPED 10-17: Product markup without offers = Search Console critical error (removed 10-05), FAQ rich results gov/health only since 2023. Search-result markup on card + set pages: Product (with price), FAQPage, ItemList [me] S
+58. DONE LOCALLY 10-17 (d90ee762): Short FAQ block on every card page (worth / sell? / set / other printings), answers from our own numbers, matching the markup [me] S
+59. DONE LOCALLY 10-17 (5aee281c): Better titles + meta descriptions: year, card count, price range ("Base Set prices 2026: 102 cards, $0.25-$420") [me] S
+60. WAITS on the PriceCharting sub: "Based on N sales" next to prices + "few sales" label on card pages AND scan results (needs PriceCharting sales-volume; see PRICE-FALLBACK-PLAN.md) [me] S
 A tier
-61. 7D / 30D / 90D / All buttons on price charts [me] S
-62. Set summary strip on set pages: 7d + 30d change, average card value, top and bottom card [me] S-M
-63. Rank + sort sets by average card value ("best sets to open"), filters [me] S-M
-67. Printing chips with their own prices (Reverse Holo / Holo / 1st Ed / pattern) so a blended price cannot hide; check the Printing picker first [me] S-M
+61. DONE LOCALLY 10-17 (4427a6fe; 7d/30d/90d already existed, added All): 7D / 30D / 90D / All buttons on price charts [me] S
+62. DONE LOCALLY 10-17 (d7f10921): Set summary strip on set pages: 7d + 30d change, average card value, top and bottom card [me] S-M
+63. DONE LOCALLY 10-17 (eb8dea4a; "Most valuable sets" top 10 on each game page, no sort filters): Rank + sort sets by average card value ("best sets to open"), filters [me] S-M
+67. ALREADY EXISTS (card page price row per printing); real gap = catalog lumps Vivillon patterns (log for catalog work): Printing chips with their own prices (Reverse Holo / Holo / 1st Ed / pattern) so a blended price cannot hide; check the Printing picker first [me] S-M
 B tier (new features, Chris OK'd 10-17 despite the freeze)
-64. Pokemon character pages (all Espeon cards, total value, top 10, prev/next) [me] L
-65. Trending up/down + Top 100 page (rarity filter) [me] M
-66. Favorites + price alerts: extend the Watchlist where it falls short [me] M
+64. HELD until the ~10-23 Search Console crawl check (17 ad landing pages exist at /pokemon/<name>-card-value, noindex): Pokemon character pages (all Espeon cards, total value, top 10, prev/next) [me] L
+65. DONE LOCALLY 10-17 (76f8963e; trending already existed as /movers, added /cards/<game>/most-valuable): Trending up/down + Top 100 page (rarity filter) [me] M
+66. ALREADY EXISTS (Watch this price, wishlist alerts, target + spike alerts in cardAlerts.ts); nothing to build: Favorites + price alerts: extend the Watchlist where it falls short [me] M
 C tier (skip): sealed product pages, "gained X% since release" stats, investment-guide articles. BLOCKED: recent sold sales list per card (no allowed eBay sales source; revisit if Marketplace Insights is approved). PokeData as a price source: NO (API $20/mo non-commercial only; 2/5 within 25% of eBay sold).
