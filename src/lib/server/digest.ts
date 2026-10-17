@@ -8,6 +8,7 @@ import { OWNER_EMAIL } from "@/lib/server/users";
 import { usdSeries } from "@/lib/server/priceHistory";
 import { heldTrustOrOpen } from "@/lib/server/priceTrustSite";
 import { addDays, dayIndex, todayUtc } from "@/lib/priceSeries";
+import { flagBlocks, hasFallback } from "@/lib/priceFlag";
 
 /**
  * Weekly collection digest (Tier 2 #8, Chris 09-27): one Sunday mail per
@@ -135,10 +136,13 @@ export async function buildDigest(userId: string, now = Date.now()): Promise<Dig
       }
       continue;
     }
-    const market = onDay(s, today);
-    if (market == null || !(market > 0)) continue;
+    const seriesMarket = onDay(s, today);
+    if (seriesMarket == null || !(seriesMarket > 0)) continue;
     const held1 = { catalog_card_id: r.catalog_card_id!, variant: null, game: r.game };
-    if (trust.flag(held1)) {
+    const flag = trust.flag(held1);
+    // A flag with a fallback (10-17) prices the card, counted flat (its series is the junk); only a flag with none is skipped.
+    const market = hasFallback(flag) ? flag.fallback : seriesMarket;
+    if (flagBlocks(flag)) {
       // The market is junk: the seller's own price (typed, or a live listing's ask) counts flat, anything else is left out.
       if ((r.price_locked || r.status === "listed") && r.price > 0) {
         valueNow += r.price * qty;
@@ -151,7 +155,7 @@ export async function buildDigest(userId: string, now = Date.now()): Promise<Dig
     const firstIdx = s.prices.findIndex((p) => p != null);
     const firstDay = firstIdx >= 0 ? addDays(s.startDay, firstIdx) : today;
     // A series younger than a week has no honest "before": count it as unchanged.
-    let marketBefore = firstDay > weekAgo ? market : (onDay(s, weekAgo) ?? market);
+    let marketBefore = firstDay > weekAgo || hasFallback(flag) ? market : (onDay(s, weekAgo) ?? market);
     // A week-ago price the guard calls junk (a plateau that just corrected) is no honest "before": unchanged.
     if (marketBefore !== market && trust.flagOld(held1, 7, marketBefore)) marketBefore = market;
     const nowAsk = askingPriceFor(market, r.condition, shipMethodOf(r));

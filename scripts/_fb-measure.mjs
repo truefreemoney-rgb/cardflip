@@ -1,11 +1,11 @@
-﻿// Read-only (prod SELECTs): every flagged TCGplayer USD printing of a game and the fallback the guard now offers. 10-17.
+// Read-only (prod SELECTs): every flagged TCGplayer USD printing of a game and the fallback the guard now offers. 10-17.
 // node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/_fb-measure.mjs pokemon [out.json]
 import fs from "node:fs";
 import { createClient } from "@libsql/client";
 const cfg = JSON.parse(fs.readFileSync(".env.migration.json", "utf8").replace(/^ï»¿/, ""));
 const c = createClient({ url: cfg.dbUrl, authToken: cfg.dbToken });
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
-const { judgeFull } = await import(at("lib/server/priceTrustSite.ts"));
+const { judgeFull, altReading, ALT_MAX_AGE_DAYS, ALT_SOURCES } = await import(at("lib/server/priceTrustSite.ts"));
 const { decodePrices, todayUtc, addDays } = await import(at("lib/priceSeries.ts"));
 const { lastPriced, REF_ALT_SOURCE, PRICE_TRUST } = await import(at("lib/server/priceTrust.ts"));
 const { EBAY_REFEREE } = await import(at("lib/ebayReferee.ts"));
@@ -30,8 +30,8 @@ const cmSince = addDays(day, -PRICE_TRUST.refMaxAgeDays);
 let rows = 0;
 for (let off = 0; ; off += 5000) {
   const rs = await q(
-    `SELECT card_id, variant, source, start_day, prices FROM price_series WHERE game = ? AND ((source='tcgplayer' AND currency='USD') OR (source IN ('cardmarket', '${REF_ALT_SOURCE}') AND variant='average' AND updated_day >= ?)) ORDER BY card_id, variant, source LIMIT 5000 OFFSET ${off}`,
-    [game, cmSince],
+    `SELECT card_id, variant, source, start_day, prices FROM price_series WHERE game = ? AND ((source='tcgplayer' AND currency='USD') OR (source IN ('cardmarket', '${REF_ALT_SOURCE}') AND variant='average' AND updated_day >= ?) OR (source IN ('cardtrader','cardmarket-converted') AND currency='USD' AND updated_day >= ?)) ORDER BY card_id, variant, source LIMIT 5000 OFFSET ${off}`,
+    [game, cmSince, addDays(day, -ALT_MAX_AGE_DAYS)],
   );
   rows += rs.length;
   for (const r of rs) {
@@ -40,6 +40,7 @@ for (let off = 0; ; off += 5000) {
     const d = get(r.card_id);
     if (r.source === "cardmarket") d.cmEur = lastPriced(p);
     else if (r.source === REF_ALT_SOURCE) d.cmEurAlt = lastPriced(p);
+    else if (ALT_SOURCES.includes(r.source)) { const a = altReading(r.start_day, p, addDays(day, -ALT_MAX_AGE_DAYS)); if (a != null && (!d.alt?.[r.variant] || r.source === "cardtrader")) d.alt = { ...(d.alt ?? {}), [r.variant]: { usd: a, source: r.source } }; }
     else if (p.some((v) => v != null)) d.series.push({ variant: r.variant, startDay: r.start_day, prices: p });
   }
   if (rs.length < 5000) break;

@@ -4,6 +4,7 @@ import { latestUsdPrices } from "@/lib/server/priceHistory";
 import { askingPriceFor } from "@/lib/listing";
 import { shipMethodOf } from "@/lib/fees";
 import { heldTrust } from "@/lib/server/priceTrustSite";
+import { flagBlocks, hasFallback } from "@/lib/priceFlag";
 
 /**
  * The stale-listing half of BACKLOG's "auto-offers + reprice nudge": a card
@@ -65,9 +66,13 @@ export async function getRepriceNudges(userId: string, now = Date.now()): Promis
   const trust = await heldTrust(rows.map((r) => ({ catalog_card_id: r.catalog_card_id, variant: null, game: r.game })));
   const nudges: RepriceNudge[] = [];
   for (const row of rows) {
-    const market = markets.get(row.catalog_card_id)?.price ?? null;
-    if (market == null || market <= 0) continue;
-    if (trust.flag({ catalog_card_id: row.catalog_card_id, variant: null, game: row.game })) continue;
+    const shown = markets.get(row.catalog_card_id)?.price ?? null;
+    if (shown == null || shown <= 0) continue;
+    // A flag with a fallback (10-17) prices the card, the nudge aims at it; only a flag with none is skipped.
+    const flag = trust.flag({ catalog_card_id: row.catalog_card_id, variant: null, game: row.game });
+    const fb = hasFallback(flag) ? flag.fallback : null;
+    if (flagBlocks(flag)) continue;
+    const market = fb ?? shown;
     const target = askingPriceFor(market, row.condition, shipMethodOf(row));
     if (!(target > 0)) continue;
     const drift = (target - row.price) / row.price;

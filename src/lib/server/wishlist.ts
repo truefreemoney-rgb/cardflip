@@ -5,7 +5,8 @@ import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { catalogPicture } from "@/lib/server/cardPictures";
 import { latestUsdPrice, latestUsdPrices } from "@/lib/server/priceHistory";
-import { heldTrustOrOpen, marketPriceFlagged } from "@/lib/server/priceTrustSite";
+import { heldTrustOrOpen, storablePrice } from "@/lib/server/priceTrustSite";
+import { flagBlocks, hasFallback } from "@/lib/priceFlag";
 import type { GameId, PokemonCard, ScanLanguage } from "@/lib/types";
 
 export interface WishlistItem {
@@ -104,8 +105,8 @@ export async function addToWishlist(
   // no prices, and Watch while it loads saved null — the tile then showed
   // nothing): our own series knows today's market for the catalog id.
   if (price == null && card.id) price = await latestUsdPrice(card.id);
-  // The price guard: a market the rule flags is not saved as the baseline (the since-saved delta would compare against junk).
-  if (price != null && card.id && (await marketPriceFlagged(card, price))) price = null;
+  // The price guard: a market the rule flags is saved as its fallback, or not at all (the since-saved delta would compare against junk).
+  if (price != null && card.id) price = await storablePrice(card, price);
 
   await db.prepare(
     `INSERT INTO wishlist_items
@@ -175,9 +176,13 @@ export async function listWishlist(userId: string): Promise<WishlistItem[]> {
     for (const item of missing) {
       const hit = latest.get(item.cardId!);
       if (!hit || !(hit.price > 0)) continue;
-      if (trust.flag({ catalog_card_id: item.cardId!, variant: null, game: item.game })) continue;
-      item.price = hit.price;
-      await db.prepare("UPDATE wishlist_items SET price = ? WHERE id = ? AND user_id = ? AND price IS NULL").run(hit.price, item.id, userId);
+      // A flag with a fallback (10-17) saves the fallback as the baseline; only a flag with none is skipped.
+      const flag = trust.flag({ catalog_card_id: item.cardId!, variant: null, game: item.game });
+      const fb = hasFallback(flag) ? flag.fallback : null;
+      if (flagBlocks(flag)) continue;
+      const price = fb ?? hit.price;
+      item.price = price;
+      await db.prepare("UPDATE wishlist_items SET price = ? WHERE id = ? AND user_id = ? AND price IS NULL").run(price, item.id, userId);
     }
   }
   // Rows saved with no picture (10-02: a search answer from a cache row older

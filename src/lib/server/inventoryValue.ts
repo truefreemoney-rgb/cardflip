@@ -5,6 +5,7 @@ import { shipMethodOf } from "@/lib/fees";
 import { heldSeries, preferredVariants, usdSeries } from "@/lib/server/priceHistory";
 import { addDays, dayIndex, todayUtc } from "@/lib/priceSeries";
 import { heldTrustOrOpen } from "@/lib/server/priceTrustSite";
+import { flagBlocks, hasFallback } from "@/lib/priceFlag";
 import type { GameId } from "@/lib/types";
 
 /**
@@ -93,9 +94,11 @@ export async function inventoryValueSeries(
   const today = todayUtc(now);
   const trust = await heldTrustOrOpen(rows.map((r) => ({ ...r, game })), today);
   const firstDay = addDays(today, -(span - 1));
+  // A flag with a fallback (10-17) prices the card, flat across the line (its plateau days are the junk); only a flag with none is left out.
   const held = rows
-    .filter((r) => !trust.flag({ ...r, game }))
+    .filter((r) => !flagBlocks(trust.flag({ ...r, game })))
     .map((r) => ({
+      fb: ((f) => (hasFallback(f) ? f.fallback : null))(trust.flag({ ...r, game })),
       series: heldSeries(series, r) ?? null,
       condition: r.condition,
       shipping: shipMethodOf(r),
@@ -121,7 +124,7 @@ export async function inventoryValueSeries(
     let value = 0;
     for (const h of held) {
       if (h.until && day > h.until) continue;
-      const market = onDay(h.series!, day);
+      const market = h.fb ?? onDay(h.series!, day);
       if (market == null || !(market > 0)) continue;
       value += (basis === "market" ? marketForCondition(market, h.condition) : askingPriceFor(market, h.condition, h.shipping)) * h.qty;
     }

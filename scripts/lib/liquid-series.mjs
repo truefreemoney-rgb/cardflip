@@ -21,3 +21,14 @@ export async function recordSeries(recordPoint, addDays, endDay, cardId, game, v
     await recordPoint(cardId, game, variant, "tcgplayer", "USD", prices[i], addDays(endDay, i - (prices.length - 1)));
   }
 }
+
+/**
+ * A HARD flag with NO fallback (10-17): an admin's eBay sold check said "hide" (ebay_asks.manual) and the nightly ask reading
+ * is too old to count, so the guard has no spike level, no Cardmarket and no median ask to offer. The only kind of flag that
+ * still blanks a price. Judged at `price`; hide it BEFORE the first trust read (the loader memoises for ten minutes).
+ */
+export async function hideByAdmin(db, addDays, today, cardId, game, variant, price) {
+  await db
+    .prepare(`INSERT OR REPLACE INTO ebay_asks (card_id, game, variant, price_usd, n, n_nm, median_usd, q75_usd, verdict, reason, day, manual, manual_price) VALUES (?, ?, ?, ?, 0, 0, NULL, NULL, 'high', '', ?, 'hide', ?)`)
+    .run(cardId, game, variant, price, addDays(today, -30), price);
+}

@@ -274,16 +274,27 @@ check("nudges: cheap cards target value + costs, not raw market", cheapNudges.ma
 
 // --- the price guard (priceTrustSite): a flagged market never nudges, dips or becomes a baseline ---------
 {
-  const { liquidPrices, junkPrices, recordSeries } = await import("./lib/liquid-series.mjs");
+  const { liquidPrices, junkPrices, recordSeries, hideByAdmin } = await import("./lib/liquid-series.mjs");
   const { addDays, todayUtc } = await import(at("lib/priceSeries.ts"));
   const today = todayUtc();
-  await recordSeries(recordPoint, addDays, today, "g-junk", "pokemon", "holofoil", junkPrices(500)); // a 5x spike that never came back (hidden)
+  await recordSeries(recordPoint, addDays, today, "g-junk", "pokemon", "holofoil", junkPrices(500)); // a 5x spike that never came back (hidden) ...
+  await hideByAdmin(db, addDays, today, "g-junk", "pokemon", "holofoil", 500); // ... and hidden by an admin, so it has NO fallback (10-17): the only flag that still blanks a price
+  await recordSeries(recordPoint, addDays, today, "g-spike", "pokemon", "holofoil", junkPrices(500)); // the same spike WITH a fallback: the level before the jump
   await recordSeries(recordPoint, addDays, today, "g-fine", "pokemon", "holofoil", liquidPrices(300));
   const junkListed = await listedCard({ price: 200, catalogId: "g-junk", listedAt: NOW - 8 * DAY });
   const fineListed = await listedCard({ price: 150, catalogId: "g-fine", listedAt: NOW - 8 * DAY });
   const gn = await getRepriceNudges(uid, NOW);
   check("guard: a listing whose market is flagged gets no reprice nudge", gn.some((x) => x.cardId === junkListed.id), false);
   check("guard: the normal $300 market still nudges the $150 listing", gn.find((x) => x.cardId === fineListed.id)?.target, costCoveredPrice(300, "tracked"));
+
+  // 10-17: a flag WITH a fallback prices the card: it nudges against the fallback, saves it as the baseline and dips against it.
+  const spikeListed = await listedCard({ price: 200, catalogId: "g-spike", listedAt: NOW - 8 * DAY });
+  const sn = (await getRepriceNudges(uid, NOW)).find((x) => x.cardId === spikeListed.id);
+  check("guard: a listing on a spiked market WITH a fallback nudges against the fallback (~$100), not the $500 spike", [sn != null && sn.market > 90 && sn.market < 120, sn != null && sn.target === costCoveredPrice(sn.market, "tracked")], [true, true]);
+  const wSpike = await addToWishlist(uid, pcard("g-spike", "GuardSpike"), "en", 500);
+  const wSpikeNull = await addToWishlist(uid, pcard("g-spike", "GuardSpikeNoPrice"), "en", null);
+  check("guard: a flagged price WITH a fallback is saved as the fallback (sent or looked up), never the $500", [wSpike.price > 90 && wSpike.price < 120, wSpikeNull.price === wSpike.price], [true, true]);
+  await setWishlistAlert(wSpike.id, uid, 600);
 
   const wJunk = await addToWishlist(uid, pcard("g-junk", "GuardJunk"), "en", 500);
   const wFine = await addToWishlist(uid, pcard("g-fine", "GuardFine"), "en", 300);
@@ -296,6 +307,8 @@ check("nudges: cheap cards target value + costs, not raw market", cheapNudges.ma
   await sweepWishlistAlerts(NOW, { send, configured: on });
   const dips = mails.flatMap((m) => m.hits.map((h) => h[0]));
   check("guard: no dip mail from a flagged price; the normal one still mails", [dips.includes("GuardJunk"), dips.includes("GuardFine")], [false, true]);
+  const spikeDip = mails.flatMap((m) => m.hits).find((h) => h[0] === "GuardSpike");
+  check("guard: a flagged price WITH a fallback dips against the fallback ($600 target hit at ~$100)", [spikeDip != null && spikeDip[1] > 90 && spikeDip[1] < 120], [true]);
   const rows = await listWishlist(uid);
   check("guard: listing the wishlist does not backfill a flagged baseline either", rows.find((w) => w.id === wNull.id).price, null);
 }

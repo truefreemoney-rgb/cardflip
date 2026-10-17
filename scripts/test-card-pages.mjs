@@ -162,6 +162,10 @@ check("a stale price is dropped", cp.variantPrices("pokemon", [mk("holofoil", "2
 const flagged = cp.variantPrices("pokemon", [fresh(900, "holofoil", { hard: true, reason: "cardmarket 20x" })], today);
 check("a flagged price is kept as a row but never the headline", [flagged.length, cp.headlinePrice(flagged)], [1, null]);
 check("a page with only flagged prices is noindex", cp.indexDecision(flagged), { index: false, reason: "flagged" });
+// 10-17: a flag with a fallback prices the printing from it (Alpha Blaze of Glory: $440.74 thin -> converted $579.99).
+const fb = cp.variantPrices("mtg", [fresh(440.74, "nonfoil", { hard: false, reason: "thin, 8 priced days", fallback: 579.99, fallbackFrom: "cardmarket-converted" })], today);
+check("a flag with a fallback is the headline at the fallback", [cp.headlinePrice(fb)?.price, cp.headlinePrice(fb)?.flag, cp.headlinePrice(fb)?.checked?.fallbackFrom], [579.99, null, "cardmarket-converted"]);
+check("a page priced from a fallback is indexable", cp.indexDecision(fb).index, true);
 const mixed = cp.variantPrices("pokemon", [fresh(900, "holofoil", { hard: false, reason: "flat" }), fresh(6, "reverseHolofoil")], today);
 check("the headline skips the flagged printing", cp.headlinePrice(mixed)?.variant, "reverseHolofoil");
 const skyridge = cp.variantPrices("pokemon", [fresh(10000, "holofoil", { hard: false, reason: "flat" }), fresh(2999.99, "reverseHolofoil")], today);
@@ -341,7 +345,7 @@ check("loaders: every game goes through gamePublic", /gamePublic\(/.test(serverS
 check("loaders: the price guard runs on every read", [/judgeSeries\(/.test(serverSrc), /loadTrustData\(/.test(serverSrc)], [true, true]);
 check("loaders: no cookies/headers", /next\/headers/.test(serverSrc), false);
 // 10-07: the card page built its TrustData without listing_lows, so Lugia ex10-105 kept its frozen $2,500 there.
-check("card page price: the guard hears the cheapest listing", [/readListingLows\(facts\.game, \[facts\.id\]/.test(serverSrc), /released: rec\.released, lows, asks \}/.test(serverSrc)], [true, true]);
+check("card page price: the guard hears the cheapest listing", [/readListingLows\(facts\.game, \[facts\.id\]/.test(serverSrc), /released: rec\.released, lows, asks, alt \}/.test(serverSrc)], [true, true]);
 // 10-13: and the nightly eBay referee's reading (ebay_asks), so a price eBay calls absurd is hidden on the card page too.
 check("card page price: the guard hears the eBay referee", /readEbayAsks\(facts\.game, \[facts\.id\]/.test(serverSrc), true);
 check("card page: a future release reads 'Preorder · out Mon YYYY', not 'released'", /f\.release > todayUtc\(\) \? ` · Preorder · out \$\{etDate\(`\$\{f\.release\}T12:00:00Z`, "", \{ month: "short", year: "numeric" \}\)\}`/.test(cardPageSrc), true);

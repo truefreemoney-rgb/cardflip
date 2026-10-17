@@ -20,7 +20,7 @@ process.once("exit", () => {
 });
 
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
-const { judgeSeries, judgeStale, siteTrust, siteTrustFull, withPriceFlags, loadTrustData, clearTrustMemo, trustKey, marketPriceFlagged, heldTrustOrOpen } = await import(at("lib/server/priceTrustSite.ts"));
+const { judgeSeries, judgeStale, siteTrust, siteTrustFull, withPriceFlags, loadTrustData, clearTrustMemo, trustKey, storablePrice, heldTrustOrOpen } = await import(at("lib/server/priceTrustSite.ts"));
 const { recordPoint } = await import(at("lib/server/priceHistory.ts"));
 const { addDays, todayUtc, encodePrices } = await import(at("lib/priceSeries.ts"));
 const { PRICE_FLAG_NOTE, priceStaleNote } = await import(at("lib/priceFlag.ts"));
@@ -186,6 +186,7 @@ console.log("loader: one batch, only flagged cards come back");
   await put("mtg-junk", "mtg", "foil", liquid(150));
   await put("mtg-junk", "mtg", "nonfoil", liquid(150));
   await put("mtg-fine", "mtg", "nonfoil", liquid(150));
+  await put("junk-round", "pokemon", "holofoil", liquid(499.99, 8));
   await put("ebay-only", "pokemon", "graded-psa-10", Array(60).fill(900), "ebay");
   for (const [id, rd] of [["junk-rayquaza", "2010-03-01"], ["fine-umbreon", "2010-03-01"], ["junk-deoxys", "2010-05-01"]]) {
     await db.prepare(`INSERT INTO en_cards (id, name, set_id, set_name, local_id, set_release_date, synced_at) VALUES (?, ?, 'x', 'X', '1', ?, 0)`).run(id, id, rd);
@@ -226,7 +227,7 @@ console.log("loader: one batch, only flagged cards come back");
   const input = [card("junk-rayquaza", [usd("holofoil", 1013.27), eurRow]), card("fine-umbreon", [usd("holofoil", 198)]), card("mtg-junk", [usd("nonfoil", 150), usd("foil", 150)], "mtg"), card("junk-deoxys", [usd("holofoil", 500)])];
   const before = JSON.stringify(input);
   const out = await withPriceFlags(input);
-  check("the flagged USD row carries untrusted", out[0].prices[0].untrusted, { hard: true, reason: "cardmarket 20.4x", fallback: 49.64, fallbackFrom: "cardmarket" });
+  check("the flagged USD row WITH a fallback is priced from it (market = fallback, flag in checked, the flagged number in checkedWas), not untrusted", [out[0].prices[0].market, out[0].prices[0].checked, out[0].prices[0].checkedWas, out[0].prices[0].untrusted], [49.64, { hard: true, reason: "cardmarket 20.4x", fallback: 49.64, fallbackFrom: "cardmarket" }, 1013.27, undefined]);
   check("the stale USD row carries stale, not untrusted (Deoxys)", [out[3].prices[0].untrusted, out[3].prices[0].stale], [undefined, { days: 87 }]);
   check("the Cardmarket EUR row is never flagged", out[0].prices[1].untrusted === undefined);
   check("a normal card comes back as the same object", out[1] === input[1], true);
@@ -235,16 +236,19 @@ console.log("loader: one batch, only flagged cards come back");
   check("note text is one sentence", PRICE_FLAG_NOTE, "This price looks off, check sold listings");
   check("no flagged card: same array back", (await withPriceFlags([input[1]]))[0] === input[1], true);
 
-  console.log("marketPriceFlagged: a number about to be saved (a lookup's price, a watchlist baseline)");
+  console.log("storablePrice: the number about to be saved (a lookup's price, a watchlist baseline)");
   const umbreon = (market, extra = {}) => card("fine-umbreon", [{ ...usd("holofoil", market), ...extra }]);
-  check("a live price far from the series (a cached or pokemontcg.io number a cent-exact match would miss) is flagged", await marketPriceFlagged(umbreon(900), 900), true);
-  check("a normal live price is not", await marketPriceFlagged(umbreon(198), 198), false);
-  check("a flag the client sent along is not evidence", await marketPriceFlagged(umbreon(198, { untrusted: { hard: true, reason: "forged" } }), 198), false);
-  check("a number no row carries is matched to the series whose latest point it is (Rayquaza 1013.27)", await marketPriceFlagged(card("junk-rayquaza", []), 1013.27), true);
-  check("... a stale number is saved (Deoxys 500: a note, not a flag)", await marketPriceFlagged(card("junk-deoxys", []), 500), false);
-  check("... and a number nothing explains is not judged", await marketPriceFlagged(card("junk-deoxys", []), 123), false);
-  check("no catalog id: nothing to judge", await marketPriceFlagged(card("", [usd("holofoil", 900)]), 900), false);
-  check("a prices field that is not a list does not throw (the number is still matched to the series)", await marketPriceFlagged({ ...card("junk-rayquaza", []), prices: null }, 1013.27), true);
+  check("a normal live price is saved as is", await storablePrice(umbreon(198), 198), 198);
+  check("a flag the client sent along is not evidence", await storablePrice(umbreon(198, { untrusted: { hard: true, reason: "forged" } }), 198), 198);
+  check("a number no row carries is matched to the series whose latest point it is: Rayquaza 1013.27 saves its fallback (Cardmarket 49.64)", await storablePrice(card("junk-rayquaza", []), 1013.27), 49.64);
+  check("... a flagged row that carries the number saves its fallback too", await storablePrice(card("junk-rayquaza", [usd("holofoil", 1013.27)]), 1013.27), 49.64);
+  check("... a row the screens already priced from the fallback (checked) is put back and saved as the fallback, not as itself", await storablePrice(card("junk-rayquaza", [{ ...usd("holofoil", 49.64), checked: { hard: true, reason: "cardmarket 20.4x", fallback: 49.64 }, checkedWas: 1013.27 }]), 49.64), 49.64);
+  check("a flagged number with NO fallback saves nothing (round, 9 priced days)", await storablePrice(card("junk-round", [usd("holofoil", 499.99)]), 499.99), null);
+  check("... and a series number with no fallback saves nothing either", await storablePrice(card("junk-round", []), 499.99), null);
+  check("... a stale number is saved (Deoxys 500: a note, not a flag)", await storablePrice(card("junk-deoxys", []), 500), 500);
+  check("... and a number nothing explains is not judged", await storablePrice(card("junk-deoxys", []), 123), 123);
+  check("no catalog id: nothing to judge", await storablePrice(card("", [usd("holofoil", 900)]), 900), 900);
+  check("a prices field that is not a list does not throw (the number is still matched to the series)", await storablePrice({ ...card("junk-rayquaza", []), prices: null }, 1013.27), 49.64);
 
   console.log("loadTrustData: overlapping callers share one read");
   clearTrustMemo();

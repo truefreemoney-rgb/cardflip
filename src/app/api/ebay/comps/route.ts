@@ -15,6 +15,7 @@ import { englishCardById } from "@/lib/server/enCards";
 import { mtgCardById } from "@/lib/server/mtgCards";
 import { cachedEbayComps, compsIdentity } from "@/lib/server/ebayCompsCache";
 import { parseGame } from "@/lib/games";
+import { flagBlocks, hasFallback } from "@/lib/priceFlag";
 import { dayBudgetSpent } from "@/lib/server/dayBudget";
 import {
   LIMITS,
@@ -125,8 +126,9 @@ export async function POST(req: Request) {
     // average does, the comps are another printing (09-29: Celebrations
     // "4/102" slabs priced Base Set Charizard PSA 10 at $629 vs $944 raw) —
     // no price beats a wrong one, and it never enters the history.
-    // A raw market the price guard flagged (untrusted) is not a floor to hold real slab sales against.
-    const rawMarket = Math.max(0, ...(card.prices ?? []).filter((p) => p.currency === "USD" && !p.untrusted).map((p) => p.market ?? 0));
+    // A raw market the price guard flagged (untrusted) is not a floor to hold real slab sales against;
+    // a flag with a fallback (10-17) floors at its fallback, only a flag with none is skipped.
+    const rawMarket = Math.max(0, ...(card.prices ?? []).filter((p) => p.currency === "USD" && !flagBlocks(p.untrusted)).map((p) => (hasFallback(p.untrusted) ? p.untrusted.fallback : (p.market ?? 0))));
     if (grading && comps && rawMarket > 0 && comps.average < rawMarket) {
       console.warn(`graded comps below raw for ${card.id}: ${grading.company} ${grading.grade} ${comps.average} < ${rawMarket}`);
       comps = null;

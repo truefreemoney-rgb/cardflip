@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { apiPath } from "@/lib/client/basePath";
 import type { Currency, PokemonCard } from "@/lib/types";
-import type { PriceFlag, PriceStale } from "@/lib/priceFlag";
+import { hasFallback, type PriceFlag, type PriceStale } from "@/lib/priceFlag";
 
 /**
  * The price-history data layer, split out of components/PriceHistoryChart.tsx
@@ -26,9 +26,10 @@ export interface Series {
 export interface RecordedPoint { price: number; day: string; variant: string; source: string; currency: Currency; untrusted?: PriceFlag; stale?: PriceStale }
 const pointOf = (s: Series): RecordedPoint | null => {
   const last = s.points[s.points.length - 1];
-  return last
-    ? { price: last.price, day: last.day, variant: s.variant, source: s.source, currency: s.currency as Currency, ...(s.untrusted ? { untrusted: s.untrusted } : {}), ...(s.stale ? { stale: s.stale } : {}) }
-    : null;
+  if (!last) return null;
+  // A flag with a sound fallback (10-17): the point quotes the fallback, like the search row does.
+  if (hasFallback(s.untrusted)) return { price: s.untrusted.fallback, day: last.day, variant: s.variant, source: s.source, currency: s.currency as Currency };
+  return { price: last.price, day: last.day, variant: s.variant, source: s.source, currency: s.currency as Currency, ...(s.untrusted ? { untrusted: s.untrusted } : {}), ...(s.stale ? { stale: s.stale } : {}) };
 };
 
 

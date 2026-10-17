@@ -44,6 +44,12 @@ export interface CardPrice {
    * price_checks keep payloads verbatim, so the flag is added on the way out.
    */
   untrusted?: PriceFlag;
+  /**
+   * Set at response time INSTEAD of `untrusted` when the flag carries a sound fallback (10-17, Chris: "we cant have unpriced
+   * cards"): `market` already holds `checked.fallback`, the flagged number is `checkedWas`. Every screen prices from it as usual.
+   */
+  checked?: PriceFlag;
+  checkedWas?: number;
   /** Set at response time on a TCGplayer USD row whose value has not changed in 45+ days (lib/priceFlag.ts PriceStale): shown, with a note. Never stored. */
   stale?: PriceStale;
 }

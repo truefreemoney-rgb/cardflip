@@ -111,13 +111,17 @@ check("retry lands", (await sweepCardAlerts(NOW, { send, configured: on })).sent
 
 console.log("the price guard (priceTrustSite)");
 {
-  const { liquidPrices, flatPrices, junkPrices, recordSeries } = await import("./lib/liquid-series.mjs");
+  const { liquidPrices, flatPrices, junkPrices, recordSeries, hideByAdmin } = await import("./lib/liquid-series.mjs");
   const { addDays } = await import(at("lib/priceSeries.ts"));
   const g = await createUser("Guard", "guard@example.com", "hunter22", "user");
   // A week of climbing after a long stretch at $100: 100 x41 (ending a week ago), then 110 ... 150 today.
   const tail = [110, 120, 130, 140, 145, 148, 150];
   await recordSeries(recordPoint, addDays, TODAY, "g-junk-target", "pokemon", "holofoil", junkPrices(500));
   await recordSeries(recordPoint, addDays, TODAY, "g-junk-spike", "pokemon", "holofoil", [...liquidPrices(100, 60), 700]);
+  // 10-17: a flag WITH a fallback (the level before the jump) prices the card; these two are hidden by an admin, so they have NONE and stay skipped.
+  await hideByAdmin(db, addDays, TODAY, "g-junk-target", "pokemon", "holofoil", 500);
+  await hideByAdmin(db, addDays, TODAY, "g-junk-spike", "pokemon", "holofoil", 700);
+  await recordSeries(recordPoint, addDays, TODAY, "g-fb", "pokemon", "holofoil", junkPrices(500)); // the same 5x spike, with a fallback
   await recordSeries(recordPoint, addDays, TODAY, "g-old-junk", "pokemon", "holofoil", [...flatPrices(100, 41), ...tail]);
   await recordSeries(recordPoint, addDays, TODAY, "g-fine-spike", "pokemon", "holofoil", [...liquidPrices(100, 40), ...tail]);
   await recordSeries(recordPoint, addDays, TODAY, "g-fine-target", "pokemon", "holofoil", liquidPrices(300));
@@ -125,6 +129,11 @@ console.log("the price guard (priceTrustSite)");
   const junkTarget = await gc("JunkTarget", "g-junk-target");
   await updateCard(junkTarget.id, g.id, { alertPrice: 400 });
   await gc("JunkSpike", "g-junk-spike");
+  const fbTarget = await gc("FbTarget", "g-fb");
+  await updateCard(fbTarget.id, g.id, { alertPrice: 110 });
+  const fbHigh = await gc("FbHigh", "g-fb");
+  await updateCard(fbHigh.id, g.id, { alertPrice: 400 });
+  await gc("FbSpike", "g-fb");
   await gc("OldJunk", "g-old-junk");
   await gc("FineSpike", "g-fine-spike");
   const fineTarget = await gc("FineTarget", "g-fine-target");
@@ -132,7 +141,10 @@ console.log("the price guard (priceTrustSite)");
   sent.length = 0;
   r = await sweepCardAlerts(NOW, { send, configured: on });
   const mine = sent.filter((m) => m.to === "guard@example.com").flatMap((m) => m.hits.map((h) => [h[0], h[1]])).sort();
-  check("only the normal cards mail: a $300 target hit and a real +50% spike", mine, [["FineSpike", "spike"], ["FineTarget", "target"]]);
+  check("only the normal cards mail: a $300 target hit and a real +50% spike (and the fallback-priced target below)", mine, [["FbTarget", "target"], ["FineSpike", "spike"], ["FineTarget", "target"]]);
+  check("a flag with a fallback prices the card: a $110 target fires against the fallback (the ~$100 level before the spike)", mine.some((h) => h[0] === "FbTarget"), true);
+  check("... a $400 target does not fire on the $500 spike it was flagged for", mine.some((h) => h[0] === "FbHigh"), false);
+  check("... and the spiked series is no spike nudge (the series is the junk)", mine.some((h) => h[0] === "FbSpike"), false);
   check("a flagged market fires no target (a 5x spike to $500 that never came back)", mine.some((h) => h[0] === "JunkTarget"), false);
   check("... and no spike (a $700 jump that never came back)", mine.some((h) => h[0] === "JunkSpike"), false);
   check("... and no spike from a stale plateau as the OLD price", mine.some((h) => h[0] === "OldJunk"), false);

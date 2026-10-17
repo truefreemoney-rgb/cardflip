@@ -5,6 +5,7 @@ import { CURRENT_POINT_MAX_AGE_MS, strategyValueUsd } from "@/lib/listing";
 import type { PriceStrategy } from "@/lib/types";
 import { pickLocalAsk, toLocal } from "@/lib/localPricing";
 import { addDays } from "@/lib/priceSeries";
+import { flagBlocks, hasFallback } from "@/lib/priceFlag";
 import {
   LOCAL_MARKET_COUNTRIES,
   US_MARKETPLACE,
@@ -97,10 +98,14 @@ export async function marketValue(
   const series = await usdSeries([card.catalogCardId], preferredVariants([row]));
   const s = heldSeries(series, row);
   const idx = s ? lastIndexOf(s.prices) : -1;
-  const market = s && idx >= 0 ? s.prices[idx] : null;
-  if (!s || market == null || !(market > 0)) return { ok: false, why: "none" };
+  const seriesMarket = s && idx >= 0 ? s.prices[idx] : null;
+  if (!s || seriesMarket == null || !(seriesMarket > 0)) return { ok: false, why: "none" };
   const trust = await heldTrust([row]);
-  if (trust.flag(row)) return { ok: false, why: "none" };
+  // A flag with a fallback (10-17) prices the card; only a flag with none is skipped.
+  const flag = trust.flag(row);
+  const fb = hasFallback(flag) ? flag.fallback : null;
+  if (flagBlocks(flag)) return { ok: false, why: "none" };
+  const market = fb ?? seriesMarket;
   const day = addDays(s.startDay, idx);
   if (now - Date.parse(`${day}T00:00:00Z`) > CURRENT_POINT_MAX_AGE_MS) return { ok: false, why: "stale", day };
   const value = strategyValueUsd(market, card.condition, strategy);

@@ -19,7 +19,7 @@ import { SITE_URL } from "./siteUrl.ts";
 import { GAMES, MTG_FINISH_LABEL, printedCardNumber } from "./games.ts";
 import { CONDITION_ABBREV, titlePrintingWord, titleRarityWord } from "./ebayVocab.ts";
 import { gameOf } from "./types.ts";
-import type { PriceFlag, PriceStale } from "./priceFlag.ts";
+import { flagBlocks, hasFallback, type PriceFlag, type PriceStale } from "./priceFlag.ts";
 import { costTaperedPrice, coversAllCosts, coversCosts, defaultShipMethod, postageFor, type ShipMethod } from "./fees.ts";
 
 /** The one-line reason a cost-covered price shows beside the tile. */
@@ -453,7 +453,7 @@ function pointCanRebase(
 ): point is CurrentSeriesPoint {
   if (!point || point.currency !== "USD" || point.price <= 0) return false;
   // The price guard: a flagged series must not replace a good asking row with its junk latest point.
-  if (point.untrusted) return false;
+  if (flagBlocks(point.untrusted)) return false;
   if (Date.now() - Date.parse(`${point.day}T00:00:00Z`) > CURRENT_POINT_MAX_AGE_MS) return false;
   if (explicit) return explicit.source === point.source && explicit.variant === point.variant;
   return resolved?.variant !== EBAY_SOLD_VARIANT;
@@ -468,8 +468,9 @@ function pointCanRebase(
 export function priceFlagOf(card: PokemonCard, variantOverride?: string, currentPoint?: CurrentSeriesPoint | null): PriceFlag | null {
   const override = variantOverride ? card.prices.find((p) => p.variant === variantOverride) : undefined;
   const picked = override && canPriceListing(override) ? override : pickPrice(card);
-  if (picked?.untrusted) return picked.untrusted;
-  if (!picked && currentPoint?.untrusted && currentPoint.currency === "USD") return currentPoint.untrusted;
+  // A flag with a fallback prices the card (10-17): only a flag that leaves nothing is shown in place of the price.
+  if (picked?.untrusted) return flagBlocks(picked.untrusted) ? picked.untrusted : null;
+  if (!picked && flagBlocks(currentPoint?.untrusted) && currentPoint.currency === "USD") return currentPoint.untrusted;
   return null;
 }
 
@@ -505,11 +506,14 @@ export function quotePrice(
   const usable = override && canPriceListing(override) ? override : undefined;
   let price = usable ?? pickPrice(card);
   // The price guard (lib/server/priceTrustSite.ts): the row we would price from is a market the rule
-  // does not believe, so no listing price is suggested from it; the seller types their own. The
-  // formulas below are untouched, they are only never fed a flagged number.
-  if (price?.untrusted) return null;
+  // does not believe. With a sound fallback (10-17) the quote prices from that; with none, no listing
+  // price is suggested and the seller types their own. The formulas below never see a flagged number.
+  if (price?.untrusted) {
+    if (!hasFallback(price.untrusted)) return null;
+    price = { ...price, market: price.untrusted.fallback, untrusted: undefined, checked: price.untrusted, checkedWas: price.market ?? undefined };
+  }
 
-  if (pointCanRebase(currentPoint, price, usable)) {
+  if (!price?.checked && pointCanRebase(currentPoint, price, usable)) {
     const row = card.prices.find(
       (p) => p.source === currentPoint.source && p.variant === currentPoint.variant,
     );

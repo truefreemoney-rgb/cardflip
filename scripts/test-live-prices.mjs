@@ -32,7 +32,7 @@ const { askingPriceFor, CONDITION_MULTIPLIER } = await import(at("lib/listing.ts
 const { costCoveredPrice } = await import(at("lib/fees.ts"));
 const { db } = await import(at("lib/db.ts"));
 const { addDays, todayUtc } = await import(at("lib/priceSeries.ts"));
-const { liquidPrices, flatPrices, junkPrices, recordSeries } = await import("./lib/liquid-series.mjs");
+const { liquidPrices, flatPrices, junkPrices, recordSeries, hideByAdmin } = await import("./lib/liquid-series.mjs");
 
 let failures = 0;
 function check(label, actual, expected = true) {
@@ -59,7 +59,9 @@ await recordPoint("base1-58", "pokemon", "normal", "tcgplayer", "USD", 20);
 // $100+ needs a real history: a one-point series is "unverified" to the price guard.
 await recordSeries(recordPoint, addDays, todayUtc(), "base1-4", "pokemon", "holofoil", liquidPrices(100));
 // Junk: a round $500 for 87 days (Deoxys), and a healthy $300 card.
-await recordSeries(recordPoint, addDays, todayUtc(), "junk-deoxys", "pokemon", "holofoil", junkPrices(500)); // hidden: a 5x spike that never came back
+await recordSeries(recordPoint, addDays, todayUtc(), "junk-deoxys", "pokemon", "holofoil", junkPrices(500)); // hidden: a 5x spike that never came back ...
+await hideByAdmin(db, addDays, todayUtc(), "junk-deoxys", "pokemon", "holofoil", 500); // ... and an admin's "hide" leaves it NO fallback (10-17): the only flag that still blanks
+await recordSeries(recordPoint, addDays, todayUtc(), "spike-fb", "pokemon", "holofoil", junkPrices(500)); // the same spike with a fallback: priced at the level before the jump (10-17)
 await recordSeries(recordPoint, addDays, todayUtc(), "stale-deoxys", "pokemon", "holofoil", flatPrices(500, 87)); // stale (10-02): shown with a note
 await recordSeries(recordPoint, addDays, todayUtc(), "fine-300", "pokemon", "holofoil", liquidPrices(300));
 
@@ -91,6 +93,11 @@ const junkListed = await mk({ price: 500, catalogCardId: "junk-deoxys", cardName
 await updateCard(junkListed.id, user.id, { status: "listed", listedAt: Date.now() });
 const junkOld = await mk({ price: 480, catalogCardId: "junk-deoxys", cardName: "Deoxys" });
 await db.prepare("UPDATE cards SET scan_price = NULL WHERE id = ?").run(junkOld.id);
+const fbDraft = await mk({ price: 480, catalogCardId: "spike-fb", cardName: "Spike" });
+const fbLocked = await mk({ price: 450, catalogCardId: "spike-fb", cardName: "Spike" });
+await updateCard(fbLocked.id, user.id, { price: 450, priceLocked: true });
+const fbOld = await mk({ price: 480, catalogCardId: "spike-fb", cardName: "Spike" });
+await db.prepare("UPDATE cards SET scan_price = NULL WHERE id = ?").run(fbOld.id);
 const fine = await mk({ price: 250, catalogCardId: "fine-300", cardName: "Fine" });
 const staleDraft = await mk({ price: 480, catalogCardId: "stale-deoxys", cardName: "Stale" });
 // The scanner saves its quick-sale price (88% of market) with the market ask beside it (10-01: a flat
@@ -151,12 +158,18 @@ check("variant PATCH: null clears it", await updateCard(plain.id, user.id, { var
 
 console.log("the price guard");
 check("flagged draft: reported with the flag and no suggestion; its market-written price is blanked (applied)", pick(by[junkDraft.id], ["applied", "suggested", "market"]), { applied: true, suggested: 0, market: 500 });
-check("... the flag says why", [by[junkDraft.id]?.flag?.hard, by[junkDraft.id]?.flag?.reason.startsWith("spike")], [true, true]);
+check("... the flag says why", [by[junkDraft.id]?.flag?.hard, by[junkDraft.id]?.flag?.reason.startsWith("checked against ebay sold"), by[junkDraft.id]?.flag?.fallback], [true, true, undefined]);
 check("stale draft (flat $500 for 87 days): suggested and applied as usual, no flag, the note rides along", pick(by[staleDraft.id], ["flag", "market", "stale"]), { market: 500, stale: { days: 87 } });
 check("... its suggestion is the normal market ask", by[staleDraft.id]?.suggested > 0, true);
 check("... the stored 480 is blanked to 0 (the seller never typed it), and stays 0 on the next load", [(await getCardForUser(junkDraft.id, user.id)).price, (await refreshLivePrices(user.id)).find((p) => p.cardId === junkDraft.id)?.applied], [0, false]);
 check("flagged locked and listed rows are flagged too and keep their price", [by[junkLocked.id]?.flag?.hard, by[junkListed.id]?.flag?.hard, (await getCardForUser(junkLocked.id, user.id)).price, (await getCardForUser(junkListed.id, user.id)).price], [true, true, 450, 500]);
 check("flagged row: no scan-price backfill", [by[junkOld.id]?.scanned, (await getCardForUser(junkOld.id, user.id)).scanPrice], [null, null]);
+// A flag WITH a fallback (10-17): the spike's pre-jump level prices the card, nothing is blanked.
+const SPIKE_FB = by[fbDraft.id]?.market;
+check("spike with a fallback: no flag, priced at the level before the jump (not the $500 spike)", [by[fbDraft.id]?.flag, SPIKE_FB > 90 && SPIKE_FB < 120, by[fbDraft.id]?.suggested], [undefined, true, costCoveredPrice(SPIKE_FB, "tracked")]);
+check("... the unlocked draft is rewritten to it (not blanked), and its stored price is the suggestion", [by[fbDraft.id]?.applied, (await getCardForUser(fbDraft.id, user.id)).price], [true, costCoveredPrice(SPIKE_FB, "tracked")]);
+check("... a locked price is the seller's and is never touched", [by[fbLocked.id]?.flag, by[fbLocked.id]?.applied, (await getCardForUser(fbLocked.id, user.id)).price], [undefined, false, 450]);
+check("... the scan price is backfilled from the series like any priced card", by[fbOld.id]?.scanned != null, true);
 check("a normal $300 card: suggested as before, no flag", pick(by[fine.id], ["applied", "suggested", "flag"]), { applied: true, suggested: costCoveredPrice(300, "tracked") });
 check("... and its draft price moved", (await getCardForUser(fine.id, user.id)).price, costCoveredPrice(300, "tracked"));
 

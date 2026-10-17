@@ -41,14 +41,18 @@ for (const [id, name, num] of [["base-1", "Alakazam", "1"], ["base-2", "Blastois
   await seed.run(id, name, "base", "Base Set", num, "1999-01-09", 3, 4, "BS");
 for (const [id, name, num] of [["jungle-1", "Clefable", "1"], ["jungle-2", "Electrode", "2"]]) await seed.run(id, name, "jungle", "Jungle", num, "1999-06-16", 2, 2, "JU");
 await seed.run("fossil-1", "Aerodactyl", "fossil", "Fossil", "1", "1999-10-10", 1, 1, "FO");
+// Neo: 2 cards, for the flag WITH a fallback below (10-17).
+for (const [id, name, num] of [["neo-1", "Togepi", "1"], ["neo-2", "Spiked", "2"]]) await seed.run(id, name, "neo", "Neo Genesis", num, "2000-12-16", 2, 2, "NE");
 await recordPoint("base-2", "pokemon", "normal", "tcgplayer", "USD", 40);
 await recordPoint("base-3", "pokemon", "normal", "tcgplayer", "USD", 2.5);
 // base-4 has no usable price on purpose: a stuck round $500 for 87 days, which the site price guard
 // (priceTrustSite) flags, so it counts as unpriced and adds nothing to the cost to finish.
 {
-  const { junkPrices, recordSeries } = await import("./lib/liquid-series.mjs");
+  const { junkPrices, recordSeries, hideByAdmin } = await import("./lib/liquid-series.mjs");
   const { addDays, todayUtc } = await import(new URL("../src/lib/priceSeries.ts", import.meta.url).href);
   await recordSeries(recordPoint, addDays, todayUtc(), "base-4", "pokemon", "holofoil", junkPrices(500));
+  await hideByAdmin(db, addDays, todayUtc(), "base-4", "pokemon", "holofoil", 500); // hidden by an admin, so it has NO fallback (10-17): the only flag that still leaves a card unpriced
+  await recordSeries(recordPoint, addDays, todayUtc(), "neo-2", "pokemon", "holofoil", junkPrices(500)); // the same spike WITH a fallback: the level before the jump
 }
 
 const u = await createUser("Seller", "seller@example.com", "hunter22", "user");
@@ -69,6 +73,15 @@ check("missing = sold copy + never owned, cost = priced ones, unpriced counted",
 check("cheapest first, unpriced left out", base.cheapest.map((c) => [c.name, c.price]), [["Chansey", 2.5], ["Blastoise", 40]]);
 check("a complete set has nothing to buy", [sets[0].missing, sets[0].costToFinish, sets[0].cheapest.length], [0, 0, 0]);
 check("full missing list in printed order with prices", (await missingInSet(u.id, "base")).map((c) => [c.number, c.name, c.price]), [["2", "Blastoise", 40], ["3", "Chansey", 2.5], ["4", "Secret", null]]);
+{
+  // 10-17: a flag WITH a fallback prices the missing card from it (it is not "unpriced").
+  const v = await createUser("Neo Fan", "neo@example.com", "hunter22", "user");
+  await createCard(v.id, { cardName: "Togepi", setName: "x", cardNumber: "1", imageUrl: "", condition: "NM", price: 1, catalogCardId: "neo-1" });
+  const [neo] = await setCompletion(v.id);
+  const fb = neo.cheapest[0]?.price;
+  check("a missing card whose market is flagged WITH a fallback is priced at it (the ~$100 level before the spike, not $500)", [neo.missing, neo.unpriced, neo.cheapest.length, fb > 90 && fb < 120, neo.costToFinish === fb], [1, 0, 1, true, true]);
+  check("... and the full list prices it too", (await missingInSet(v.id, "neo")).map((c) => c.price), [fb]);
+}
 const nobody = await createUser("Nobody", "nobody@example.com", "hunter22", "user");
 check("no cards → no sets", await setCompletion(nobody.id), []);
 
