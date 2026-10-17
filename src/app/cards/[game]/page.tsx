@@ -47,7 +47,7 @@ const load = cache(async (slug: string): Promise<Loaded | null> => {
 export async function generateMetadata({ params }: PageProps<"/cards/[game]">): Promise<Metadata> {
   const { game: slug } = await params;
   const l = await load(slug);
-  if (!l) return { title: "Card prices" };
+  if (!l) notFound();
   const sets = l.index.sets.filter((s) => s.priced > 0).length;
   return pageMetadata({
     title: `${gameTitle(l.game)} card prices by set`,

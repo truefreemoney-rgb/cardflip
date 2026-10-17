@@ -4,6 +4,9 @@
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
 
+## 10-17 ~midnight ET: made-up card/set links = real 404 (A-H #21, NOT PUSHED)
+- After push: curl -s -o /dev/null -w "%{http_code}" https://cardflip.io/cards/pokemon/base-set/not-a-card--zzz9-999 (and /cards/pokemon/no-such-set, /cards/notagame) = 404 with title "Page not found"; a real card, set, game and movers page = 200. Phone: tap into a few card pages from a set, they still open quickly (the loading skeleton is gone).
+
 ## 10-16 ~11pm ET: no built-in admin/password (A-H #23, NOT PUSHED)
 - After push: the admin console still signs in on cardflip.io (uses ADMIN_PANEL_PASSWORD from Vercel, unchanged); /login shows no "Log In as Admin" button; no console banner about missing password.
 

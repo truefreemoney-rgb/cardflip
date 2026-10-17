@@ -36,7 +36,7 @@ const load = cache(async (slug: string): Promise<GameId | null> => {
 export async function generateMetadata({ params }: { params: Promise<{ game: string }> }): Promise<Metadata> {
   const { game: slug } = await params;
   const game = await load(slug);
-  if (!game) return { title: "Card prices" };
+  if (!game) notFound();
   const name = gameTitle(game);
   return pageMetadata({
     title: `${name} price movers: biggest risers and fallers`,

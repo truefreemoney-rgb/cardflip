@@ -80,10 +80,14 @@ const load = cache(async (gameSlug: string, setSlug: string, segment: string): P
   return { kind: "card", page, strip, setName: f.setName, standing, printings, neighbors };
 });
 
+// No loading.tsx anywhere under /cards (10-17, A-H #21): a loading skeleton starts the answer as
+// "200 OK" before the page knows the card exists, so a made-up link was a soft 404 for Google.
+// Without it, notFound() here and in the page gives a real 404 (live pages arrive in ~0.2-0.6 s).
 export async function generateMetadata({ params }: PageProps<"/cards/[game]/[set]/[card]">): Promise<Metadata> {
   const { game, set, card } = await params;
   const l = await load(game, set, card);
-  if (!l || l.kind === "redirect") return { title: "Card prices" };
+  if (!l) notFound();
+  if (l.kind === "redirect") return { title: "Card prices" };
   return cardMetadata(l.page);
 }
 

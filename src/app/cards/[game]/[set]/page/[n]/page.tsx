@@ -10,7 +10,7 @@ export const generateStaticParams = async () => [];
 export async function generateMetadata({ params }: PageProps<"/cards/[game]/[set]/page/[n]">): Promise<Metadata> {
   const { game, set, n } = await params;
   const page = parsePageNumber(n);
-  if (!page) return { title: "Card prices" };
+  if (!page) notFound();
   return setMetadata(game, set, page);
 }
 

@@ -48,7 +48,7 @@ export function parsePageNumber(raw: string): number | null {
 
 export async function setMetadata(gameSlug: string, setSlug: string, page: number): Promise<Metadata> {
   const l = await load(gameSlug, setSlug);
-  if (!l) return { title: "Card prices" };
+  if (!l) notFound();
   const name = gameTitle(l.game);
   const pages = Math.max(1, Math.ceil(l.cards.length / SET_PAGE_CARDS));
   return pageMetadata({
