@@ -213,6 +213,11 @@ check("Lorcana (AVIF) shares the default card", cp.shareImage({ game: "lorcana",
 check("an AVIF from any host shares the default card", cp.shareImage({ game: "pokemon", image: "https://x/y.avif?a=1" }), null);
 const long = { ...facts, name: "Charizard ex Special Illustration Rare Premium Collection Promo", setName: "Scarlet and Violet 151 Ultra Premium Collection", tags: ["1st Edition", "Holo"] };
 check("title stays within 60 and keeps the word price", cp.cardTitle(long), (t) => t.length <= 60 && t.endsWith("price"));
+check("#59: the price rides on the title where it fits", cp.cardTitle(facts, 60, 420), "Charizard 4/102 Base Set price: $420.00");
+check("... a long title keeps the set name rather than make room for the price", cp.cardTitle({ ...facts, setName: "Scarlet and Violet 151 Collection" }, 60, 1234.5), (t) => t.includes("Scarlet and Violet 151") && t.length <= 60);
+check("... no price, no colon", cp.cardTitle(facts, 60, null), "Charizard 4/102 Base Set price");
+check("... the metadata title carries the headline price", m5.title?.absolute ?? m5.title, (t) => String(t).includes("$1.00"));
+check("... a flagged card's title never carries its number", String(mFlag.title?.absolute ?? mFlag.title).includes("900"), false);
 check("1st Edition stays in the heading", cp.cardHeading({ ...facts, tags: ["1st Edition"] }), (h) => h.includes("1st Edition"));
 check("facts paragraph states only catalog facts", cp.factsParagraph(facts), "Charizard is card 4/102 in Base Set, released Jan 9, 1999.");
 check("... a preorder set is 'out', not 'released' (Magic Star Trek, 10-07)", cp.factsParagraph({ ...facts, release: "2026-11-13" }, "2026-10-07"), "Charizard is card 4/102 in Base Set, out Nov 13, 2026.");

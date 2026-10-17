@@ -7,6 +7,7 @@ import Footer from "@/components/Footer";
 import JsonLd from "@/components/JsonLd";
 import { Crumbs, ScanCta, TileGrid } from "@/components/CardPagesUi";
 import { gamePath, gameTitle, setPath, type SetEntry } from "@/lib/cardPages";
+import { formatMoney } from "@/lib/listing";
 import { SET_PAGE_CARDS, loadSetCards, publicCardGame, setBySlug, type SetCard } from "@/lib/server/cardPages";
 import { pageMetadata } from "@/lib/seo";
 import { breadcrumbGraph } from "@/lib/structuredData";
@@ -52,13 +53,34 @@ export async function setMetadata(gameSlug: string, setSlug: string, page: numbe
   const name = gameTitle(l.game);
   const pages = Math.max(1, Math.ceil(l.cards.length / SET_PAGE_CARDS));
   return pageMetadata({
-    title: `${l.set.name} ${name} card prices${page > 1 ? `, page ${page}` : ""}`,
+    title: `${l.set.name} ${name} card prices ${todayUtc().slice(0, 4)}${page > 1 ? `, page ${page}` : ""}`,
     absoluteTitle: true,
-    description: `Market prices and price history for ${l.cards.length.toLocaleString("en-US")} ${name} cards from ${l.set.name}, most valuable first. Checked daily.${page > 1 ? ` Page ${page} of ${pages}.` : ""}`,
+    description: setDescription(l.set.name, name, l.cards, page, pages),
     path: pageHref(l.game, l.slug, page),
     // Under-$1 cards are listed but a set with none at the index floor stays out of Google (it is not in the sitemap either).
     noindex: l.set.qualifying === 0 || page > pages,
   });
+}
+
+/**
+ * The set page's meta description (10-17, task #59): the count, the price range and the dearest card, from the same list
+ * the page shows (no flagged, unverified or stale price ever names a number). The fullest wording that fits ~155.
+ */
+export function setDescription(setName: string, gameName: string, cards: SetCard[], page: number, pages: number): string {
+  const count = `${cards.length.toLocaleString("en-US")} ${gameName} cards from ${setName}`;
+  const tail = page > 1 ? ` Page ${page} of ${pages}.` : "";
+  const sure = cards.filter((c) => c.price != null && c.price > 0 && !c.flagged && !c.stale);
+  const top = sure[0];
+  const low = sure[sure.length - 1];
+  const tries: string[] = [];
+  if (top && low && sure.length > 1 && low.price! < top.price!) {
+    const range = `from ${formatMoney(low.price!)} to ${formatMoney(top.price!)}`;
+    tries.push(`${count}, ${range}. Most valuable: ${top.name} at ${formatMoney(top.price!)}. Checked daily.${tail}`);
+    tries.push(`${count}, ${range}. Most valuable: ${top.name}.${tail}`);
+    tries.push(`${count}, ${range}. Checked daily.${tail}`);
+  }
+  tries.push(`Market prices and price history for ${count}, most valuable first. Checked daily.${tail}`);
+  return tries.find((t) => t.length <= 155) ?? tries[tries.length - 1];
 }
 
 function Pager({ game, slug, page, pages }: { game: GameId; slug: string; page: number; pages: number }) {

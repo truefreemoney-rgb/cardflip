@@ -409,17 +409,21 @@ export function cardHeading(f: CardFacts): string {
 
 /**
  * The <title>: the heading, shortened to about 60 characters by dropping what search needs least, in this order: the set
- * name, the tags, then the number. The name and the word "price" always stay.
+ * name, the tags, then the number. The name and the word "price" always stay. With a printable `price` (10-17, task #59:
+ * a number in the search result is the click), each length first tries itself with ": $26.03" on the end, so the price
+ * only ever replaces nothing: it rides along where it fits and the set name is never dropped to make room for it.
  */
-export function cardTitle(f: CardFacts, max = 60): string {
+export function cardTitle(f: CardFacts, max = 60, price?: number | null): string {
   const tries = [
     [f.name, f.number, f.setName, ...f.tags, "price"],
     [f.name, f.number, ...f.tags, "price"],
     [f.name, f.number, "price"],
     [f.name, "price"],
   ];
+  const money = price != null && price > 0 ? `: ${formatMoney(price)}` : "";
   for (const parts of tries) {
     const title = parts.filter(Boolean).join(" ");
+    if (money && title.length + money.length <= max) return title + money;
     if (title.length <= max) return title;
   }
   return `${f.name.slice(0, max - 6).trim()} price`;
@@ -466,7 +470,7 @@ export function cardDescription(v: CardView): string {
 export function cardMetadata(v: CardView): Metadata {
   const f = v.facts;
   return pageMetadata({
-    title: cardTitle(f),
+    title: cardTitle(f, 60, v.headline?.price),
     absoluteTitle: true,
     description: cardDescription(v),
     path: cardPath(f.game, f.setSlug, f.name, f.key),
