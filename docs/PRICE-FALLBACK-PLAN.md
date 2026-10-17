@@ -59,6 +59,10 @@ Trigger: new Google Ads user's Eevee svp-173 scanned at $0 (LESSONS.md 10-17). F
   (1 or 0 sales on 5 of 8): Magic trades on TCGplayer, so our Magic prices are already near sold. PC gain for Magic = small.
 - LICENSE (Chris 10-17, from PriceCharting): we may show their prices free until CardFlip makes $1,000/month revenue, then they want a cut.
 
+- TRUST (Chris 10-17, r/PokeInvesting "best site for prices": top answer "eBay sold listings, bar none"; worries = one
+  overpay, "2 sales in 12 months"): show the evidence with the price ("based on N sales", from PriceCharting sales-volume),
+  label few-sales cards, keep the "View Sold on eBay" link. Honesty about the number, fits the freeze.
+
 ## Tests that pin today's hide behaviour (update with the change)
 test-pricing.mjs ~690-731 (flagged row = null quote, currentPrice 0), test-live-prices.mjs 153-160 (flagged draft zeroed),
 test-price-trust-site.mjs 204/222 (deepEqual flag shape), test-price-trust-routes.mjs 85-148 (flag shape in responses,
