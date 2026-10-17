@@ -50,6 +50,7 @@ function clearOpenScanNote(): void {
 }
 import { fetchCardById, searchCards } from "@/lib/cards";
 import { mtgCuesOf } from "@/lib/mtgCues";
+import { patternPrintingFor } from "@/lib/foilPattern";
 import { isSecretRareNumber, normalizeNumber, pickPrinting, readHasPrintedKey, type PrintedNumber } from "@/lib/cardNumber";
 import { buildListing, buildSealedListing, canBeFirstEdition, isFirstEditionCard, itemFirstEdition, withListingOverrides, currentPrice, headlinePrice, describeItemCondition, effectiveVariant, formatMoney, mtgFinishOf, quotePrice, withEbayPrices, quoteForItem } from "@/lib/listing";
 import { GRADED_LOCKED, parseGradeQuery } from "@/lib/grading";
@@ -793,7 +794,15 @@ export default function AppPage() {
               // MTG: the finish vision read off the shine is the price line
               // (foil is often the bigger price difference); only when the
               // printing actually comes in that finish. Null = default pick.
-              variant: cues?.finish && (card.finishes ?? []).includes(cues.finish) ? cues.finish : null,
+              // Pokémon: the reverse-holo symbol it read (theme ball, Energy
+              // Symbol, Prismatic Poké / Master Ball) picks that pattern's line,
+              // only among the lines the card is priced in (lib/foilPattern.ts).
+              variant:
+                cues?.finish && (card.finishes ?? []).includes(cues.finish)
+                  ? cues.finish
+                  : next.game === "pokemon" && !isFirstEditionCard(card)
+                    ? patternPrintingFor(vision.read, card.prices.filter((p) => p.currency === "USD" && p.market != null && p.market > 0).map((p) => p.variant))
+                    : null,
               error: null,
               matchDoubt: lowConfidence
                 ? `low-confidence read (${Math.round((vision.read?.confidence ?? 0) * 100)}%)`
@@ -815,7 +824,9 @@ export default function AppPage() {
             // back off the item rather than assuming Near Mint.
             const condition =
               itemsRef.current.find((i) => i.id === next.id)?.condition ?? "Near Mint";
-            const quote = quotePrice(card, condition, "quick");
+            // The printing set just above (Magic finish, Pokémon pattern) prices the saved row too.
+            const pickedVariant = itemsRef.current.find((i) => i.id === next.id)?.variant ?? undefined;
+            const quote = quotePrice(card, condition, "quick", pickedVariant);
             const input = {
               cardName: card.englishName || card.name,
               setName: card.setName,
@@ -824,7 +835,7 @@ export default function AppPage() {
               condition,
               price: quote?.suggested ?? 0,
               // "Added at" compares against the market ask Inventory refreshes to, not the quick-sale price.
-              scanPrice: quotePrice(card, condition, "market")?.suggested ?? null,
+              scanPrice: quotePrice(card, condition, "market", pickedVariant)?.suggested ?? null,
               // The market the chip SHOWS: packs add these up (Chris 10-12: 3 × $10,000 read as $23,069).
               scanMarket: (() => {
                 const shown = itemsRef.current.find((i) => i.id === next.id);

@@ -4,6 +4,12 @@
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
 
+## 10-17 ~6:15pm ET: Pokémon scan reads the reverse-holo pattern and preselects it (#11 step 2, NOT PUSHED; screenshots owed before push)
+- After push, phone: scan a Prismatic Evolutions Master Ball reverse -> Printing shows "Master Ball Pattern" and its price (not the plain reverse). A Poké Ball one -> "Poke Ball Pattern".
+- Ascended Heroes theme-ball reverse (e.g. Erika's Oddish with the big Poké Ball behind the attack) -> that card's ball pattern; the big leaf/flame one -> "Energy Symbol Pattern".
+- A plain card (no symbol) -> Printing unchanged from before (default line). Magic foil scan -> the saved Inventory price is the FOIL price straight away (scan-time quote now uses the picked printing).
+- Admin scan ledger / logs: no new vision errors (Pokémon now uses POKEMON_READ_SCHEMA; a schema 400 would show as every Pokémon scan failing).
+
 ## 10-17 ~6:30pm ET: art versions are their own cards (#11 step 1; DATA LIVE on prod, code 47114b62 + 2109fd54 NOT PUSHED)
 - Now (data live): /cards/pokemon/xy/vivillon--xy1-17 $1.85 (was High Plains' $9.40); /cards/pokemon/xy/vivillon-high-plains-orange--xy1-17-highplains $9.40; /cards/pokemon/base-set-1st-edition/pikachu-red-cheeks--base1-58-redcheeks-1st $429.98; /cards/pokemon/pokemon-go/bidoof-peelable-ditto--swsh10.5-059-peelable $17.30. All PASS by curl 10-17.
 - OPEN until the push: /cards/pokemon/base-set-1st-edition/pikachu--base1-58-1st shows "This price looks off" because its series restarted today (1 priced day, vintage $187 = thin sign) and live code still blanks thin-only verdicts; the few-sales commit 2b43c844 turns that into "$187.13 + Few sales". Red Cheeks low/eBay rows already moved off it; prod has only the [187.13] series. After the push: curl it -> ~$187 with "Few sales", no "looks off" (deploy resets ISR; per-page refresh = POST api.vercel.com/v1/edge-cache/invalidate-by-tags with tag `_N_T_<path>`, worked 10-17).

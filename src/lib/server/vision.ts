@@ -1,6 +1,6 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
-import type { GameId, ScanLanguage, VisionCardRead, WearLevel } from "@/lib/types";
+import type { GameId, PatternBall, PokemonFoilRead, ScanLanguage, VisionCardRead, WearLevel } from "@/lib/types";
 import { parseAttractionLights } from "@/lib/mtgCues";
 import { isGameId } from "@/lib/games";
 import { fromPics } from "@/lib/pics";
@@ -172,6 +172,35 @@ export const CARD_READ_SCHEMA = {
     "copyrightYear",
   ],
   additionalProperties: false,
+} as const;
+
+/**
+ * The Pokémon read (10-17, #11): CARD_READ_SCHEMA plus the reverse-holo symbol,
+ * which picks the pattern printing (TCGplayer prices Ascended Heroes' theme ball
+ * and Energy Symbol reverses, Prismatic's Poké Ball and Master Ball, apart).
+ * Plain enums with "none"/"unknown" for the 16-union API cap; the parse maps
+ * those to null. Measured on 38 TCGplayer photos with these words
+ * (scripts/_pattern-read-measure.mjs --v2): 31 usable, no read ever named a
+ * dearer printing than the card was.
+ */
+export const POKEMON_READ_SCHEMA = {
+  ...CARD_READ_SCHEMA,
+  properties: {
+    ...CARD_READ_SCHEMA.properties,
+    foilPattern: {
+      type: "string",
+      enum: ["none", "reverse", "ball", "energySymbol", "teamRocket", "unknown"],
+      description:
+        "The symbol behind the attack text / across the card body. 'none': nothing printed behind the attack text and no foil outside the artwork. 'reverse': foil outside the artwork but no symbol. 'ball': one or more ball symbols (a circle split by a horizontal band with a round button in the middle), one large or many small. 'energySymbol': one large energy-type icon (leaf, flame, drop, bolt, eye, fist, crescent moon, etc.) with no horizontal band and no centre button. 'teamRocket': a large letter R. 'unknown' when glare or the angle hides it.",
+    },
+    patternBall: {
+      type: "string",
+      enum: ["poke", "master", "friend", "love", "quick", "dusk", "unknown"],
+      description:
+        "Only when foilPattern is 'ball', else 'unknown'. The foil tints everything one colour, so judge by SHAPE, not colour. 'poke': a plain ball, the band and button only. 'master': a large letter M on the top half, often with two rounded bumps there. 'friend': a leaf shape on the top half. 'love': a heart on the top half. 'quick': four wedge / X-shaped marks across both halves. 'dusk': stripes or a zigzag across the top half. 'unknown': a ball you cannot place.",
+    },
+  },
+  required: [...CARD_READ_SCHEMA.required, "foilPattern", "patternBall"],
 } as const;
 
 /**
@@ -384,6 +413,13 @@ just below-left of the artwork. Report it in firstEdition: a stamped copy is a
 separate product worth many times the unlimited print, so only say true when
 you can actually see the stamp, and false when that spot is visible and blank.
 
+Some reverse holos print a symbol in the foil, and each is its own product with
+its own price: one large ball, energy icon or letter R behind the attack text
+(Ascended Heroes), or many small Poké Balls or Master Balls across the card
+(Prismatic Evolutions). Report it in foilPattern and patternBall, judging the
+symbol by its shape because the foil tints it the card's colour. Say "unknown"
+when glare or the angle hides that area; never guess a ball you can't see.
+
 Photos are phone snapshots: angled, glare, uneven light, sometimes still in a
 sleeve. Judge condition only from what the photo can actually support. Glare is
 not a scratch and a sleeve is not damage; when the photo cannot settle it, say
@@ -518,6 +554,16 @@ const MTG_FINISHES = new Set(["nonfoil", "foil", "etched"]);
 const MTG_TREATMENTS = new Set(["standard", "showcase", "extended-art", "borderless", "retro", "full-art", "textless"]);
 const MTG_MARKS = new Set(["list-icon", "promo-stamp", "date-stamp", "serialized", "embossed"]);
 const MTG_BORDERS = new Set(["black", "white", "silver", "gold", "borderless"]);
+
+const FOIL_READS = new Set<PokemonFoilRead>(["ball", "energySymbol", "teamRocket", "reverse"]);
+const PATTERN_BALLS = new Set<PatternBall>(["poke", "master", "friend", "love", "quick", "dusk"]);
+
+/** The Pokémon pattern read: "none" / "unknown" (and a ball named without a ball read) become null. */
+function normalizeFoilPattern(parsed: VisionCardRead): Pick<VisionCardRead, "foilPattern" | "patternBall"> {
+  const foilPattern = FOIL_READS.has(parsed.foilPattern as PokemonFoilRead) ? (parsed.foilPattern as PokemonFoilRead) : null;
+  const ball = PATTERN_BALLS.has(parsed.patternBall as PatternBall) ? (parsed.patternBall as PatternBall) : null;
+  return { foilPattern, patternBall: foilPattern === "ball" ? ball : null };
+}
 
 /** Schema-constrained already; this only trims strings and drops anything
  * outside the enums so downstream never sees a surprise value. */
@@ -661,7 +707,7 @@ async function firstLook(
     // photo in a batch — low effort keeps a stack of cards moving.
     output_config: {
       effort: "low",
-      format: { type: "json_schema", schema: game === "mtg" ? MTG_READ_SCHEMA : game === "lorcana" || game === "onepiece" ? TCG_READ_SCHEMA : game === "yugioh" ? YUGIOH_READ_SCHEMA : CARD_READ_SCHEMA },
+      format: { type: "json_schema", schema: game === "mtg" ? MTG_READ_SCHEMA : game === "lorcana" || game === "onepiece" ? TCG_READ_SCHEMA : game === "yugioh" ? YUGIOH_READ_SCHEMA : POKEMON_READ_SCHEMA },
     },
     // Cached (09-29): the per-game instructions are the same on every scan,
     // so a stack of cards pays ~10% for them after the first (5-minute cache;
@@ -733,6 +779,7 @@ async function firstLook(
     name: parsed.name.trim(),
     game,
     detectedGame: DETECTED_GAMES.includes(parsed.cardGame as (typeof DETECTED_GAMES)[number]) ? parsed.cardGame : null,
+    ...(game === "pokemon" ? normalizeFoilPattern(parsed) : {}),
     ...(game === "mtg" ? normalizeMtgCues(parsed) : {}),
     ...(game === "lorcana" || game === "onepiece"
       ? {

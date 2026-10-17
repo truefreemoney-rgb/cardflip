@@ -129,6 +129,10 @@ export function gameOf(card: { game?: GameId } | null | undefined): GameId {
   return card?.game ?? "pokemon";
 }
 
+/** Pokémon reverse-holo symbol as the scan reads it (VisionCardRead.foilPattern). */
+export type PokemonFoilRead = "ball" | "energySymbol" | "teamRocket" | "reverse";
+export type PatternBall = "poke" | "master" | "friend" | "love" | "quick" | "dusk";
+
 /** What Claude read off a card photo. */
 /** How the card is framed, as seen in the photo. Null = couldn't tell. */
 export type ArtStyle = "standard" | "full-art" | null;
@@ -181,6 +185,15 @@ export interface VisionCardRead {
    * the artwork (WotC era). Null when the model can't tell or it doesn't apply.
    */
   firstEdition?: boolean | null;
+  /**
+   * Pokémon (10-17, #11): the reverse-holo symbol printed behind the attack text or across
+   * the card body — "ball" (Ascended Heroes theme ball, Prismatic Poké / Master Ball),
+   * "energySymbol", "teamRocket", "reverse" (foil, no symbol). Null when none or unsure.
+   * lib/foilPattern.ts turns it into the printing to preselect.
+   */
+  foilPattern?: PokemonFoilRead | null;
+  /** Which ball when foilPattern is "ball"; null when the model couldn't place it. */
+  patternBall?: PatternBall | null;
   /** Last year of the copyright line along the bottom edge — the print year (both games). */
   copyrightYear?: number | null;
   /**

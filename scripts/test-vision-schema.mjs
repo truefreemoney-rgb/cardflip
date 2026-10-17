@@ -5,10 +5,10 @@
 // three wear levels. No API call. Run: npm run test:vision-schema
 import assert from "node:assert/strict";
 
-const { CARD_READ_SCHEMA, MTG_READ_SCHEMA, TCG_READ_SCHEMA } =
+const { CARD_READ_SCHEMA, MTG_READ_SCHEMA, TCG_READ_SCHEMA, POKEMON_READ_SCHEMA } =
   await import(new URL("../src/lib/server/vision.ts", import.meta.url).href);
 
-for (const [name, schema] of Object.entries({ CARD_READ_SCHEMA, MTG_READ_SCHEMA, TCG_READ_SCHEMA })) {
+for (const [name, schema] of Object.entries({ CARD_READ_SCHEMA, MTG_READ_SCHEMA, TCG_READ_SCHEMA, POKEMON_READ_SCHEMA })) {
   if (!schema) continue;
   const props = Object.keys(schema.properties).sort();
   const req = [...schema.required].sort();
@@ -48,7 +48,7 @@ function unionCount(schema) {
   for (const v of Object.values(schema.properties ?? {})) walk(v);
   return n;
 }
-for (const [name, schema] of Object.entries({ CARD_READ_SCHEMA, MTG_READ_SCHEMA, TCG_READ_SCHEMA, SECOND_LOOK_SCHEMA, TIEBREAK_SCHEMA })) {
+for (const [name, schema] of Object.entries({ CARD_READ_SCHEMA, MTG_READ_SCHEMA, TCG_READ_SCHEMA, POKEMON_READ_SCHEMA, SECOND_LOOK_SCHEMA, TIEBREAK_SCHEMA })) {
   if (!schema) continue;
   const n = unionCount(schema);
   assert.ok(n <= 16, `${name}: ${n} union-typed parameters, the API caps a schema at 16`);
@@ -60,5 +60,26 @@ for (const key of ["finish", "treatment", "artist", "borderColor", "serialNumber
 for (const key of ["subtitle", "variant"]) {
   assert.ok(!("anyOf" in TCG_READ_SCHEMA.properties[key]), `TCG ${key} must not be anyOf-nullable`);
 }
+
+for (const key of ["foilPattern", "patternBall"]) {
+  assert.ok(!("anyOf" in POKEMON_READ_SCHEMA.properties[key]), `Pokemon ${key} must not be anyOf-nullable`);
+}
+
+// 10-17 #11: the printing the Pokémon pattern read preselects (lib/foilPattern.ts).
+const { patternPrintingFor } = await import(new URL("../src/lib/foilPattern.ts", import.meta.url).href);
+const PRE = ["normal", "reverseHolofoil", "pokeBallPattern", "masterBallPattern"];
+const ASC = ["normal", "friendBallPattern", "energySymbolPattern"];
+const pick = (foilPattern, patternBall, variants) => patternPrintingFor({ foilPattern, patternBall }, variants);
+assert.equal(pick("ball", "master", PRE), "masterBallPattern", "Prismatic Master Ball");
+assert.equal(pick("ball", "poke", PRE), "pokeBallPattern", "Prismatic Poke Ball");
+assert.equal(pick("ball", null, PRE), null, "an unplaced ball on a card with two keeps the default");
+assert.equal(pick("ball", "poke", ASC), "friendBallPattern", "Ascended Heroes: any ball is the card's one theme ball");
+assert.equal(pick("teamRocket", null, ["normal", "teamRocketPattern", "energySymbolPattern"]), "teamRocketPattern", "Team Rocket R");
+assert.equal(pick("energySymbol", null, ASC), "energySymbolPattern", "Energy Symbol");
+assert.equal(pick("energySymbol", null, PRE), null, "no Energy Symbol line, no pick");
+assert.equal(pick("reverse", null, PRE), null, "a plain reverse read leaves the default");
+assert.equal(pick(null, null, PRE), null, "no read");
+assert.equal(pick("ball", "poke", ["normal", "holofoil", "reverseHolofoil"]), null, "a card with no pattern lines");
+assert.equal(patternPrintingFor(null, PRE), null, "no vision read at all");
 
 console.log("test:vision-schema ok");
