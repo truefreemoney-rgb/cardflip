@@ -39,12 +39,12 @@ C0. DONE 10-17 (local, not pushed; covers, set index and /api/sets serve the old
 26. DONE 10-17 (local, not pushed; 25,000 unsold cards, 1,000 watched, newest 500 lookups kept; prod max today 45/6/14): No per-user limit on how many cards, price checks or watchlist items an account can add [me] S
 
 ## D. Security cleanup (from the 10-16 audit)
-27. eBay actions skip the subscription check, one eBay account can link to several users, and the eBay connect step can crash [me] M
-28. A refund or dispute doesn't cancel the subscription, and an account with a failed payment counts as subscribed forever [me] M
+27. DONE 10-17 (local, not pushed; 40639ee5): eBay actions skip the subscription check, one eBay account can link to several users, and the eBay connect step can crash [me] M
+28. DONE 10-17 (local, not pushed; 1cfe8438): A refund or dispute doesn't cancel the subscription, and an account with a failed payment counts as subscribed forever [me] M
 29. Rate limits don't hold across servers [me] M
 30. DONE 10-17 (local, not pushed; login: one message + one hash for every miss incl. Google/X-only; signup: "already exists" kept, 5 a day per network then sign-up closes to it for any email; shot docs/shots/login-failed-message.png): Login and sign-up let someone check which emails have accounts [me] S
-31. Turning off 2FA or changing email doesn't sign out other devices, and sessions never expire [me] M
-32. Admin sign-out can't really end the session, and the admin key has a weak fallback [me] M
+31. DONE 10-17 (local, not pushed; b8fae0da): Turning off 2FA or changing email doesn't sign out other devices, and sessions never expire [me] M
+32. DONE 10-17 (local, not pushed; be2ec67b): Admin sign-out can't really end the session, and the admin key has a weak fallback [me] M
 33. DONE 10-17 (local, not pushed; imageInput.ts: real picture or 400 before a scan is reserved, type read from the bytes; tiebreak >6 ids refused; bad push subscription 400 not 500): A few input checks are missing (image type, list sizes, bad notification addresses) [me] S
 34. Sign-up takeover (audit #2): on hold, your call [you] M
 
