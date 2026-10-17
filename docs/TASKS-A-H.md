@@ -1,7 +1,7 @@
 # Chris's task list (updated 10-17 after the push of 90033b03; was the A-H list of 10-16)
 
 One task at a time, easiest first. [me] = Claude does it, [you] = Chris. S/M/L = size.
-Completed and removed 10-17: account deletion test, privacy policy, 10-16 push, euro rate guard, flaky campaign test,
+Removed 10-17 (pushed = live but NOT yet verified on prod, see E35/E36): account deletion test, privacy policy, 10-16 push, euro rate guard, flaky campaign test (no change needed),
 not-found pages, robots apple icon, dev-login defaults, unsubscribe confirm, FLIPBACK morning report, and the competitor
 tasks #58 #59 #61 #62 #63 #65 (+ #66 #67 already existed, #57 skipped). All pushed 10-17 in 90033b03.
 
@@ -50,7 +50,7 @@ C0. FIRST: Pokémon set list rebuild takes ~21 s once a day (seo:sets:v4, json w
 
 ## E. Checks on things already live
 35. After today's push: titles, Common questions, chart "All", set strip, Most valuable sets, Top 100, not-found pages, unsubscribe, privacy page (docs/TO-TEST.md) [me] S
-36. After today's push: a quick look on your phone at a card page, a set page and a game page [you] S
+36. After today's push: a quick look on your phone at a card page, a set page and a game page, plus the tiles with long prices from the 10-16 push (was B13, never confirmed) [you] S
 37. FLIPBACK: recheck who came back (0 of 16 so far; code good to 11-16) [me] S
 38. Number keypad on Inventory price boxes, on your phone [you] S
 39. A "No match found" scan gives the scan back [you] S
