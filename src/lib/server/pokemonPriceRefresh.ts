@@ -39,7 +39,11 @@ const TRIED_KEY = "tcgcsv_map_tried";
 
 // Schema (tcgplayer_products) lives in lib/db.ts behind the adapter's schema gate.
 
-/** From this market price up a card takes the listing cap. */
+/**
+ * From this market price up a card takes the listing cap. A $15 soft floor (min(market, max(1.45x low, $15)) from $15)
+ * was tried 10-17 and REJECTED: it won a 6-card sample it was picked on, then lost 10 fresh cards (within 25% of eBay
+ * sold: today's rule 6 of 10, floor 4 of 10; Unown K rev $5.51 vs ~$3 sold would have gone to $15).
+ */
 export const POKEMON_CAP_MIN_USD = 20;
 /**
  * The cap starts when the market is this many times the cheapest listing. Was 2 (10-16), a cliff: $99.99 on a $50 low
