@@ -41,8 +41,14 @@ const TRIED_KEY = "tcgcsv_map_tried";
 
 /** From this market price up a card takes the listing cap. */
 export const POKEMON_CAP_MIN_USD = 20;
-/** The cap starts when the market is this many times the cheapest listing. */
-export const POKEMON_CAP_OVER = 2;
+/**
+ * The cap starts when the market is this many times the cheapest listing. Was 2 (10-16), a cliff: $99.99 on a $50 low
+ * stayed, $100 fell to $72.50. 10-17 (#22): starting at SOFT_CAP_X itself leaves no jump (a higher market never shows a
+ * lower price). eBay sold sample of the 1.45x-2x band (1,232 of 3,738 $20+ printings that day): the capped number was
+ * closer on 9 of 10 (Cresselia-EX $122 -> $103 vs ~$63 sold, Victini-EX $201 -> $167 vs ~$125); the miss was Rayquaza
+ * Dragon Vault ($62 -> $47 vs ~$80).
+ */
+export const POKEMON_CAP_OVER = 1.45;
 /**
  * Pokémon listing cap (10-16, Chris "go ahead" after a dry run): TCGplayer's market price on older cards can sit far over
  * every copy actually for sale (Base Set 2 Mewtwo $129.77 with the cheapest copy $47 and eBay sold ~$34; Reshiram-EX full
@@ -53,7 +59,7 @@ export const POKEMON_CAP_OVER = 2;
  */
 export function pokemonListingCap(market: number, low: number | null): number {
   if (!(market >= POKEMON_CAP_MIN_USD) || low == null || !(low > 0) || market < POKEMON_CAP_OVER * low) return market;
-  return Math.round(low * SOFT_CAP_X * 100) / 100;
+  return Math.min(market, Math.round(low * SOFT_CAP_X * 100) / 100);
 }
 export interface PokemonRefreshResult {
   groups: number;

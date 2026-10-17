@@ -4,6 +4,9 @@
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
 
+## 10-17 ~3pm ET: Pokémon price limit has no cliff (A-H #22, NOT PUSHED)
+- After push + the next nightly price run: /cards/pokemon/boundaries-crossed (Cresselia-EX 143) shows about 1.45x its cheapest TCGplayer copy (~$103 on 10-17, was $122.05), Victini-EX Plasma Storm 131 ~$167 (was $201.35). A card under 1.45x its cheapest copy keeps TCGplayer's number. No new "looks off" on those pages.
+
 ## 10-17 ~2pm ET: set lists never wait on a rebuild (A-H C0, NOT PUSHED)
 - After push: the 2am + 7am ET Production smoke ("set lists load") stays green for 2 days (`gh run list -R truefreemoney-rgb/cardflip -w prod-smoke.yml`). `curl -w '%{time_total}' https://cardflip.io/api/sets` under 3 s every time, including the first call after 6 hours.
 

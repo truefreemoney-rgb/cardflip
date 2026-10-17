@@ -32,7 +32,7 @@ tasks #58 #59 #61 #62 #63 #65 (+ #66 #67 already existed, #57 skipped). All push
 ## C. Bugs and polish
 C0. DONE 10-17 (local, not pushed; covers, set index and /api/sets serve the old copy and rebuild after): Pokémon set list rebuild takes ~21 s once a day (seo:sets:v4, json walk of price_series): the first visitor waits and the 2am + 7am ET Production smoke failed 10-17 on it. Serve the stale list while rebuilding (cachedListSwr; block only when no row exists) [me] S
 21. The Magic price limit cuts some old cards too low (e.g. Alpha Blaze of Glory $400 vs ~$579), and it has no lower limit for $1 junk listings [me] M
-22. Pokémon price-limit jump: a $99 card stays $99, but at $100 it drops to $72.50. Smooth it out [me] S
+22. DONE 10-17 (local, not pushed; limit now starts at 1.45x, eBay sold sample 9 of 10 closer): Pokémon price-limit jump: a $99 card stays $99, but at $100 it drops to $72.50. Smooth it out [me] S
 23. Nightly catalog upload resends everything; send only what changed [me] M
 24. Inventory still loads a couple of things twice; confirm and trim [me] S
 25. The support ticket photo picker allows gallery photos (camera-only rule?) [you decide] S

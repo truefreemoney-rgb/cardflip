@@ -72,6 +72,13 @@ check("... and an agreeing TCGdex reading never vouches: the $1,013 Rayquaza spi
   check("listing cap: Base Set 2 Mewtwo $129.77 (low $47.14) -> $68.35; Piloswine $388.45 (low $269.83, 1.44x) stays; $14.55 holo (low $5) stays under $20; no low stays",
     [pokemonListingCap(129.77, 47.14), pokemonListingCap(388.45, 269.83), pokemonListingCap(14.55, 5), pokemonListingCap(129.77, null)],
     [68.35, 388.45, 14.55, 129.77]);
+  // 10-17 (#22): the cap starts at 1.45x, so no cliff. Old: $99.99 on a $50 low stayed, $100 fell to $72.50.
+  check("listing cap: no cliff ($50 low: $72 stays, $72.50 and $99.99 and $100 all -> $72.50)",
+    [pokemonListingCap(72, 50), pokemonListingCap(72.5, 50), pokemonListingCap(99.99, 50), pokemonListingCap(100, 50)],
+    [72, 72.5, 72.5, 72.5]);
+  let prev = 0, rises = true;
+  for (let m = 20; m <= 300; m += 0.37) { const v = pokemonListingCap(m, 50); if (v < prev - 1e-9) rises = false; prev = v; }
+  check("listing cap: a higher market never shows a lower price", rises, true);
 }
 check("Rayquaza with no second source: the spike never came back", verdict(data("pokemon", [ser("holofoil", RAYQUAZA)]))?.[1]?.startsWith("spike"), true);
 // 10-02: flat is a NOTE, not a hide. Deoxys shows $500 with "Market hasn't updated this in 3 months"; judgeSeries (the hide) says fine.
