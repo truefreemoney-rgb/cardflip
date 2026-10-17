@@ -33,6 +33,11 @@ import {
 import { isValidEmail } from "@/lib/emailAddress";
 import { parseTouch } from "@/lib/attribution";
 import { setHomeCookie } from "@/lib/homeCookie";
+import { dayBudgetUsed, dayBump } from "@/lib/server/dayBudget";
+
+/** "Already exists" answers one network may draw in a day before sign-up closes to it (#30). A person needs one or two. */
+const EXISTS_PER_NETWORK_DAY = 5;
+const TOO_MANY_SIGNUPS = "Too many sign-up tries from this network today. Already have an account? Log in instead.";
 
 /**
  * A signup that comes back for an account still waiting on its email code,
@@ -99,6 +104,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: `Check your email. Did you mean ${fix}?` }, { status: 400 });
   }
 
+  // "Already exists" is kept for real people (it tells them to log in), but a network that has drawn it
+  // EXISTS_PER_NETWORK_DAY times today gets no sign-up answers at all until tomorrow, for any email, so the
+  // refusal itself says nothing (#30, 10-16 audit: the 409 let a script test which emails have accounts).
+  const existsKey = `signup_exists_${hashIp(clientIp(req))}`;
+  if ((await dayBudgetUsed(existsKey)) >= EXISTS_PER_NETWORK_DAY) {
+    return NextResponse.json({ error: TOO_MANY_SIGNUPS }, { status: 429, headers: { "Retry-After": "3600" } });
+  }
   const existing = await findUserByEmail(email);
   if (existing) {
     if (needsEmailConfirm(existing) && !totpEnabled(existing)) {
@@ -107,6 +119,7 @@ export async function POST(req: Request) {
       if (locked) return locked;
       if (verifyPassword(password, existing.passwordHash)) return resumeSignup(existing, req);
     }
+    await dayBump(existsKey);
     return NextResponse.json(
       { error: "An account with that email already exists." },
       { status: 409 },

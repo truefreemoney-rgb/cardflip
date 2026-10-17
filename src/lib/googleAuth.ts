@@ -25,8 +25,11 @@ export function hasPassword(passwordHash: string): boolean {
   return passwordHash !== NO_PASSWORD;
 }
 
-/** Wrong-password answer for an account that has no password (login route). */
-export const GOOGLE_ONLY_MESSAGE = "This account signs in with Google or X. Tap that button, or use Forgot Password to set a password.";
+/**
+ * Every failed login, whatever the reason (#30): an unknown email, a wrong password and a Google/X-only account all
+ * read the same, so the answer never says whether an account exists. The Google/X hint is for everyone.
+ */
+export const LOGIN_FAILED_MESSAGE = "Incorrect email or password. Signed up with Google or X? Tap that button instead.";
 
 export type GoogleMode = "signup" | "login";
 

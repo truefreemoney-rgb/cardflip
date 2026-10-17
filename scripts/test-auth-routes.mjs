@@ -158,7 +158,27 @@ const unknown =await login.POST(post({ email: "ghost@example.com", password: "hu
 const wrongPw = await login.POST(post({ email: "sam@example.com", password: "wrong-pw" }));
 check("login: unknown email → 401", unknown.status, 401);
 check("login: wrong password → 401", wrongPw.status, 401);
-check("login: identical message either way (no enumeration)", (await unknown.json()).error, (await wrongPw.json()).error);
+const unknownErr = (await unknown.json()).error;
+check("login: identical message either way (no enumeration)", unknownErr, (await wrongPw.json()).error);
+// #30 (10-16 audit): a Google/X-only account used to answer "This account signs in with Google or X", which told anyone
+// the email had an account. Now the same words as any miss, and the hint is in everyone's message.
+const gOnly = await createUser("G Only", "gonly@example.com", "placeholder1");
+await db.prepare("UPDATE users SET password_hash = '!google-sign-in' WHERE id = ?").run(gOnly.id);
+const gOnlyRes = await login.POST(post({ email: "gonly@example.com", password: "anything1" }));
+check("login: a Google/X-only account answers exactly like an unknown email", [gOnlyRes.status, (await gOnlyRes.json()).error], [401, unknownErr]);
+check("login: the Google/X hint is in every failed-login message", unknownErr.includes("Google or X"), true);
+
+// #30: sign-up still says "already exists" to a person, but 5 of those in a day close sign-up to that network for ANY
+// email, so a script can't keep testing addresses (a fresh email gets the same 429).
+const probeIp = "203.0.113.77";
+const exists = [];
+for (let i = 0; i < 5; i++) exists.push((await signup.POST(post({ name: "P", email: "sam@example.com", password: "probe-pass-1" }, probeIp))).status);
+check("signup: 'already exists' answers up to 5 a day from one network", exists, [409, 409, 409, 409, 409]);
+const closedNew = await signup.POST(post({ name: "P", email: "brand-new-probe@example.com", password: "probe-pass-1" }, probeIp));
+const closedOld = await signup.POST(post({ name: "P", email: "sam@example.com", password: "probe-pass-1" }, probeIp));
+check("signup: then a new email and a known one get the same 429", [closedNew.status, closedOld.status, (await closedNew.json()).error === (await closedOld.json()).error], [429, 429, true]);
+check("signup: …and the new email made no account", (await db.prepare("SELECT COUNT(*) AS n FROM users WHERE email = 'brand-new-probe@example.com'").get()).n, 0);
+check("signup: another network still signs up", (await signup.POST(post({ name: "Q", email: "other-net@example.com", password: "probe-pass-1" }, "198.51.100.9"))).status, 201);
 
 const good = await login.POST(post({ email: " SAM@example.com ", password: "hunter22" }));
 check("login: success", good.status, 200);
@@ -236,7 +256,7 @@ check("login code: the answer shows the inbox masked", [askedBody.error.includes
 const code1 = devLastLoginCode("boss@example.com");
 check("login code: six digits", /^\d{6}$/.test(code1 ?? ""), true);
 const wrongPw2 = await (await login.POST(post({ email: "boss@example.com", password: "nope", code: code1 }))).json();
-check("login code: a wrong password never reaches the code step", [wrongPw2.error, wrongPw2.totpRequired], ["Incorrect email or password.", undefined]);
+check("login code: a wrong password never reaches the code step", [wrongPw2.error, wrongPw2.totpRequired], [unknownErr, undefined]);
 const wrongCode = await bossLogin({ code: code1 === "000000" ? "000001" : "000000" });
 check("login code: wrong code refused, still asking by email", [wrongCode.status, (await wrongCode.json()).emailCode, sessionCookie(wrongCode)], [401, true, null]);
 await bossLogin();

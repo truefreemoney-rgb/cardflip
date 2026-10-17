@@ -11,7 +11,7 @@ function dummyHash(): string {
   return dummy;
 }
 import { SESSION_COOKIE } from "@/lib/server/auth";
-import { GOOGLE_ONLY_MESSAGE, hasPassword } from "@/lib/googleAuth";
+import { LOGIN_FAILED_MESSAGE, hasPassword } from "@/lib/googleAuth";
 import { LIMITS, clientIp } from "@/lib/server/rateLimit";
 import { accountLockout, limitOrRespondAsync } from "@/lib/server/rateLimitDb";
 import { countryFrom } from "@/lib/server/signupGuard";
@@ -41,19 +41,12 @@ export async function POST(req: Request) {
 
   const user = email ? await findUserByEmail(email) : null;
 
-  // Same message whether the email is unknown or the password is wrong, so
-  // a login attempt can't be used to enumerate registered accounts.
-  // An unknown email still pays for one hash (10-01 sweep): skipping scrypt made it answer measurably faster.
-  if (!user) verifyPassword(password, dummyHash());
-  if (user && !hasPassword(user.passwordHash)) {
-    // Made with Google: no password exists. Say so instead of "incorrect".
-    return NextResponse.json({ error: GOOGLE_ONLY_MESSAGE }, { status: 401 });
-  }
-  if (!user || !verifyPassword(password, user.passwordHash)) {
-    return NextResponse.json(
-      { error: "Incorrect email or password." },
-      { status: 401 },
-    );
+  // One message for an unknown email, a wrong password and a Google/X-only account, so a login attempt can't be used
+  // to learn which emails have accounts (#30, 10-16 audit: the Google-only answer gave it away). Every miss pays for
+  // one hash (10-01 sweep: skipping scrypt made a miss answer measurably faster).
+  const passwordOk = user && hasPassword(user.passwordHash) ? verifyPassword(password, user.passwordHash) : (verifyPassword(password, dummyHash()), false);
+  if (!user || !passwordOk) {
+    return NextResponse.json({ error: LOGIN_FAILED_MESSAGE }, { status: 401 });
   }
 
   // Two-step: the password alone doesn't sign in — the client re-submits the
