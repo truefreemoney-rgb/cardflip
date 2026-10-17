@@ -6,7 +6,7 @@ not-found pages, robots apple icon, dev-login defaults, unsubscribe confirm, FLI
 tasks #58 #59 #61 #62 #63 #65 (+ #66 #67 already existed, #57 skipped). All pushed 10-17 in 90033b03.
 
 ## A. Prices (TOP PRIORITY, Chris 10-17)
-1. Price fallback step 1: wire the guard's fallback price into the scanner, Inventory and card pages so no card shows $0 or "looks off" (code in place, 83f8c77c) [me] M
+1. Price fallback step 1: wire the guard's fallback price into the scanner, Inventory and card pages so no card shows $0 or "looks off" (code in place, 83f8c77c) [me] M -- DONE 10-17 another way (2b43c844, not pushed): fallback measured 1/11 right vs eBay sold so turned OFF; thin-market flags now show their own price with "Few sales" (276 cards un-blanked, 8/9 right or plausible); 380 hard-evidence cards stay blank.
 2. Finish the price test: Lorcana eBay prices (17 cards) + One Piece (20), then the final per-game breakdown [me] S
 3. PriceCharting sub (Legendary, $49/mo; free display until $1,000/mo revenue, then a cut; attribution = text link) [you] S
 4. After the sub: PriceCharting as the main price, matched by TCGplayer ID, TCGplayer only where it has none [me] M
