@@ -4,8 +4,8 @@
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
 
-## 10-17 ~1am ET: price guard 1c, week's climb eBay asks don't back (b2a51efb, NOT PUSHED)
-- After push, curl each and expect "This price looks off": /cards/pokemon/lost-thunder/lugia-gx--sm8-227, /cards/pokemon/hidden-legends/regice-ex--ex5-97, /cards/pokemon/delta-species/tyranitar--ex11-16. Still a price (fair climbs): /cards/pokemon/celestial-storm/latias--sm7-107, /cards/pokemon/team-rocket-returns/rocket-s-mewtwo-ex--ex7-99. Lugia Secret Wonders + Tyranitar H28 stay shown (admin 'keep').
+## 10-17 ~1am ET: price guard 1c, week's climb eBay asks don't back (b2a51efb, PUSHED 10-16 ~8:08pm ET; PASS ~8:20pm ET by curl: 3 hidden, Latias + Mewtwo shown)
+- After push, curl each and expect "This price looks off": /cards/pokemon/lost-thunder/lugia-gx--sm8-227, /cards/pokemon/hidden-legends/regice-ex--ex5-97, /cards/pokemon/delta-species/tyranitar--ex11-16. Still a price (fair climbs): /cards/pokemon/celestial-storm/latias--sm7-107, /cards/pokemon/team-rocket-returns/rockets-mewtwo-ex--ex7-99. Lugia Secret Wonders + Tyranitar H28 stay shown (admin 'keep').
 ## 10-16 ~4pm ET: no extra rows sitewide (NOT PUSHED)
 - Phone: Watchlist tab tiles, Search > My Watchlist, Inventory summary bar ("Show" stays; only the arrow when the totals are too long for it), homepage game tiles, a card page's price chart (date buttons always under the price on phones). Prices and the ▲/▼ % all stay on one line. Local check: iPhone WebKit shots at $99,999.99.
 
