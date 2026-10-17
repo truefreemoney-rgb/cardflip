@@ -11,11 +11,9 @@ import { OWNER_EMAIL } from "@/lib/server/users";
 export async function POST(req: Request) {
   const limited = await limitOrRespondAsync(`auth:admin:${clientIp(req)}`, LIMITS.authAttempt);
   if (limited) return limited;
-  // The built-in operator credentials are in the public repo. In production
-  // they are not a login: refuse until ADMIN_PANEL_USER / ADMIN_PANEL_PASSWORD
-  // are set in Vercel (09-09 audit).
-  if (process.env.NODE_ENV === "production" && adminUsingDefaults()) {
-    return NextResponse.json({ error: "The console is locked until ADMIN_PANEL_USER and ADMIN_PANEL_PASSWORD are set in the environment." }, { status: 503 });
+  // No owner password set (there is no built-in one, 10-16): say so instead of a bare "incorrect".
+  if (adminUsingDefaults() && !process.env.ADMIN_HELPER_PASSWORD) {
+    return NextResponse.json({ error: "The console is locked until ADMIN_PANEL_PASSWORD is set in the environment." }, { status: 503 });
   }
   const body = await req.json().catch(() => null);
   const user = typeof body?.username === "string" ? body.username : "";

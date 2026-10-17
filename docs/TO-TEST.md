@@ -4,6 +4,9 @@
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
 
+## 10-16 ~11pm ET: no built-in admin/password (A-H #23, NOT PUSHED)
+- After push: the admin console still signs in on cardflip.io (uses ADMIN_PANEL_PASSWORD from Vercel, unchanged); /login shows no "Log In as Admin" button; no console banner about missing password.
+
 ## 10-16 ~10pm ET: privacy policy A3 (NOT PUSHED; shots in docs/shots/privacy-*.png, need Chris yes before push)
 - After push: cardflip.io/privacy shows effective date October 17, 2026 and the new lines (Google/X sign-in, help chat, phone notifications, email, Delete account path, what stays after a delete, Fastmail).
 

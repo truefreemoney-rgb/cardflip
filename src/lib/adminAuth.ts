@@ -6,7 +6,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
  *
  * The panel has its own login, separate from user accounts: one operator
  * username/password from the environment (ADMIN_PANEL_USER /
- * ADMIN_PANEL_PASSWORD; Chris's choice of defaults when unset), and a signed
+ * ADMIN_PANEL_PASSWORD; no password set = owner login off), and a signed
  * cookie `cardflip_admin` = "<expiresAtMs>.<hmac>" that needs no table. The
  * HMAC key is derived from the password itself plus the app secret, so
  * changing the password invalidates every session.
@@ -35,43 +35,30 @@ export interface AdminCredentials {
   password: string;
 }
 
-// Matches the admin *user* account (admin@cardflip.dev) so there is one set of
-// credentials to remember, not two. This is only the fallback — setting
-// ADMIN_PANEL_USER / ADMIN_PANEL_PASSWORD in the environment overrides it, and
-// that is what should be done before real users are on the site, since this
-// default is visible to anyone reading the repo.
-const DEFAULTS: AdminCredentials = { user: "admin", password: "password" };
-
-/** Anywhere but local dev (production build, or any Vercel deploy incl. preview) the built-in password is not a login. */
-function deployedEnv(env: NodeJS.ProcessEnv): boolean {
-  return env.NODE_ENV === "production" || !!env.VERCEL_ENV;
-}
+// The owner username defaults to "admin" (not a secret). There is no built-in
+// password (10-16, A-H #23): with ADMIN_PANEL_PASSWORD unset the owner login is
+// off everywhere, local dev included (.env.local sets it there).
+const DEFAULT_USER = "admin";
 
 let warnedNoPassword = false;
 
 /**
  * An empty password means "no owner login": verifyAdminCredentials and the
- * session checks refuse it. Only the PASSWORD default is dangerous (it is in
- * the public repo), so deployed with ADMIN_PANEL_PASSWORD unset the password
- * is empty (fail closed, one server warning); the username default stays.
+ * session checks refuse it.
  */
 export function adminCredentials(env: NodeJS.ProcessEnv = process.env): AdminCredentials {
-  const user = env.ADMIN_PANEL_USER?.trim() || DEFAULTS.user;
+  const user = env.ADMIN_PANEL_USER?.trim() || DEFAULT_USER;
   if (env.ADMIN_PANEL_PASSWORD) return { user, password: env.ADMIN_PANEL_PASSWORD };
-  if (deployedEnv(env)) {
-    if (!warnedNoPassword) {
-      warnedNoPassword = true;
-      console.warn("ADMIN_PANEL_PASSWORD is not set: the admin console login is disabled (the built-in default password only works in local dev).");
-    }
-    return { user, password: "" };
+  if (!warnedNoPassword) {
+    warnedNoPassword = true;
+    console.warn("ADMIN_PANEL_PASSWORD is not set: the admin console login is disabled.");
   }
-  return { user, password: DEFAULTS.password };
+  return { user, password: "" };
 }
 
-/** True when the panel still runs on the built-in credentials. */
+/** True when the panel has no owner password set (the login is off). */
 export function adminUsingDefaults(env: NodeJS.ProcessEnv = process.env): boolean {
-  const c = adminCredentials(env);
-  return !c.password || (c.user === DEFAULTS.user && c.password === DEFAULTS.password);
+  return !adminCredentials(env).password;
 }
 
 function safeEqual(a: string, b: string): boolean {

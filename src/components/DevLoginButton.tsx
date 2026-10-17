@@ -8,16 +8,13 @@ import { afterLoginPath, login } from "@/lib/client/auth";
 // One-click sign-in as the admin account, so Chris doesn't have to type
 // credentials every time he checks something.
 //
-// Shown automatically in development. On a deployed site it only appears when
-// NEXT_PUBLIC_DEV_LOGIN=1 is set — it is deliberately opt-in there, because it
-// puts an admin session one click away for anyone who loads the page. Unset the
-// variable (and redeploy) to take it off the live site.
-const ENABLED =
-  process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_DEV_LOGIN === "1";
-
+// Local dev only, and only when .env.local names the login (10-16, A-H #23: no
+// built-in credentials, and no switch that could put an admin session one
+// click away on a deployed site). A production build drops it entirely.
 // The login route aliases the bare username "admin" to admin@cardflip.dev.
-const DEV_EMAIL = process.env.NEXT_PUBLIC_DEV_LOGIN_EMAIL ?? "admin";
-const DEV_PASSWORD = process.env.NEXT_PUBLIC_DEV_LOGIN_PASSWORD ?? "password";
+const DEV_EMAIL = process.env.NEXT_PUBLIC_DEV_LOGIN_EMAIL ?? "";
+const DEV_PASSWORD = process.env.NEXT_PUBLIC_DEV_LOGIN_PASSWORD ?? "";
+const ENABLED = process.env.NODE_ENV !== "production" && !!DEV_EMAIL && !!DEV_PASSWORD;
 
 export default function DevLoginButton() {
   const router = useRouter();
