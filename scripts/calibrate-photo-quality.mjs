@@ -7,6 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import sharp from "sharp";
 import { createClient } from "@libsql/client";
+import { OWNER_ARGS, OWNER_JOIN } from "./lib/owner-photos.mjs";
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname.replace(/^\/(\w:)/, "$1")), "..");
 const pq = await import(new URL("../src/lib/photoQuality.ts", import.meta.url).href);
@@ -20,7 +21,8 @@ fs.mkdirSync(out, { recursive: true });
 
 const cfg = JSON.parse(fs.readFileSync(path.join(root, ".env.migration.json"), "utf8").replace(/^﻿/, ""));
 const db = createClient({ url: cfg.dbUrl, authToken: cfg.dbToken });
-const rows = (await db.execute({ sql: "SELECT p.card_id AS id, p.bytes AS bytes, c.card_name AS name, c.game AS game FROM card_photos p JOIN cards c ON c.id = p.card_id ORDER BY c.created_at DESC LIMIT ?", args: [limit] })).rows;
+// Chris's own scans only (scripts/lib/owner-photos.mjs).
+const rows = (await db.execute({ sql: `SELECT p.card_id AS id, p.bytes AS bytes, c.card_name AS name, c.game AS game FROM card_photos p JOIN cards c ON c.id = p.card_id ${OWNER_JOIN} ORDER BY c.created_at DESC LIMIT ?`, args: [...OWNER_ARGS, limit] })).rows;
 console.log(`${rows.length} photos`);
 
 const lumas = [], blowns = [];

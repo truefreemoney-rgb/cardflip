@@ -20,6 +20,7 @@ import path from "node:path";
 import { createClient } from "@libsql/client";
 import Anthropic from "@anthropic-ai/sdk";
 import { devAnthropicKey } from "./lib/dev-key.mjs";
+import { OWNER_ARGS, OWNER_JOIN } from "./lib/owner-photos.mjs";
 
 const MODELS = ["claude-sonnet-5", "claude-haiku-4-5"];
 const PRICE = {
@@ -81,9 +82,11 @@ const nameMatches = (truth, got) => {
   return a === b || a.includes(b) || b.includes(a);
 };
 
-const rows = (await db.execute(
-  "SELECT p.card_id AS id, p.bytes AS bytes, c.card_name, c.set_name, c.card_number, c.condition, c.game, c.first_edition FROM card_photos p JOIN cards c ON c.id = p.card_id ORDER BY c.created_at" + (limit ? " LIMIT " + limit : ""),
-)).rows;
+// Chris's own scans only (scripts/lib/owner-photos.mjs).
+const rows = (await db.execute({
+  sql: `SELECT p.card_id AS id, p.bytes AS bytes, c.card_name, c.set_name, c.card_number, c.condition, c.game, c.first_edition FROM card_photos p JOIN cards c ON c.id = p.card_id ${OWNER_JOIN} ORDER BY c.created_at` + (limit ? " LIMIT " + limit : ""),
+  args: OWNER_ARGS,
+})).rows;
 console.log(rows.length + " photos with ground truth. Models: " + MODELS.join(" vs ") + "\n");
 
 const results = [];

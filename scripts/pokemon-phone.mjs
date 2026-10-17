@@ -20,6 +20,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { createClient } from "@libsql/client";
 import { devAnthropicKey } from "./lib/dev-key.mjs";
+import { OWNER_ARGS, OWNER_JOIN } from "./lib/owner-photos.mjs";
 
 const root = process.cwd();
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
@@ -54,12 +55,14 @@ async function pull() {
     url = c.dbUrl; authToken = c.dbToken;
   }
   const db = createClient({ url, authToken });
-  const r = await db.execute(
-    `SELECT c.id, c.card_name, c.set_name, c.card_number, c.catalog_card_id, c.condition, p.updated_at
-       FROM card_photos p JOIN cards c ON c.id = p.card_id
+  // Chris's own scans only (scripts/lib/owner-photos.mjs): customers' photos are not test data.
+  const r = await db.execute({
+    sql: `SELECT c.id, c.card_name, c.set_name, c.card_number, c.catalog_card_id, c.condition, p.updated_at
+       FROM card_photos p JOIN cards c ON c.id = p.card_id ${OWNER_JOIN}
       WHERE c.game = 'pokemon' AND c.catalog_card_id IS NOT NULL
       ORDER BY p.updated_at DESC`,
-  );
+    args: OWNER_ARGS,
+  });
   const batch = [];
   for (const row of r.rows) {
     const file = path.join(PHOTO_DIR, `${row.id}.jpg`);
