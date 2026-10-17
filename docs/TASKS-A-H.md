@@ -15,7 +15,7 @@ tasks #58 #59 #61 #62 #63 #65 (+ #66 #67 already existed, #57 skipped). All push
 7. CHECKED 10-17, nothing built: prices by condition already show as an ESTIMATE (card pages "Estimated price by condition" + the app asking price use NM 100% / LP 85% / MP 70% / HP 55% / DMG 40%). No free source has real played prices (TCGplayer feed = one market price per printing, no condition; eBay sold API denied); revisit with PriceCharting [me] S
 8. Weekly accuracy scorecard: 20 random cards vs eBay sold, cause fixed same day [me] S weekly. Week 1 (10-17): 11 of 17 = 65% within 25% (docs/price-scorecard/2026-10-17; sampler scripts/_scorecard-sample.mjs). Misses = TCGplayer market frozen/lagging (Zubat RH 153 days flat, Exodia Necross 25th $52 vs ~$15, Electrode 1st $36 vs $21); fix = PriceCharting first (finale). Next run ~10-24
 9. DONE 10-17 (local, not pushed; Chris OK on shots docs/shots/price-report-1..3): "Price looks wrong?" button feeding the manual check (card pages; /admin/prices "Readers flagged") [me] S
-10. Reapply for eBay Marketplace Insights (sold data) [me writes, you send] S
+10. Reapply for eBay Marketplace Insights (sold data) [me writes, you send] S -- PARKED 10-17: no way to apply. eBay's only form (partnernetwork.ebay.com/page/developer-questionnaire, rechecked 10-17) still says Marketplace Insights "cannot be granted upon request"; denied 08-16, dead end 10-13. Sold prices come from PriceCharting (#3/#4) instead.
 11. Catalog: Vivillon wing patterns (and similar) are lumped into one card [me] M
 
 ## B. App store prep (the main goal)
