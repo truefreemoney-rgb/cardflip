@@ -4,6 +4,11 @@ Chris (10-14): every support ticket and every social comment is a learning
 experience while the site is new and not fully tested. One entry each: what
 they said, what it taught, what changed, what is still open. Newest first.
 
+## 10-17 · New Google Ads user's Eevee scanned at $0 (Chris spotted the 83% scanner tile)
+- What: user 7b93884f (signed up 7:17am ET from Leads - Search) scanned 6 cards in 3 min. Scan 2 = photo with no card in it (vision "seen: other", conf 0): no card, trial scan refunded (working as meant). Scan 6 = Eevee svp-173 saved at $0; the same card 25 s earlier was saved at $14.03.
+- Cause: TCGplayer market for svp-173 jumped to $79.66 (eBay sold raw 10-15..17: $9-$20, median $12.99; the $60-85 sales are the Pokemon Center stamped print, a different card). The guard correctly flagged it hard ("spike 7.1x still 5.8x"), but every consumer treats a flag as NO price (listing.ts quotePrice returns null -> $0 saved; card page "looks off"). The $14.03 came from a second re-quote path (chart current point), not reliably.
+- Fix: user's card set to $13 by hand (prod row, Chris said yes). Code: a flagged price falls back to the best trusted number (eBay sold > guard reference > PriceCharting) instead of none, per Chris's 10-17 rule "never leave a price unsure" (in progress).
+
 ## 10-17 · Chris: "why do the prices look too high?" (asked in chat)
 - What: Lugia-EX bw8-108 posted at 7pm as +60% ($94.69 -> $151.44); eBay sold ~$90-98. Charmander dp7-101, Rayquaza pop1-3, Lugia GX, Regice ex etc. 1.4-3x eBay sold.
 - Cause: not the 10-16 cap (it only lowers prices; median weekly change 1.000 every week). TCGplayer market = last sale, and a few sales walked thin cards up in 1.1-1.7x steps over a week; every guard test looked for ONE big step.
