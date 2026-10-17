@@ -5,11 +5,11 @@ import { useEffect, useRef, useState } from "react";
 /**
  * The one date changer (Chris 10-02: "all date changers site-wide should be
  * like this"): the admin Analytics pill — Dates, 24h, 7 days, 30 days,
- * 90 days — for charts that switch range in the browser. Analytics itself
+ * 90 days, All — for charts that switch range in the browser. Analytics itself
  * keeps its link-driven twin (app/admin/(console)/analytics/page.tsx +
  * components/admin/RangeDates.tsx); the look and the options are the same.
  */
-export type RangePreset = "24h" | "7d" | "30d" | "90d";
+export type RangePreset = "24h" | "7d" | "30d" | "90d" | "all";
 export type RangeChoice = { preset: RangePreset } | { from: string; to: string };
 
 /** `short` is the sentence form charts use ("3M low $4"). */
@@ -19,6 +19,8 @@ export const RANGE_PRESETS: { id: RangePreset; label: string; tight: string; day
   { id: "7d", label: "7 days", tight: "7d", days: 7, short: "1W" },
   { id: "30d", label: "30 days", tight: "30d", days: 30, short: "1M" },
   { id: "90d", label: "90 days", tight: "90d", days: 90, short: "3M" },
+  // 10-17 (task #61): everything recorded. Ten years back is "all" for one-point-a-day series; servers cap the days they read.
+  { id: "all", label: "All", tight: "All", days: 3650, short: "All" },
 ];
 
 const DAY_MS = 86_400_000;
