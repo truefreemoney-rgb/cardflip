@@ -291,13 +291,28 @@ export function mapKitProducts(products: TcgProduct[], halves: { tag: string; ca
  * said "Printing: Holofoil" for an uncommon trainer (Chris, 09-03). These
  * are their own variants, priced and labelled as such. (Built 09-03, pulled
  * with the printing work the same day, back 09-27 for the Printing dropdown.)
+ * 10-17 (Chris, asked since 09-03: "they all have different prices"): Ascended Heroes gives every card TWO pattern
+ * reverses, a theme ball "(Friend Ball)" / "(Poke Ball)" (no "Pattern") / "(Team Rocket)" and "(Energy Symbol
+ * Pattern)"; both had been read as one plain reverse holo. scripts/_pattern-scan.mjs lists every such product.
  */
-export type PatternVariant = "pokeBallPattern" | "masterBallPattern";
+export type PatternVariant =
+  | "pokeBallPattern"
+  | "masterBallPattern"
+  | "friendBallPattern"
+  | "loveBallPattern"
+  | "duskBallPattern"
+  | "quickBallPattern"
+  | "teamRocketPattern"
+  | "energySymbolPattern";
 
 export function tcgplayerProductPattern(name: string | null | undefined): PatternVariant | null {
   if (!name) return null;
-  if (/pok[eé][\s-]*ball[\s-]*pattern/i.test(name)) return "pokeBallPattern";
+  if (/pok[eé][\s-]*ball[\s-]*pattern|\(pok[eé][\s-]*ball\)/i.test(name)) return "pokeBallPattern";
   if (/master[\s-]*ball[\s-]*pattern/i.test(name)) return "masterBallPattern";
+  const ball = name.match(/\((friend|love|dusk|quick)[\s-]*ball(?:[\s-]*pattern)?\)/i);
+  if (ball) return `${ball[1].toLowerCase()}BallPattern` as PatternVariant;
+  if (/\(team rocket(?:[\s-]*pattern)?\)/i.test(name)) return "teamRocketPattern";
+  if (/energy[\s-]*symbol[\s-]*pattern/i.test(name)) return "energySymbolPattern";
   return null;
 }
 

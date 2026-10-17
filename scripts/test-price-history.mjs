@@ -84,6 +84,11 @@ check("Poke Ball Pattern product", tcgplayerProductPattern("Harlequin (Poke Ball
 check("Poké Ball with accent and hyphen", tcgplayerProductPattern("Heatmor (Poké-Ball Pattern)"), "pokeBallPattern");
 check("Master Ball Pattern product", tcgplayerProductPattern("Snivy (Master Ball Pattern)"), "masterBallPattern");
 check("plain product is not a pattern", tcgplayerProductPattern("Harlequin - 083/086"), null);
+// 10-17 Ascended Heroes: two pattern reverses per card, theme ball (no "Pattern") + Energy Symbol.
+check("Ascended Heroes (Poke Ball), no 'Pattern'", tcgplayerProductPattern("Erika's Oddish (Poke Ball)"), "pokeBallPattern");
+check("... (Friend Ball) / (Love Ball) / (Dusk Ball) / (Quick Ball)", ["Chikorita (Friend Ball)", "Wurmple (Love Ball)", "Galarian Zigzagoon (Dusk Ball)", "Bisharp (Quick Ball)"].map(tcgplayerProductPattern), ["friendBallPattern", "loveBallPattern", "duskBallPattern", "quickBallPattern"]);
+check("... (Team Rocket) and (Energy Symbol Pattern)", [tcgplayerProductPattern("Team Rocket's Mimikyu - 097/217 (Team Rocket)"), tcgplayerProductPattern("Team Rocket's Mimikyu - 097/217 (Energy Symbol Pattern)")], ["teamRocketPattern", "energySymbolPattern"]);
+check("the Poke Ball TRAINER card is not a pattern", [tcgplayerProductPattern("Poke Ball (CLV)"), tcgplayerProductPattern("Poke Ball - 185/198"), tcgplayerProductPattern("Team Rocket's Meowth")], [null, null, null]);
 check("null name", tcgplayerProductPattern(null), null);
 
 // 10-05: the 30th Celebration sets sat priceless. Subset shares the parent code + date; Classic Collection prints original numbers.

@@ -273,6 +273,12 @@ export function canPriceListing(price: CardPrice): boolean {
 const POKEMON_VARIANT_LABEL: Record<string, string> = {
   pokeBallPattern: "Poké Ball Pattern",
   masterBallPattern: "Master Ball Pattern",
+  friendBallPattern: "Friend Ball Pattern",
+  loveBallPattern: "Love Ball Pattern",
+  duskBallPattern: "Dusk Ball Pattern",
+  quickBallPattern: "Quick Ball Pattern",
+  teamRocketPattern: "Team Rocket Pattern",
+  energySymbolPattern: "Energy Symbol Pattern",
 };
 
 export function formatVariantLabel(variant: string): string {
