@@ -25,6 +25,7 @@
     "groupId": 3064,
     "productId": 277793,
     "baseProductId": 276944,
+    "pickByPicture": false,
     "note": "Pokemon GO: a Ditto sticker over the art, reverse holo only."
   },
   {
@@ -34,6 +35,7 @@
     "groupId": 3064,
     "productId": 277791,
     "baseProductId": 276947,
+    "pickByPicture": false,
     "note": "Pokemon GO: a Ditto sticker over the art, reverse holo only."
   },
   {
@@ -43,6 +45,7 @@
     "groupId": 3064,
     "productId": 277788,
     "baseProductId": 276982,
+    "pickByPicture": false,
     "note": "Pokemon GO: a Ditto sticker over the art, reverse holo only."
   }
 ]

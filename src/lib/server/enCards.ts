@@ -14,7 +14,7 @@ import type { ArtStyle, CardPrice, PokemonCard } from "@/lib/types";
 import { decodePrices } from "@/lib/priceSeries";
 import { formatVariantLabel } from "@/lib/listing";
 import { toPics } from "@/lib/pics";
-import { printedName } from "@/lib/artVersions";
+import { artVersionPenalty, printedName } from "@/lib/artVersions";
 
 /**
  * English card identification, served from our own mirror of TCGdex.
@@ -420,7 +420,8 @@ export async function searchEnglishCardsLocal(
       SETNAME_PENALTY[setName] +
       YEAR_PENALTY[year] +
       (lvX && rowName !== needle && !knownLvX(row) ? 1 : 0) +
-      printingPenalty(row.id, firstEdition)
+      printingPenalty(row.id, firstEdition) +
+      artVersionPenalty(row.id)
     );
   };
 
@@ -478,10 +479,8 @@ export async function lookupByPrintedNumber(
 
   const codePenalty = (row: EnCardRow) =>
     printed.setCode ? CODE_PENALTY[agreesWithSetCode(printed.setCode, row.set_code || null)] : 0;
-  const ranked = [...rows].sort(
-    (a, b) =>
-      codePenalty(a) + printingPenalty(a.id, firstEdition) - (codePenalty(b) + printingPenalty(b.id, firstEdition)),
-  );
+  const penalty = (row: EnCardRow) => codePenalty(row) + printingPenalty(row.id, firstEdition) + artVersionPenalty(row.id);
+  const ranked = [...rows].sort((a, b) => penalty(a) - penalty(b));
 
   const limited = ranked.slice(0, limit);
 

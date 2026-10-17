@@ -92,6 +92,9 @@ const seed = [
   // An art version (src/data/pokemon-art-versions.json): same set and number, its own card.
   ["xy1-17",   "Vivillon",         "xy1",   "XY",             "17", "2014-02-05",146, "XY"],
   ["xy1-17-highplains","Vivillon (High Plains Orange)","xy1","XY","17","2014-02-05",146,"XY"],
+  // A version the picture can't tell apart (pickByPicture: false): listed, never picked alone.
+  ["swsh10.5-006","Spinarak",      "swsh10.5","Pokémon GO",   "006","2022-07-01",78,  "PGO"],
+  ["swsh10.5-006-peelable","Spinarak (Peelable Ditto)","swsh10.5","Pokémon GO","006","2022-07-01",78,"PGO"],
 ];
 for (const [id, name, setId, setName, local, date, official, code] of seed) {
   await db.prepare(
@@ -157,6 +160,11 @@ check("no number, no set clues: still the newest printing",
   check("art version: the picture check gets both arts", tiebreakIds(viv, "pokemon").sort(), ["xy1-17", "xy1-17-highplains"]);
   check("art version: no number read, still its own face",
     tiebreakIds(viv.map((c) => ({ ...c, rankScore: 9 })), "pokemon", true).sort(), ["xy1-17", "xy1-17-highplains"]);
+  const spin = (await searchEnglishCardsLocal("Spinarak", { number: "006", setTotal: 78, setCode: null, isSecretRare: false }, 5)).cards;
+  check("peelable version: listed second, out of the picture check",
+    [spin.map((c) => c.id), tiebreakIds(spin, "pokemon")], [["swsh10.5-006", "swsh10.5-006-peelable"], []]);
+  check("peelable version: number-only lookup lists the plain card first",
+    (await searchEnglishCardsLocal("", { number: "006", setTotal: 78, setCode: null, isSecretRare: false }, 5)).cards.map((c) => c.id), ["swsh10.5-006", "swsh10.5-006-peelable"]);
 }
 check("misread numerator can't outvote an agreeing set total",
   await top("Zamazenta", { number: "140", setTotal: 182, setCode: null, isSecretRare: false }), "sv10-146");
