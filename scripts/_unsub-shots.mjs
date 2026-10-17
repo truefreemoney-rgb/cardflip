@@ -1,0 +1,20 @@
+// Phone shots of the unsubscribe page (A-H #24), LOCAL db only. Run with the register-alias loader.
+import { chromium } from "@playwright/test";
+const { db } = await import("../src/lib/db.ts");
+const { digestTokenFor } = await import("../src/lib/server/digest.ts");
+const out = process.argv[2];
+const u = await db.prepare("SELECT id, digest_off FROM users WHERE lower(email) = 'admin@cardflip.dev'").get();
+const t = await digestTokenFor(u.id);
+const b = await chromium.launch();
+const p = await (await b.newContext({ viewport: { width: 375, height: 812 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true })).newPage();
+await db.prepare("UPDATE users SET digest_off = 0 WHERE id = ?").run(u.id);
+await p.goto(`http://localhost:3000/api/digest/unsubscribe?u=${u.id}&t=${t}&k=updates`);
+await p.screenshot({ path: `${out}/unsub-1-open.png` });
+console.log("after open, off =", (await db.prepare("SELECT digest_off AS o FROM users WHERE id = ?").get(u.id)).o);
+await p.getByRole("button", { name: "Unsubscribe" }).tap();
+await p.getByText("You're Unsubscribed").waitFor(); await p.waitForTimeout(500); console.log("width", await p.evaluate(() => window.innerWidth));
+await p.screenshot({ path: `${out}/unsub-2-done.png` });
+console.log("after tap, off =", (await db.prepare("SELECT digest_off AS o FROM users WHERE id = ?").get(u.id)).o);
+await db.prepare("UPDATE users SET digest_off = ? WHERE id = ?").run(u.digest_off, u.id);
+await b.close();
+process.exit(0);

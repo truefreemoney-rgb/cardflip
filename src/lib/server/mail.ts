@@ -397,7 +397,7 @@ export async function sendWeeklyDigestEmail(to: string, d: Digest, unsub: { user
     subject: `Your CardFlip week: ${usd(d.valueNow)} (${signed(change)})`,
     text,
     html,
-    headers: { "List-Unsubscribe": `<${unsubUrl}>` },
+    headers: { "List-Unsubscribe": `<${unsubUrl}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" },
   });
 }
 
@@ -410,7 +410,7 @@ export async function sendCampaignEmail(to: string, m: { subject: string; text: 
     subject: m.subject,
     text: m.text,
     html: m.html,
-    headers: { "List-Unsubscribe": `<${m.unsubUrl}>` },
+    headers: { "List-Unsubscribe": `<${m.unsubUrl}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" },
   });
 }
 

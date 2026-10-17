@@ -31,7 +31,7 @@ Section D recovered from session a04629b6 transcript.
 21. DONE 10-17 locally: Unknown card and set links should show a proper "not found" page [me] S
 22. DONE (already live 10-16, d7e8ccb9; checked 10-16 ~10:15pm ET: /apple-icon.png 200, not blocked): robots.txt hides the Apple app icon from search engines [me] S
 23. DONE 10-16 locally: Leftover dev-login defaults ("admin"/"password") sit in the live site's code. They do nothing there, but they should be removed [me] S
-24. Email unsubscribe links can be triggered by email scanners; add a confirm step [me] S
+24. DONE 10-17 locally: Email unsubscribe links can be triggered by email scanners; add a confirm step [me] S
 25. No per-user limit on how many cards, price checks or watchlist items an account can add [me] S
 
 ## D. Security cleanup (from the 10-16 audit)

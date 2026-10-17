@@ -208,6 +208,13 @@ export async function digestTokenFor(userId: string): Promise<string> {
 }
 
 /** The unsubscribe link's landing: true when the token matched and the flag is now set. */
+/** Is this a live unsubscribe link, and is that person already off? Reads only (the GET page must not unsubscribe). */
+export async function digestLinkState(userId: string, token: string): Promise<"bad" | "on" | "off"> {
+  if (!userId || !token) return "bad";
+  const row = (await db.prepare("SELECT digest_off FROM users WHERE id = ? AND digest_token = ?").get(userId, token)) as { digest_off: number } | undefined;
+  return !row ? "bad" : row.digest_off ? "off" : "on";
+}
+
 export async function unsubscribeDigest(userId: string, token: string): Promise<boolean> {
   if (!userId || !token) return false;
   const r = await db.prepare("UPDATE users SET digest_off = 1 WHERE id = ? AND digest_token = ?").run(userId, token);
