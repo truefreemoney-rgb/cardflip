@@ -85,6 +85,27 @@ assert.deepEqual(
   { i: 0.41, t1: 0.3, t2: 0.31, k: 0.14 },
   "two products of one name (Aurelia) stay blank",
 );
+// 10-17: the last 32 unpriced Art Series cards (prod dry run 2 -> 24 filled).
+const afr = (id, name, number) => ({ id, name, setCode: "aafr", setName: "Adventures in the Forgotten Realms Art Series", number, finishes: "nonfoil" });
+assert.deepEqual(
+  got(
+    [afr("g", "Gnoll Hunter", "11"), afr("t", "Loathsome Troll // Troll", "21"), afr("i", "Nefarious Imp", "19"), afr("x", "Treasure Keeper", "26")],
+    [p("Gnoll Art Card", "11", 0.2), p("Gnoll Art Card (Gold-Stamped Signature)", "11", 1.36), p("Troll Art Card", "21", 0.21), p("Imp Art Card", "19", 0.17), p("Copper Dragon Art Card", "26", 0.3)],
+  ),
+  { g: 0.2, t: 0.21 },
+  "named for the art: the one plain product of that number when it shares a 4+ letter word (Imp is too short, a stranger never matches)",
+);
+assert.deepEqual(
+  got([{ id: "s", name: "Skyknight Squire", setCode: "afdn", setName: "Foundations Art Series", number: "4", finishes: "nonfoil" }], [p("Skyknight Squire Art Card (4/54)", "4", 0.14), p("Skyknight Squire Art Card (4/54) (Stamped Signature)", "4", 0.24)]),
+  { s: 0.14 },
+  "Foundations' '(Stamped Signature)' is the stamped product, not a second plain one",
+);
+const mkm = (id, name, number) => ({ id, name, setCode: "amkm", setName: "Murders at Karlov Manor Art Series", number, finishes: "nonfoil" });
+assert.deepEqual(
+  got([mkm("a", "Aurelia, the Law Above", "46"), mkm("c", "Clue", "41")], [p("Aurelia, the Law Above Art Card (41/49)", "41", 0.15), p("Aurelia, the Law Above Art Card (36/49)", "36", 0.13), p("Aurelias Vindicator Art Card", "1", 0.1)]),
+  { a: 0.15 },
+  "Karlov Manor: Scryfall 46+ is TCGplayer's number minus 5 (five unlisted Clues at 41-45)",
+);
 // 10-13: asking-only (mid, no market) only up to $20; a serial-numbered fill skips the 15x guard.
 const { askingPrice } = await import("../src/lib/server/mtgTcgplayerFill.ts");
 assert.equal(askingPrice(19.99), 19.99);

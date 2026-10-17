@@ -62,7 +62,7 @@ C0. DONE 10-17 (local, not pushed; covers, set index and /api/sets serve the old
 43. DONE 10-17 (eBay sold, no slabs; all three real, nothing hidden): Smaug Gleaming Gold foil $24,500: auctions $19,365 (9-29) + $22,600 (9-10), Aug best-offers listed $30-35k = a bit high, falling, keep. Luffy OP05-119 Gold SP $13,000: English sold $7,600-16,375 (the $3.6-3.8k sales are the Japanese gold) = keep (matches 10-14 keep). 1st Ed Base Charizard $10,000: 14 English raw sold $2,000-15,000 by condition, best auctions $12,700 (78 bids) + $7,066 (50 bids), median ~$7,650 = right for a clean copy, keep [me] S
 44. DONE 10-17, no change: Uria SOI-EN001 Ultimate Rare 1st $999.97 is real (eBay raw auctions $1,025 10-11, $910 10-04, $1,005, $990); the Ultra Rare 1st is its own card ($26.83, eBay $6-35). The $1,000 limit only holds back prices with under 14 days of history, Uria has 16+, so moving it changes nothing [me] S
 45. 3 One Piece cards with no picture [you're hunting] S
-46. Magic Art Series cards have no prices [me] M
+46. Magic Art Series cards have no prices [me] M -- DONE 10-17 (local, not pushed): already 2,575 of 2,607 priced since 10-13; matcher fixed for the last 32 (art-named cards, Foundations "Stamped Signature", Karlov numbers -5): prod dry run 2 -> 24 filled; 8 left (5 Clues TCGplayer does not list).
 47. Unpriced old cards (about 900 total): hide or leave? [you decide] S
 48. Magic and Pokémon catalog updates still run from your PC [you] M
 49. Should Pokémon get a stronger price-limit check? [you decide] S

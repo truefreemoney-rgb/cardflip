@@ -58,7 +58,8 @@ export interface MtgFill {
 
 const fold = (s: string) =>
   s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9]+/g, " ").trim();
-const STAMP = /gold[- ]stamped/i;
+/** The signed / symbol-stamped Art Series product: "(Gold-Stamped Signature)", and Foundations' plain "(Stamped Signature)" (10-17). */
+const STAMP = /gold[- ]stamped|stamped signature/i;
 /**
  * Product name → bare card name: drop "Art Card" and every parenthetical, plus
  * the words TCGplayer puts before "Art Card" that Scryfall's name lacks
@@ -98,8 +99,25 @@ const GROUP_IDS: Record<string, number[]> = {
   who: [23165, 23166], // Universes Beyond: Doctor Who + its Planechase, both "WHO"
 };
 
-/** The List's Scryfall numbers carry the original set ("KLD-2"); TCGplayer prints only the number. */
-const listNumber = (setCode: string, number: string) => (setCode.toLowerCase() === "plst" ? number.replace(/^[a-z0-9]+-/i, "") : number);
+/**
+ * Art Series sets whose Scryfall numbers run ahead of TCGplayer's from some card on: Scryfall numbers five Clue art cards
+ * 41-45 in Karlov Manor that TCGplayer does not list, so its 46 (Aurelia) is TCGplayer's 41 (10-17).
+ */
+const NUMBER_SHIFT: Record<string, { from: number; by: number }> = {
+  amkm: { from: 46, by: -5 },
+};
+
+/** The List's Scryfall numbers carry the original set ("KLD-2"); TCGplayer prints only the number. Plus NUMBER_SHIFT. */
+const listNumber = (setCode: string, number: string) => {
+  const code = setCode.toLowerCase();
+  if (code === "plst") return number.replace(/^[a-z0-9]+-/i, "");
+  const shift = NUMBER_SHIFT[code];
+  const n = /^\d+$/.test(number) ? Number(number) : NaN;
+  return shift && n >= shift.from ? String(n + shift.by) : number;
+};
+
+/** Words of 4+ letters, for the Art Series number fallback. */
+const words = (s: string) => new Set(s.split(" ").filter((w) => w.length >= 4));
 
 /**
  * Pure: Scryfall set → TCGplayer group. Abbreviation first (LEA, LEB, SUM,
@@ -163,6 +181,13 @@ export function matchMtgProducts(rows: MtgGapRow[], products: TcgProduct[]): Mtg
       // Numbered groups only for Art Series: elsewhere a number miss can be another printing.
       if (!hits.length && !stamped && (!numbered || art) && rowsByName.get(fold(r.name)) === 1) hits = byName.get(name) ?? [];
       if (hits.length) break;
+    }
+    // Art Series named for the art, not the card (10-17): Scryfall "Gnoll Hunter" / "Loathsome Troll // Troll" #21 is
+    // TCGplayer "Gnoll Art Card" / "Troll Art Card" #21. The one plain product of that number, if it shares a word with a face.
+    if (!hits.length && art && numbered) {
+      const faces = words(r.name.split(" // ").map(fold).join(" "));
+      const same = products.filter((p) => STAMP.test(p.name) === stamped && nums.includes(bareNumber(p.number)));
+      if (same.length === 1 && [...words(bareProduct(same[0].name))].some((w) => faces.has(w))) hits = same;
     }
     if (hits.length !== 1) continue;
     const pr = hits[0].prices;

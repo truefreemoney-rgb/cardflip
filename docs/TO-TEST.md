@@ -4,6 +4,9 @@
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
 
+## 10-17 ~5:15pm ET: last Art Series prices (task #46, NOT PUSHED)
+- Morning after the push (nightly Magic refresh): `node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/_art-fill-dry.mjs` shows gaps 8 (5 Karlov Clues TCGplayer doesn't sell + Nefarious Imp, Treasure Keeper, Harness Infinity 27s); was 32. E.g. Gnoll Hunter aafr 11 ~$0.20, Aurelia amkm 46 ~$0.15.
+
 ## 10-17 ~5:30pm ET: thin-market cards show their price with "Few sales" (task #1, NOT PUSHED; shots docs/shots/few-sales-1..2)
 - After push, phone: open /cards/pokemon/arceus/shinx--pl4-SH12 -> big price $165-ish, amber dot "Few sales · check eBay sold" under it (was "This price looks off").
 - /cards/magic/limited-edition-beta/volcanic-eruption--leb-89 -> same note under ~$120.
