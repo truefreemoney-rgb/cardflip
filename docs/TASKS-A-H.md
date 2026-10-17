@@ -7,7 +7,7 @@ tasks #58 #59 #61 #62 #63 #65 (+ #66 #67 already existed, #57 skipped). All push
 
 ## A. Prices (TOP PRIORITY, Chris 10-17)
 1. Price fallback step 1: wire the guard's fallback price into the scanner, Inventory and card pages so no card shows $0 or "looks off" (code in place, 83f8c77c) [me] M -- DONE 10-17 another way (2b43c844, not pushed): fallback measured 1/11 right vs eBay sold so turned OFF; thin-market flags now show their own price with "Few sales" (276 cards un-blanked, 8/9 right or plausible); 380 hard-evidence cards stay blank.
-2. Finish the price test: Lorcana eBay prices (17 cards) + One Piece (20), then the final per-game breakdown [me] S
+2. Finish the price test: Lorcana eBay prices (17 cards) + One Piece (20), then the final per-game breakdown [me] S -- DONE 10-17 (s187): 94/100 scored, site 62% vs PriceCharting-first 78%, per game in PRICE-FALLBACK-PLAN.md "FULL 5-GAME TEST"; only One Piece PC prices left (Cloudflare, 3/20) = part of the PC finale.
 3. PriceCharting sub (Legendary, $49/mo; free display until $1,000/mo revenue, then a cut; attribution = text link) [you] S
 4. After the sub: PriceCharting as the main price, matched by TCGplayer ID, TCGplayer only where it has none [me] M
 5. After the sub: "Based on N sales" + "few sales" label on card pages and scan results [me] S
