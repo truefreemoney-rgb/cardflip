@@ -4,6 +4,9 @@
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
 
+## 10-17 ~4pm ET: app pages ask /api/auth/me once (A-H #24, NOT PUSHED)
+- After push, pane signed in on cardflip.io/app/collection: performance resource entries show /api/auth/me 1 (was 2) and /api/watch/pending 1. A "Watch this price" from a public card page while signed out, then sign in: the card is on the watchlist with the "Added to your watchlist" toast.
+
 ## 10-17 ~3pm ET: Pokémon price limit has no cliff (A-H #22, NOT PUSHED)
 - After push + the next nightly price run: /cards/pokemon/boundaries-crossed (Cresselia-EX 143) shows about 1.45x its cheapest TCGplayer copy (~$103 on 10-17, was $122.05), Victini-EX Plasma Storm 131 ~$167 (was $201.35). A card under 1.45x its cheapest copy keeps TCGplayer's number. No new "looks off" on those pages.
 

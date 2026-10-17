@@ -9,6 +9,7 @@ import { addToWishlist } from "@/lib/client/wishlistApi";
 import { apiFetch } from "@/lib/client/basePath";
 import { pickPrice } from "@/lib/listing";
 import { toast } from "@/components/Toaster";
+import { useOptionalSession } from "@/components/SessionProvider";
 import type { GameId } from "@/lib/types";
 
 /**
@@ -168,9 +169,10 @@ export async function hasPendingWatch(): Promise<boolean> {
  * 10-08: a 2-3 s wait after landing); the app layout runs it for every other
  * first signed-in page.
  */
-export async function claimPendingWatch(): Promise<boolean | "none"> {
+export async function claimPendingWatch(signedIn?: boolean): Promise<boolean | "none"> {
   const local = readLocalPending();
-  const user = await fetchCurrentUser().catch(() => null);
+  // The app layout already knows (its session): asking /api/auth/me again was a second ~1.5 s call on every app open (#24).
+  const user = signedIn ?? Boolean(await fetchCurrentUser().catch(() => null));
   if (!user) return "none"; // still signed out: the local copy waits for after signup
   const pending = local ?? (await fetchServerPending());
   if (!pending) return "none";
@@ -181,9 +183,11 @@ export async function claimPendingWatch(): Promise<boolean | "none"> {
 
 /** Mount once inside the signed-in app: finishes a "Watch this price" started while signed out. */
 export function PendingWatch() {
+  const ready = useOptionalSession()?.status === "ready";
   useEffect(() => {
+    if (!ready) return;
     let cancelled = false;
-    claimPendingWatch()
+    claimPendingWatch(true)
       .then((added) => {
         if (cancelled || added === "none") return;
         toast(added ? "Added to your watchlist" : "Could not add that card to your watchlist", "info");
@@ -194,6 +198,6 @@ export function PendingWatch() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [ready]);
   return null;
 }

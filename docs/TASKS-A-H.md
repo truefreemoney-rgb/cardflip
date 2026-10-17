@@ -34,7 +34,7 @@ C0. DONE 10-17 (local, not pushed; covers, set index and /api/sets serve the old
 21. The Magic price limit cuts some old cards too low (e.g. Alpha Blaze of Glory $400 vs ~$579), and it has no lower limit for $1 junk listings [me] M
 22. DONE 10-17 (local, not pushed; limit now starts at 1.45x, eBay sold sample 9 of 10 closer): Pokémon price-limit jump: a $99 card stays $99, but at $100 it drops to $72.50. Smooth it out [me] S
 23. Nightly catalog upload resends everything; send only what changed [me] M
-24. Inventory still loads a couple of things twice; confirm and trim [me] S
+24. DONE 10-17 (local, not pushed; prod showed only /api/auth/me twice, the second from PendingWatch: now uses the app's session, /api/watch/pending once too): Inventory still loads a couple of things twice; confirm and trim [me] S
 25. The support ticket photo picker allows gallery photos (camera-only rule?) [you decide] S
 26. No per-user limit on how many cards, price checks or watchlist items an account can add [me] S
 
