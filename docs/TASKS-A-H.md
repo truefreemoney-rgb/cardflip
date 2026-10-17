@@ -1,7 +1,7 @@
 # Chris's A-H task list (given in chat 10-16 ~7pm ET; saved 10-16 ~9:45pm ET)
 
 One task at a time, easiest first. [me] = Claude does it, [you] = Chris. S/M/L = size.
-Section D (items 26-33) was not in the screenshots Chris sent; ask him for it if needed.
+Section D recovered from session a04629b6 transcript.
 
 ## A. App store prep (the main goal)
 1. DONE 10-16 locally (5299b9fe): Test in-app account deletion end to end for Google, X and TikTok sign-ups [me] M
@@ -34,7 +34,15 @@ Section D (items 26-33) was not in the screenshots Chris sent; ask him for it if
 24. Email unsubscribe links can be triggered by email scanners; add a confirm step [me] S
 25. No per-user limit on how many cards, price checks or watchlist items an account can add [me] S
 
-## D. (items 26-33 not captured)
+## D. Security cleanup (from the 10-16 audit)
+26. eBay actions skip the subscription check, one eBay account can link to several users, and the eBay connect step can crash [me] M
+27. A refund or dispute doesn't cancel the subscription, and an account with a failed payment counts as subscribed forever [me] M
+28. Rate limits don't hold across servers [me] M
+29. Login and sign-up let someone check which emails have accounts [me] S
+30. Turning off 2FA or changing email doesn't sign out other devices, and sessions never expire [me] M
+31. Admin sign-out can't really end the session, and the admin key has a weak fallback [me] M
+32. A few input checks are missing (image type, list sizes, bad notification addresses) [me] S
+33. Sign-up takeover (audit #2): on hold, your call [you] M
 
 ## E. Checks on things already live
 34. FLIPBACK results tomorrow morning: who came back and redeemed [me] S
