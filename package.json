@@ -155,7 +155,8 @@
     "test:ebayreferee": "node --experimental-strip-types --no-warnings scripts/test-ebay-referee.mjs",
     "test:pricereports": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-price-reports.mjs",
     "test:uptime": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-uptime.mjs",
-    "test:promo": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-promo-codes.mjs"
+    "test:promo": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-promo-codes.mjs",
+    "test:pushcatalog": "node scripts/test-push-catalog.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.116.0",

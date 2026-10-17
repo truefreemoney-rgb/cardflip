@@ -6,9 +6,11 @@
 // must run on Chris's PC — Scryfall and the Pokémon sources 429/deny cloud
 // egress IPs — and they write the local data/cardflip.db. Production is
 // Turso, so without this push a new set never reaches cardflip.io. This is
-// the missing third step, wired into the weekly "CardFlip catalog sync"
+// the missing third step, wired into the nightly "CardFlip catalog sync"
 // Task Scheduler job: sync locally, then replay ONLY the catalog tables
-// upstream as INSERT OR REPLACE batches.
+// upstream as INSERT OR REPLACE batches, and only the rows whose content
+// changed since the last push (fingerprints in data/catalog-push-state.db,
+// 10-17; scripts/test-push-catalog.mjs).
 //
 // Deliberately NOT pushed: price_series (prod's daily job maintains it with
 // fresher points than any local copy), and every user-owned table (users,
@@ -17,6 +19,7 @@
 //
 // Credentials like backup-turso.mjs: TURSO_DATABASE_URL/TURSO_AUTH_TOKEN or
 // .env.migration.json (dbUrl/dbToken).
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -55,6 +58,10 @@ const CATALOG_TABLES = [
 
 const local = new DatabaseSync(path.join(root, "data", "cardflip.db"), { readOnly: true });
 const remote = createClient({ url, authToken });
+// What Turso already has, by row fingerprint (see the push loop). Its own file so the
+// mirror stays read-only here; deleting it just means one full push.
+const state = new DatabaseSync(process.env.CATALOG_PUSH_STATE ?? path.join(root, "data", "catalog-push-state.db"));
+state.exec("CREATE TABLE IF NOT EXISTS pushed (tbl TEXT NOT NULL, k TEXT NOT NULL, h TEXT NOT NULL, PRIMARY KEY (tbl, k))");
 
 const ROWS_PER_STMT = 200;
 const STMTS_PER_BATCH = 10;
@@ -105,24 +112,55 @@ for (const table of CATALOG_TABLES) {
     console.log(`${table}: local empty but remote has ${remoteCount} — NOT pushing (would do nothing, flags a stale local sync)`);
     continue;
   }
-  console.log(`${table}: pushing ${localCount} rows (remote has ${remoteCount})${dry ? " [dry run]" : ""}`);
+  // Only rows whose content changed since the last push (10-17, task #23): the
+  // syncs re-stamp synced_at on every row every night, so the check above never
+  // held and all ~190k rows went up nightly (446 s). A row's fingerprint
+  // (every column but synced_at) is kept per table in data/catalog-push-state.db
+  // once Turso has accepted its batch; no fingerprint = never pushed = send it.
+  const colList = cols.join(", ");
+  const keyCols = localCols.filter((c) => c.pk > 0).sort((a, b) => a.pk - b.pk).map((c) => c.name);
+  const keyOf = (r) => (keyCols.length ? keyCols.map((c) => String(r[c])).join("\u0001") : JSON.stringify(cols.map((c) => r[c] ?? null)));
+  const hashCols = cols.filter((c) => c !== "synced_at");
+  const hashOf = (r) => crypto.createHash("sha1").update(JSON.stringify(hashCols.map((c) => r[c] ?? null))).digest("base64");
+  const seen = new Map(state.prepare("SELECT k, h FROM pushed WHERE tbl = ?").all(table).map((s) => [s.k, s.h]));
+  let rows = [];
+  const all = [];
+  for (const r of local.prepare(`SELECT ${colList} FROM ${table}`).iterate()) {
+    const k = keyOf(r), h = hashOf(r);
+    all.push({ r, k, h });
+    if (seen.get(k) !== h) rows.push(all[all.length - 1]);
+  }
+  // Turso short of rows the state says it has (deleted there, or a restore): the state can't be
+  // trusted for this table, so send every row once and rebuild it.
+  if (localCount - remoteCount > rows.length) {
+    console.log(`${table}: remote is ${localCount - remoteCount} rows short but only ${rows.length} changed: pushing all`);
+    rows = all;
+  }
+  if (rows.length === 0 && localCount <= remoteCount) {
+    console.log(`${table}: no changed rows (${localCount} rows)`);
+    continue;
+  }
+  console.log(`${table}: pushing ${rows.length} changed of ${localCount} rows (remote has ${remoteCount})${dry ? " [dry run]" : ""}`);
   if (dry) continue;
 
-  const colList = cols.join(", ");
-  const rows = local.prepare(`SELECT ${colList} FROM ${table}`).all();
+  const remember = state.prepare("INSERT OR REPLACE INTO pushed (tbl, k, h) VALUES (?, ?, ?)");
   let stmts = [];
-  let pushed = 0;
+  let pending = [];
   const flush = async () => {
     if (stmts.length === 0) return;
     await remote.batch(stmts, "write");
+    state.exec("BEGIN");
+    for (const p of pending) remember.run(table, p.k, p.h);
+    state.exec("COMMIT");
     stmts = [];
+    pending = [];
   };
   for (let i = 0; i < rows.length; i += ROWS_PER_STMT) {
     const chunk = rows.slice(i, i + ROWS_PER_STMT);
     const placeholders = chunk.map(() => `(${cols.map(() => "?").join(", ")})`).join(", ");
-    const args = chunk.flatMap((r) => cols.map((c) => r[c] ?? null));
+    const args = chunk.flatMap(({ r }) => cols.map((c) => r[c] ?? null));
     stmts.push({ sql: `INSERT OR REPLACE INTO ${table} (${colList}) VALUES ${placeholders}`, args });
-    pushed += chunk.length;
+    pending.push(...chunk);
     if (stmts.length >= STMTS_PER_BATCH) await flush();
   }
   await flush();
