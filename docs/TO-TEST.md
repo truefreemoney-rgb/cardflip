@@ -630,10 +630,10 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 
 - [ ] Pokemon listing cap (10-16, after push): Base Set 2 Mewtwo (base4-10) card page ~$68 not $129.77; Skyridge Piloswine H22 unchanged ~$388; a cheap holo under $20 unchanged; none of the capped ones show "looks off".
 
-## 10-17 competitor tasks (NOT PUSHED; commits 5aee281c, d90ee762, 4427a6fe, d7f10921, + #63)
-- #59 titles: card tab title "Name Number Set price: $X" (only where it fits 60, never a flagged price); set title has the year; set meta description has count, range, top card. Check: curl a live card + set page <title>/<meta description>.
-- #58 card pages "Common questions" (3 collapsed Q&As). Check on phone: open/close, LP/HP values = 85% / 55% of the price.
-- #61 "All" range pill on card charts + Inventory value chart. Check on phone: no overflow, All shows full history.
-- #62 set summary strip (7d/30d set value, typical card, most valuable). Check numbers on a live set vs the card list.
+## 10-17 competitor tasks (PUSHED 90033b03 10-17 ~9:18am ET; CI + smoke green; prod checks 10-17 ~10:30am ET below)
+- #59 titles: PASS on prod: "Blastoise 2/102 Base Set price: $224.98" (39 chars); set title "Base Set Pokémon card prices 2026"; set desc "100 Pokémon cards from Base Set, from $0.29 to $224.98. Most valuable: Blastoise at $224.98."
+- #58 card pages "Common questions": PASS on prod at 375px: 3 Q&As open, Blastoise LP $191.23 / HP $123.74 = exactly 85% / 55% of $224.98, no sideways scroll.
+- #61 "All" range pill: card chart PASS on prod at 375px (All selected, 151 days May 18 -> Oct 17, no overflow). Inventory value chart NOT CHECKED (needs a signed-in account with cards).
+- #62 set summary strip: PASS on prod (Base Set: 7d -11.3%, 30d -14.5%, typical $2.60 of 100, most valuable Blastoise $224.98 = top of the card list).
 - #63 "Most valuable sets" on /cards/<game> (top 10). SWR cache seo:setvalues:v1:<game> (~21 s query, built after the response): the section may be MISSING on the first build of a hub page and appears after ISR revalidates (<= 2 days). Check all 5 games show it within 2 days, and Pokemon top 5 ~ Skyridge, Legendary Collection, Holon Phantoms, Base Set 1st Ed, Aquapolis.
-- #65 Top 100 page /cards/<game>/most-valuable (+ 'See the top 100' link under Most valuable cards on each game page). Check: 100 rows on phone, no junk at the top, cold build time of seo:top100:v1 on prod (400-candidate guarded read).
+- #65 Top 100 page: PASS on prod 10-17: all 5 games 100 rows + link on each hub; top 5 look real (Pokemon 1st Ed Charizard $10,000, Magic Smaug $24,500, YGO Uria $999.97, Lorcana Elsa's Ice Palace promo $3,999.99, One Piece Luffy Gold $13,000). Cold builds: Pokemon 16.5 s, YGO 7.6 s, Magic 5.1 s; cached ~0.4 s. #63 Most valuable sets: still missing on all 5 hubs at 10:30am ET (expected; recheck by 10-19).
