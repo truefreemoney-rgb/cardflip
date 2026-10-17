@@ -75,18 +75,19 @@ Section D recovered from session a04629b6 transcript.
 55. Soft launch to 20 to 30 invited sellers [you] L
 56. Parked by the freeze: auto-scan, reveal sounds, the "Not this card?" redesign, invite rewards, sales tax estimate, dealer tier, more grading/price sources, selling on TCGplayer.
 
-## I. Competitor ideas (Chris 10-17: tiers S, A, B approved, start today; from docs/COMPETITOR-POKEMONWIZARD-2026-10-17.md; final tier list after the PokeData review)
+## I. Competitor ideas (Chris 10-17: tiers S, A, B approved, start today; FINAL after both reviews: docs/COMPETITOR-POKEMONWIZARD-2026-10-17.md + docs/COMPETITOR-POKEDATA-2026-10-17.md). Order: 59, 57, 58, 60, 61, 62, 63, 67, 64, 65, 66
 S tier
 57. Search-result markup on card + set pages: Product (with price), FAQPage, ItemList [me] S
 58. Short FAQ block on every card page (worth / sell? / set / other printings), answers from our own numbers, matching the markup [me] S
 59. Better titles + meta descriptions: year, card count, price range ("Base Set prices 2026: 102 cards, $0.25-$420") [me] S
-60. "Based on N sales" next to prices + "few sales" label (needs PriceCharting sales-volume; see PRICE-FALLBACK-PLAN.md) [me] S
+60. "Based on N sales" next to prices + "few sales" label on card pages AND scan results (needs PriceCharting sales-volume; see PRICE-FALLBACK-PLAN.md) [me] S
 A tier
 61. 7D / 30D / 90D / All buttons on price charts [me] S
 62. Set summary strip on set pages: 7d + 30d change, average card value, top and bottom card [me] S-M
 63. Rank + sort sets by average card value ("best sets to open"), filters [me] S-M
+67. Printing chips with their own prices (Reverse Holo / Holo / 1st Ed / pattern) so a blended price cannot hide; check the Printing picker first [me] S-M
 B tier (new features, Chris OK'd 10-17 despite the freeze)
 64. Pokemon character pages (all Espeon cards, total value, top 10, prev/next) [me] L
 65. Trending up/down + Top 100 page (rarity filter) [me] M
 66. Favorites + price alerts: extend the Watchlist where it falls short [me] M
-C tier (skip): sealed product pages, "gained X% since release" stats, investment-guide articles.
+C tier (skip): sealed product pages, "gained X% since release" stats, investment-guide articles. BLOCKED: recent sold sales list per card (no allowed eBay sales source; revisit if Marketplace Insights is approved). PokeData as a price source: NO (API $20/mo non-commercial only; 2/5 within 25% of eBay sold).
