@@ -24,15 +24,24 @@ async function check(label, fn) {
     await fn();
     results.push({ label, ok: true, ms: Date.now() - t0 });
   } catch (err) {
-    results.push({ label, ok: false, ms: Date.now() - t0, detail: err instanceof Error ? err.message : String(err) });
+    // Our own country gate answered (the GitHub runner sat outside the open countries, 10-18 21:51 UTC): the site is
+    // up, this check just can't see it from here. Skipped, not failed, so it doesn't mail a false outage.
+    if (err?.geo) results.push({ label, ok: true, skipped: true, ms: Date.now() - t0, detail: err.message });
+    else results.push({ label, ok: false, ms: Date.now() - t0, detail: err instanceof Error ? err.message : String(err) });
   }
 }
 
+let geoGated = false;
+const geoError = () => Object.assign(new Error("country gate: this runner is outside the open countries"), { geo: true });
 async function call(path, init = {}) {
   const res = await fetch(base + path, { ...init, signal: AbortSignal.timeout(TIMEOUT_MS), headers: { "user-agent": "cardflip-smoke", ...(init.headers ?? {}) } });
   const text = await res.text();
   let json = null;
   try { json = JSON.parse(text); } catch { /* html or empty */ }
+  if (res.status === 403 && json?.unavailable === true) {
+    geoGated = true;
+    throw geoError();
+  }
   return { status: res.status, json, text };
 }
 const expect = (cond, msg) => { if (!cond) throw new Error(msg); };
@@ -98,6 +107,8 @@ for (const path of ["/", "/pricing", "/help", "/login", "/signup", "/forgot-pass
 }
 await check("admin console is gated (redirects to its login)", async () => {
   const res = await fetch(base + "/admin", { redirect: "manual", signal: AbortSignal.timeout(TIMEOUT_MS) });
+  // Outside the admin countries the console answers a plain 404 (proxy.ts); only trusted when the gate was seen above.
+  if (res.status === 404 && geoGated) throw geoError();
   expect(res.status >= 300 && res.status < 400, `status ${res.status}`);
 });
 
@@ -126,7 +137,9 @@ await check("sitemap index lists its files and every file answers (keeps the cop
 let failed = 0;
 for (const r of results) {
   if (!r.ok) failed++;
-  console.log(`  ${r.ok ? "PASS" : "FAIL"}  ${r.label} (${r.ms}ms)${r.ok ? "" : `\n         ${r.detail}`}`);
+  console.log(`  ${r.skipped ? "SKIP" : r.ok ? "PASS" : "FAIL"}  ${r.label} (${r.ms}ms)${r.ok && !r.skipped ? "" : `\n         ${r.detail}`}`);
 }
-console.log(failed ? `\n${failed} of ${results.length} production checks FAILED — ${base}` : `\nproduction healthy: ${results.length} checks — ${base}`);
+const skipped = results.filter((r) => r.skipped).length;
+if (skipped) console.log(`\n::warning::${skipped} checks skipped: this runner is outside CardFlip's open countries (country gate, not an outage)`);
+console.log(failed ? `\n${failed} of ${results.length} production checks FAILED — ${base}` : `\nproduction healthy: ${results.length - skipped} checks${skipped ? ` (${skipped} skipped)` : ""} — ${base}`);
 process.exitCode = failed ? 1 : 0;

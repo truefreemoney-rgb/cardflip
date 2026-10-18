@@ -4,6 +4,15 @@
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
 
+## 10-18 ~7:20pm ET: PUSHED 3bd3e4b6 (24 commits: trackers out of /app, PriceCharting fence, log cleanup in tcg-prices cron, referee matcher fixes incl. Japan Showcase, no owner [COPY] mails, Sunday mail averages line + checked cards out)
+- [ ] CI run 39175798774 + Vercel READY + Production smoke after deploy green.
+- [ ] Tue 10-20 10am ET "scans" mail run: email_sends has NO status 'copy' row; Chris gets no [COPY].
+- [ ] Trackers: pane on cardflip.io/app/collection -> no analytics.tiktok.com / google-analytics / googleadservices requests; cardflip.io/ still loads them.
+- [ ] Next Sunday-or-later tcg-prices cron: daily_last_result has logCleanup {ran:true}; settings log_cleanup_last moves off 10-08.
+- [ ] Weekly referee re-read: Japan showcase / textured / fracture foils get more asks; fewer false "Hidden by eBay" Magic cards.
+- [ ] SUN 10-25 6:30pm digest: "How each game moved" line present when the subject says up/down; no hand-checked card in the rows.
+- Smoke 21:51 UTC 10-18 FAILED = runner outside the allowed countries ("CardFlip isn't available in your country yet" on 4 API checks + admin 404), not an outage (site 200 from here, all other runs green). Fix next: smoke treats a country-gate 403 as "skipped", not a failure mail.
+
 ## 10-18 ~12:00pm ET: trackers out of the signed-in app (COMMIT ONLY)
 - Found live: TikTok pixel + Google Analytics + Google Ads tag loading on /app/collection; privacy page says public pages only. No conversion fires in /app (signup + /scan are public).
 - Fix (GoogleAnalytics.tsx): no tags when a visit starts in /app; ga-disable flags + ttq.holdConsent while in /app after a public page, grantConsent back outside. Local check with fake ids PASS (/ loads all 3; full load /app/collection none; / -> /app click: ga-disable true for GA + Ads).
