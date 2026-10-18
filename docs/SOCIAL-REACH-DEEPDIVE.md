@@ -114,3 +114,11 @@ Not a reach lever but noted: 60-day token refresh, media_publish retry, PNG→JP
 **Not needed**: Facebook Reels endpoint (already reels), Instagram cover (grid is fine), account type change.
 
 - 10-10: first signup from X (10:30am ET, t.co → /, US), the morning after the sign-off-last trial started. 12 "search" visitors the same morning hit 7 different nav pages (likely crawler/tool, verify in Search Console).
+
+## Trial review (10-18, read from social_posts; was due 10-16 evening)
+Avg views per post (posts with a views count), sign-off-last trial 10-10..10-16 vs before 09-26..10-09:
+- Instagram 16.7 vs 8.4 (doc baseline 5.7): about 2x. Likes 0.95/post vs 0.
+- X 17.8 vs 14.6 (doc baseline 12): up ~20-50%.
+- Threads 18.1 vs 18.5 (baseline 18): flat.
+- 10-17.. (4 posts, still counting): IG 14.5, X 9.0, Threads 12.0.
+Decision: KEEP signOffLast on all three (lift on IG and X, no harm on Threads). Separate: TikTok avg fell 440 -> 162 views/post (09-26..10-09 had early outliers); watch.

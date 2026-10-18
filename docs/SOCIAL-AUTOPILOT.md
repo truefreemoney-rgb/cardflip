@@ -392,6 +392,8 @@ the token/app password as a reply on the row. Nothing else, ever.
 
 ## TikTok results log (by hand, read from the pane)
 
+10-09 question-format test (read 10-18 from social_posts): 7am "Guess the Pokémon" 218 views / 3 likes, 1pm movers (control) 240 / 6, 7pm head to head 298 / 4. One day each = inside the day-to-day spread (10-08..10-11 posts ran 124-298). No winner; 7pm weighting unchanged.
+
 | Posted | Post | Sound | Views | Likes | Saves | Note |
 |---|---|---|---|---|---|---|
 | 10-07 | Lorcana "Scan a card, see what it's worth" (7694066139168607501) | Funk it up (library) | 233 | 7 | 1 | 6 of 7 likes are outside accounts, all different; best like rate so far (3%) |
