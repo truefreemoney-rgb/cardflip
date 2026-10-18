@@ -92,7 +92,8 @@ export async function recordPrices(cards: PokemonCard[], day = todayUtc()): Prom
 /** Every series we hold for a card, oldest point first. Not the TCGdex referee reading (priceTrust REF_ALT_SOURCE): it judges prices, it is not a chart line. */
 export async function getPriceHistory(cardId: string): Promise<HistorySeries[]> {
   const rows = (await db
-    .prepare("SELECT variant, source, currency, game, start_day, prices FROM price_series WHERE card_id = ? AND source <> 'tcgdex-cm'")
+    // PriceCharting rows (lib/pricecharting.ts) stay off every screen until the PC-first switch is made on purpose.
+    .prepare("SELECT variant, source, currency, game, start_day, prices FROM price_series WHERE card_id = ? AND source NOT IN ('tcgdex-cm', 'pricecharting')")
     .all(cardId)) as unknown as { variant: string; source: string; currency: string; game: string; start_day: string; prices: string }[];
   return rows.map((r) => ({
     variant: r.variant,
@@ -146,7 +147,7 @@ export async function latestUsdByVariant(cardIds: string[]): Promise<Map<string,
   for (let i = 0; i < cardIds.length; i += 400) {
     const chunk = cardIds.slice(i, i + 400);
     const rows = (await db
-      .prepare(`SELECT card_id, variant, prices FROM price_series WHERE currency = 'USD' AND card_id IN (${chunk.map(() => "?").join(",")})`)
+      .prepare(`SELECT card_id, variant, prices FROM price_series WHERE currency = 'USD' AND source <> 'pricecharting' AND card_id IN (${chunk.map(() => "?").join(",")})`)
       .all(...chunk)) as unknown as { card_id: string; variant: string; prices: string }[];
     for (const r of rows) {
       const prices = decodePrices(r.prices);
@@ -176,7 +177,7 @@ export async function latestUsdPrices(
     const rows = (await db
       .prepare(
         `SELECT card_id, variant, prices FROM price_series
-          WHERE currency = 'USD' AND card_id IN (${chunk.map(() => "?").join(",")})`,
+          WHERE currency = 'USD' AND source <> 'pricecharting' AND card_id IN (${chunk.map(() => "?").join(",")})`,
       )
       .all(...chunk)) as unknown as { card_id: string; variant: string; prices: string }[];
     for (const r of rows) {
@@ -217,7 +218,7 @@ export async function usdSeries(
     const rows = (await db
       .prepare(
         `SELECT card_id, variant, start_day, prices FROM price_series
-          WHERE currency = 'USD' AND card_id IN (${chunk.map(() => "?").join(",")})`,
+          WHERE currency = 'USD' AND source <> 'pricecharting' AND card_id IN (${chunk.map(() => "?").join(",")})`,
       )
       .all(...chunk)) as unknown as { card_id: string; variant: string; start_day: string; prices: string }[];
     for (const r of rows) {

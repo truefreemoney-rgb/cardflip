@@ -969,6 +969,23 @@ const SCHEMA = `
     off_day TEXT,
     PRIMARY KEY (game, card_id, variant)
   );
+  -- PriceCharting products matched to our printings (10-18, lib/pricecharting.ts, scripts/import-pricecharting.mjs):
+  -- the product page we must link to when their number shows, its yearly sales count ("Based on N sales") and the
+  -- latest ungraded / grade 9 / PSA 10 prices. The daily ungraded number also goes to price_series source 'pricecharting'.
+  -- Purge both if the subscription ends (their terms).
+  CREATE TABLE IF NOT EXISTS pc_products (
+    pc_id TEXT PRIMARY KEY,
+    game TEXT NOT NULL,
+    card_id TEXT NOT NULL,
+    variant TEXT NOT NULL,
+    tcg_id TEXT,
+    loose REAL,
+    graded9 REAL,
+    psa10 REAL,
+    sales_volume INTEGER NOT NULL DEFAULT 0,
+    day TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_pc_products_card ON pc_products(card_id, variant);
 `;
 
 /**

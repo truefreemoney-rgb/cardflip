@@ -149,3 +149,118 @@ export const pcProductUrl = (id: string) => `https://www.pricecharting.com/game/
 
 /** Lower-case tags with spaces/dashes folded, for matching ("Reverse Holo" -> "reverseholo"). */
 export const tagKey = (t: string) => t.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+// ---------------------------------------------------------------------------
+// Matching PriceCharting products to our printings (card id + price variant).
+// PriceCharting has one product per printing (a "[Reverse Holo]" row next to the plain one) where TCGplayer has one
+// product with subtypes, so the product's tcg-id gives the card and its bracket tags give the variant. A row is only
+// written onto a variant the card already has a TCGplayer series for (or a 1st Edition twin that exists): anything
+// unsure is skipped and counted, never guessed.
+
+export type PcGame = "pokemon" | "mtg" | "yugioh";
+
+export interface PcMatchCtx {
+  /** Our card ids for a TCGplayer product id (Pokémon: tcgplayer_products; Magic: Scryfall's tcgplayer_id). */
+  cardsOfTcg: (tcgId: string) => string[];
+  /** The variants a card has a TCGplayer series for. */
+  variantsOf: (cardId: string) => ReadonlySet<string>;
+  /** The card exists in our catalog (1st Edition twins, Yu-Gi-Oh ids). */
+  hasCard: (cardId: string) => boolean;
+}
+
+export interface PcWrite {
+  game: PcGame;
+  cardId: string;
+  variant: string;
+  usd: number;
+  pcId: string;
+  tcgId: string;
+  salesVolume: number;
+  graded9: number | null;
+  psa10: number | null;
+}
+
+export type PcSkip = "no price" | "no tcg-id" | "unknown product" | "other printing" | "no such variant" | "ambiguous" | "duplicate";
+
+const POKEMON_PATTERN = /^(poke|master|dusk|love|friend|quick|great|ultra|heal|premier|nest|timer|luxury|level|lure|moon|fast|heavy|net|dive|repeat|safari|sport|park|beast|dream)ball(pattern)?$|^energysymbol(pattern)?$|^teamrocket(pattern)?$/;
+
+/** "Poke Ball" -> "pokeBallPattern", "Energy Symbol" -> "energySymbolPattern". */
+function pokemonPatternVariant(key: string): string | null {
+  if (!POKEMON_PATTERN.test(key)) return null;
+  const core = key.replace(/pattern$/, "");
+  const m = core.match(/^(.*?)(ball|symbol|rocket)$/);
+  if (!m) return null;
+  return `${m[1]}${m[2][0].toUpperCase()}${m[2].slice(1)}Pattern`;
+}
+
+/** Pokémon tags that name the same TCGplayer product's subtypes; any other tag is a different printing. */
+const POKEMON_SAME_PRODUCT = new Set(["1stedition", "reverseholo", "holo", "unlimited"]);
+
+function pickPokemon(p: PcProduct, tags: string[], cardId: string, ctx: PcMatchCtx): { cardId: string; variant: string } | PcSkip {
+  const pattern = tags.map(pokemonPatternVariant).find(Boolean) ?? null;
+  const other = tags.filter((t) => !POKEMON_SAME_PRODUCT.has(t) && !pokemonPatternVariant(t));
+  if (other.length > 0) return "other printing";
+  if (pattern) return ctx.variantsOf(cardId).has(pattern) ? { cardId, variant: pattern } : "no such variant";
+  if (tags.includes("1stedition")) {
+    const target = ctx.hasCard(`${cardId}-1st`) ? `${cardId}-1st` : cardId;
+    const firsts = [...ctx.variantsOf(target)].filter((v) => v.startsWith("1stEdition"));
+    return firsts.length === 1 ? { cardId: target, variant: firsts[0] } : firsts.length === 0 ? "no such variant" : "ambiguous";
+  }
+  if (tags.includes("reverseholo")) return ctx.variantsOf(cardId).has("reverseHolofoil") ? { cardId, variant: "reverseHolofoil" } : "no such variant";
+  // Plain row: the card's one plain printing (holofoil / normal / unlimited...), never a reverse, pattern or 1st Edition.
+  const plain = [...ctx.variantsOf(cardId)].filter((v) => !v.startsWith("1stEdition") && v !== "reverseHolofoil" && !v.endsWith("Pattern"));
+  if (plain.length === 1) return { cardId, variant: plain[0] };
+  if (plain.length === 0) return "no such variant";
+  // "[Holo]" picks the holo one out of normal + holofoil.
+  if (tags.includes("holo")) {
+    const holo = plain.filter((v) => /holofoil$/i.test(v));
+    if (holo.length === 1) return { cardId, variant: holo[0] };
+  }
+  return "ambiguous";
+}
+
+function pickMtg(tags: string[], cardId: string, ctx: PcMatchCtx): { cardId: string; variant: string } | PcSkip {
+  // The tcg-id already names the exact Magic printing (borderless, showcase... are their own products); only the finish is a tag.
+  const variant = tags.some((t) => t.includes("etched")) ? "etched" : tags.includes("foil") ? "foil" : "nonfoil";
+  return ctx.variantsOf(cardId).has(variant) ? { cardId, variant } : "no such variant";
+}
+
+/** Every product's write (or why it was skipped). One write per printing: the first product claiming it wins, later ones count as duplicates. */
+export function planPcImport(game: PcGame, products: PcProduct[], ctx: PcMatchCtx): { writes: PcWrite[]; skipped: Record<PcSkip, number> } {
+  const skipped: Record<PcSkip, number> = { "no price": 0, "no tcg-id": 0, "unknown product": 0, "other printing": 0, "no such variant": 0, ambiguous: 0, duplicate: 0 };
+  const writes: PcWrite[] = [];
+  const seen = new Set<string>();
+  for (const p of products) {
+    if (p.loose == null) {
+      skipped["no price"]++;
+      continue;
+    }
+    if (!p.tcgId) {
+      skipped["no tcg-id"]++;
+      continue;
+    }
+    const tags = parseProductName(p.name).tags.map(tagKey);
+    let pick: { cardId: string; variant: string } | PcSkip;
+    if (game === "yugioh") {
+      const id = tags.includes("1stedition") ? `ygo-${p.tcgId}-1st` : `ygo-${p.tcgId}`;
+      pick = ctx.hasCard(id) ? { cardId: id, variant: "normal" } : "unknown product";
+    } else {
+      const cards = ctx.cardsOfTcg(p.tcgId);
+      if (cards.length === 0) pick = "unknown product";
+      else if (cards.length > 1) pick = "ambiguous";
+      else pick = game === "pokemon" ? pickPokemon(p, tags, cards[0], ctx) : pickMtg(tags, cards[0], ctx);
+    }
+    if (typeof pick === "string") {
+      skipped[pick]++;
+      continue;
+    }
+    const k = `${pick.cardId}|${pick.variant}`;
+    if (seen.has(k)) {
+      skipped.duplicate++;
+      continue;
+    }
+    seen.add(k);
+    writes.push({ game, cardId: pick.cardId, variant: pick.variant, usd: p.loose, pcId: p.id, tcgId: p.tcgId, salesVolume: p.salesVolume, graded9: p.graded9, psa10: p.psa10 });
+  }
+  return { writes, skipped };
+}

@@ -588,7 +588,7 @@ async function ownSeriesPrices(cardIds: string[], like: string): Promise<Map<str
     const rows = (await db
       .prepare(
         `SELECT card_id, variant, source, prices FROM price_series
-          WHERE card_id IN (${cardIds.map(() => "?").join(",")}) AND currency = 'USD' AND variant LIKE ?`,
+          WHERE card_id IN (${cardIds.map(() => "?").join(",")}) AND currency = 'USD' AND source <> 'pricecharting' AND variant LIKE ?`,
       )
       .all(...cardIds, like)) as unknown as { card_id: string; variant: string; source: string; prices: string }[];
     for (const r of rows) {

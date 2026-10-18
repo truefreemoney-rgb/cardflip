@@ -3,7 +3,7 @@
  * Pins: CSV quoting, USD cells, the columns we read, API pennies, product-name tags + number.
  */
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
-const { parseCsv, csvUsd, apiUsd, readPriceGuide, fromApi, parseProductName, pcProductUrl, tagKey } = await import(at("lib/pricecharting.ts"));
+const { parseCsv, csvUsd, apiUsd, readPriceGuide, fromApi, parseProductName, pcProductUrl, tagKey, planPcImport } = await import(at("lib/pricecharting.ts"));
 
 let failures = 0;
 function check(label, actual, expected = true) {
@@ -43,6 +43,68 @@ check("name: two tags, promo number", parseProductName("Pikachu [Reverse Holo] [
 check("name: no number", parseProductName("Black Lotus"), { base: "Black Lotus", tags: [], number: null });
 check("tag key", tagKey("Reverse-Holo "), "reverseholo");
 check("attribution link", pcProductUrl("6910"), "https://www.pricecharting.com/game/6910");
+
+// Matching (planPcImport). A tiny catalog: product -> card, the card's TCGplayer variants, the cards that exist.
+const ctxOf = (map, variants, cards) => ({
+  cardsOfTcg: (t) => map[t] ?? [],
+  variantsOf: (id) => new Set(variants[id] ?? []),
+  hasCard: (id) => cards.includes(id),
+});
+const P = (id, name, loose, tcgId, salesVolume = 5) => ({ id, console: "x", name, loose, graded9: null, psa10: null, salesVolume, tcgId, releaseDate: null });
+const pk = ctxOf(
+  { 42382: ["base1-4"], 100: ["neo1-99"], 200: ["sv8-1"], 300: ["sv8-2"], 400: ["xy1-17"], 500: ["dup-1"] },
+  {
+    "base1-4": ["holofoil"],
+    "base1-4-1st": ["1stEditionHolofoil"],
+    "neo1-99": ["unlimited"],
+    "neo1-99-1st": ["1stEdition"],
+    "sv8-1": ["normal", "reverseHolofoil", "pokeBallPattern", "masterBallPattern"],
+    "sv8-2": ["normal", "holofoil"],
+    "xy1-17": [],
+  },
+  ["base1-4", "base1-4-1st", "neo1-99", "neo1-99-1st", "sv8-1", "sv8-2", "xy1-17"],
+);
+const plan = planPcImport("pokemon", [
+  P("1", "Charizard #4", 600, "42382"),
+  P("2", "Charizard [1st Edition] #4", 9500, "42382"),
+  P("3", "Pikachu #1", 0.5, "200"),
+  P("4", "Pikachu [Reverse Holo] #1", 1.2, "200"),
+  P("5", "Pikachu [Poke Ball] #1", 2.5, "200"),
+  P("6", "Pikachu [Master Ball] #1", 30, "200"),
+  P("7", "Raichu #2", 4, "300"),
+  P("8", "Raichu [Holo] #2", 9, "300"),
+  P("9", "Charizard [Shadowless] #4", 1500, "42382"),
+  P("10", "Typhlosion [1st Edition] #99", 40, "100"),
+  P("11", "No tcg #1", 3, null),
+  P("12", "No price #1", null, "200"),
+  P("13", "Not ours #1", 3, "999"),
+  P("14", "Vivillon #17", 2, "400"),
+  P("15", "Pikachu #1 (second row)", 0.6, "200"),
+], pk);
+const got = Object.fromEntries(plan.writes.map((w) => [w.pcId, `${w.cardId}|${w.variant}|${w.usd}`]));
+check("pokemon: plain row -> the card's one plain printing", got["1"], "base1-4|holofoil|600");
+check("pokemon: [1st Edition] -> the -1st twin's 1st Edition variant", got["2"], "base1-4-1st|1stEditionHolofoil|9500");
+check("pokemon: [Reverse Holo] and ball patterns", [got["4"], got["5"], got["6"]], ["sv8-1|reverseHolofoil|1.2", "sv8-1|pokeBallPattern|2.5", "sv8-1|masterBallPattern|30"]);
+check("pokemon: plain row on normal + reverse + patterns -> normal", got["3"], "sv8-1|normal|0.5");
+check("pokemon: normal + holofoil: plain is ambiguous, [Holo] picks holofoil", [got["7"], got["8"]], [undefined, "sv8-2|holofoil|9"]);
+check("pokemon: an unknown tag is another printing (Shadowless) and is skipped", "9" in got, false);
+check("pokemon: 1st Edition non-holo twin", got["10"], "neo1-99-1st|1stEdition|40");
+check("pokemon: skip counts", plan.skipped, { "no price": 1, "no tcg-id": 1, "unknown product": 1, "other printing": 1, "no such variant": 1, ambiguous: 1, duplicate: 1 });
+
+const mtg = planPcImport("mtg", [P("m1", "Sol Ring #1", 2, "77"), P("m2", "Sol Ring [Foil] #1", 9, "77"), P("m3", "Sol Ring [Foil Etched] #1", 12, "77"), P("m4", "Two cards #2", 1, "88")], ctxOf({ 77: ["uuid-a"], 88: ["uuid-b", "uuid-c"] }, { "uuid-a": ["nonfoil", "foil"] }, []));
+check("mtg: nonfoil / foil by tag, etched only when the card has it", mtg.writes.map((w) => `${w.cardId}|${w.variant}`), ["uuid-a|nonfoil", "uuid-a|foil"]);
+check("mtg: two cards on one tcg-id is ambiguous", mtg.skipped.ambiguous, 1);
+
+const ygo = planPcImport("yugioh", [P("y1", "Dark Magician [1st Edition] LOB-005", 120, "555"), P("y2", "Dark Magician LOB-005", 40, "555"), P("y3", "Missing", 1, "556")], ctxOf({}, {}, ["ygo-555", "ygo-555-1st"]));
+check("yugioh: ygo-<tcg-id>, [1st Edition] -> the -1st twin", ygo.writes.map((w) => `${w.cardId}|${w.variant}|${w.usd}`), ["ygo-555-1st|normal|120", "ygo-555|normal|40"]);
+check("yugioh: unknown id skipped", ygo.skipped["unknown product"], 1);
+
+// The fence: readers that take ANY USD series must skip source 'pricecharting' until the PC-first switch is made on purpose.
+const { readFileSync } = await import("node:fs");
+const src = (p) => readFileSync(new URL(`../src/${p}`, import.meta.url), "utf8");
+const anyUsd = (text) => [...text.matchAll(/FROM price_series[\s\S]{0,200}?(?:currency = 'USD'|source <> 'tcgdex-cm'|source NOT IN)[^`"]*/g)].map((m) => m[0]);
+const leaks = [...anyUsd(src("lib/server/priceHistory.ts")), ...anyUsd(src("lib/server/enCards.ts"))].filter((q) => !/source = 'tcgplayer'/.test(q) && !q.includes("pricecharting"));
+check("every any-USD price_series reader skips 'pricecharting'", leaks, []);
 
 console.log(failures === 0 ? "\nall green" : `\n${failures} FAILED`);
 process.exit(failures === 0 ? 0 : 1);
