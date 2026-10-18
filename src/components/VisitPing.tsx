@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { sourceParam } from "@/lib/attribution";
+import { inPreviewFrame } from "@/lib/client/framed";
 
 /**
  * Daily-visitor counter for the admin console (09-25). On every public page
@@ -18,7 +19,7 @@ let referrerSent = false;
 export default function VisitPing() {
   const pathname = usePathname();
   useEffect(() => {
-    if (!pathname || pathname.startsWith("/admin")) return;
+    if (!pathname || pathname.startsWith("/admin") || inPreviewFrame()) return;
     const first = !referrerSent;
     const ref = first ? document.referrer : "";
     referrerSent = true;

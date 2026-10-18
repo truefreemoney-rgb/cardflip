@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
+import { inPreviewFrame } from "@/lib/client/framed";
 
 /**
  * Analytics (GA4, TikTok pixel, the UK/IE consent bar) stays out of the
@@ -13,6 +14,8 @@ const GoogleAnalytics = dynamic(() => import("@/components/GoogleAnalytics"), { 
 export default function DeferredAnalytics() {
   const [ready, setReady] = useState(false);
   useEffect(() => {
+    // The admin heat map's page preview sends no analytics (lib/client/framed.ts).
+    if (inPreviewFrame()) return;
     const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number; cancelIdleCallback?: (h: number) => void };
     if (w.requestIdleCallback) {
       const h = w.requestIdleCallback(() => setReady(true), { timeout: 2000 });

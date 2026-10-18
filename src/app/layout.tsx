@@ -4,6 +4,7 @@ import { SITE_URL } from "@/lib/siteUrl";
 import "./globals.css";
 import AttributionCapture from "@/components/AttributionCapture";
 import VisitPing from "@/components/VisitPing";
+import HeatPing from "@/components/HeatPing";
 import DeferredAnalytics from "@/components/DeferredAnalytics";
 import GoogleOneTap from "@/components/GoogleOneTap";
 import { googleConfigured } from "@/lib/server/googleAuth";
@@ -82,6 +83,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         {children}
         <AttributionCapture />
         <VisitPing />
+        <HeatPing />
         <DeferredAnalytics />
         {/* One Tap on public pages only; the component itself keeps off /app, /admin, /login, /signup
             and off any device that has seen it once. Env read here is fine: static pages bake it in. */}

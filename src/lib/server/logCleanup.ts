@@ -35,6 +35,9 @@ interface Rule {
 export const RULES: Rule[] = [
   // Admin analytics read at most a 366-day custom window (analytics.ts), so keep a bit more.
   { table: "page_views", key: "day, visitor, path", where: "at < ?", maxAgeMs: 400 * DAY },
+  // Heat map rows (lib/heatmap.ts HEAT_KEEP_DAYS): the admin page reads at most its 90-day preset.
+  { table: "heat_views", key: "tab, seq", where: "at < ?", maxAgeMs: 90 * DAY },
+  { table: "heat_taps", where: "at < ?", maxAgeMs: 90 * DAY },
   // The free-scan cap looks back 30 days (trialScan.ts).
   { table: "trial_scans", where: "at < ?", maxAgeMs: 90 * DAY },
   // Handled comments only; 'new' ones are the inbox and stay until someone acts.

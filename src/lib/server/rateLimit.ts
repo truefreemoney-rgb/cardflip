@@ -169,6 +169,8 @@ export const LIMITS = {
   priceReport: [{ limit: 10, windowMs: 10 * MINUTE }, { limit: 30, windowMs: DAY }] as RateLimitRule[],
   /** Visitor pings (/api/visit), per IP: a reader opens a few hundred pages a day at most; a script writing rows does not stop. */
   visit: [{ limit: 300, windowMs: DAY }] as RateLimitRule[],
+  /** Heat map batches (/api/heat), per IP: one every ~10 s while someone taps around; a script writing rows does not stop. */
+  heat: [{ limit: 120, windowMs: 10 * MINUTE }, { limit: 1500, windowMs: DAY }] as RateLimitRule[],
   /** Pack tracker writes (create, rename, delete), per user: a person opens a few packs an hour. */
   packWrite: [{ limit: 30, windowMs: 10 * MINUTE }, { limit: 200, windowMs: DAY }] as RateLimitRule[],
   /** Support tickets: a person opens one, not twenty. Per IP. */

@@ -4,7 +4,13 @@
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
 
-## 10-18 ~10:15am ET: caught prices FIXED by a hand eBay sold check (price_checked, COMMIT ONLY, waits for Chris's yes on shots docs/shots/checked-1..4)
+## 10-18 ~9:25am ET: HEAT MAP live (admin /admin/heatmap, recorder on every public + app page; shots docs/shots/heatmap-1..3)
+- After push: open any cardflip.io page on a phone, tap around, wait 10 s or switch tabs; prod SELECT `SELECT COUNT(*) FROM heat_views` / `heat_taps` grows; NO rows for /admin pages.
+- /admin/heatmap (owner sign-in) on phone: Phone/Computer switch, range bar (24h/7d/30d/90d/Dates keep the device + page), pages table, the live page in the frame with taps painted; scrolling inside the frame moves page + paint together, header taps stay on the header; links in the frame do nothing.
+- The frame itself never records (no heat rows, no visit count, no GA hit, no One Tap) — X-Frame-Options is now SAMEORIGIN: other sites still can't frame cardflip.io (curl -I shows SAMEORIGIN).
+- Next day: "Left after one page" and per-page "Left here" look sane against /admin/analytics visitors.
+
+## 10-18 ~9:10am ET: caught prices FIXED by a hand eBay sold check (price_checked, COMMIT ONLY, waits for Chris's yes on shots docs/shots/checked-1..4)
 - After push, then `scripts/seed-price-checks.mjs --prod` (dry run 10-18: Snorlax 5 pts -> $43, Ninetales 3 -> $200, Minun 7 -> $23.33, Rare Candy 31 -> $122):
   card pages show those prices + "Checked against recent eBay sales (N sold)", no change words, chart starts at the fix (Rare Candy flat $122, no "-33.6%").
 - App search / scanner for the same printings: market = checked price (`ebayChecked.was` = TCGplayer's number) while TCGplayer is >25% off.

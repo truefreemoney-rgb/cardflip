@@ -780,6 +780,38 @@ const SCHEMA = `
   ) WITHOUT ROWID;
   CREATE INDEX IF NOT EXISTS idx_page_views_at ON page_views(at);
 
+  -- Heat map (10-18, lib/heatmap.ts). heat_views: each page view in the order
+  -- one browser tab saw them (tab = a random id kept in that tab's
+  -- sessionStorage, gone when it closes; no cookie, no account), so "where
+  -- next" and "left here" are a join on seq + 1. depth = furthest scroll, %.
+  -- heat_taps: where on a page people tap; x = 0-1000 across the screen,
+  -- y = px down the page (fixed = 1: px down the screen, h = screen height),
+  -- label = the tapped button's name ('' = nothing tappable). Kept 90 days.
+  CREATE TABLE IF NOT EXISTS heat_views (
+    tab TEXT NOT NULL,
+    seq INTEGER NOT NULL,
+    day TEXT NOT NULL,
+    at INTEGER NOT NULL,
+    page TEXT NOT NULL,
+    path TEXT NOT NULL,
+    device TEXT NOT NULL,
+    depth INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (tab, seq)
+  ) WITHOUT ROWID;
+  CREATE INDEX IF NOT EXISTS idx_heat_views_at ON heat_views(at);
+  CREATE TABLE IF NOT EXISTS heat_taps (
+    at INTEGER NOT NULL,
+    page TEXT NOT NULL,
+    device TEXT NOT NULL,
+    x INTEGER NOT NULL,
+    y INTEGER NOT NULL,
+    h INTEGER NOT NULL,
+    fixed INTEGER NOT NULL DEFAULT 0,
+    label TEXT NOT NULL DEFAULT ''
+  );
+  CREATE INDEX IF NOT EXISTS idx_heat_taps_page ON heat_taps(page, device, at);
+  CREATE INDEX IF NOT EXISTS idx_heat_taps_at ON heat_taps(at);
+
   -- Social inbox (09-28): every comment / reply on the autopilot's posts,
   -- read an hour after each slot (lib/server/socialInbox.ts). id is
   -- "<site>:<comment id>". kind = spam | question | praise | other; status =

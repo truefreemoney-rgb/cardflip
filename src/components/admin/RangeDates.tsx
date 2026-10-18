@@ -11,10 +11,10 @@ function todayEt(): string {
 /**
  * The "Dates" pill on the analytics range switch. Opens a small panel with
  * two native date inputs (the browser's own popup calendar) and Show, which
- * loads /admin/analytics?from=&to=. `up` opens the panel above the pill for
+ * loads `base`?from=&to= (/admin/analytics, /admin/heatmap). `up` opens the panel above the pill for
  * the bottom bar on phones.
  */
-export default function RangeDates({ from, to, active, up = false }: { from?: string; to?: string; active: boolean; up?: boolean }) {
+export default function RangeDates({ from, to, active, up = false, base = "/admin/analytics" }: { from?: string; to?: string; active: boolean; up?: boolean; base?: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [a, setA] = useState(from ?? "");
@@ -34,7 +34,7 @@ export default function RangeDates({ from, to, active, up = false }: { from?: st
   function show() {
     if (!ok) return;
     setOpen(false);
-    router.push(`/admin/analytics?from=${a}&to=${b}`);
+    router.push(`${base}${base.includes("?") ? "&" : "?"}from=${a}&to=${b}`);
   }
 
   const input = "rounded-lg border border-edge bg-black/30 px-2 py-1.5 text-sm text-zinc-100 outline-none focus:border-brand-400/60 [color-scheme:dark]";

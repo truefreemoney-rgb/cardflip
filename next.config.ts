@@ -10,7 +10,8 @@ const basePath = process.env.NEXT_PUBLIC_BASE_PATH || undefined;
 const securityHeaders = [
   { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
   { key: "X-Content-Type-Options", value: "nosniff" },
-  { key: "X-Frame-Options", value: "DENY" },
+  // SAMEORIGIN (10-18): the admin heat map shows our own pages in a frame; other sites still can't.
+  { key: "X-Frame-Options", value: "SAMEORIGIN" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   // camera=(self) keeps the in-app card scanner working.
   { key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=(), payment=()" },
