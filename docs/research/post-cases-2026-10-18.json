@@ -1,0 +1,20 @@
+[
+ ["xy0-26","normal",64.88,43,true,[43.29,43.36,43.36,64.88,64.88,30.42,64.88,64.88]],
+ ["gym2-3-1st","1stEditionHolofoil",260.5,200,true,[162.5,162.5,162.5,162.5,162.5,260.5,260.5,260.5]],
+ ["hgssp-HGSS17","holofoil",39.25,23.33,true,[26.5,79.95,79.95,79.95,79.95,39.25,39.25,39.25]],
+ ["bw10-105","holofoil",191.88,122,true,null],
+ ["ecard2-H28","holofoil",698,698,false,null],
+ ["pop5-3","normal",410.42,400,false,null],
+ ["ex13-4","holofoil",127.44,127,false,null],
+ ["tk-xy-w-25","normal",30,30,false,null],
+ ["gym2-20-1st","1stEditionHolofoil",186.64,230,false,null],
+ ["bw10-97","holofoil",284.8,270,false,null],
+ ["bw10-100","holofoil",508.12,545,false,null],
+ ["bw10-99","holofoil",431.01,760,false,null],
+ ["bw10-102","holofoil",148.66,190,false,null],
+ ["swsh4-138","holofoil",22.68,25,false,null],
+ ["swsh4-188","holofoil",169.36,160,false,null],
+ ["swsh4-170","holofoil",42.99,42,false,null],
+ ["swsh4-185","holofoil",19.18,19,false,null],
+ ["swsh4-191","holofoil",12.87,13,false,null]
+]
