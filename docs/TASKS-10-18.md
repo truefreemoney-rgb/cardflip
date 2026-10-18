@@ -17,8 +17,9 @@
 11. [you] PriceCharting: get Brady's answers, then subscribe.
 12. [me] PriceCharting day 1: import, re-score (beat 78%), the switch that shows their price, screenshots (docs/PRICECHARTING-DAY1.md).
 13. [me] PriceCharting: match Lorcana and One Piece (no TCGplayer id stored for them).
-13b. [me] /admin/prices "Hand check" queue: ~290 left after 18 checked 10-18 (6 fixed, 12 right). Next: new Lorcana sets
-     and prices frozen for weeks first (that's where the real errors were); old EX-era flags are mostly false alarms.
+13b. [me] /admin/prices "Hand check" queue: ~250 left after ~43 checked 10-18 (8 fixed, ~30 right, 5 unclear). Most of
+     the rest are false alarms (asks from cheaper printings / fakes). Matcher fixed (commit only): after the push + the
+     weekly re-read, look again at whatever is still flagged.
 
 ## C. App store (main goal)
 14. [you] Sign in with Apple: yes or no.
