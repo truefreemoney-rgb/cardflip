@@ -306,6 +306,9 @@ function yugiohPrinting(c: RefereeCard, t: string): boolean {
   const [pre, post] = c.number.toLowerCase().split("-");
   const codeRe = post ? new RegExp(`${esc(pre)}\\s*-?\\s*(en)?\\s*0*${esc(post.replace(/^en0*/, ""))}([^0-9]|$)`) : wordRe(pre);
   if (!codeRe.test(t)) return false;
+  // An original North American print ("LOB-121", no EN) is not its 25th Anniversary reprint ("LOB-EN121"), 10-18.
+  if (post && !/^en/.test(post) && new RegExp(`${esc(pre)}\\s*-?\\s*en\\s*\\d`).test(t)) return false;
+  if (!/25th/i.test(c.setName) && /\b25th\b/.test(t)) return false;
   if (!!c.firstEdition !== /\b(1st|first)\b/.test(t)) return false;
   const rarity = `${c.rarity ?? ""} ${c.printing ?? ""}`.toLowerCase().replace(/-/g, " ");
   for (const w of YGO_RARITY_WORDS) if (rarity.includes(w) && !t.includes(w)) return false;

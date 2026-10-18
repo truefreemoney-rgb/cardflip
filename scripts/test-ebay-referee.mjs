@@ -33,6 +33,9 @@ console.log("Magic: special printings");
   check("a borderless printing needs 'borderless' or its number", mind("Mind Stone Foil GameStop Promo MTG Magic The Gathering Marvel"), false);
   check("... and matches with it", mind("The Mind Stone (Borderless) Marvel Super Heroes Foil"));
 
+  const leg = refereeMatcher({ game: "yugioh", cardId: "ygo-22150-1st", variant: "normal", name: "Left Leg of the Forbidden One", number: "LOB-121", setName: "The Legend of Blue Eyes White Dragon", firstEdition: true, printing: "" });
+  check("YGO: the original LOB-121 1st matches", leg("YU-GI-OH 2002 Left Leg Of The Forbidden One LOB-121 Ultra Rare 1st Edition"));
+  check("YGO: its 25th Anniversary reprint LOB-EN121 does not", [leg("Left Leg of the Forbidden One LOB-EN121 1st Edition Ultra Rare"), leg("Left Leg of the Forbidden One LOB-121 25th Anniversary 1st Edition")], [false, false]);
   const celebi = refereeMatcher({ game: "pokemon", cardId: "neo4-106", variant: "unlimitedHolofoil", name: "Shining Celebi", number: "106", setName: "Neo Destiny" });
   check("30th Celebration reprints are not the original", [celebi("30th Celebration Shining Celebi 106/105 Neo Destiny Secret Rare Holo English"), celebi("2026 Pokemon 30th Celebration Shining Celebi Classic [Neo Destiny] #106/105")], [false, false]);
   check("... the original still matches", celebi("Shining Celebi 106/105 Neo Destiny Holo Unlimited"));
