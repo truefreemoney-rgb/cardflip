@@ -33,6 +33,15 @@ console.log("Magic: special printings");
   check("a borderless printing needs 'borderless' or its number", mind("Mind Stone Foil GameStop Promo MTG Magic The Gathering Marvel"), false);
   check("... and matches with it", mind("The Mind Stone (Borderless) Marvel Super Heroes Foil"));
 
+  // 10-18 hand check: treatments the plain printing does not have must be named, or the listing carries the number.
+  const spidey = refereeMatcher({ game: "mtg", cardId: "sp", variant: "foil", name: "Spectacular Spider-Man", number: "238", setName: "Marvel's Spider-Man", setCode: "spm", promoTypes: "textured,universesbeyond,boosterfun", finishes: "foil", borderColor: "borderless" });
+  check("textured: the borderless #14 is not the textured #238", spidey("MTG Spectacular Spider-Man (Borderless Foil) Marvel's Spider-Man 14 NM"), false);
+  check("textured: 'textured' in the title matches", spidey("2025 MTG Marvel's Spider-Man Borderless Textured Foil Spectacular Spider-Man"));
+  check("textured: its own number matches without the word", spidey("2025 Magic MTG Marvel's Spider-Man Spectacular Foil #0238"));
+  const elves = refereeMatcher({ game: "mtg", cardId: "le", variant: "foil", name: "Llanowar Elves", number: "429", setName: "Foundations", setCode: "fdn", promoTypes: "japanshowcase,boosterfun", finishes: "foil" });
+  check("Japan showcase: a plain Foundations foil is not #429", elves("LLANOWAR ELVES FOIL NM MAGIC: THE GATHERING FOUNDATIONS"), false);
+  check("Japan showcase: '(Showcase) -Foil' matches", elves("Llanowar Elves (Showcase) -Foil Near Mint MTG Foundations"));
+
   const kaldra = refereeMatcher({ game: "mtg", cardId: "k", variant: "foil", name: "Kaldra Compleat", number: "2", setName: "Spotlight Series", setCode: "pspl", promoTypes: "", finishes: "nonfoil,foil" });
   check("'Horizons 2' is not collector number 2", kaldra("Kaldra Compleat (Showcase) Modern Horizons 2 Foil"), false);
 

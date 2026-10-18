@@ -144,8 +144,24 @@ const MTG_MARKERS: Record<string, RegExp> = {
   sldbonus: /rainbow|bonus|\b700\d\b/,
   headliner: /gold|signature|stamped|raised|headliner/,
 };
+/**
+ * Treatments a title must name OR the listing must carry the card's own collector number: the same card's plain printing
+ * shares the name, the set and often "borderless" (10-18 hand check: textured Spectacular Spider-Man #236-241, ~$200-700,
+ * read against the $15 borderless #14; Japan showcase Llanowar Elves #429, ~$220, against the $2 #227).
+ */
+const MTG_TREATMENTS: Record<string, RegExp> = {
+  textured: /textured/,
+  japanshowcase: /japan|anime|showcase/,
+  fracturefoil: /fracture/,
+  surgefoil: /surge/,
+  galaxyfoil: /galaxy/,
+  halofoil: /halo/,
+  confettifoil: /confetti/,
+  manafoil: /mana foil/,
+  silverfoil: /silver/,
+};
 /** Printings that are foil by nature: the title may name the treatment instead of "foil". */
-const MTG_FOIL_BY_NATURE = new Set(["serialized", "raisedfoil", "neonink", "embossed", "sldbonus"]);
+const MTG_FOIL_BY_NATURE = new Set(["serialized", "raisedfoil", "neonink", "embossed", "sldbonus", "textured", "fracturefoil", "surgefoil", "galaxyfoil", "halofoil", "confettifoil", "manafoil", "silverfoil"]);
 /** Yu-Gi-Oh! rarities a title must name (the common ones share a print code with them). */
 const YGO_RARITY_WORDS = ["ghost", "ultimate", "prismatic", "starlight", "quarter century", "platinum", "collector", "mosaic", "starfoil"];
 
@@ -252,6 +268,7 @@ function mtgPrinting(c: RefereeCard, t: string, front: string, byFlavor: boolean
   if (!foil && /foil/.test(t) && !nonfoilWord) return false;
   if (c.variant === "etched" && !/etched/.test(t)) return false;
   for (const p of types) if (MTG_MARKERS[p] && !MTG_MARKERS[p].test(t)) return false;
+  for (const p of types) if (MTG_TREATMENTS[p] && !MTG_TREATMENTS[p].test(t) && !numOk) return false;
   // A borderless printing names itself (or carries its number): "Mind Stone Foil GameStop Promo" is another card.
   if (c.borderColor === "borderless" && !/borderless|full art|showcase/.test(t) && !numOk) return false;
   // The set must be named (code, words or a known alias): a number alone is no evidence, old sets share them (Summer Magic

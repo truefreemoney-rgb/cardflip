@@ -40,6 +40,7 @@ const CHECKS = [
   // Batch 2 (queue re-ranked against today's prices).
   { game: "pokemon", cardId: "ex13-10", variant: "reverseHolofoil", usd: 92, n: 18, note: "Kingdra delta 10/110 reverse: 18 non-damaged sold Aug-Oct 39-247, median 92; ours 289.10" },
   { game: "pokemon", cardId: "dp3-3", variant: "reverseHolofoil", usd: 200, n: 6, note: "Charizard Secret Wonders 3/132 reverse: NM/mint sold 150-260 (median 200), LP 100-150; ours 310.62" },
+  { game: "mtg", cardId: "49852fa3-272c-4ca4-b0dc-0b80f2982fd9", variant: "foil", usd: 174, n: 2, note: "Spectacular Spider-Man #238 textured foil: sold 145.97 (09-25), 202.50 (09-23); ours 252.25" },
   { game: "mtg", cardId: "98fba951-c5bb-497c-9292-ce1b2a1e1247", variant: "nonfoil", usd: 637, n: 2, note: "Blaze of Glory Alpha (lea-6): sold 578.99 PLD 09-05, 695 LP 09-02 (a clean copy is higher); TCGplayer 440.74 stopped 10-13" },
 ];
 // --only id,id: write just these checks (the others are already on prod).
