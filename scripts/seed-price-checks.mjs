@@ -48,6 +48,15 @@ const CHECKS = [
   { game: "yugioh", cardId: "ygo-92623", variant: "normal", usd: 1.25, n: 0, note: "Bujingi Crane MP14-EN073: 4 asks median 1.12; TCGplayer 199,379.19 (junk, hidden)" },
   { game: "yugioh", cardId: "ygo-476972", variant: "normal", usd: 1.5, n: 0, note: "Tower of Babel IOC-EN050 (Worldwide English): 44 asks median 1.39; TCGplayer 5,019.94 (junk, hidden)" },
   { game: "pokemon", cardId: "hgss1-123", variant: "reverseHolofoil", usd: 170, n: 6, note: "Gyarados HGSS 123 reverse: sold 85-200 in Oct (199.99 MP-LP, 200, 175, 160, 100, 85), median ~167; TCGplayer 499.99 (hidden)" },
+  { game: "pokemon", cardId: "basep-1", variant: "holofoil", usd: 42, n: 9, note: "Pikachu Wizards Black Star Promo 1: NM sold 38-56 (median 42), LP 20-31; TCGplayer 499.99 (hidden)" },
+  // Retro Pack / Premium Pack reprints with junk TCGplayer numbers (hidden); under $20, many consistent NM asks are the evidence.
+  { game: "yugioh", cardId: "ygo-78081", variant: "normal", usd: 15, n: 0, note: "Red-Eyes B. Dragon RP01-EN011: 29 asks median 15 (q75 24.73); TCGplayer 679.99" },
+  { game: "yugioh", cardId: "ygo-90819", variant: "normal", usd: 2.66, n: 0, note: "Hecatrice PP02-EN019: 48 asks median 2.66; TCGplayer 196.69" },
+  { game: "yugioh", cardId: "ygo-78160", variant: "normal", usd: 12.74, n: 0, note: "Scapegoat RP01-EN090: 27 asks median 12.74; TCGplayer 192.48" },
+  { game: "yugioh", cardId: "ygo-78073", variant: "normal", usd: 11.5, n: 0, note: "Dark Magician RP01-EN003: 40 asks median 11.50; TCGplayer 145" },
+  { game: "yugioh", cardId: "ygo-90821", variant: "normal", usd: 7.06, n: 0, note: "Sengenjin PP02-EN003: 30 asks median 7.06; TCGplayer 120" },
+  { game: "yugioh", cardId: "ygo-90811", variant: "normal", usd: 3.99, n: 0, note: "Elemental HERO Heat PP02-EN007: 15 asks median 3.99; TCGplayer 249.99" },
+  { game: "yugioh", cardId: "ygo-90812", variant: "normal", usd: 4.24, n: 0, note: "Elemental Hero Knospe PP02-EN005: 16 asks median 4.24; TCGplayer 103.38" },
   { game: "mtg", cardId: "98fba951-c5bb-497c-9292-ce1b2a1e1247", variant: "nonfoil", usd: 637, n: 2, note: "Blaze of Glory Alpha (lea-6): sold 578.99 PLD 09-05, 695 LP 09-02 (a clean copy is higher); TCGplayer 440.74 stopped 10-13" },
 ];
 // --only id,id: write just these checks (the others are already on prod).
