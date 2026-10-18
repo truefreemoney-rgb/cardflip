@@ -28,6 +28,18 @@ const CHECKS = [
   // 10-18 ~11:30am ET task sweep: card pages that were blank ("looks off") or stale-low.
   { game: "pokemon", cardId: "base1-4", variant: "holofoil", usd: 600, n: 8, note: "Charizard Base Set 4/102 unlimited: NM-labelled sold 507.35/657.86 (1,100 x2 outlier), clean 600/600/500, LP 479/610 this week; TCGplayer 954.65 (page showed looks off)" },
   { game: "pokemon", cardId: "base5-4-1st", variant: "1stEditionHolofoil", usd: 700, n: 16, note: "Dark Charizard 1st Ed holo 4/82: Oct raw sold 400-1,250, middle ~700 (NM 1,000-1,245); TCGplayer 121.94 flat then 62.35 (10-17 1pm post said -49%)" },
+  // 10-18 ~12:30pm ET: /admin/prices "Hand check" queue, most valuable first (batch 1).
+  { game: "lorcana", cardId: "crd_6d3607ca39714e16869a708fb3484460", variant: "foil", usd: 3000, n: 5, note: "Mickey Mouse Best in Town Iconic 241 Hyperia City: sold 2,500-3,500 on 10-16/17 (5); ours 7,500" },
+  { game: "lorcana", cardId: "crd_86d5ec9aed56412294093be47d5dd44e", variant: "foil", usd: 550, n: 12, note: "Ariel Collector of Oddities Enchanted 236: 12 sold 10-15..18, 349-636, falling; ours 1,112.48" },
+  { game: "lorcana", cardId: "crd_005aa953b56d427ebc078976dde6cb49", variant: "foil", usd: 420, n: 1, note: "Aurora Delightful Musician Enchanted 223: sold 420 (10-14), 9 NM asks median 399.81; ours 634" },
+  { game: "lorcana", cardId: "crd_a08f2f0c29614d0c908f98b6468ee985", variant: "foil", usd: 134, n: 5, note: "Thomas O'Malley Enchanted 235: 5 English sold 125-140 (10-16/17); ours 515" },
+  { game: "pokemon", cardId: "ex11-16", variant: "holofoil", usd: 255, n: 5, note: "Tyranitar delta 16/113 holo: NM/clean sold 200, 225, 255, 325, 792 (median 255); ours 370.74" },
+  { game: "pokemon", cardId: "sm8-227", variant: "holofoil", usd: 245, n: 9, note: "Lugia GX 227/214: Oct raw sold 170-300 (NM ~240-300), one 850 outlier; ours 370.07" },
+  { game: "pokemon", cardId: "ex10-117", variant: "holofoil", usd: 866, n: 19, note: "Celebi ex 117/115: 19 raw sold Aug-Oct 225-2,625, median 866, LP ~1,200; ours 370 was LOW (asks mismatched)" },
+  { game: "pokemon", cardId: "pop4-13", variant: "holofoil", usd: 45, n: 20, note: "Pikachu POP Series 4 13/17 holo: ~20 sold 30-70 (big swirls 250-400); ours 369.63" },
+  // Batch 2 (queue re-ranked against today's prices).
+  { game: "pokemon", cardId: "ex13-10", variant: "reverseHolofoil", usd: 92, n: 18, note: "Kingdra delta 10/110 reverse: 18 non-damaged sold Aug-Oct 39-247, median 92; ours 289.10" },
+  { game: "pokemon", cardId: "dp3-3", variant: "reverseHolofoil", usd: 200, n: 6, note: "Charizard Secret Wonders 3/132 reverse: NM/mint sold 150-260 (median 200), LP 100-150; ours 310.62" },
   { game: "mtg", cardId: "98fba951-c5bb-497c-9292-ce1b2a1e1247", variant: "nonfoil", usd: 637, n: 2, note: "Blaze of Glory Alpha (lea-6): sold 578.99 PLD 09-05, 695 LP 09-02 (a clean copy is higher); TCGplayer 440.74 stopped 10-13" },
 ];
 // --only id,id: write just these checks (the others are already on prod).
