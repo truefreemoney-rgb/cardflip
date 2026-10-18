@@ -8,7 +8,7 @@
 - [x] PASS live: the 4 checked pages show "Checked against recent eBay sales", no "Down 33.6%"; all 5 hubs show "Most valuable sets" (Pokémon: Skyridge, Legendary Collection, Base 1st...); 404s on made-up card/set/game; X-Frame-Options SAMEORIGIN; robots _rsc; privacy Oct 17; no "Log In as Admin"; /api/sets 105/71 ms; vision trial bad image 400; cron routes 403 without key; Pikachu 1st $187.13 "Few sales"; Ascended Heroes rows (energySymbolPattern 140); art-version points today; Cresselia $102.99; fx fresh; smoke green incl. 2am + 7am 10-18; uptime cron registered */15.
 - ~10-20: card pages Charizard base1-4 ~$600, Dark Charizard 1st base5-4-1st ~$700, Blaze of Glory lea-6 ~$637, each with "Checked against recent eBay sales"; app search shows them now.
 - Next Sunday-or-later tcg-prices cron (after the push): its response/daily_last_result has logCleanup {ran:true, deleted:{...}}, then settings log_cleanup_last moves off 10-08.
-- OPEN: 2 email_sends rows of an account deleted before the 10-17 fix (user a6a6e323...) — delete on Chris's OK.
+- [x] DONE 10-18 (Chris "yes delete them"): the 2 email_sends rows of an account deleted before the 10-17 fix removed; orphans now 0.
 
 ## 10-18 ~10:55am ET: PUSHED 89d80931 (Post cards on /admin/prices + heat map leaves out Chris/Claude + checks memo fix)
 - [x] PASS CI (run 39136257696) + Production smoke (39136363676) green for 89d80931.

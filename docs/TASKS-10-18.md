@@ -52,7 +52,7 @@ Unpushed commits: see `git log origin/main..HEAD` (no pushes until Chris says).
 42. [me] Heat map: 18 real visits, 0 admin rows. 10-19: compare with Analytics; the frame check needs your sign-in.
 43. DONE Charizard 4/102 has no 1st Ed stamp; scan_market column exists.
 NEW 43b. DONE (commit only) weekly log cleanup had not run since 10-08 (split crons) -> now runs in the tcg-prices cron.
-NEW 43c. [you OK?] 2 leftover email rows of an account deleted before the 10-17 fix: delete them?
+NEW 43c. DONE 2 leftover email rows of a deleted account removed (Chris OK); none left.
 
 ## E. Phone checks for you
 44-49. WRITTEN as numbered steps: docs/PHONE-CHECKS.md (6 parts, ~20 min).
