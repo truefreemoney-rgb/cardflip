@@ -4,7 +4,11 @@
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
 
-## 10-17 ~9:30pm ET: admin sign-in never loops back to login (NOT PUSHED)
+## 10-18 ~9:20am ET: social price hold list (772b6433 + 91ce940b, PUSHED 10-18 with 5162d3a7)
+- 1:05pm ET posts (all sites + TikTok 1pm file): no Brock's Ninetales gym2-3-1st in the Pokémon gains list; the next card in its place checked against eBay sold.
+- Any later 7am "Biggest Jumps" / 1pm gains / 7pm: no Snorlax xy0-26 (Kalos Starter Set) until it leaves SOCIAL_PRICE_HOLD in src/lib/server/social.ts.
+
+## 10-17 ~9:30pm ET: admin sign-in never loops back to login (PUSHED 10-18 ~9:25am ET)
 - After push: sign out of the admin console in Chrome, sign in again with password + emailed code -> lands on the Overview straight away, first try (no bounce to the login page).
 
 ## 10-17 ~9pm ET: push d11ec26d LIVE (Vercel READY, CI + Production smoke green)
