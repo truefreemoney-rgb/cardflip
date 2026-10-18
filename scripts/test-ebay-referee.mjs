@@ -33,6 +33,10 @@ console.log("Magic: special printings");
   check("a borderless printing needs 'borderless' or its number", mind("Mind Stone Foil GameStop Promo MTG Magic The Gathering Marvel"), false);
   check("... and matches with it", mind("The Mind Stone (Borderless) Marvel Super Heroes Foil"));
 
+  const pz = refereeMatcher({ game: "pokemon", cardId: "sm9-184", variant: "holofoil", name: "Pikachu & Zekrom GX", number: "184", setName: "Team Up" });
+  check("fakes: 'Collectable Pokemon ... Rainbow' and 'Fan Art' are not the card", [pz("Collectable Pokemon Pikachu & Zekrom GX 184/181 Team Up Secret Rare Rainbow"), pz("Nintendo Pokemon Pikachu & Zekrom GX Team Up Gold Foil Fan Art Card 184/181")], [false, false]);
+  check("... a real one still matches", pz("Pikachu & Zekrom GX (Secret) 184/181 Sm-Team Up Holo - NM/M"));
+
   // 10-18 hand check: treatments the plain printing does not have must be named, or the listing carries the number.
   const spidey = refereeMatcher({ game: "mtg", cardId: "sp", variant: "foil", name: "Spectacular Spider-Man", number: "238", setName: "Marvel's Spider-Man", setCode: "spm", promoTypes: "textured,universesbeyond,boosterfun", finishes: "foil", borderColor: "borderless" });
   check("textured: the borderless #14 is not the textured #238", spidey("MTG Spectacular Spider-Man (Borderless Foil) Marvel's Spider-Man 14 NM"), false);

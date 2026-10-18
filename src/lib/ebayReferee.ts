@@ -111,6 +111,8 @@ const REJECT: RegExp[] = [
   /\bx\s*[2-9]\b|\b[2-9]\s*x\b(?!\d)|\b\d+\s*pieces\b/,
   /signed|altered|autograph|artist proof/,
   /proxy|custom|fake|replica|reprint|orica|art card|art series|insert|token|playtest|fan[\s-]?made|metal|keychain|novelty|unofficial/,
+  // 10-18 hand check: $1-30 "Collectable Pokemon ... Secret Rare Rainbow" and "Gold Foil Fan Art" copies of a $250 card.
+  /fan[\s-]?art|\bcollectable\b/,
   /read desc|please read|see desc/,
   /japanese|\bjp\b|\bjpn\b|japan|korean|\bkor\b|german|russian|chinese|french|italian|spanish|portuguese/,
   /damaged|\bdmg\b|heavily played|\bhp\b|\bpoor\b|crease|water damage/,
