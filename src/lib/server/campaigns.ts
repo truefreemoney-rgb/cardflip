@@ -394,6 +394,13 @@ export async function buildMail(id: CampaignId, user: User, unsubUrl: string, no
   return { mail: renderWeek(f, first, unsubUrl), facts: f };
 }
 
+/** A mail drawn again from facts buildMail already gathered (the owner's copy). */
+function renderFacts(id: CampaignId, f: ScansFacts | CardsFacts | WeekFacts, first: string, unsubUrl: string): RenderedMail {
+  if (id === "scans") return renderScans(f as ScansFacts, first, unsubUrl);
+  if (id === "cards") return renderCards(f as CardsFacts, first, unsubUrl);
+  return renderWeek(f as WeekFacts, first, unsubUrl);
+}
+
 /* ------------------------------------------------------------------ */
 /* Admin: previews, tests, overview                                    */
 /* ------------------------------------------------------------------ */
@@ -578,7 +585,9 @@ export async function sweepCampaigns(
       rowId = await logSend({ userId: c.user.id, email: c.user.email, campaign: id, status: "sent" }, now);
       await send(c.user.email, built.mail);
       sent++;
-      copy ??= built.mail;
+      // Same cards, but never the user's name or their own Stop link (10-18: Chris's copy said "Hi Maxin" and
+      // its Stop link would have unsubscribed that user).
+      copy ??= renderFacts(id, built.facts, "Chris", SAMPLE_UNSUB);
       if (id === "cards" && (built.facts as CardsFacts).variant === "binder") binder.push(...(built.facts as CardsFacts).cards);
     } catch (err) {
       failed++;

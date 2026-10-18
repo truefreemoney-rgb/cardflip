@@ -90,6 +90,13 @@ check("failed sends counted", [failed.sent, failed.failed], [0, 3]);
 const r = await sweepCampaigns(TUE, {}, deps());
 check("Tuesday: the two trial users + the subscriber get mail (admin, fresh, unsubscribed, pre-10-07 skipped)", mails.map((m) => m.to).filter((t) => t !== OWNER).sort(), ["left@example.com", "low@example.com", "out@example.com"]);
 check("owner gets one [COPY] per run", mails.filter((m) => m.to === OWNER).map((m) => m.subject.slice(0, 7)), ["[COPY] "]);
+{
+  // 10-18: the copy said "Hi Maxin" and carried that user's own Stop link.
+  const cp = mails.find((m) => m.to === OWNER);
+  const real = mails.find((m) => m.to !== OWNER);
+  check("[COPY] carries the sample Stop link, not a user's", [cp.unsubUrl.includes("u=preview"), cp.html.includes(real.unsubUrl), cp.text.includes(real.unsubUrl)], [true, false, false]);
+  check("[COPY] greets Chris, not the user", /Hi Chris,/.test(cp.text), true);
+}
 check("sweep counts", [r.campaign, r.due, r.sent, r.failed], ["scans", 3, 3, 0]);
 const mLeft = mails.find((m) => m.to === "left@example.com");
 const mOut = mails.find((m) => m.to === "out@example.com");

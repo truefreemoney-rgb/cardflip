@@ -4,6 +4,12 @@ Chris (10-14): every support ticket and every social comment is a learning
 experience while the site is new and not fully tested. One entry each: what
 they said, what it taught, what changed, what is still open. Newest first.
 
+## 10-18 · Sunday digest [COPY]: "what the heck is this email" / "i never used Maxin on anything"
+- What: the weekly "This week in cards" went to 22 users at 6:30pm ET. Chris's [COPY] was the FIRST USER's mail verbatim: "Hi Maxin" (a real user) and that user's own Stop link (one click = that user unsubscribed). Content issues too: Cyber Dragon CRV 1st UTR "+97%" from a thin series (499.96 -> 406.67 -> 799.51 in days), Let It Go $1,456.86 unchecked, a SAMPLE-stamped Sanji picture, subject "Lorcana down" next to a Lorcana +19% row.
+- Taught: an owner copy must be drawn for the owner (sample Stop link, his name), and outbound mail cards need the same guards as social posts (eBay-checked / held prices, no jumpy few-sales series, no SAMPLE pictures).
+- Changed (commit only): campaigns.ts renders the copy from the same facts with "Chris" + the sample Stop link; test-campaigns pins it.
+- Open: digest card guards (holds/checks/few-sales/SAMPLE) + subject that matches the rows, before next Sunday 10-25 6:30pm; a Sunday-afternoon preview check by me.
+
 ## 10-18 · eBay price checks: reprints and look-alike printings hide right prices (found working /admin/prices by hand)
 - What: of ~60 flagged cards checked against eBay sold, ~20 had a really wrong price (fixed: new Lorcana Hyperia City, prices frozen for weeks, Retro/Premium Pack reprints with $100-680 junk numbers, $213k junk Yu-Gi-Oh) but most flags were FALSE: the eBay asks the rule compares against were (a) reprints: the 2026 "30th Celebration" + 2021 Celebrations copies of vintage holos ($5-15 next to $100-500 originals, often listed without saying "reprint"), (b) cheaper look-alike printings: Magic textured / Japan showcase / fracture foils read against the plain card, Yu-Gi-Oh North American vs European LOB prints, theme-deck non-holos, (c) fakes ("Collectable Pokemon...", "Fan Art").
 - Fix: matcher rejects 30th/Celebration titles (unless the card is from that set), "Collectable"/"Fan Art", and needs the treatment word or the card's own number for Magic treatment foils (commit only). Hidden-but-right cards got "keep"; wrong ones got checked prices.
