@@ -4,6 +4,19 @@
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
 
+## 10-18 ~12:20pm ET: task sweep (prod data writes done; code COMMIT ONLY)
+- [x] PASS live: the 4 checked pages show "Checked against recent eBay sales", no "Down 33.6%"; all 5 hubs show "Most valuable sets" (Pokémon: Skyridge, Legendary Collection, Base 1st...); 404s on made-up card/set/game; X-Frame-Options SAMEORIGIN; robots _rsc; privacy Oct 17; no "Log In as Admin"; /api/sets 105/71 ms; vision trial bad image 400; cron routes 403 without key; Pikachu 1st $187.13 "Few sales"; Ascended Heroes rows (energySymbolPattern 140); art-version points today; Cresselia $102.99; fx fresh; smoke green incl. 2am + 7am 10-18; uptime cron registered */15.
+- ~10-20: card pages Charizard base1-4 ~$600, Dark Charizard 1st base5-4-1st ~$700, Blaze of Glory lea-6 ~$637, each with "Checked against recent eBay sales"; app search shows them now.
+- Next Sunday-or-later tcg-prices cron (after the push): its response/daily_last_result has logCleanup {ran:true, deleted:{...}}, then settings log_cleanup_last moves off 10-08.
+- OPEN: 2 email_sends rows of an account deleted before the 10-17 fix (user a6a6e323...) — delete on Chris's OK.
+
+## 10-18 ~10:55am ET: PUSHED 89d80931 (Post cards on /admin/prices + heat map leaves out Chris/Claude + checks memo fix)
+- [x] PASS CI (run 39136257696) + Production smoke (39136363676) green for 89d80931.
+- [x] DONE my pane has ?heat=off (cf_heat_off=1); my 2 test heat_views deleted, prod heat tables now 0 views / 0 taps (clean start, nothing else to wipe).
+- Prod /admin/prices (owner) shows "Post cards" with today's 1pm + 7pm and tomorrow's videos; mark today's 1pm (Tyranitar, Mew δ, Deoxys δ, Jigglypuff, Sabrina) + 7pm (Vivid Voltage 5) "Looks right" (all eBay-checked OK 10-18); reload keeps the marks.
+- Heat: my pane opens https://cardflip.io/?heat=off; Chris opens it once on phone + PC (or signs in to admin once); after that no new heat rows from those browsers. Delete my 2 test rows from 10-18 ~9:45am ET.
+- "Fix" with a sold price within 25% of ours says "eBay sold agrees ... marked Looks right" and writes no price_checked row.
+
 ## 10-18 ~9:25am ET: HEAT MAP live (admin /admin/heatmap, recorder on every public + app page; shots docs/shots/heatmap-1..3)
 - After push: open any cardflip.io page on a phone, tap around, wait 10 s or switch tabs; prod SELECT `SELECT COUNT(*) FROM heat_views` / `heat_taps` grows; NO rows for /admin pages.
 - /admin/heatmap (owner sign-in) on phone: Phone/Computer switch, range bar (24h/7d/30d/90d/Dates keep the device + page), pages table, the live page in the frame with taps painted; scrolling inside the frame moves page + paint together, header taps stay on the header; links in the frame do nothing.

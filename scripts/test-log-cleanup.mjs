@@ -6,7 +6,7 @@
  * touched, the pass runs at most once per 7 days, and a second pass after
  * 7 days runs again. Throwaway file DB.
  */
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -70,6 +70,11 @@ await db.prepare("INSERT INTO trial_scans (device_id, ip_hash, at) SELECT 'b', '
 const fourth = await runLogCleanupIfDue(now + 20 * DAY);
 check("12k old rows drained across batches", fourth.deleted?.trial_scans, many);
 check("only the fresh trial scan remains", await count("trial_scans"), 1);
+
+// Something must call it on Vercel: the split crons keep the all-in-one daily run from coming due, so the retention
+// sat unrun 10-08..10-18. It rides the daily tcg-prices cron.
+const tcgRoute = readFileSync(new URL("../src/app/api/cron/tcg-prices/route.ts", import.meta.url), "utf8");
+check("the daily tcg-prices cron runs the weekly retention", /await runLogCleanupIfDue\(\)/.test(tcgRoute), true);
 
 console.log(failures ? `\n${failures} FAILED` : "\nall passed");
 process.exit(failures ? 1 : 0);

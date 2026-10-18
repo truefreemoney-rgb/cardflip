@@ -25,7 +25,15 @@ const CHECKS = [
   { game: "pokemon", cardId: "gym2-3-1st", variant: "1stEditionHolofoil", usd: 200, n: 0, note: "Brock's Ninetales 1st Ed: NM sold steady 175-255 for two months; TCGplayer 260.50" },
   { game: "pokemon", cardId: "hgssp-HGSS17", variant: "holofoil", usd: 23.33, n: 5, note: "Minun HGSS17: NM sold 23.33 x5 this week, 29.99; TCGplayer 39.25 (79.95 before)" },
   { game: "pokemon", cardId: "bw10-105", variant: "holofoil", usd: 122, n: 9, note: "Rare Candy Plasma Blast 105: Oct sold 66.64-149.99, median 121.99; TCGplayer 191.88 flat for months" },
+  // 10-18 ~11:30am ET task sweep: card pages that were blank ("looks off") or stale-low.
+  { game: "pokemon", cardId: "base1-4", variant: "holofoil", usd: 600, n: 8, note: "Charizard Base Set 4/102 unlimited: NM-labelled sold 507.35/657.86 (1,100 x2 outlier), clean 600/600/500, LP 479/610 this week; TCGplayer 954.65 (page showed looks off)" },
+  { game: "pokemon", cardId: "base5-4-1st", variant: "1stEditionHolofoil", usd: 700, n: 16, note: "Dark Charizard 1st Ed holo 4/82: Oct raw sold 400-1,250, middle ~700 (NM 1,000-1,245); TCGplayer 121.94 flat then 62.35 (10-17 1pm post said -49%)" },
+  { game: "mtg", cardId: "98fba951-c5bb-497c-9292-ce1b2a1e1247", variant: "nonfoil", usd: 637, n: 2, note: "Blaze of Glory Alpha (lea-6): sold 578.99 PLD 09-05, 695 LP 09-02 (a clean copy is higher); TCGplayer 440.74 stopped 10-13" },
 ];
+// --only id,id: write just these checks (the others are already on prod).
+const onlyArg = process.argv.indexOf("--only");
+const only = onlyArg > 0 ? new Set(process.argv[onlyArg + 1].split(",")) : null;
+if (only) CHECKS.splice(0, CHECKS.length, ...CHECKS.filter((k) => only.has(k.cardId)));
 
 await c.execute(`CREATE TABLE IF NOT EXISTS price_checked (
     game TEXT NOT NULL,

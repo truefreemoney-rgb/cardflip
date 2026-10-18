@@ -4,6 +4,12 @@ Chris (10-14): every support ticket and every social comment is a learning
 experience while the site is new and not fully tested. One entry each: what
 they said, what it taught, what changed, what is still open. Newest first.
 
+## 10-18 · Task sweep found 3 wrong card prices + a weekly job that stopped (found by me)
+- What: (1) The 10-17 1pm post said "Dark Charizard -49%": the 1st Edition holo (base5-4-1st) sat flat at $121.94 for weeks, then $62.35; real raw sold this month $400-1,250, middle ~$700. Both the "before" and "after" were junk, so the post was wrong twice. (2) Base Set Charizard (base1-4) page was blank ("looks off") on TCGplayer's $954.65; NM raw sold $507-658 this week. (3) Alpha Blaze of Glory showed $440.74 from 10-13 (TCGplayer stopped); sold $579 played / $695 LP.
+- Fix: hand eBay sold checks on prod (scripts/seed-price-checks.mjs --only): Dark Charizard 1st $700, Charizard $600, Blaze $637. Pages show them with "Checked against recent eBay sales" once their 2-day cache turns over (~10-20); search/scanner at once. Checked cards sit out of posts.
+- (4) Weekly log cleanup had not run since 10-08: the split Vercel crons mark the day finished, so the all-in-one daily run (the only caller) never came due. Fix: the tcg-prices cron runs it (+ a test pin). Commit only.
+- Lesson: a mover post can be built on a frozen price on BOTH ends; the Post cards hand check before :05 is the guard. And when work is split across crons, check every job the old all-in-one run did still has a caller.
+
 ## 10-17 · Admin sign-in looped back to the login page (Chris, right after the d11ec26d push)
 - What: "keeps taking me back to login when i click sign in", then "its working now" a minute later, in his own browser (the pane signed in fine).
 - Cause (likely): admin/login/page.tsx did router.replace("/admin") after a good sign-in. Next's client router can reuse an /admin it fetched while the cookie was missing/old (#32 made every old admin cookie invalid), which is a redirect back to /admin/login. The cached copy expires in ~30 s, so it "fixed itself".
