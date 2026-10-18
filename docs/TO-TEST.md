@@ -5,9 +5,9 @@
 # To test later
 
 ## 10-18 ~7:20pm ET: PUSHED 3bd3e4b6 (24 commits: trackers out of /app, PriceCharting fence, log cleanup in tcg-prices cron, referee matcher fixes incl. Japan Showcase, no owner [COPY] mails, Sunday mail averages line + checked cards out)
-- [ ] CI run 39175798774 + Vercel READY + Production smoke after deploy green.
+- [x] PASS CI run 39175798774 + Vercel success + Production smoke after deploy (39175866229) green.
 - [ ] Tue 10-20 10am ET "scans" mail run: email_sends has NO status 'copy' row; Chris gets no [COPY].
-- [ ] Trackers: pane on cardflip.io/app/collection -> no analytics.tiktok.com / google-analytics / googleadservices requests; cardflip.io/ still loads them.
+- [x] PASS 10-18 ~7:25pm ET trackers: signed-in /app/collection loaded none (0 tracker requests); /pricing loads googletagmanager + analytics.tiktok.com + doubleclick as before.
 - [ ] Next Sunday-or-later tcg-prices cron: daily_last_result has logCleanup {ran:true}; settings log_cleanup_last moves off 10-08.
 - [ ] Weekly referee re-read: Japan showcase / textured / fracture foils get more asks; fewer false "Hidden by eBay" Magic cards.
 - [ ] SUN 10-25 6:30pm digest: "How each game moved" line present when the subject says up/down; no hand-checked card in the rows.
