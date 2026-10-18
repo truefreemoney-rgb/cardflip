@@ -1,83 +1,80 @@
-# Full task list, 10-18 (from STATE, TASKS-A-H, TO-TEST, BACKLOG, LESSONS, 10-11..10-18)
+# Task list, updated 10-18 ~11:30am ET (after the "do everything you can on your own" sweep)
 
-[me] = Claude, [you] = Chris. Line refs = where the detail lives.
+[me] = Claude, [you] = Chris. DONE items keep their number so nothing gets renumbered.
+Unpushed commits: see `git log origin/main..HEAD` (no pushes until Chris says).
 
 ## A. Today (10-18)
-1. [you] Sign in to admin in the pane; then [me] mark today's 1pm + 7pm post cards "Looks right" on live /admin/prices (TO-TEST top block).
-2. [you] Open cardflip.io/?heat=off once on phone and once on PC.
-3. [you] Admin sign-in lands on Overview first try, no bounce (LESSONS 10-17 fix, pushed 10-18).
-4. [me+you] 1pm TikTok + Pinterest by hand (Downloads\CardFlip TikTok 10-18; you press Post).
-5. [me] 1:05pm posts on all sites: no Brock's Ninetales, every card eBay-checked.
-6. [me+you] 7pm TikTok + Pinterest (Vivid Voltage); [me] the 7:05pm posts say Vivid Voltage, no Rare Candy, no Magic "this week" card.
-7. [me] Sunday digest + 6:30pm week mail go out once per person (email_claims > 0).
-8. [me] Sunday 10:30 Lorcana catalog sync kept own pictures.
-9. [me] Last night's run: catalog push log + push-state file, art versions got today's price (Vivillon, Red Cheeks, Peelables), Ascended Heroes pattern rows, Art Series gaps 8, Cresselia-EX ~$103 / Victini-EX ~$167, fx rates fresh.
+1. [you] Sign in to admin in the pane -> [me] mark today's 1pm + 7pm post cards "Looks right", and "Right, keep"-free now (Charizard got a price fix instead).
+2. [you] Open cardflip.io/?heat=off once on phone + PC. (Mine is done.)
+3. [you] Admin sign-in lands on Overview first try (PHONE-CHECKS.md part 6).
+4. [you+me] 1pm TikTok + Pinterest by hand.
+5. [me] 1:05pm posts check: SCHEDULED 1:12pm.
+6. [you+me] 7pm TikTok + Pinterest; [me] 7:05pm posts check SCHEDULED 7:13pm.
+7. [me] Sunday digest/week mail sends once: SCHEDULED 6:47pm.
+8. DONE Lorcana Sunday sync ran (3,505 cards, own pictures kept).
+9. DONE last night's run: no failures, catalog push (last full one, 549 s), art versions + Ascended Heroes rows got today's price, Cresselia $102.99, exchange rates fresh.
 
-## B. Prices (top priority)
-10. [me] 10-19 morning: price_checked rows got TCGplayer's new number; any back within 25% retired on its own.
-11. [me] ~10-20 9:45am: the 4 fixed card pages (Snorlax, Ninetales, Minun, Rare Candy) show "Checked against eBay" and lose the stale "Down 33.6%" lines.
-12. [me] Then take those cards off the social price hold once movers read the fixed prices.
-13. [me] By 10-19: "Most valuable sets" shows on all 5 game hubs (#63).
-14. [me] Set lists stay fast: 2am + 7am smoke green two days running.
-15. [me] Few-sales checks: 1st Ed Pikachu ~$187 "Few sales", Shinx, Volcanic Eruption; hard-flagged cards still "looks off".
-16. [me] Recheck Alpha Blaze of Glory (lea-6) shows a price (LESSONS 10-17).
-17. [me] Magic "looks off" count dropped (cappedToListing, cardmarketFilled), Beta Shivan / Ancient Mew / Pokémon listing cap prices.
-18. [me] eBay referee: a full week of readings (~10-20), every $100+ card read.
-19. [you] First real "Price looks wrong?" vote, then [me] check /admin/prices "Readers flagged".
-20. [me] Weekly price scorecard, next ~10-24 (week 1 = 65%).
-21. [you] PriceCharting: answers from Brady (8% of what revenue; is one link per page enough), then subscribe ($49/mo).
-22. [me] PriceCharting FINALE (build before you subscribe): main price by TCGplayer ID, "Based on N sales", daily 4-source cross-check, One Piece PC test, 1st Ed twins priced, re-score the 94 cards (beat 78%).
-23. [you] Decide: the ~900 unpriced old cards, hide or leave (#47).
-24. [you] Decide: stronger Pokémon price limit (#49).
+## B. Prices
+10. [me] 10-19 morning: price_checked rows get tonight's TCGplayer number (now 7 rows).
+11. DONE early: the 4 fixed card pages already show "Checked against recent eBay sales", no stale "Down" lines.
+12. DONE in code already (checked cards sit out of posts automatically; the hand hold list is empty).
+13. DONE "Most valuable sets" on all 5 game pages.
+14. [me] 10-19: set lists smoke green a 2nd day (10-18 2am + 7am green; /api/sets 0.1 s).
+15. DONE Few sales: Pikachu 1st $187.13, Shinx $165, Volcanic Eruption $119.99, Ancient Mew $115.93 all show "Few sales".
+16. DONE Blaze of Glory: was $440.74 (stale since 10-13) -> fixed to $637 from eBay sold.
+    NEW same day: Base Set Charizard was BLANK ("looks off" on TCGplayer's $954.65) -> fixed to $600 (NM sold $507-658);
+    Dark Charizard 1st Ed holo $62.35 (the 10-17 "-49%" post) -> fixed to $700 (Oct sold $400-1,250). Pages update by ~10-20.
+17. DONE Magic run: 2,564 capped to listing, 670 Cardmarket-filled (10-18).
+18. [me] ~10-20: eBay listing check at 4,133 readings / 3,925 cards (target ~4,500).
+19. [you] First real "Price looks wrong?" tap (0 so far).
+20. [me] ~10-24 weekly price scorecard.
+21. [you] PriceCharting: Brady's answers, then subscribe.
+22. BUILT (commit only): PriceCharting import pipeline + day-1 runbook docs/PRICECHARTING-DAY1.md. Left for day 1: the
+    switch that shows their price (needs real rows), Lorcana/One Piece matching.
+23. [you] Decide: ~900 unpriced old cards, hide or leave.
+24. [you] Decide: stronger Pokémon price limit.
 
-## C. App store (main goal)
-25. [you] Sign in with Apple, yes/no (#12).
-26. [you] iPhone payments: Apple in-app vs web checkout (#13).
-27. [me] App shell (Capacitor) (#14), on hold until you're ready.
-28. [you] Developer accounts: Apple $99/yr, Google $25 (#15).
-29. [me] iPhone cloud build + TestFlight (#16).
-30. [you] Google closed test, 12 testers x 14 days (#17).
-31. [me writes, you OK] Store listing, screenshots, privacy answers, reviewer login (#18).
-32. [you] Full real-phone check from my checklist (#19).
-33. [you] Business address for Stripe receipts (#20), together with the MD LLC + iPostal1 upgrade (BACKLOG).
-34. [you] Soft launch to 20-30 invited sellers (#59).
+## C. App store
+25-30, 33-34. [you] decisions/accounts as before (Apple sign-in, iPhone payments, dev accounts, Google test, business address, soft launch).
+27, 29. [me] app shell + TestFlight: on hold until you're ready.
+31. DRAFTED docs/APP-STORE-LISTING.md (needs your OK; plans text waits on #26).
+32. WRITTEN docs/LAUNCH-PHONE-CHECKLIST.md (for when the app build exists).
 
-## D. Bugs, security, checks on live code
-35. [you] Support ticket photo picker allows gallery photos: allowed or camera-only? (#25)
-36. [you] Sign-up takeover fix (#34), on hold, your call.
-37. [me] Security pushes on prod: Stripe TEST refund/dispute/past-due, eBay paid-only + one eBay account per user, 2FA/email change signs other devices out, admin Sign Out really ends it, login message, bad image = 400.
-38. [me] Uptime cron runs every 15 min with ok:true, failure mail path.
-39. [me] Rate limits: no "Too many requests" in normal browsing; share picture cached + 429 at 21.
-40. [me] Inventory speed under ~1 s, auth/me once, cookie bar above the tab bar (UK).
-41. [me] Overdue: the 5 deleted junk 10-16 posts are gone (Instagram may need you); 10-17 1pm had no 30-day-flat "this week" price.
-42. [me] Heat map: rows arrive from real visitors, none from admin; frame never records; "Left after one page" sane vs Analytics (10-19).
-43. [me] Odd pushed-but-unconfirmed: sync-first-edition --prod ran (Charizard 4/102 no 1st Ed stamp), cards.scan_market column on Turso.
+## D. Bugs, security, live checks
+35. [you] Support ticket photo picker: gallery allowed or camera only?
+36. [you] Sign-up takeover fix: your call.
+37. [me] Security fixes live: login message, bad image 400, cron routes 403 PASS; refund/dispute/2FA/session checks are
+    covered by automated tests and get a live check on the first real event.
+38. DONE uptime cron registered (*/15) and no failure mail.
+39. DONE share picture cached (2nd open HIT).
+40. [me, needs your admin sign-in in the pane] Inventory speed + cookie bar.
+41. DONE 10-16 junk post gone (Bluesky checked); 10-17 1pm post check found Dark Charizard -> fixed (#16).
+42. [me] Heat map: 18 real visits, 0 admin rows. 10-19: compare with Analytics; the frame check needs your sign-in.
+43. DONE Charizard 4/102 has no 1st Ed stamp; scan_market column exists.
+NEW 43b. DONE (commit only) weekly log cleanup had not run since 10-08 (split crons) -> now runs in the tcg-prices cron.
+NEW 43c. [you OK?] 2 leftover email rows of an account deleted before the 10-17 fix: delete them?
 
-## E. Phone checks for you (I'll write them as numbered steps, one batch)
-44. Scanner: Master/Poké Ball + Ascended Heroes pattern preselect, Vivillon orange/pink, near-twin swap, options "..." sheet, card picker, Clear pill, Done button, "Verify match" wording.
-45. Watchlist + Search: game pill counts, empty game button, prices + arrows on one line, Alerts clear of the arrow.
-46. Inventory: number keypad with "." in price boxes, chart "All" pill, Full price page link, Sylveon envelope price.
-47. Card pages / site: "Price looks wrong?" tap, phone nav rows, homepage "Know the card?" pills, Magic sets list no sideways scroll, set/game/card page quick look.
-48. Sign-in: wrong-password message, Google sign-in, One Tap closes for good.
-49. Real money (when they happen): next eBay listing is quantity 1, first envelope publish, a sale over $20 in Earned, welcome + price-dip mail, ended-listing sync, offers (#41, #42).
+## E. Phone checks for you
+44-49. WRITTEN as numbered steps: docs/PHONE-CHECKS.md (6 parts, ~20 min).
 
 ## F. Catalog
-50. [you] 3 One Piece cards with no picture (Boa Hancock DON!! EB-03, Boa Hancock Gold, Luffy P-700 promo) (#45).
-51. [me] 10-19: catalog push sends only changed rows (well under 446 s); a new card from the 10-19 sync is on cardflip.io.
-52. [you] Magic + Pokémon catalog updates still run from your PC (#48).
-53. [me] Magic pictures self-host (running since 10-13): confirm finished, then tidy BACKLOG.
-54. [me] Yu-Gi-Oh borrowed pictures count falling; One Piece SAMPLE stamps retried nightly.
-55. [me] Art Series: the last 8 Magic cards with no price (5 are Clues TCGplayer doesn't list).
-56. [me] Lorcana "Coconut" set pictures after it releases.
+50. [you] 3 One Piece cards with no picture.
+51. [me] 10-19: catalog upload sends only changed rows; new cards appear.
+52. [you] Magic + Pokémon updates still run from your PC.
+53. DONE Magic pictures: 98,798 of 98,960 are ours (162 have no picture anywhere).
+54. DONE Yu-Gi-Oh borrowed pictures down to 45 (from ~233).
+55. DONE as far as possible: 9 Art Series unpriced; 1 fills tonight, 8 aren't sold on TCGplayer.
+56. [me] Lorcana "Coconut" pictures after release.
 
 ## G. Social, marketing, SEO
-57. [me] Every day: 3 posts (7am/1pm/7pm), each card eBay-sold checked on "Post cards" before :05.
-58. [me] After 10-21: remove the Magic "weekly moves" pause (#51).
-59. [me] FLIPBACK recheck weekly (0 of 16 back on 10-17; code good to 11-16).
-60. [me] Overdue: reach trial review (IG/Threads/X views 10-10..10-16; revert sign-off-last if no lift); TikTok question-format numbers.
-61. [me] ~10-23: Search Console crawl check, then internal links to card pages (#55) and Pokémon character pages (#56), decision ~10-30.
-62. [you] Google Ads: link tags per campaign (#52); Leads optimization choices (held); logo/name approved?
-63. [you+me] Pinterest API: record a new demo and reapply (#53).
-64. [you] support@cardflip.io Google account for Google sign-in (#54).
-65. [you] eBay Partner Network approval, then [me] set the campaign ID.
-66. [you] Parked choices, no rush: invite-a-friend, sales tax estimate, auto-scan, reveal sounds, "Mark sold" on Live rows, shipping tier line, Jenny ticket trial size.
+57. [me] Every day: 3 posts, each card eBay-checked before :05.
+58. [me] After 10-21: remove the Magic weekly pause.
+59. DONE FLIPBACK recheck: 0 of 16 back (next ~10-25).
+60. DONE reach trial: Instagram ~2x views (16.7 vs 8.4), X up (17.8 vs 14.6), Threads flat -> kept. TikTok format test: no winner.
+    Watch: TikTok views/post fell 440 -> ~160 since 10-10.
+61. [me] ~10-23 Search Console check, then card-page links + Pokémon character pages (~10-30).
+62. [you] Google Ads: link tags per campaign, Leads choices. Business name "CardFlip" still "under review" (since 10-17).
+63. [you+me] Pinterest API: new demo + reapply.
+64. [you] support@cardflip.io Google account.
+65. [you] eBay Partner Network approval.
+66. [you] Parked choices: invite a friend, sales tax, auto-scan, reveal sounds, "Mark sold", shipping tier line, Jenny's trial size.
