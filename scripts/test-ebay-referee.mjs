@@ -33,6 +33,10 @@ console.log("Magic: special printings");
   check("a borderless printing needs 'borderless' or its number", mind("Mind Stone Foil GameStop Promo MTG Magic The Gathering Marvel"), false);
   check("... and matches with it", mind("The Mind Stone (Borderless) Marvel Super Heroes Foil"));
 
+  const celebi = refereeMatcher({ game: "pokemon", cardId: "neo4-106", variant: "unlimitedHolofoil", name: "Shining Celebi", number: "106", setName: "Neo Destiny" });
+  check("30th Celebration reprints are not the original", [celebi("30th Celebration Shining Celebi 106/105 Neo Destiny Secret Rare Holo English"), celebi("2026 Pokemon 30th Celebration Shining Celebi Classic [Neo Destiny] #106/105")], [false, false]);
+  check("... the original still matches", celebi("Shining Celebi 106/105 Neo Destiny Holo Unlimited"));
+  check("a card FROM a Celebrations set still matches its own titles", refereeMatcher({ game: "pokemon", cardId: "cel25c-4_A", variant: "holofoil", name: "Charizard", number: "4", setName: "Celebrations: Classic Collection" })("Charizard 4/102 Celebrations Classic Collection Holo"));
   const pz = refereeMatcher({ game: "pokemon", cardId: "sm9-184", variant: "holofoil", name: "Pikachu & Zekrom GX", number: "184", setName: "Team Up" });
   check("fakes: 'Collectable Pokemon ... Rainbow' and 'Fan Art' are not the card", [pz("Collectable Pokemon Pikachu & Zekrom GX 184/181 Team Up Secret Rare Rainbow"), pz("Nintendo Pokemon Pikachu & Zekrom GX Team Up Gold Foil Fan Art Card 184/181")], [false, false]);
   check("... a real one still matches", pz("Pikachu & Zekrom GX (Secret) 184/181 Sm-Team Up Holo - NM/M"));

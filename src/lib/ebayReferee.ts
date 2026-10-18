@@ -227,9 +227,13 @@ export function refereeMatcher(c: RefereeCard): (title: string) => boolean {
   const front = frontName(c.name).toLowerCase();
   const nameW = words(front);
   const flavW = c.flavorName ? words(c.flavorName) : [];
+  const celebrationSet = /celebration|30th/i.test(c.setName);
   return (title: string) => {
     const t = title.toLowerCase().replace(/δ/g, " delta ");
     if (REJECT.some((r) => r.test(t))) return false;
+    // The 2026 "30th Celebration" reprints of vintage cards ($20-27 Shining Celebi next to $250-550 originals, 10-18), and
+    // 2021 Celebrations "Classic Collection" copies: another printing unless the card itself is from such a set.
+    if (!celebrationSet && /\b30th\b|celebration/.test(t)) return false;
     const byName = nameW.length > 0 && nameW.every((w) => wordRe(w).test(t));
     const byFlavor = flavW.length > 0 && flavW.every((w) => wordRe(w).test(t));
     if (!byName && !byFlavor) return false;

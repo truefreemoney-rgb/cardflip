@@ -42,6 +42,12 @@ const CHECKS = [
   { game: "pokemon", cardId: "dp3-3", variant: "reverseHolofoil", usd: 200, n: 6, note: "Charizard Secret Wonders 3/132 reverse: NM/mint sold 150-260 (median 200), LP 100-150; ours 310.62" },
   { game: "mtg", cardId: "49852fa3-272c-4ca4-b0dc-0b80f2982fd9", variant: "foil", usd: 174, n: 2, note: "Spectacular Spider-Man #238 textured foil: sold 145.97 (09-25), 202.50 (09-23); ours 252.25" },
   { game: "yugioh", cardId: "ygo-22327-1st", variant: "normal", usd: 107, n: 8, note: "Raigeki LOB-053 1st: sold 37-152 Aug-Oct, better copies (NA glossy, VLP) 125-152, upper-half median 107; ours 218.95 above every sale" },
+  // "Hidden by eBay" (the page said "looks off"): a checked price instead of a blank.
+  { game: "pokemon", cardId: "sm3-150", variant: "holofoil", usd: 350, n: 10, note: "Charizard GX 150/147 rainbow: 10 non-played sold Sep-Oct 199-1,000 (median 292, upper half 350); TCGplayer 710.65 (hidden)" },
+  { game: "yugioh", cardId: "ygo-38633", variant: "normal", usd: 2, n: 0, note: "Genex Ally Axel STBL-EN099: no exact sale; other prints sold 1.50-1.74, STBL secret rares 1.90-4.83; TCGplayer 213,589.17 (junk, hidden)" },
+  { game: "yugioh", cardId: "ygo-92623", variant: "normal", usd: 1.25, n: 0, note: "Bujingi Crane MP14-EN073: 4 asks median 1.12; TCGplayer 199,379.19 (junk, hidden)" },
+  { game: "yugioh", cardId: "ygo-476972", variant: "normal", usd: 1.5, n: 0, note: "Tower of Babel IOC-EN050 (Worldwide English): 44 asks median 1.39; TCGplayer 5,019.94 (junk, hidden)" },
+  { game: "pokemon", cardId: "hgss1-123", variant: "reverseHolofoil", usd: 170, n: 6, note: "Gyarados HGSS 123 reverse: sold 85-200 in Oct (199.99 MP-LP, 200, 175, 160, 100, 85), median ~167; TCGplayer 499.99 (hidden)" },
   { game: "mtg", cardId: "98fba951-c5bb-497c-9292-ce1b2a1e1247", variant: "nonfoil", usd: 637, n: 2, note: "Blaze of Glory Alpha (lea-6): sold 578.99 PLD 09-05, 695 LP 09-02 (a clean copy is higher); TCGplayer 440.74 stopped 10-13" },
 ];
 // --only id,id: write just these checks (the others are already on prod).
