@@ -63,6 +63,21 @@ export default function GoogleAnalytics() {
     };
   }, []);
 
+  // Inside the signed-in app (/app) nothing measures (privacy page: "on the public pages, not inside your account";
+  // found loading on /app/collection 10-18). No ad conversion fires there (signup and /scan are public). A tab that
+  // came from a public page already has the tags running: they are paused while in /app, resumed outside it.
+  const inApp = pathname === "/app" || !!pathname?.startsWith("/app/");
+  useEffect(() => {
+    const w = window as unknown as Record<string, unknown> & { ttq?: { holdConsent?: () => void; grantConsent?: () => void } };
+    for (const id of [GA_ID, ADS_ID]) if (id) w[`ga-disable-${id}`] = inApp;
+    try {
+      if (inApp) w.ttq?.holdConsent?.();
+      else if (mode === "load") w.ttq?.grantConsent?.();
+    } catch {
+      // Measurement never breaks the page.
+    }
+  }, [inApp, mode]);
+
   if ((!GTAG_ID && !TIKTOK_PIXEL_ID) || !pathname || pathname.startsWith("/admin")) return null;
 
   if (mode === "ask") {
@@ -107,7 +122,7 @@ export default function GoogleAnalytics() {
     );
   }
 
-  if (mode !== "load") return null;
+  if (mode !== "load" || inApp) return null;
   return (
     <>
       {GTAG_ID && (

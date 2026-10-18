@@ -4,6 +4,16 @@
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
 
+## 10-18 ~12:00pm ET: trackers out of the signed-in app (COMMIT ONLY)
+- Found live: TikTok pixel + Google Analytics + Google Ads tag loading on /app/collection; privacy page says public pages only. No conversion fires in /app (signup + /scan are public).
+- Fix (GoogleAnalytics.tsx): no tags when a visit starts in /app; ga-disable flags + ttq.holdConsent while in /app after a public page, grantConsent back outside. Local check with fake ids PASS (/ loads all 3; full load /app/collection none; / -> /app click: ga-disable true for GA + Ads).
+- After the push: pane on cardflip.io/app/collection, performance entries show no analytics.tiktok.com / google-analytics / googleadservices requests; a public page still loads them; Google Ads + TikTok signup conversions still arrive (watch the next ad signup).
+
+## 10-18 ~11:55am ET (Chris signed in to admin in the pane)
+- [x] PASS live /admin/prices: "Post cards (all checked)": today's 1pm 5 + 7pm 5 marked Looks right via the route, survive reload. "Readers flagged" renders (0). Hand check queue = 388.
+- [x] PASS heat: /admin pages and the /admin/heatmap frame (cardflip.io/ at 1280) wrote 0 rows in 10 min.
+- [x] PASS Inventory on prod: live-prices 665 ms, value-history 431 ms (were 5.7/5.3 s), auth/me 1, watch/pending 1, categories 1 (1.4 s).
+
 ## 10-18 ~12:20pm ET: task sweep (prod data writes done; code COMMIT ONLY)
 - [x] PASS live: the 4 checked pages show "Checked against recent eBay sales", no "Down 33.6%"; all 5 hubs show "Most valuable sets" (Pokémon: Skyridge, Legendary Collection, Base 1st...); 404s on made-up card/set/game; X-Frame-Options SAMEORIGIN; robots _rsc; privacy Oct 17; no "Log In as Admin"; /api/sets 105/71 ms; vision trial bad image 400; cron routes 403 without key; Pikachu 1st $187.13 "Few sales"; Ascended Heroes rows (energySymbolPattern 140); art-version points today; Cresselia $102.99; fx fresh; smoke green incl. 2am + 7am 10-18; uptime cron registered */15.
 - ~10-20: card pages Charizard base1-4 ~$600, Dark Charizard 1st base5-4-1st ~$700, Blaze of Glory lea-6 ~$637, each with "Checked against recent eBay sales"; app search shows them now.
