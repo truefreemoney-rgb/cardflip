@@ -458,13 +458,14 @@ export function postArtUrl(game: GameId, imageUrl: string): string {
 
 /**
  * Cards a hand eBay sold check found mispriced, kept out of every movers/jumps
- * post until their own price is fixed. "game:cardId". Remove an entry once the
- * card page price matches eBay sold again.
+ * and set spotlight post until their own price is fixed. "game:cardId". Remove
+ * an entry once the card page price matches eBay sold again.
  *   10-18 Snorlax Kalos Starter Set: $64.88 "+50%" vs eBay sold NM $42-45, played $17-30.
  *   10-18 Brock's Ninetales Gym Challenge 1st Ed: $163 -> $261 "+60%" vs eBay sold NM steady ~$175-255 for two months (no jump).
  *   10-18 Minun HGSS17 promo: $26.50 -> $39.25 "+48%" vs eBay sold NM $23.33 (x5 this week), $29.99.
+ *   10-18 Rare Candy Plasma Blast 105 secret: $191.88 vs eBay sold $120-150 (even "MINT" $120) for a month.
  */
-const SOCIAL_PRICE_HOLD = new Set<string>(["pokemon:xy0-26", "pokemon:gym2-3-1st", "pokemon:hgssp-HGSS17"]);
+const SOCIAL_PRICE_HOLD = new Set<string>(["pokemon:xy0-26", "pokemon:gym2-3-1st", "pokemon:hgssp-HGSS17", "pokemon:bw10-105"]);
 
 /**
  * The biggest moves over the last MOVER_DAYS days, up and down, for cards
@@ -1137,6 +1138,7 @@ export async function setSpotlight(game: GameId, day = todayUtc(), { minCards = 
   for (const [id, s] of series) {
     // An unsettled card prints the week's median, which has to be a price the guard believes too.
     if (s.to < minPrice || (s.held < HELD_DAYS && !s.medianOk)) continue;
+    if (SOCIAL_PRICE_HOLD.has(`${game}:${id}`)) continue;
     const dash = id.lastIndexOf("-");
     if (dash <= 0) continue;
     const setId = id.slice(0, dash);
