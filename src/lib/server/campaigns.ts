@@ -391,7 +391,7 @@ export async function buildMail(id: CampaignId, user: User, unsubUrl: string, no
     const f = await cardsFacts(user, now, shared);
     return f.cards.length ? { mail: renderCards(f, first, unsubUrl), facts: f } : null;
   }
-  const f = shared.week ?? (await weekFacts(now));
+  const f = shared.week ?? (await weekFacts(now, false, true));
   if (!f) return null;
   shared.week = f;
   return { mail: renderWeek(f, first, unsubUrl), facts: f };

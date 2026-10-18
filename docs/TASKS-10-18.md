@@ -53,6 +53,7 @@
 
 ## G. Social, marketing, SEO
 36. [me] Every day: 3 posts, every card checked against eBay sold before it goes out.
+36b. [me] Every Sunday ~2-5pm ET (first: 10-25): hand-check the Sunday mail's cards on eBay sold before the 6:30pm send (Chris 10-18 "yes hand check them sundays, keep the one piece pics"; memory cardflip-sunday-mail-hand-check).
 37. [me] After 10-21: remove the Magic "weekly moves" pause.
 38. [me] ~10-25: FLIPBACK recheck (0 of 16 back so far).
 39. [me] Watch TikTok views per post (down from ~440 to ~160 since 10-10).

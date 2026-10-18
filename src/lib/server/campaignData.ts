@@ -518,7 +518,9 @@ async function scansThisWeek(now: number): Promise<{ scans: number; mostScanned:
   return { scans: Number(count?.n ?? 0), mostScanned: best };
 }
 
-export async function weekFacts(now = Date.now(), quick = false): Promise<WeekFacts | null> {
+/** `fresh` (the real Sunday send): built now, never the cached copy, so a card fixed by the Sunday-afternoon hand eBay check (Chris 10-18) is out of the 6:30pm mail. */
+export async function weekFacts(now = Date.now(), quick = false, fresh = false): Promise<WeekFacts | null> {
+  if (fresh) return buildWeekFacts(now);
   return memo("week", now, quick, () => buildWeekFacts(now));
 }
 
