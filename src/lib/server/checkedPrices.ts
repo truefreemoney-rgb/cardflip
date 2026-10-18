@@ -108,7 +108,9 @@ export async function activeChecks(): Promise<Map<string, CheckedPrice>> {
       rows.set(checkKey(r.game, r.card_id, r.variant), { game: r.game, cardId: r.card_id, variant: r.variant, usd, n: Number(r.n) || 0, day: r.day, note: r.note ?? "" });
     }
   } catch (err) {
+    // Not remembered: a read that failed (the table not there yet, 10-18 first deploy) must not hide checks for 10 minutes.
     console.warn("checked prices: could not read price_checked", err);
+    return rows;
   }
   memo = { at: Date.now(), rows };
   return rows;

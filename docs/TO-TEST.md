@@ -10,6 +10,10 @@
 - The frame itself never records (no heat rows, no visit count, no GA hit, no One Tap) — X-Frame-Options is now SAMEORIGIN: other sites still can't frame cardflip.io (curl -I shows SAMEORIGIN).
 - Next day: "Left after one page" and per-page "Left here" look sane against /admin/analytics visitors.
 
+## 10-18 ~9:45am ET: PUSHED 60498763 (price fix + heat map), CI + smoke + Vercel green; seed --prod DONE
+- [x] PASS curl: Snorlax $43.00, Ninetales $200.00, Minun $23.33, Rare Candy $122.00 on cardflip.io card pages.
+- [x] PASS prod heat_views gets rows (my test visit home -> pricing, beacon 204).
+- OPEN: the 4 card pages were cached (ISR 48 h) by an instance whose checks memo was read BEFORE the seed: price right, but NO "Checked against eBay" note and stale change lines ("Down 33.6% over 90 days" Rare Candy, Minun "Down 36.9% / 30 days", high $189.17). Self-heals ~10-20 9:45am ET; recheck then. Cause fixed (memo no longer kept on a failed read), COMMIT ONLY, rides the next push.
 ## 10-18 ~9:10am ET: caught prices FIXED by a hand eBay sold check (price_checked, COMMIT ONLY, waits for Chris's yes on shots docs/shots/checked-1..4)
 - After push, then `scripts/seed-price-checks.mjs --prod` (dry run 10-18: Snorlax 5 pts -> $43, Ninetales 3 -> $200, Minun 7 -> $23.33, Rare Candy 31 -> $122):
   card pages show those prices + "Checked against recent eBay sales (N sold)", no change words, chart starts at the fix (Rare Candy flat $122, no "-33.6%").
