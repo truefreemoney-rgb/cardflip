@@ -461,8 +461,9 @@ export function postArtUrl(game: GameId, imageUrl: string): string {
  * post until their own price is fixed. "game:cardId". Remove an entry once the
  * card page price matches eBay sold again.
  *   10-18 Snorlax Kalos Starter Set: $64.88 "+50%" vs eBay sold NM $42-45, played $17-30.
+ *   10-18 Brock's Ninetales Gym Challenge 1st Ed: $163 -> $261 "+60%" vs eBay sold NM steady ~$175-255 for two months (no jump).
  */
-const SOCIAL_PRICE_HOLD = new Set<string>(["pokemon:xy0-26"]);
+const SOCIAL_PRICE_HOLD = new Set<string>(["pokemon:xy0-26", "pokemon:gym2-3-1st"]);
 
 /**
  * The biggest moves over the last MOVER_DAYS days, up and down, for cards
