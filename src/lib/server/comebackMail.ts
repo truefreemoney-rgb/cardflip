@@ -126,7 +126,6 @@ export async function sendComeback(send = sendCampaignEmail, configured = isMail
   const due = await comebackRecipients();
   let sent = 0;
   let failed = 0;
-  let copy: ComebackMail | null = null;
   for (const user of due) {
     const token = await digestTokenFor(user.id);
     const unsub = unsubUrlFor(user.id, token);
@@ -135,7 +134,6 @@ export async function sendComeback(send = sendCampaignEmail, configured = isMail
     try {
       await send(user.email, { ...mail, unsubUrl: unsub });
       sent++;
-      copy ??= mail;
     } catch (err) {
       failed++;
       const msg = err instanceof Error ? err.message : String(err);
@@ -145,13 +143,6 @@ export async function sendComeback(send = sendCampaignEmail, configured = isMail
       console.error(`comeback mail to ${user.id} failed:`, err);
     }
   }
-  if (copy) {
-    try {
-      await send(OWNER_EMAIL, { ...copy, subject: `[COPY] ${copy.subject}`, unsubUrl: SAMPLE_UNSUB });
-      await logSend(null, OWNER_EMAIL, "copy");
-    } catch (err) {
-      console.error("comeback owner copy failed:", err);
-    }
-  }
+  // No owner [COPY] (Chris 10-18: no other people's mail in his inbox); the [TEST] button still sends him a sample.
   return { due: due.length, sent, failed };
 }

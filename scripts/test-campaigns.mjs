@@ -7,7 +7,7 @@
  * running low sees Booster + Move to Pro (standard plan only); admins,
  * accounts under a day old, unsubscribed, email-pending and pre-cutoff users
  * get nothing; one mail per person per day and the same mail once a week;
- * the owner gets one [COPY] per run; a failed send is logged and retried;
+ * the owner gets no copy (10-18); a failed send is logged and retried;
  * Sunday's mail renders from an empty catalog without throwing; test sends
  * are logged as tests and never count toward caps.
  */
@@ -89,14 +89,8 @@ check("failed sends counted", [failed.sent, failed.failed], [0, 3]);
 
 const r = await sweepCampaigns(TUE, {}, deps());
 check("Tuesday: the two trial users + the subscriber get mail (admin, fresh, unsubscribed, pre-10-07 skipped)", mails.map((m) => m.to).filter((t) => t !== OWNER).sort(), ["left@example.com", "low@example.com", "out@example.com"]);
-check("owner gets one [COPY] per run", mails.filter((m) => m.to === OWNER).map((m) => m.subject.slice(0, 7)), ["[COPY] "]);
-{
-  // 10-18: the copy said "Hi Maxin" and carried that user's own Stop link.
-  const cp = mails.find((m) => m.to === OWNER);
-  const real = mails.find((m) => m.to !== OWNER);
-  check("[COPY] carries the sample Stop link, not a user's", [cp.unsubUrl.includes("u=preview"), cp.html.includes(real.unsubUrl), cp.text.includes(real.unsubUrl)], [true, false, false]);
-  check("[COPY] greets Chris, not the user", /Hi Chris,/.test(cp.text), true);
-}
+// 10-18: the [COPY] was a real user's mail ("Hi Maxin" + their Stop link) and Chris wants no users' mail at all.
+check("owner gets no copy of users' mail", mails.filter((m) => m.to === OWNER).length, 0);
 check("sweep counts", [r.campaign, r.due, r.sent, r.failed], ["scans", 3, 3, 0]);
 const mLeft = mails.find((m) => m.to === "left@example.com");
 const mOut = mails.find((m) => m.to === "out@example.com");
@@ -129,7 +123,7 @@ check("next Tuesday everyone is due again", tueAgain.sent, 4);
 
 await sendCampaignTest("scans:trial_left", OWNER, TUE, deps());
 const logged = await db.prepare("SELECT status, COUNT(*) AS n FROM email_sends GROUP BY status ORDER BY status").all();
-check("log: copies + failed + sent + one test", logged.map((x) => [x.status, Number(x.n)]), [["copy", 4], ["failed", 3], ["sent", 15], ["test", 1]]);
+check("log: failed + sent + one test (no copies since 10-18)", logged.map((x) => [x.status, Number(x.n)]), [["failed", 3], ["sent", 15], ["test", 1]]);
 
 // Audit #9: two runs at once mail each person once, and the "sent" row exists before the mail goes.
 mails.length = 0;

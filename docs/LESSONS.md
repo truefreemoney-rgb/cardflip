@@ -7,7 +7,7 @@ they said, what it taught, what changed, what is still open. Newest first.
 ## 10-18 · Sunday digest [COPY]: "what the heck is this email" / "i never used Maxin on anything"
 - What: the weekly "This week in cards" went to 22 users at 6:30pm ET. Chris's [COPY] was the FIRST USER's mail verbatim: "Hi Maxin" (a real user) and that user's own Stop link (one click = that user unsubscribed). Content issues too: Cyber Dragon CRV 1st UTR "+97%" from a thin series (499.96 -> 406.67 -> 799.51 in days), Let It Go $1,456.86 unchecked, a SAMPLE-stamped Sanji picture, subject "Lorcana down" next to a Lorcana +19% row.
 - Taught: an owner copy must be drawn for the owner (sample Stop link, his name), and outbound mail cards need the same guards as social posts (eBay-checked / held prices, no jumpy few-sales series, no SAMPLE pictures).
-- Changed (commit only): campaigns.ts renders the copy from the same facts with "Chris" + the sample Stop link; test-campaigns pins it.
+- Changed (commit only): first the copy was redrawn for Chris; then Chris: "i dont want to be getting peoples emails, its going to flood my inbox" -> NO owner [COPY] at all (weekly/Tue/Thu campaigns + comeback mail); email_sends is the record and I check it. [TEST] sends from the admin page still reach him (he asks for those).
 - Open: digest card guards (holds/checks/few-sales/SAMPLE) + subject that matches the rows, before next Sunday 10-25 6:30pm; a Sunday-afternoon preview check by me.
 
 ## 10-18 · eBay price checks: reprints and look-alike printings hide right prices (found working /admin/prices by hand)

@@ -77,7 +77,7 @@ check("recipients: post-10-07, opted in, no house accounts", who, ["ned@example.
 
 const sent = [];
 let res = await sendComeback(async (to) => { sent.push(to); }, () => true);
-check("sends each once plus the owner copy", [res.sent, sent.length], [3, 4]);
+check("sends each once, no owner copy (Chris 10-18)", [res.sent, sent.length], [3, 3]);
 res = await sendComeback(async (to) => { sent.push(to); }, () => true);
 check("a rerun mails nobody twice", [res.due, res.sent], [0, 0]);
 

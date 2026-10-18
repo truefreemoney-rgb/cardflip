@@ -45,8 +45,8 @@ import { OWNER_EMAIL, findUserByEmail, listAllUsers, type User } from "@/lib/ser
  *
  * Who gets mail: accounts made on or after 10-07 (EMAIL_CUTOFF), at least a
  * day old, confirmed, not opted out. One mail per person per day, the same
- * mail at most once a week. Admin accounts get none; the owner gets a [COPY]
- * of each mail that went out in a run. The Stop link reuses the digest token:
+ * mail at most once a week. Admin accounts get none, and the owner no copy
+ * (Chris 10-18; email_sends is the record). The Stop link reuses the digest token:
  * digest_off stops everything optional.
  */
 
@@ -394,13 +394,6 @@ export async function buildMail(id: CampaignId, user: User, unsubUrl: string, no
   return { mail: renderWeek(f, first, unsubUrl), facts: f };
 }
 
-/** A mail drawn again from facts buildMail already gathered (the owner's copy). */
-function renderFacts(id: CampaignId, f: ScansFacts | CardsFacts | WeekFacts, first: string, unsubUrl: string): RenderedMail {
-  if (id === "scans") return renderScans(f as ScansFacts, first, unsubUrl);
-  if (id === "cards") return renderCards(f as CardsFacts, first, unsubUrl);
-  return renderWeek(f as WeekFacts, first, unsubUrl);
-}
-
 /* ------------------------------------------------------------------ */
 /* Admin: previews, tests, overview                                    */
 /* ------------------------------------------------------------------ */
@@ -568,7 +561,6 @@ export async function sweepCampaigns(
   const due = (await candidates(id, now)).filter((c) => !c.blocked).slice(0, USER_CAP);
   let sent = 0;
   let failed = 0;
-  let copy: RenderedMail | null = null;
   const shared: { week?: WeekFacts; five?: MailCard[] } = {};
   const binder: MailCard[] = [];
   for (const c of due) {
@@ -585,9 +577,6 @@ export async function sweepCampaigns(
       rowId = await logSend({ userId: c.user.id, email: c.user.email, campaign: id, status: "sent" }, now);
       await send(c.user.email, built.mail);
       sent++;
-      // Same cards, but never the user's name or their own Stop link (10-18: Chris's copy said "Hi Maxin" and
-      // its Stop link would have unsubscribed that user).
-      copy ??= renderFacts(id, built.facts, "Chris", SAMPLE_UNSUB);
       if (id === "cards" && (built.facts as CardsFacts).variant === "binder") binder.push(...(built.facts as CardsFacts).cards);
     } catch (err) {
       failed++;
@@ -603,14 +592,6 @@ export async function sweepCampaigns(
     }
   }
   if (binder.length) await rememberBinderCards(binder).catch((err) => console.warn("binder memory failed:", err));
-  // The owner's copy: the first mail that reached somebody this run, never counted in caps.
-  if (copy) {
-    try {
-      await send(OWNER_EMAIL, { ...copy, subject: `[COPY] ${copy.subject}` });
-      await logSend({ userId: null, email: OWNER_EMAIL, campaign: id, status: "copy" }, now);
-    } catch (err) {
-      console.error(`campaign ${id} owner copy failed:`, err);
-    }
-  }
+  // No owner [COPY] any more (Chris 10-18: "i dont want to be getting peoples emails"); the email_sends rows are the record.
   return { campaign: id, due: due.length, sent, failed };
 }
