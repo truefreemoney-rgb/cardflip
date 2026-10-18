@@ -99,6 +99,29 @@ const ygo = planPcImport("yugioh", [P("y1", "Dark Magician [1st Edition] LOB-005
 check("yugioh: ygo-<tcg-id>, [1st Edition] -> the -1st twin", ygo.writes.map((w) => `${w.cardId}|${w.variant}|${w.usd}`), ["ygo-555-1st|normal|120", "ygo-555|normal|40"]);
 check("yugioh: unknown id skipped", ygo.skipped["unknown product"], 1);
 
+// Lorcana + One Piece: matched by name (no TCGplayer id stored on our side).
+const { lorcanaKey } = await import(at("lib/pricecharting.ts"));
+const lorKeys = {
+  [lorcanaKey("Rise of the Floodborn", "208", "Madam Mim - Purple Dragon")]: ["crd_mim"],
+  [lorcanaKey("The First Chapter", "118", "Hercules - Mighty Leader")]: ["crd_herc"],
+};
+const lor = planPcImport("lorcana", [
+  { ...P("l1", "Madam Mim - Purple Dragon (Enchanted) #208", 120, null), console: "Lorcana Rise of the Floodborn" },
+  { ...P("l2", "Hercules - Mighty Leader [Foil] #118", 4, null), console: "Lorcana The First Chapter" },
+  { ...P("l3", "Hercules - Mighty Leader #118", 0.5, null), console: "Lorcana The First Chapter" },
+  { ...P("l4", "Hercules - Mighty Leader [Pre-Release] #118", 9, null), console: "Lorcana The First Chapter" },
+], { ...ctxOf({}, { crd_mim: ["foil"], crd_herc: ["normal", "foil"] }, []), cardsOfKey: (k) => lorKeys[k] ?? [] });
+check("lorcana: enchanted -> foil, [Foil] -> foil, plain -> normal, other tags skipped", lor.writes.map((w) => `${w.cardId}|${w.variant}|${w.usd}`), ["crd_mim|foil|120", "crd_herc|foil|4", "crd_herc|normal|0.5"]);
+check("lorcana: a pre-release stamp is another printing", lor.skipped["other printing"], 1);
+const opKeys = { "OP03-116|": ["OP03-116"], "OP03-116|jolly-roger-foil": ["OP03-116#2"] };
+const op = planPcImport("onepiece", [
+  P("o1", "Shirahoshi OP03-116 (Pillars of Strength)", 3, null),
+  P("o2", "Shirahoshi [Jolly Roger] OP03-116 (Pillars of Strength)", 40, null),
+  P("o3", "Charlotte Katakuri [Tournament Pack Vol. 3] OP08-062 (One Piece Promo)", 9, null),
+], { ...ctxOf({}, { "OP03-116": ["normal"], "OP03-116#2": ["normal"] }, []), cardsOfKey: (k) => opKeys[k] ?? [] });
+check("one piece: code + printing tag", op.writes.map((w) => `${w.cardId}|${w.usd}`), ["OP03-116|3", "OP03-116#2|40"]);
+check("one piece: an unknown tag (tournament pack) is skipped", op.skipped["other printing"], 1);
+
 // The fence: readers that take ANY USD series must skip source 'pricecharting' until the PC-first switch is made on purpose.
 const { readFileSync } = await import("node:fs");
 const src = (p) => readFileSync(new URL(`../src/${p}`, import.meta.url), "utf8");

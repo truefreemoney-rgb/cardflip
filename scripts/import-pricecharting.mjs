@@ -13,7 +13,7 @@ import fs from "node:fs";
 import { createClient } from "@libsql/client";
 
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
-const { readPriceGuide, planPcImport } = await import(at("lib/pricecharting.ts"));
+const { readPriceGuide, planPcImport, lorcanaKey } = await import(at("lib/pricecharting.ts"));
 const { setDay, todayUtc, decodePrices, encodePrices } = await import(at("lib/priceSeries.ts"));
 
 const args = process.argv.slice(2);
@@ -24,7 +24,7 @@ const arg = (k) => {
 const game = arg("--game");
 const prod = args.includes("--prod");
 const dry = args.includes("--dry");
-if (!["pokemon", "mtg", "yugioh"].includes(game)) throw new Error("--game pokemon|mtg|yugioh (Lorcana / One Piece: no stored TCGplayer id yet)");
+if (!["pokemon", "mtg", "yugioh", "lorcana", "onepiece"].includes(game)) throw new Error("--game pokemon|mtg|yugioh|lorcana|onepiece");
 if (prod && !args.includes("--fenced")) throw new Error("--prod needs --fenced: push the reader fence first (priceHistory.ts / enCards.ts ignore source 'pricecharting')");
 const day = arg("--day") ?? todayUtc();
 
@@ -77,10 +77,20 @@ if (game === "pokemon") {
   const ids = JSON.parse(fs.readFileSync("data/mtg-tcgplayer-ids.json", "utf8"));
   for (const [uuid, tcg] of Object.entries(ids)) addTcg(tcg, uuid);
   cards = new Set(Object.keys(ids));
-} else {
+} else if (game === "yugioh") {
   cards = new Set((await c.execute("SELECT id FROM tcg_cards WHERE game = 'yugioh'")).rows.map((r) => String(r.id)));
+} else {
+  // Lorcana / One Piece: by name (lib/pricecharting.ts lorcanaKey; One Piece "code|printing tag").
+  const rows = (await c.execute({ sql: "SELECT id, name, subtitle, set_name, collector_number, variant FROM tcg_cards WHERE game = ?", args: [game] })).rows;
+  cards = new Set(rows.map((r) => String(r.id)));
+  for (const r of rows) {
+    const key = game === "lorcana"
+      ? lorcanaKey(String(r.set_name), String(r.collector_number), `${r.name}${r.subtitle ? ` - ${r.subtitle}` : ""}`)
+      : `${r.collector_number}|${r.variant ?? ""}`;
+    addTcg(key, String(r.id));
+  }
 }
-const ctx = { cardsOfTcg: (t) => byTcg.get(String(t)) ?? [], variantsOf: (id) => variants.get(id) ?? new Set(), hasCard: (id) => cards.has(id) };
+const ctx = { cardsOfTcg: (t) => byTcg.get(String(t)) ?? [], cardsOfKey: (k) => byTcg.get(k) ?? [], variantsOf: (id) => variants.get(id) ?? new Set(), hasCard: (id) => cards.has(id) };
 
 const { writes, skipped } = planPcImport(game, products, ctx);
 console.log(`matched ${writes.length}; skipped ${JSON.stringify(skipped)}`);

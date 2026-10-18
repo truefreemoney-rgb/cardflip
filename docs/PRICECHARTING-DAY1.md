@@ -11,7 +11,10 @@ https://www.pricecharting.com/game/<id>; purge all their data if the subscriptio
     normal+holo cards. Any other tag (Shadowless, Staff, Prerelease...) = another printing, skipped.
   - Magic: tcg-id -> Scryfall uuid (`data/mtg-tcgplayer-ids.json`, rebuilt nightly on Chris's PC); `[Foil]` / `[Etched]`.
   - Yu-Gi-Oh: `ygo-<tcg-id>`, `[1st Edition]` -> `ygo-<tcg-id>-1st`.
-  - Lorcana / One Piece: NOT matched yet (we store no TCGplayer id for them). Next: match by set + number + name.
+  - Lorcana: by set + number + name (category "Lorcana <set>", "Name - Subtitle (Enchanted) #208"; `[Foil]` / Enchanted /
+    Iconic / Epic = foil; any other tag = another printing). One Piece: by card code + printing tag (`[Jolly Roger]`,
+    `[Alternate Art]`, `[Parallel]`, `[Manga]`...; promo pack tags skipped). Built 10-18 from the 10-17 hand-copied titles:
+    CHECK on day 1 that the real CSV names look the same (the dry run's "unknown product" count tells).
   - Only writes onto a variant the card already has a TCGplayer series for; everything unsure is counted, never guessed.
 - `scripts/import-pricecharting.mjs`: download/read the CSV, match, write today's ungraded price to
   `price_series` source `pricecharting` (our own history) + `pc_products` (PC id for the link, yearly sales, grade 9 / PSA 10).

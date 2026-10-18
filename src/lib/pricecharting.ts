@@ -157,7 +157,42 @@ export const tagKey = (t: string) => t.toLowerCase().replace(/[^a-z0-9]/g, "");
 // written onto a variant the card already has a TCGplayer series for (or a 1st Edition twin that exists): anything
 // unsure is skipped and counted, never guessed.
 
-export type PcGame = "pokemon" | "mtg" | "yugioh";
+export type PcGame = "pokemon" | "mtg" | "yugioh" | "lorcana" | "onepiece";
+
+const fold = (s: string) =>
+  s
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]/g, "");
+
+/**
+ * Lorcana and One Piece carry no TCGplayer id on our side, so their products match by name (10-18, from the 10-17
+ * hand-copied titles). Lorcana: category "Lorcana Rise of the Floodborn", product "Madam Mim - Purple Dragon
+ * (Enchanted) #208" -> "riseofthefloodborn|208|madammimpurpledragon". Our side: set_name | collector_number | name + subtitle.
+ */
+export function lorcanaKey(setName: string, number: string, fullName: string): string {
+  return `${fold(setName.replace(/^(disney\s+)?lorcana\s*/i, ""))}|${String(number).replace(/^0+/, "")}|${fold(fullName)}`;
+}
+
+export function pcLorcanaKey(p: PcProduct): string | null {
+  const n = parseProductName(p.name);
+  if (!n.number) return null;
+  return lorcanaKey(p.console, n.number, n.base.replace(/\([^)]*\)/g, " "));
+}
+
+/** One Piece: "Shirahoshi [Jolly Roger] OP03-116 (Pillars of Strength)" -> code "OP03-116" + its printing tag. */
+export function pcOnePieceCode(p: PcProduct): { code: string; tags: string[] } | null {
+  const m = p.name.match(/\b([A-Z]{1,4}\d{0,2}-\d{3})\b/);
+  return m ? { code: m[1], tags: parseProductName(p.name).tags.map(tagKey) } : null;
+}
+
+/** PriceCharting One Piece tags -> our tcg_cards.variant printing tags ('' = the base printing). */
+const ONEPIECE_TAG: Record<string, string> = {
+  alternateart: "alt-art", altart: "alt-art", parallel: "parallel", manga: "manga", jollyroger: "jolly-roger-foil",
+  piratefoil: "pirate-foil", fullart: "full-art", texturedfoil: "textured-foil", sp: "special", specialcard: "special", reprint: "reprint",
+};
 
 export interface PcMatchCtx {
   /** Our card ids for a TCGplayer product id (Pokémon: tcgplayer_products; Magic: Scryfall's tcgplayer_id). */
@@ -166,6 +201,8 @@ export interface PcMatchCtx {
   variantsOf: (cardId: string) => ReadonlySet<string>;
   /** The card exists in our catalog (1st Edition twins, Yu-Gi-Oh ids). */
   hasCard: (cardId: string) => boolean;
+  /** Lorcana: lorcanaKey -> card ids. One Piece: "OP03-116|jolly-roger-foil" ("|" + '' for the base printing) -> card ids. */
+  cardsOfKey?: (key: string) => string[];
 }
 
 export interface PcWrite {
@@ -225,6 +262,31 @@ function pickMtg(tags: string[], cardId: string, ctx: PcMatchCtx): { cardId: str
   return ctx.variantsOf(cardId).has(variant) ? { cardId, variant } : "no such variant";
 }
 
+function pickByName(game: "lorcana" | "onepiece", p: PcProduct, tags: string[], ctx: PcMatchCtx): { cardId: string; variant: string } | PcSkip {
+  const find = ctx.cardsOfKey ?? (() => []);
+  if (game === "lorcana") {
+    const key = pcLorcanaKey(p);
+    if (!key) return "unknown product";
+    const cards = find(key);
+    if (cards.length === 0) return "unknown product";
+    if (cards.length > 1) return "ambiguous";
+    if (tags.some((t) => t !== "foil" && !/^(enchanted|iconic|iconicholo|epic|holo)$/.test(t))) return "other printing";
+    // Enchanted / Iconic / Epic cards only come foil: their plain row is the foil price.
+    const foilOnly = /\((enchanted|iconic|epic)\)/i.test(p.name) || tags.some((t) => t.startsWith("iconic") || t === "enchanted" || t === "epic");
+    const variant = tags.includes("foil") || foilOnly ? "foil" : "normal";
+    return ctx.variantsOf(cards[0]).has(variant) ? { cardId: cards[0], variant } : "no such variant";
+  }
+  const op = pcOnePieceCode(p);
+  if (!op) return "unknown product";
+  const known = op.tags.map((t) => ONEPIECE_TAG[t]).filter(Boolean);
+  if (known.length < op.tags.length) return "other printing";
+  if (new Set(known).size > 1) return "ambiguous";
+  const cards = find(`${op.code}|${known[0] ?? ""}`);
+  if (cards.length === 0) return "unknown product";
+  if (cards.length > 1) return "ambiguous";
+  return ctx.variantsOf(cards[0]).has("normal") ? { cardId: cards[0], variant: "normal" } : "no such variant";
+}
+
 /** Every product's write (or why it was skipped). One write per printing: the first product claiming it wins, later ones count as duplicates. */
 export function planPcImport(game: PcGame, products: PcProduct[], ctx: PcMatchCtx): { writes: PcWrite[]; skipped: Record<PcSkip, number> } {
   const skipped: Record<PcSkip, number> = { "no price": 0, "no tcg-id": 0, "unknown product": 0, "other printing": 0, "no such variant": 0, ambiguous: 0, duplicate: 0 };
@@ -235,13 +297,14 @@ export function planPcImport(game: PcGame, products: PcProduct[], ctx: PcMatchCt
       skipped["no price"]++;
       continue;
     }
-    if (!p.tcgId) {
-      skipped["no tcg-id"]++;
-      continue;
-    }
     const tags = parseProductName(p.name).tags.map(tagKey);
     let pick: { cardId: string; variant: string } | PcSkip;
-    if (game === "yugioh") {
+    if (game === "lorcana" || game === "onepiece") {
+      pick = pickByName(game, p, tags, ctx);
+    } else if (!p.tcgId) {
+      skipped["no tcg-id"]++;
+      continue;
+    } else if (game === "yugioh") {
       const id = tags.includes("1stedition") ? `ygo-${p.tcgId}-1st` : `ygo-${p.tcgId}`;
       pick = ctx.hasCard(id) ? { cardId: id, variant: "normal" } : "unknown product";
     } else {
@@ -260,7 +323,7 @@ export function planPcImport(game: PcGame, products: PcProduct[], ctx: PcMatchCt
       continue;
     }
     seen.add(k);
-    writes.push({ game, cardId: pick.cardId, variant: pick.variant, usd: p.loose, pcId: p.id, tcgId: p.tcgId, salesVolume: p.salesVolume, graded9: p.graded9, psa10: p.psa10 });
+    writes.push({ game, cardId: pick.cardId, variant: pick.variant, usd: p.loose, pcId: p.id, tcgId: p.tcgId ?? "", salesVolume: p.salesVolume, graded9: p.graded9, psa10: p.psa10 });
   }
   return { writes, skipped };
 }
