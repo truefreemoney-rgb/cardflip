@@ -57,6 +57,7 @@ const CHECKS = [
   { game: "yugioh", cardId: "ygo-90821", variant: "normal", usd: 7.06, n: 0, note: "Sengenjin PP02-EN003: 30 asks median 7.06; TCGplayer 120" },
   { game: "yugioh", cardId: "ygo-90811", variant: "normal", usd: 3.99, n: 0, note: "Elemental HERO Heat PP02-EN007: 15 asks median 3.99; TCGplayer 249.99" },
   { game: "yugioh", cardId: "ygo-90812", variant: "normal", usd: 4.24, n: 0, note: "Elemental Hero Knospe PP02-EN005: 16 asks median 4.24; TCGplayer 103.38" },
+  { game: "pokemon", cardId: "ex11-11", variant: "holofoil", usd: 48, n: 11, note: "Metagross delta 11/113 holo: originals sold 21-175 (median 48); dozens of 3-14 sales are 30th Celebration reprints; TCGplayer 175.94 (hidden)" },
   { game: "mtg", cardId: "98fba951-c5bb-497c-9292-ce1b2a1e1247", variant: "nonfoil", usd: 637, n: 2, note: "Blaze of Glory Alpha (lea-6): sold 578.99 PLD 09-05, 695 LP 09-02 (a clean copy is higher); TCGplayer 440.74 stopped 10-13" },
 ];
 // --only id,id: write just these checks (the others are already on prod).
