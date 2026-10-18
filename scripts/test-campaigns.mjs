@@ -156,6 +156,8 @@ check("pro plan running low: Booster only, no Move to Pro", [proLow.text.include
 const week = renderWeek({ games: [{ game: "pokemon", label: "Pokémon", movePct: 2.1, jump: { name: "Charizard ex", set: "Obsidian Flames", number: "125", from: 34.1, to: 48.2, pct: 41.3 } }, { game: "lorcana", label: "Lorcana", movePct: -0.3, jump: null }], jump: null, moves: [{ name: "Charizard ex", set: "Obsidian Flames", number: "125", game: "pokemon", image: null, url: "u", price: 48.2, before: 34.1 }], set: null, sleeper: null, scans: 4120, mostScanned: "Pikachu ex" }, "Chris", "u");
 check("week subject names the top and bottom game", [week.subject, week.text.includes("4,120 cards scanned. Most scanned: Pikachu ex.")], ["This week in cards: Pokémon up, Lorcana down", true]);
 check("week card row carries set, number, price and move", week.text.includes("· Charizard ex · Obsidian Flames 125 — $48.20 (was $34.10, +41%)"));
+// 10-18: the subject said "Lorcana down" while no line in the mail showed it.
+check("week body shows the averages its subject names", /HOW EACH GAME MOVED/i.test(week.text) && /Pokémon \+2(\.1)?%, Lorcana -0(\.3)?%/.test(week.text), true);
 
 console.log(failures ? `\n${failures} FAILED` : "\nall passed");
 process.exit(failures ? 1 : 0);

@@ -296,13 +296,16 @@ export function renderCards(f: CardsFacts, firstName: string, unsubUrl: string):
 export function renderWeek(f: WeekFacts, firstName: string, unsubUrl: string): RenderedMail {
 
   const best = f.games.filter((g) => g.movePct != null).sort((a, b) => (b.movePct ?? 0) - (a.movePct ?? 0));
-  const subject =
-    best.length >= 2 && (best[0].movePct ?? 0) > 0 && (best[best.length - 1].movePct ?? 0) < 0
-      ? `This week in cards: ${best[0].label} up, ${best[best.length - 1].label} down`
-      : f.jump
-        ? `This week in cards: ${f.jump.name} ${pct(f.jump.pct)}`
-        : "This week in cards";
+  const upDown = best.length >= 2 && (best[0].movePct ?? 0) > 0 && (best[best.length - 1].movePct ?? 0) < 0;
+  const subject = upDown
+    ? `This week in cards: ${best[0].label} up, ${best[best.length - 1].label} down`
+    : f.jump
+      ? `This week in cards: ${f.jump.name} ${pct(f.jump.pct)}`
+      : "This week in cards";
   const blocks: Block[] = [
+    // The subject's "X up, Y down" is each game's average, which no card row shows: say it in the body (10-18, the mail
+    // read "Lorcana down" next to a Lorcana card at +19%).
+    ...(upDown ? [{ title: "How each game moved", lines: [`${best.map((g) => `${g.label} ${(g.movePct ?? 0) > 0 ? "+" : ""}${(g.movePct ?? 0).toFixed(1)}%`).join(", ")} (average of each game's 200 priciest cards this week).`] }] : []),
     // Card rows with pictures (Chris 10-08: "this style looked better"): the biggest move in each game, biggest first.
     { title: "Biggest move in each game", cards: f.moves ?? [] },
     ...(f.set ? [{ title: "Set to watch", lines: [`${f.set.name} (${GAMES[f.set.game].label}): ${f.set.risers} of the top 20 risers came from this set.`] }] : []),

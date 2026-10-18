@@ -7,6 +7,7 @@ import { SITE_URL } from "@/lib/siteUrl";
 import type { GameId } from "@/lib/types";
 import { pageTilesByIds } from "@/lib/server/cardPages";
 import { buildDigest } from "@/lib/server/digest";
+import { checkedCardIds } from "@/lib/server/checkedPrices";
 import { usdSeries } from "@/lib/server/priceHistory";
 import { heldTrustOrOpen, loadTrustData, judgeFull } from "@/lib/server/priceTrustSite";
 import { cachedList, cachedListSwr } from "@/lib/server/listCache";
@@ -306,7 +307,10 @@ async function youngGameMovers(game: GameId, day: string, { direction = "up" as 
     own_image_url: string;
   }>;
   const moves: Array<MoverLike & { abs: number }> = [];
+  // A hand eBay-checked price is a fix, not a move: sits out like it does in posts (social.ts postHolds), 10-18.
+  const checked = await checkedCardIds(game).catch(() => new Set<string>());
   for (const r of rows) {
+    if (checked.has(r.card_id)) continue;
     const s = { startDay: r.start_day, prices: decodePrices(r.prices) };
     const to = onDay(s, day);
     const from = onDay(s, weekAgo);
