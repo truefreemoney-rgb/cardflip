@@ -4,6 +4,11 @@ Chris (10-14): every support ticket and every social comment is a learning
 experience while the site is new and not fully tested. One entry each: what
 they said, what it taught, what changed, what is still open. Newest first.
 
+## 10-17 · Admin sign-in looped back to the login page (Chris, right after the d11ec26d push)
+- What: "keeps taking me back to login when i click sign in", then "its working now" a minute later, in his own browser (the pane signed in fine).
+- Cause (likely): admin/login/page.tsx did router.replace("/admin") after a good sign-in. Next's client router can reuse an /admin it fetched while the cookie was missing/old (#32 made every old admin cookie invalid), which is a redirect back to /admin/login. The cached copy expires in ~30 s, so it "fixed itself".
+- Fix: a full page load (window.location.replace) after sign-in, so /admin is always fetched with the new cookie. Commit only; push waits for Chris. Lesson: any session-changing sign-in uses a full page load, never a client router jump.
+
 ## 10-17 · Alpha Blaze of Glory card page shows no price (found by me during task #21)
 - What: /cards/magic/limited-edition-alpha/blaze-of-glory--lea-6 has no price in its title or headline. Our stored value is $579.99 (soft cap 1.45x the $399.99 cheapest listing; eBay sold raw $579-695 = right).
 - Cause: TCGplayer stopped giving Blaze a dollar price after 10-13, so the nightly run fills it from the Cardmarket euro price (series "cardmarket-converted", fresh daily). The card page still reads the old TCGplayer series (8 priced days, flagged "thin") and shows nothing instead of the fresh trusted series. Same family as the Eevee $0: a flagged series = no price.

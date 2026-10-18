@@ -4,8 +4,12 @@
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
 
+## 10-17 ~9:30pm ET: admin sign-in never loops back to login (NOT PUSHED)
+- After push: sign out of the admin console in Chrome, sign in again with password + emailed code -> lands on the Overview straight away, first try (no bounce to the login page).
+
 ## 10-17 ~9pm ET: push d11ec26d LIVE (Vercel READY, CI + Production smoke green)
 - [x] PASS by curl: "Few sales" on Shinx pl4-SH12, Volcanic Eruption leb-89, 1st Ed Pikachu base1-58-1st (no more "looks off"); Vivillon $1.85 + High Plains $9.40; "Price looks wrong?" button on card pages; 3 made-up card/set/game links = 404; /api/cron/uptime without key = 403; vision junk = 400 "That isn't a picture"; wrong login = new wording (401).
+- [x] PASS 10-17 ~9:20pm ET after Chris's admin sign-in: /admin/prices shows "Readers flagged (0 ...)" section; Vercel prod deployment lists cron /api/cron/uptime */15; its 3 probes pass by hand (home title, One Ring search, db). OPEN: a real "Too high" vote (classifier blocked my prod write: Chris taps it), and no scan on prod since 10:30am ET so the Pokémon read schema is unproven until the first real scan (Chris's phone check).
 - Still open in the blocks below: phone checks, nightly-run checks (10-18/10-19 mornings), admin console checks.
 
 ## 10-17 ~8:10pm ET: rate limits hold across servers (A-H #29, PUSHED 10-17 ~8:50pm ET in d11ec26d)

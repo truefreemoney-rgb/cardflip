@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Logo from "@/components/Logo";
 import Spinner from "@/components/Spinner";
@@ -13,7 +12,6 @@ const FIELD =
 
 /** Operator sign-in for the admin console — separate from seller accounts. */
 export default function AdminLoginPage() {
-  const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -43,8 +41,9 @@ export default function AdminLoginPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        router.replace("/admin");
-        router.refresh();
+        // Full page load, not router.replace: the router can reuse an /admin it fetched before the
+        // cookie existed (a redirect to this page), which looped Chris back here after a good sign-in (10-17).
+        window.location.replace(apiPath("/admin"));
         return;
       }
       if (data.codeRequired) {
