@@ -4,6 +4,17 @@
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
 
+## 10-18 ~10:15am ET: caught prices FIXED by a hand eBay sold check (price_checked, COMMIT ONLY, waits for Chris's yes on shots docs/shots/checked-1..4)
+- After push, then `scripts/seed-price-checks.mjs --prod` (dry run 10-18: Snorlax 5 pts -> $43, Ninetales 3 -> $200, Minun 7 -> $23.33, Rare Candy 31 -> $122):
+  card pages show those prices + "Checked against recent eBay sales (N sold)", no change words, chart starts at the fix (Rare Candy flat $122, no "-33.6%").
+- App search / scanner for the same printings: market = checked price (`ebayChecked.was` = TCGplayer's number) while TCGplayer is >25% off.
+- Next morning (10-19): prod `SELECT card_id, tcg_usd, tcg_day, off_day FROM price_checked`: tcg_day = 10-19 for each (nightly noted TCGplayer's raw number); a card whose TCGplayer number came back within 25% has off_day set, its page shows TCGplayer's own number and no note.
+- Movers / set spotlight: a checked card no longer "moves" on TCGplayer's wrong number (then remove it from SOCIAL_PRICE_HOLD).
+
+## 10-18 ~8:55am ET: Rare Candy bw10-105 held + set spotlight honours the hold (d25e24a2, PUSHED)
+- 7pm ET set spotlight: the forced re-render (run 39129237480) landed on VIVID VOLTAGE, not Plasma Blast. All five eBay-checked OK 10-18 (NM sold): Rayquaza 138 $22.68 ($23-29), Pikachu VMAX 188 $169.36 (NM-labelled $155-190), Pikachu V 170 $42.99 (NM $39-45), PC Lady 185 $19.18 (~$19), Togekiss VMAX 191 $12.87 ($12-14). Check: the 7:05pm posts on all sites say Vivid Voltage too (same set as the TikTok file), no Rare Candy anywhere.
+- 1pm list after the Minun re-render: Tyranitar, Mew δ, Deoxys δ, Jigglypuff, Sabrina gym2-20-1st $186.64 (eBay NM $200-270) all checked OK.
+
 ## 10-18 ~9:20am ET: social price hold list (772b6433 + 91ce940b, PUSHED 10-18 with 5162d3a7)
 - 1:05pm ET posts (all sites + TikTok 1pm file): no Brock's Ninetales gym2-3-1st in the Pokémon gains list; the next card in its place checked against eBay sold.
 - Any later 7am "Biggest Jumps" / 1pm gains / 7pm: no Snorlax xy0-26 (Kalos Starter Set) until it leaves SOCIAL_PRICE_HOLD in src/lib/server/social.ts.

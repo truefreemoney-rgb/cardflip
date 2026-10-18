@@ -6,6 +6,7 @@ import { PRICE_TRUST, REF_ALT_SOURCE, isVintage, lastPriced, priceTrust } from "
 import { variantRank } from "@/lib/server/priceHistory";
 import type { PriceFlag, PriceStale } from "@/lib/priceFlag";
 import { EBAY_REFEREE, refereeVerdict, type AskReading } from "@/lib/ebayReferee";
+import { activeChecks, checkFor } from "@/lib/server/checkedPrices";
 import type { CardPrice, GameId, PokemonCard } from "@/lib/types";
 
 /**
@@ -464,15 +465,19 @@ export async function withPriceFlags(cards: PokemonCard[], day = todayUtc()): Pr
   for (const c of cards) {
     for (const p of c.prices) if (isTrustedRow(p)) queries.push({ cardId: c.id, game: c.game ?? "pokemon", variant: p.variant, liveUsd: p.market, exact: true });
   }
-  const { flags, stale } = await siteTrustFull(queries, day);
-  if (flags.size === 0 && stale.size === 0) return cards;
-  const marked = (c: PokemonCard, p: CardPrice) => isTrustedRow(p) && (flags.has(trustKey(c.id, p.variant)) || stale.has(trustKey(c.id, p.variant)));
+  const [{ flags, stale }, checks] = await Promise.all([siteTrustFull(queries, day), activeChecks()]);
+  // A hand eBay sold check (checkedPrices.ts) fixes a wrong TCGplayer number outright: the row shows the checked price, no flag.
+  const fixOf = (c: PokemonCard, p: CardPrice) => (checks.size > 0 ? checkFor(checks, c.game ?? "pokemon", c.id, p, day) : undefined);
+  if (flags.size === 0 && stale.size === 0 && !cards.some((c) => c.prices.some((p) => fixOf(c, p)))) return cards;
+  const marked = (c: PokemonCard, p: CardPrice) => isTrustedRow(p) && (flags.has(trustKey(c.id, p.variant)) || stale.has(trustKey(c.id, p.variant)) || !!fixOf(c, p));
   return cards.map((c) => {
     if (!c.prices.some((p) => marked(c, p))) return c;
     return {
       ...c,
       prices: c.prices.map((p) => {
         if (!marked(c, p)) return p;
+        const fix = fixOf(c, p);
+        if (fix) return { ...p, market: fix.usd, untrusted: undefined, stale: undefined, ebayChecked: { usd: fix.usd, n: fix.n, day: fix.day, was: p.market as number } };
         const k = trustKey(c.id, p.variant);
         return flags.has(k) ? { ...p, untrusted: flags.get(k) } : { ...p, stale: stale.get(k) };
       }),

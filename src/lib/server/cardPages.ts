@@ -5,6 +5,7 @@ import { gamePublic, type GatedGame } from "@/lib/server/settings";
 import { MTG_REFEREE_SQL, PRICE_TRUST, REF_ALT_SOURCE, lastPriced } from "@/lib/server/priceTrust";
 import { judgeFull, judgeSeries, loadTrustData, readEbayAsks, readListingLows, type TrustData, type TrustSeries } from "@/lib/server/priceTrustSite";
 import { largeImage } from "@/lib/server/mtgCards";
+import { activeChecks, checkKey, CHECKED_MAX_DAYS } from "@/lib/server/checkedPrices";
 import { addDays, dayIndex, decodePrices, todayUtc } from "@/lib/priceSeries";
 import { cleanSeriesPoints } from "@/lib/priceOutliers";
 import {
@@ -377,6 +378,8 @@ export interface CardPage extends CardView {
   changes: string[];
   /** The headline series' high and low for the range sentence; null under two points or when the guard doubts either end. */
   range: HistoryRange | null;
+  /** The headline is a hand eBay sold check's price (checkedPrices.ts: TCGplayer's own number was off): "Checked against eBay sold". */
+  checked?: { n: number; day: string } | null;
 }
 
 const NO_PRICE: Pick<CardPage, "prices" | "headline" | "chart" | "trackingSince" | "changes" | "range"> = { prices: [], headline: null, chart: null, trackingSince: null, changes: [], range: null };
@@ -477,7 +480,18 @@ export async function loadCardPage(rec: CardRecord, today = todayUtc()): Promise
       break;
     }
   }
-  return { facts, prices, headline, decision, chart, trackingSince: points[0]?.day ?? null, changes, range };
+  const check = (await activeChecks()).get(checkKey(facts.game, facts.id, headline.variant));
+  const checked = check && Math.abs(headline.price - check.usd) < 0.005 ? { n: check.n, day: check.day } : null;
+  // A checked price has no change words or range, and its chart starts where the fix does: the history before is
+  // TCGplayer's number, the one found wrong (10-18, Rare Candy: "Down 33.6% over 90 days" and a chart drop from
+  // TCGplayer's frozen $191.88 to the checked $122).
+  if (checked) {
+    const since = addDays(checked.day, -CHECKED_MAX_DAYS);
+    const kept = points.filter((p) => p.day >= since);
+    const fixedChart: Series[] | null = kept.length >= CHART_MIN_POINTS ? [{ variant: headline.variant, source: "tcgplayer", currency: "USD", points: kept }] : null;
+    return { facts, prices, headline, decision, chart: fixedChart, trackingSince: kept[0]?.day ?? null, changes: [], range: null, checked };
+  }
+  return { facts, prices, headline, decision, chart, trackingSince: points[0]?.day ?? null, changes, range, checked };
 }
 
 // ---------------------------------------------------------------------------

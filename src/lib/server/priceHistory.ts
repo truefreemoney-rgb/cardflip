@@ -6,6 +6,7 @@ import { normalizeNumber } from "@/lib/cardNumber";
 import { type HistorySeries, summarize } from "@/lib/priceHistoryStats";
 import { decodePrices, encodePrices, setDay, todayUtc } from "@/lib/priceSeries";
 import { cleanSeriesPoints } from "@/lib/priceOutliers";
+import { correctPoint } from "@/lib/server/checkedPrices";
 
 export { summarize, todayUtc };
 export type { HistoryPoint, HistorySeries, HistoryStats } from "@/lib/priceHistoryStats";
@@ -45,6 +46,7 @@ async function recordPointOn(
   price: number,
   day: string,
 ): Promise<void> {
+  price = await correctPoint(game, cardId, variant, source, currency, price, day);
   const existing = (await q.prepare(SELECT_ROW).get(cardId, variant, source)) as
     | { start_day: string; prices: string }
     | undefined;

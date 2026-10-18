@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import type { GameId } from "@/lib/types";
+import { correctSeriesUpserts } from "@/lib/server/checkedPrices";
 
 /**
  * Bulk read/write helpers for the daily price refreshers.
@@ -91,8 +92,9 @@ export interface SeriesUpsert {
   updatedDay: string;
 }
 
-/** Multi-row INSERT OR REPLACE, ~400 rows (3.2k params) per statement. */
-export async function upsertSeriesRows(rows: SeriesUpsert[]): Promise<void> {
+/** Multi-row INSERT OR REPLACE, ~400 rows (3.2k params) per statement. A hand-checked printing keeps its checked price (checkedPrices.ts). */
+export async function upsertSeriesRows(input: SeriesUpsert[]): Promise<void> {
+  const rows = await correctSeriesUpserts(input);
   const PER_STMT = 400;
   for (let i = 0; i < rows.length; i += PER_STMT) {
     const slice = rows.slice(i, i + PER_STMT);

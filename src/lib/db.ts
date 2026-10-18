@@ -921,6 +921,22 @@ const SCHEMA = `
     PRIMARY KEY (path, variant, reporter)
   );
   CREATE INDEX IF NOT EXISTS idx_price_reports_at ON price_reports(at);
+  -- Hand eBay sold checks that fix a caught price (10-18, lib/server/checkedPrices.ts): while TCGplayer is >25% off usd,
+  -- usd is written into the TCGplayer series instead. tcg_usd/tcg_day = TCGplayer's latest raw number; off_day = retired
+  -- (TCGplayer back within 25%, or 30 days old). One row per printing.
+  CREATE TABLE IF NOT EXISTS price_checked (
+    game TEXT NOT NULL,
+    card_id TEXT NOT NULL,
+    variant TEXT NOT NULL,
+    usd REAL NOT NULL,
+    n INTEGER NOT NULL DEFAULT 0,
+    day TEXT NOT NULL,
+    note TEXT NOT NULL DEFAULT '',
+    tcg_usd REAL,
+    tcg_day TEXT,
+    off_day TEXT,
+    PRIMARY KEY (game, card_id, variant)
+  );
 `;
 
 /**

@@ -46,6 +46,11 @@ export interface CardPrice {
   untrusted?: PriceFlag;
   /** Set at response time on a TCGplayer USD row whose value has not changed in 45+ days (lib/priceFlag.ts PriceStale): shown, with a note. Never stored. */
   stale?: PriceStale;
+  /**
+   * Set at response time when a hand eBay sold check fixed this row (lib/server/checkedPrices.ts): `market` already holds
+   * the checked price, `was` is TCGplayer's number. Never stored.
+   */
+  ebayChecked?: { usd: number; n: number; day: string; was: number };
 }
 
 export interface PokemonCard {
