@@ -9,6 +9,12 @@
 - Fix (GoogleAnalytics.tsx): no tags when a visit starts in /app; ga-disable flags + ttq.holdConsent while in /app after a public page, grantConsent back outside. Local check with fake ids PASS (/ loads all 3; full load /app/collection none; / -> /app click: ga-disable true for GA + Ads).
 - After the push: pane on cardflip.io/app/collection, performance entries show no analytics.tiktok.com / google-analytics / googleadservices requests; a public page still loads them; Google Ads + TikTok signup conversions still arrive (watch the next ad signup).
 
+## 10-18 ~12pm ET: "Hidden by eBay" cards (pages that showed NO price) worked by eBay sold (prod writes done)
+- Now a checked price (price_checked): Charizard GX BUS 150 $710.65 -> $350; Gyarados HGSS 123 rev $499.99 -> $170; Pikachu WotC promo 1 $499.99 -> $42; Metagross delta 11 $175.94 -> $48; Yu-Gi-Oh junk: Genex Ally Axel STBL $213,589 -> $2, Bujingi Crane MP14 $199,379 -> $1.25, Tower of Babel IOC $5,020 -> $1.50, Red-Eyes RP01 $680 -> $15, Hecatrice PP02 $197 -> $2.66, Scapegoat RP01 $192 -> $12.74, Dark Magician RP01 $145 -> $11.50, Sengenjin PP02 $120 -> $7.06, E-HERO Heat PP02 $250 -> $3.99, E-Hero Knospe PP02 $103 -> $4.24.
+- Un-hidden ("keep", TCGplayer right): Mewtwo Star HP 103 $6,887.50, M Charizard EX FLF 108 $741.83, Shining Celebi unl $549.99, Palkia LV.X GE $174, Garchomp C LV.X $179.51, Luxray GL LV.X $115, Scizor ex UF $183, Team Aqua's Kyogre $290, 6 Hyperia City enchanteds (at/below their asks), Spider-Man #235 textured $479.52.
+- Skipped: Shining Charizard 1st (sales are fakes), Darkrai & Cresselia LEGEND, Armageddon Unlimited.
+- ~10-20 (page cache): those card pages show a price again; app search at once.
+
 ## 10-18 ~1pm ET: Hand check queue (388) worked by eBay sold, most valuable first (prod writes done)
 - Fixed (price_checked): Mickey Mouse Iconic 241 $7,500 -> $3,000; Thomas O'Malley Ench 235 $515 -> $134; Lugia GX 227 $370 -> $245; Pikachu POP4 13 $369.63 -> $45; Kingdra delta 10 rev $289.10 (flat 31+ days) -> $92; Charizard SW 3 rev $310.62 -> $200.
 - Keep (TCGplayer right, or already back in line today): Rocket's Mewtwo ex 99, Jolteon delta 7 rev, Gyarados HGSS 123, Ariel Ench 236 ($570 today), Aurora Ench 223 ($388), Tyranitar delta 16 ($318), Celebi ex 117 ($1,000; sold median 866, the old $370 was LOW), Rocket's Meowth 46 rev.
