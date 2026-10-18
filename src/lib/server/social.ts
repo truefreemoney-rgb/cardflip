@@ -462,8 +462,9 @@ export function postArtUrl(game: GameId, imageUrl: string): string {
  * card page price matches eBay sold again.
  *   10-18 Snorlax Kalos Starter Set: $64.88 "+50%" vs eBay sold NM $42-45, played $17-30.
  *   10-18 Brock's Ninetales Gym Challenge 1st Ed: $163 -> $261 "+60%" vs eBay sold NM steady ~$175-255 for two months (no jump).
+ *   10-18 Minun HGSS17 promo: $26.50 -> $39.25 "+48%" vs eBay sold NM $23.33 (x5 this week), $29.99.
  */
-const SOCIAL_PRICE_HOLD = new Set<string>(["pokemon:xy0-26", "pokemon:gym2-3-1st"]);
+const SOCIAL_PRICE_HOLD = new Set<string>(["pokemon:xy0-26", "pokemon:gym2-3-1st", "pokemon:hgssp-HGSS17"]);
 
 /**
  * The biggest moves over the last MOVER_DAYS days, up and down, for cards
