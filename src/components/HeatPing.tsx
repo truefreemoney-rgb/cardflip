@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { MAX_EVENTS, TAPS_PER_VIEW, cleanLabel, pageKey } from "@/lib/heatmap";
+import { HEAT_OFF_KEY, MAX_EVENTS, TAPS_PER_VIEW, cleanLabel, pageKey } from "@/lib/heatmap";
 import { inPreviewFrame } from "@/lib/client/framed";
 
 /**
@@ -151,10 +151,23 @@ function onHide() {
 
 let listening = false;
 
+/** This device switched itself off (?heat=off, kept; ?heat=on undoes it), or a browser driven by a script. */
+function switchedOff(): boolean {
+  try {
+    if (navigator.webdriver) return true;
+    const want = new URLSearchParams(window.location.search).get("heat");
+    if (want === "off") localStorage.setItem(HEAT_OFF_KEY, "1");
+    if (want === "on") localStorage.removeItem(HEAT_OFF_KEY);
+    return localStorage.getItem(HEAT_OFF_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 export default function HeatPing() {
   const pathname = usePathname();
   useEffect(() => {
-    if (!pathname || inPreviewFrame()) return;
+    if (!pathname || inPreviewFrame() || switchedOff()) return;
     // The same address again within this page load is the same view (a remount, React's dev double effect), not a new one.
     if (seq >= 0 && pathname === path) return;
     flush();

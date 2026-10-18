@@ -89,8 +89,8 @@ export function clearCheckedMemo(): void {
 }
 
 /** Every check that is still on, by checkKey. A failed read is "no checks" (advisory, like the guard). */
-export async function activeChecks(): Promise<Map<string, CheckedPrice>> {
-  if (memo && Date.now() - memo.at < MEMO_MS) return memo.rows;
+export async function activeChecks({ fresh = false } = {}): Promise<Map<string, CheckedPrice>> {
+  if (!fresh && memo && Date.now() - memo.at < MEMO_MS) return memo.rows;
   const rows = new Map<string, CheckedPrice>();
   try {
     const got = (await db.prepare("SELECT game, card_id, variant, usd, n, day, note FROM price_checked WHERE off_day IS NULL").all()) as unknown as {
@@ -190,4 +190,45 @@ export async function putCheck(c: CheckedPrice): Promise<void> {
     )
     .run(c.game, c.cardId, c.variant, c.usd, c.n, c.day, c.note.slice(0, 300));
   clearCheckedMemo();
+}
+
+/** Retire a check now (an admin's mistake): the price goes back to TCGplayer's own number from the next write. */
+export async function retireCheck(game: GameId, cardId: string, variant: string, day: string): Promise<boolean> {
+  const res = await db.prepare("UPDATE price_checked SET off_day = ? WHERE game = ? AND card_id = ? AND variant = ? AND off_day IS NULL").run(day, game, cardId, variant);
+  clearCheckedMemo();
+  return Number((res as { changes?: number }).changes ?? 0) > 0;
+}
+
+/** The last stored TCGplayer USD number of a printing, or null. */
+export async function storedRaw(game: GameId, cardId: string, variant: string): Promise<number | null> {
+  const row = (await db
+    .prepare("SELECT prices FROM price_series WHERE card_id = ? AND game = ? AND variant = ? AND source = 'tcgplayer' AND currency = 'USD'")
+    .get(cardId, game, variant)) as { prices: string } | undefined;
+  if (!row) return null;
+  const prices = decodePrices(row.prices);
+  for (let i = prices.length - 1; i >= 0; i--) if (prices[i] != null) return prices[i] as number;
+  return null;
+}
+
+/** The check's wrong stretch fixed in the stored series NOW (an admin check; the nightly writers keep it fixed). Returns the points fixed. */
+export async function fixSeriesNow(c: CheckedPrice, day: string): Promise<number> {
+  const row = (await db
+    .prepare("SELECT start_day, prices FROM price_series WHERE card_id = ? AND game = ? AND variant = ? AND source = 'tcgplayer' AND currency = 'USD'")
+    .get(c.cardId, c.game, c.variant)) as { start_day: string; prices: string } | undefined;
+  if (!row) return 0;
+  const before = decodePrices(row.prices);
+  const fixed = correctTail(row.start_day, before, c, day);
+  if (fixed.raw != null) await noteRaw(c, fixed.raw, day);
+  if (!fixed.changed) return 0;
+  await db
+    .prepare("UPDATE price_series SET prices = ? WHERE card_id = ? AND game = ? AND variant = ? AND source = 'tcgplayer' AND currency = 'USD'")
+    .run(encodePrices(fixed.prices), c.cardId, c.game, c.variant);
+  return fixed.prices.filter((v, i) => v !== before[i]).length;
+}
+
+/** Cards of a game with a check that still binds: posts leave them out (a fixed price is not a "move"). */
+export async function checkedCardIds(game: GameId): Promise<Set<string>> {
+  const out = new Set<string>();
+  for (const c of (await activeChecks()).values()) if (c.game === game) out.add(c.cardId);
+  return out;
 }

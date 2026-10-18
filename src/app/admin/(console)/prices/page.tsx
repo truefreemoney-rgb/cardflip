@@ -1,5 +1,7 @@
 import { ago, money, num } from "@/components/admin/format";
 import PriceCallButtons from "@/components/admin/PriceCallButtons";
+import PostCheckRow from "@/components/admin/PostCheckRow";
+import { postSlots, type PostSlot } from "@/lib/server/postCheck";
 import { requireOwnerPage } from "@/lib/server/adminPage";
 import { askCounts, lastRefereeRun, listAsks, type AskListRow } from "@/lib/server/ebayReferee";
 import { db } from "@/lib/db";
@@ -38,6 +40,44 @@ async function lastCatalogRun(): Promise<CatalogRun | null> {
     return null;
   }
 }
+/**
+ * The cards of today's and tomorrow's three videos (10-18): check each against eBay SOLD before it posts. No automatic
+ * rule can (docs/research/post-price-catch-2026-10-18.md). Slots already posted fold away.
+ */
+function PostCards({ slots }: { slots: PostSlot[] }) {
+  const open = slots.filter((s) => !s.past && s.cards.length > 0);
+  const left = open.reduce((n, s) => n + s.cards.filter((c) => c.status === "unchecked").length, 0);
+  return (
+    <div>
+      <h2 className="mb-1 text-lg font-semibold text-white">
+        Post cards <span className="text-sm font-normal text-zinc-500">({left ? `${num(left)} to check` : "all checked"})</span>
+      </h2>
+      <p className="mb-2 text-xs text-zinc-500">
+        Open eBay sold for each card. Near the price: Looks right. Off by more than about a quarter: type what it sold for and Fix. The price is fixed
+        everywhere, the card sits out of posts for 30 days, and the video is remade.
+      </p>
+      {open.length === 0 ? (
+        <p className="rounded-2xl border border-edge bg-surface-1 px-4 py-3 text-sm text-zinc-500">No videos waiting to post.</p>
+      ) : (
+        <div className="space-y-3">
+          {open.map((s) => (
+            <div key={`${s.day}|${s.slot}`} className="rounded-2xl border border-edge bg-surface-1">
+              <p className="border-b border-white/5 px-4 py-2 text-sm text-zinc-300">
+                <span className="font-medium text-white">{s.label}</span> {s.title ? `· ${s.title}` : ""}
+              </p>
+              <ul className="divide-y divide-white/5 text-sm">
+                {s.cards.map((c) => (
+                  <PostCheckRow key={`${c.game}|${c.cardId}|${c.variant}`} day={s.day} slot={s.slot} past={s.past} {...c} />
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Readers' "Price looks wrong?" votes (A-H #9): the card page, which way, and an eBay sold search for its name. */
 function ReaderTable({ rows }: { rows: PriceReportRow[] }) {
   if (rows.length === 0) return <p className="rounded-2xl border border-edge bg-surface-1 px-4 py-3 text-sm text-zinc-500">No reader has flagged a price yet.</p>;
@@ -138,7 +178,7 @@ function Table({ rows, empty }: { rows: AskListRow[]; empty: string }) {
  */
 export default async function AdminPricesPage() {
   await requireOwnerPage();
-  const [run, counts, check, high, manual, catalog, readers] = await Promise.all([
+  const [run, counts, check, high, manual, catalog, readers, posts] = await Promise.all([
     lastRefereeRun(),
     askCounts(),
     listAsks("check"),
@@ -146,6 +186,7 @@ export default async function AdminPricesPage() {
     listAsks("manual"),
     lastCatalogRun(),
     listPriceReports(),
+    postSlots(),
   ]);
   return (
     <section className="space-y-6">
@@ -190,6 +231,7 @@ export default async function AdminPricesPage() {
           </p>
         ) : null}
       </div>
+      <PostCards slots={posts} />
       <div>
         <h2 className="mb-2 text-lg font-semibold text-white">
           Readers flagged <span className="text-sm font-normal text-zinc-500">({num(readers.length)}, &quot;Price looks wrong?&quot; on card pages, last 90 days)</span>

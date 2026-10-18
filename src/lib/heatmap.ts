@@ -24,6 +24,14 @@ export const MAX_EVENTS = 80;
 /** Rows older than this are deleted (logCleanup); the admin page's longest preset is 90 days. */
 export const HEAT_KEEP_DAYS = 90;
 
+/**
+ * Only real users (Chris 10-18: "make sure the heat map doesn't pick up you or I browsing"). The beacon drops anyone
+ * signed in to the admin console or as the owner, and marks that browser with this cookie for a year so it stays out
+ * signed out too. A device can also switch itself off with ?heat=off on any page (HEAT_OFF_KEY, ?heat=on undoes it).
+ */
+export const HEAT_INTERNAL_COOKIE = "cf_internal";
+export const HEAT_OFF_KEY = "cf_heat_off";
+
 export function heatDevice(width: number): HeatDevice {
   return width > 0 && width < PHONE_MAX_WIDTH ? "phone" : "desktop";
 }

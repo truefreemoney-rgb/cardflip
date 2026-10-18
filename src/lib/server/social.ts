@@ -7,6 +7,7 @@ import { GATED_GAMES, gamePublic, getSetting, setSetting, type GatedGame } from 
 import { tiktokKey } from "@/lib/socialTiktok";
 import type { VideoCard } from "@/lib/socialVideo";
 import type { GameId } from "@/lib/types";
+import { checkedCardIds } from "@/lib/server/checkedPrices";
 import { ANGLE_KINDS, GENERAL_TAGS, MAX_TAGS, JUMP_MIN_PCT, MIXED_GAMES, MIXED_PER_GAME, PLAN_TAGS, POST_GAME_NAMES, POST_GAME_ORDER, angleGameOrder, countWord, dayPlan, freshJumpsOn, gamesTags, jumpsOn, listNames, otherGameNames, questionFor, riserSetsOn, type AngleKind } from "@/lib/socialPlan";
 
 /**
@@ -457,15 +458,19 @@ export function postArtUrl(game: GameId, imageUrl: string): string {
 }
 
 /**
- * Cards a hand eBay sold check found mispriced, kept out of every movers/jumps
- * and set spotlight post until their own price is fixed. "game:cardId". Remove
- * an entry once the card page price matches eBay sold again.
- *   10-18 Snorlax Kalos Starter Set: $64.88 "+50%" vs eBay sold NM $42-45, played $17-30.
- *   10-18 Brock's Ninetales Gym Challenge 1st Ed: $163 -> $261 "+60%" vs eBay sold NM steady ~$175-255 for two months (no jump).
- *   10-18 Minun HGSS17 promo: $26.50 -> $39.25 "+48%" vs eBay sold NM $23.33 (x5 this week), $29.99.
- *   10-18 Rare Candy Plasma Blast 105 secret: $191.88 vs eBay sold $120-150 (even "MINT" $120) for a month.
+ * Cards kept out of every movers/jumps and set spotlight post by hand, "game:cardId" (an emergency only: a code change).
+ * The usual way is a hand eBay sold check on /admin/prices ("Post cards"): it fixes the price everywhere
+ * (checkedPrices.ts) and the card sits out of posts while the check binds (postHolds). The 10-18 four (Snorlax xy0-26,
+ * Brock's Ninetales gym2-3-1st, Minun hgssp-HGSS17, Rare Candy bw10-105) moved from here to price_checked.
  */
-const SOCIAL_PRICE_HOLD = new Set<string>(["pokemon:xy0-26", "pokemon:gym2-3-1st", "pokemon:hgssp-HGSS17", "pokemon:bw10-105"]);
+const SOCIAL_PRICE_HOLD = new Set<string>([]);
+
+/** Card ids of a game that sit out of posts: the hand list plus every card with a binding eBay sold check. */
+async function postHolds(game: GameId): Promise<Set<string>> {
+  const ids = await checkedCardIds(game).catch(() => new Set<string>());
+  for (const k of SOCIAL_PRICE_HOLD) if (k.startsWith(`${game}:`)) ids.add(k.slice(game.length + 1));
+  return ids;
+}
 
 /**
  * The biggest moves over the last MOVER_DAYS days, up and down, for cards
@@ -481,12 +486,12 @@ export async function topMovers(
   // old uncapped number with the capped one, so no Magic "this week" move is real until the window is past it (Chris 10-16).
   // Empty = the callers' fallbacks run (Magic at today's price only); remove after 10-21.
   if (game === "mtg" && day <= MTG_CAP_DAY_END && addDays(day, -days) < MTG_CAP_DAY) return [];
-  const { cards: series } = await freshSeries(game, day, days, band);
+  const [{ cards: series }, held] = await Promise.all([freshSeries(game, day, days, band), postHolds(game)]);
   const moves: { cardId: string; variant: string; from: number; to: number; pct: number }[] = [];
   const staleFrom: string[] = [];
   const stepped: string[] = [];
   for (const [cardId, s] of series) {
-    if (exclude.has(cardId) || SOCIAL_PRICE_HOLD.has(`${game}:${cardId}`)) continue;
+    if (exclude.has(cardId) || held.has(cardId)) continue;
     if (s.from == null || s.from <= 0) continue;
     // Both ends at the floor (09-30, was either end): a common "$8.64 → $49.99, +479%"
     // (Team Aqua's Corphish) is one odd listing, not a move a collector believes.
@@ -1127,7 +1132,7 @@ export interface SetSpotlight {
  */
 export async function setSpotlight(game: GameId, day = todayUtc(), { minCards = SET_MIN_CARDS, minPrice = SET_MIN_PRICE, leadFirst = jumpsOn(day) } = {}): Promise<SetSpotlight | null> {
   if (game !== "pokemon") return null;
-  const { cards: series, unverified } = await freshSeries(game, day, MOVER_DAYS);
+  const [{ cards: series, unverified }, held] = await Promise.all([freshSeries(game, day, MOVER_DAYS), postHolds(game)]);
   // Rank on the settled price: today's point when it has held HELD_DAYS days, else the week's median.
   const settled = (id: string) => {
     const s = series.get(id)!;
@@ -1138,7 +1143,7 @@ export async function setSpotlight(game: GameId, day = todayUtc(), { minCards = 
   for (const [id, s] of series) {
     // An unsettled card prints the week's median, which has to be a price the guard believes too.
     if (s.to < minPrice || (s.held < HELD_DAYS && !s.medianOk)) continue;
-    if (SOCIAL_PRICE_HOLD.has(`${game}:${id}`)) continue;
+    if (held.has(id)) continue;
     const dash = id.lastIndexOf("-");
     if (dash <= 0) continue;
     const setId = id.slice(0, dash);

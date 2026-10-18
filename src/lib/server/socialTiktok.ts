@@ -452,14 +452,15 @@ export async function alertPackageFailure(
  * caller found missing (the job skips ready ones anyway; this keeps it off a
  * slot another run is already remaking).
  */
-export async function dispatchTiktokRender(day: string, slots?: Slot[]): Promise<void> {
+export async function dispatchTiktokRender(day: string, slots?: Slot[], { force = false } = {}): Promise<void> {
   const token = process.env.GITHUB_TOKEN;
   if (!token) throw new Error("GITHUB_TOKEN not configured");
   const { BOARD_REPO, ghHeaders } = await import("@/lib/server/boardRuns");
   const res = await fetch(`https://api.github.com/repos/${BOARD_REPO}/actions/workflows/social-post.yml/dispatches`, {
     method: "POST",
     headers: { ...ghHeaders(token), "Content-Type": "application/json" },
-    body: JSON.stringify({ ref: "main", inputs: { tiktok: "1", tiktok_day: day, ...(slots?.length ? { tiktok_slots: slots.join(",") } : {}) } }),
+    // force (an admin's price fix, /admin/prices): remake the slot even though its video is built.
+    body: JSON.stringify({ ref: "main", inputs: { tiktok: "1", tiktok_day: day, ...(slots?.length ? { tiktok_slots: slots.join(",") } : {}), ...(force ? { tiktok_force: "1" } : {}) } }),
     signal: AbortSignal.timeout(10_000),
     cache: "no-store",
   });

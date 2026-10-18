@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { MAX_EVENTS, TAPS_PER_VIEW, cleanLabel, heatDevice, pageKey } from "@/lib/heatmap";
+import { HEAT_INTERNAL_COOKIE, MAX_EVENTS, TAPS_PER_VIEW, cleanLabel, heatDevice, pageKey } from "@/lib/heatmap";
+import { adminRole } from "@/lib/server/adminGate";
+import { getCurrentUser } from "@/lib/server/auth";
+import { OWNER_EMAIL } from "@/lib/server/users";
 import { LIMITS, clientIp } from "@/lib/server/rateLimit";
 import { limitOrRespondShared } from "@/lib/server/rateLimitDb";
 
@@ -9,12 +12,31 @@ import { limitOrRespondShared } from "@/lib/server/rateLimitDb";
  * <HeatPing/>: page views ("v"), taps ("c") and scroll depth ("d") for one
  * browser tab. Always 204 with no body; anything odd is dropped silently,
  * like /api/visit: recording must never fail a page. No IP, user agent or
- * account is stored, only the tab's random id.
+ * account is stored, only the tab's random id. Chris and the admin console
+ * are never recorded (HEAT_INTERNAL_COOKIE).
  */
 export const dynamic = "force-dynamic";
 
 const TAB = /^[a-z0-9]{12}$/;
 const done = () => new NextResponse(null, { status: 204 });
+
+/** Chris or the operator console in this browser: not user data. A failed read counts as a user (recording is best-effort). */
+async function internal(): Promise<boolean> {
+  try {
+    if (await adminRole()) return true;
+    const user = await getCurrentUser();
+    return !!user && (user.email.toLowerCase() === OWNER_EMAIL || user.role === "admin");
+  } catch {
+    return false;
+  }
+}
+
+/** Dropped, and the browser marked so it stays out of the map signed out too. */
+function markInternal(): NextResponse {
+  const res = done();
+  res.cookies.set(HEAT_INTERNAL_COOKIE, "1", { maxAge: 365 * 24 * 3600, path: "/", httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax" });
+  return res;
+}
 const int = (v: unknown, lo: number, hi: number): number | null =>
   typeof v === "number" && Number.isInteger(v) && v >= lo && v <= hi ? v : null;
 
@@ -22,6 +44,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
     const ua = req.headers.get("user-agent") ?? "";
     if (!ua || /bot|crawl|spider|preview|lighthouse|headless/i.test(ua)) return done();
+    if (req.cookies.get(HEAT_INTERNAL_COOKIE)?.value === "1") return done();
+    if (await internal()) return markInternal();
     const body = (await req.json().catch(() => null)) as { tab?: unknown; ev?: unknown } | null;
     const tab = typeof body?.tab === "string" && TAB.test(body.tab) ? body.tab : null;
     if (!tab || !Array.isArray(body?.ev) || body.ev.length === 0) return done();

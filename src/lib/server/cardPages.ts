@@ -480,7 +480,8 @@ export async function loadCardPage(rec: CardRecord, today = todayUtc()): Promise
       break;
     }
   }
-  const check = (await activeChecks()).get(checkKey(facts.game, facts.id, headline.variant));
+  // Read fresh: a page is cached for 48 h, so it must not be built from a memo older than the check (10-18).
+  const check = (await activeChecks({ fresh: true })).get(checkKey(facts.game, facts.id, headline.variant));
   const checked = check && Math.abs(headline.price - check.usd) < 0.005 ? { n: check.n, day: check.day } : null;
   // A checked price has no change words or range, and its chart starts where the fix does: the history before is
   // TCGplayer's number, the one found wrong (10-18, Rare Candy: "Down 33.6% over 90 days" and a chart drop from

@@ -86,6 +86,12 @@ check("three visits, four views kept", [await count("heat_views"), await count("
 await send({ tab: "dddddddddddd", ev: Array.from({ length: 79 }, (_, i) => (i === 0 ? { t: "v", s: 0, p: "/features", w: 1280 } : { t: "c", s: 0, p: "/features", w: 1280, x: 10, y: 10, h: 800, l: "x" })) });
 check(`taps per view are capped at ${TAPS_PER_VIEW}`, Number((await db.prepare("SELECT COUNT(*) AS n FROM heat_taps WHERE page = '/features'").get()).n), TAPS_PER_VIEW);
 
+const internal = (body) =>
+  POST(new NextRequest("http://localhost/api/heat", { method: "POST", headers: { "content-type": "application/json", "user-agent": UA, "x-forwarded-for": "203.0.113.8", cookie: "cf_internal=1" }, body: JSON.stringify(body) }));
+const beforeInternal = await count("heat_views");
+res = await internal({ tab: "eeeeeeeeeeee", ev: [{ t: "v", s: 0, p: "/", w: 390 }] });
+check("a browser marked internal (Chris, the admin console): 204, nothing kept", [res.status, await count("heat_views")], [204, beforeInternal]);
+
 console.log("admin reads");
 const h = await getHeatmap(0, Date.now() + 1000, "phone", "/");
 check("phone visits / one-page visits / views", [h.visits, h.oneAndDone, h.pageViews], [2, 1, 3]);
