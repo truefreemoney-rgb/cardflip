@@ -52,6 +52,10 @@ console.log("Magic: special printings");
   const elves = refereeMatcher({ game: "mtg", cardId: "le", variant: "foil", name: "Llanowar Elves", number: "429", setName: "Foundations", setCode: "fdn", promoTypes: "japanshowcase,boosterfun", finishes: "foil" });
   check("Japan showcase: a plain Foundations foil is not #429", elves("LLANOWAR ELVES FOIL NM MAGIC: THE GATHERING FOUNDATIONS"), false);
   check("Japan showcase: '(Showcase) -Foil' matches", elves("Llanowar Elves (Showcase) -Foil Near Mint MTG Foundations"));
+  check("Japan showcase: 'Japan Showcase' in the title is the printing, not the language", elves("Llanowar Elves Japan Showcase Foil #429 Foundations MTG NM"));
+  check("Japan showcase: a Japanese-language copy still drops", elves("Llanowar Elves Japanese Japan Showcase Foil #429 Foundations"), false);
+  const plainElves = refereeMatcher({ game: "mtg", cardId: "le2", variant: "foil", name: "Llanowar Elves", number: "227", setName: "Foundations", setCode: "fdn", promoTypes: "", finishes: "foil,nonfoil" });
+  check("Japan showcase: words in a plain printing's listing still read as Japanese", plainElves("Llanowar Elves Japan Showcase Foil Foundations 227"), false);
 
   const kaldra = refereeMatcher({ game: "mtg", cardId: "k", variant: "foil", name: "Kaldra Compleat", number: "2", setName: "Spotlight Series", setCode: "pspl", promoTypes: "", finishes: "nonfoil,foil" });
   check("'Horizons 2' is not collector number 2", kaldra("Kaldra Compleat (Showcase) Modern Horizons 2 Foil"), false);

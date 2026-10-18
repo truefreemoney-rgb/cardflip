@@ -59,6 +59,10 @@ const CHECKS = [
   { game: "yugioh", cardId: "ygo-90812", variant: "normal", usd: 4.24, n: 0, note: "Elemental Hero Knospe PP02-EN005: 16 asks median 4.24; TCGplayer 103.38" },
   { game: "pokemon", cardId: "ex11-11", variant: "holofoil", usd: 48, n: 11, note: "Metagross delta 11/113 holo: originals sold 21-175 (median 48); dozens of 3-14 sales are 30th Celebration reprints; TCGplayer 175.94 (hidden)" },
   { game: "mtg", cardId: "98fba951-c5bb-497c-9292-ce1b2a1e1247", variant: "nonfoil", usd: 637, n: 2, note: "Blaze of Glory Alpha (lea-6): sold 578.99 PLD 09-05, 695 LP 09-02 (a clean copy is higher); TCGplayer 440.74 stopped 10-13" },
+  // 10-18 ~12:45pm ET hidden list (s197).
+  { game: "pokemon", cardId: "dp6-11", variant: "reverseHolofoil", usd: 55, n: 18, note: "Mewtwo Legends Awakened 11 reverse: Oct sold 20-83, LP-NM 50-83, MP 37-50; TCGplayer 309.82 (hidden)" },
+  { game: "pokemon", cardId: "dpp-DP28", variant: "holofoil", usd: 100, n: 12, note: "Mewtwo LV.X DP28: Oct raw sold 29-115 (MP 99/100, LP 67, DMG 30-42; one 589.99 via Authenticity Guarantee left out); TCGplayer 278.48 (hidden)" },
+  { game: "pokemon", cardId: "2016xy-7", variant: "holofoil", usd: 65, n: 6, note: "Scraggy McDonald's 2016 7/12 holo (EU): English sold 55.07/59.99/61.81/75.30/79.99, MP 39; TCGplayer 199.99 (hidden)" },
 ];
 // --only id,id: write just these checks (the others are already on prod).
 const onlyArg = process.argv.indexOf("--only");

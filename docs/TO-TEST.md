@@ -13,6 +13,7 @@
 - Now a checked price (price_checked): Charizard GX BUS 150 $710.65 -> $350; Gyarados HGSS 123 rev $499.99 -> $170; Pikachu WotC promo 1 $499.99 -> $42; Metagross delta 11 $175.94 -> $48; Yu-Gi-Oh junk: Genex Ally Axel STBL $213,589 -> $2, Bujingi Crane MP14 $199,379 -> $1.25, Tower of Babel IOC $5,020 -> $1.50, Red-Eyes RP01 $680 -> $15, Hecatrice PP02 $197 -> $2.66, Scapegoat RP01 $192 -> $12.74, Dark Magician RP01 $145 -> $11.50, Sengenjin PP02 $120 -> $7.06, E-HERO Heat PP02 $250 -> $3.99, E-Hero Knospe PP02 $103 -> $4.24.
 - Un-hidden ("keep", TCGplayer right): Mewtwo Star HP 103 $6,887.50, M Charizard EX FLF 108 $741.83, Shining Celebi unl $549.99, Palkia LV.X GE $174, Garchomp C LV.X $179.51, Luxray GL LV.X $115, Scizor ex UF $183, Team Aqua's Kyogre $290, 6 Hyperia City enchanteds (at/below their asks), Spider-Man #235 textured $479.52.
 - Skipped: Shining Charizard 1st (sales are fakes), Darkrai & Cresselia LEGEND, Armageddon Unlimited.
+- Batch ~12:45pm ET (s197): fixed Mewtwo LA 11 rev $309.82 -> $55, Mewtwo LV.X DP28 $278.48 -> $100, Scraggy McD 2016 holo $199.99 -> $65. Keep: Jirachi HL 8 rev $118.21 (NM sold 111-130; the cheap asks are played). eBay error page again after 5 searches (~12:50pm): paused to ~1:25pm.
 - ~10-20 (page cache): those card pages show a price again; app search at once.
 
 ## 10-18 ~1pm ET: Hand check queue (388) worked by eBay sold, most valuable first (prod writes done)

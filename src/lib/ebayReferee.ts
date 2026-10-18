@@ -228,8 +228,12 @@ export function refereeMatcher(c: RefereeCard): (title: string) => boolean {
   const nameW = words(front);
   const flavW = c.flavorName ? words(c.flavorName) : [];
   const celebrationSet = /celebration|30th/i.test(c.setName);
+  // "Japan Showcase" names an English Magic printing, not the language: without this the language reject below dropped
+  // every such title (10-18). "Japanese" still means a Japanese-language copy.
+  const japanShowcase = c.game === "mtg" && (c.promoTypes ?? "").split(",").includes("japanshowcase");
   return (title: string) => {
-    const t = title.toLowerCase().replace(/δ/g, " delta ");
+    let t = title.toLowerCase().replace(/δ/g, " delta ");
+    if (japanShowcase) t = t.replace(/\bjapan[\s-]+showcase\b/g, "showcase");
     if (REJECT.some((r) => r.test(t))) return false;
     // The 2026 "30th Celebration" reprints of vintage cards ($20-27 Shining Celebi next to $250-550 originals, 10-18), and
     // 2021 Celebrations "Classic Collection" copies: another printing unless the card itself is from such a set.
