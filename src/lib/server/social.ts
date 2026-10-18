@@ -457,6 +457,14 @@ export function postArtUrl(game: GameId, imageUrl: string): string {
 }
 
 /**
+ * Cards a hand eBay sold check found mispriced, kept out of every movers/jumps
+ * post until their own price is fixed. "game:cardId". Remove an entry once the
+ * card page price matches eBay sold again.
+ *   10-18 Snorlax Kalos Starter Set: $64.88 "+50%" vs eBay sold NM $42-45, played $17-30.
+ */
+const SOCIAL_PRICE_HOLD = new Set<string>(["pokemon:xy0-26"]);
+
+/**
  * The biggest moves over the last MOVER_DAYS days, up and down, for cards
  * worth at least MOVER_MIN_PRICE on both ends, where the old and the new
  * price each held HELD_DAYS days. Sorted by |%| desc.
@@ -475,7 +483,7 @@ export async function topMovers(
   const staleFrom: string[] = [];
   const stepped: string[] = [];
   for (const [cardId, s] of series) {
-    if (exclude.has(cardId)) continue;
+    if (exclude.has(cardId) || SOCIAL_PRICE_HOLD.has(`${game}:${cardId}`)) continue;
     if (s.from == null || s.from <= 0) continue;
     // Both ends at the floor (09-30, was either end): a common "$8.64 → $49.99, +479%"
     // (Team Aqua's Corphish) is one odd listing, not a move a collector believes.
