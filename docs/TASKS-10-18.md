@@ -3,7 +3,6 @@
 [me] = Claude, [you] = Chris. No pushes until Chris says (local commits: `git log origin/main..HEAD`).
 
 ## A. Today (10-18)
-1. [you] Sign in to admin in the browser pane, then [me] mark today's 1pm + 7pm post cards "Looks right".
 2. [you] Open cardflip.io/?heat=off once on your phone and once on your PC.
 3. [you + me] 1pm TikTok + Pinterest (you press Post).
 4. [me] 1:12pm: check the 1:05pm posts (scheduled).
@@ -18,6 +17,8 @@
 11. [you] PriceCharting: get Brady's answers, then subscribe.
 12. [me] PriceCharting day 1: import, re-score (beat 78%), the switch that shows their price, screenshots (docs/PRICECHARTING-DAY1.md).
 13. [me] PriceCharting: match Lorcana and One Piece (no TCGplayer id stored for them).
+13b. [me] /admin/prices "Hand check" queue: ~290 left after 18 checked 10-18 (6 fixed, 12 right). Next: new Lorcana sets
+     and prices frozen for weeks first (that's where the real errors were); old EX-era flags are mostly false alarms.
 
 ## C. App store (main goal)
 14. [you] Sign in with Apple: yes or no.
@@ -34,7 +35,6 @@
 ## D. Checks on live code
 24. [me] 10-19: set lists stay fast (2nd day of green smoke runs).
 25. [me] 10-19: heat map numbers look sane next to Analytics.
-26. [me, needs your admin sign-in] Inventory speed, the UK cookie bar, and that the heat map frame never records.
 27. [me] Next push: the weekly log cleanup runs (it hadn't since 10-08).
 28. [me] On the first real refund, dispute or failed payment: check the subscription follows.
 

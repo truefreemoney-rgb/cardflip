@@ -12,6 +12,8 @@
 ## 10-18 ~1pm ET: Hand check queue (388) worked by eBay sold, most valuable first (prod writes done)
 - Fixed (price_checked): Mickey Mouse Iconic 241 $7,500 -> $3,000; Thomas O'Malley Ench 235 $515 -> $134; Lugia GX 227 $370 -> $245; Pikachu POP4 13 $369.63 -> $45; Kingdra delta 10 rev $289.10 (flat 31+ days) -> $92; Charizard SW 3 rev $310.62 -> $200.
 - Keep (TCGplayer right, or already back in line today): Rocket's Mewtwo ex 99, Jolteon delta 7 rev, Gyarados HGSS 123, Ariel Ench 236 ($570 today), Aurora Ench 223 ($388), Tyranitar delta 16 ($318), Celebi ex 117 ($1,000; sold median 866, the old $370 was LOW), Rocket's Meowth 46 rev.
+- Batch 3 keeps: Deoxys delta POP4 2 ($350; NM sold 400-527), Kyogre ex CG 95 ($349.99; NM sold 350-500).
+- PATTERN: vintage EX-era flags are mostly false alarms (the asks include LP/MP/DMG copies; NM sells near our price). Real errors were new-set Lorcana (Hyperia City) and prices frozen for weeks (Kingdra, Pikachu POP4, Dark Charizard 1st). Next batches: Lorcana Hyperia City + flat-30-day cards first.
 - Skipped: Raya Ench 240 (no English sale yet).
 - Re-rank (scripts/_handcheck-rerank.mjs): 294 still >= 1.5x their eBay asks today; many are Magic special-art foils whose asks are the cheap version (Spectacular Spider-Man 236-241, Llanowar Elves FDN 429): check those by hand before trusting the asks.
 - ~10-20: those card pages show the fixed numbers.
