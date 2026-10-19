@@ -147,7 +147,9 @@ for (const s of setsJson.data ?? []) {
     num(s.card_count),
     num(s.printed_size),
     s.set_type ?? "",
-    s.icon_svg_uri ?? "",
+    // Scryfall stamps the icon link with a daily ?<epoch> cache-buster; kept, it made all 1,000 sets "changed"
+    // for the nightly catalog push every night (10-19). The file behind the link is the same.
+    (s.icon_svg_uri ?? "").split("?")[0],
     now,
   );
 }
