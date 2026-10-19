@@ -3,7 +3,7 @@
 [me] = Claude, [you] = Chris. No pushes until Chris says (local commits: `git log origin/main..HEAD`).
 
 ## A. Today (10-18)
-2. [you] Open cardflip.io/?heat=off once on your phone and once on your PC.
+2. [you] DONE 10-19 ~9:55am ET: cardflip.io/?heat=off on phone + PC.
 3. [you + me] 1pm TikTok + Pinterest (you press Post).
 4. [me] 1:12pm: check the 1:05pm posts (scheduled).
 5. [me] 6:47pm: check the Sunday emails went out once each (scheduled).
