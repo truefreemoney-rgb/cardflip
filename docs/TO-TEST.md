@@ -4,6 +4,13 @@
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
 
+## 10-19 ~8:30am ET: morning checks (TASKS-10-18 #7/#24/#25/#33)
+- [x] #7 PASS: 27 of 32 price_checked rows got tcg_day 10-19; base1-4 ($600 vs TCGplayer $724.99) + Lorcana crd_a08f… ($134 vs $122) retired themselves (within 25%, as designed). The 5 without a 10-19 note (Blaze 98fba951, ygo-38633/476972/78081/92623) have NO TCGplayer point since 10-13 = nothing to note; their check holds.
+- [x] #24 PASS: Production smoke green 10-18 23:45 UTC, 10-19 02:07 + 07:42 UTC (the 21:51 failure was our own country gate, fixed d9118805).
+- [x] #25 PASS (sane): heat 10-18 = 28 views / 6 tabs vs page_views 75 / 24 visitors (page_views also counts /home/tap + /home/stay10 events and /app; heat drops owner/admin + started mid-day); 58 taps, latest 7:22am ET.
+- [~] #33 HALF: 10-19 push 204.7 s (was 446-549 s): mtg_cards 47,053 of 99,080 (real: 5 price columns move daily), tcg_cards 11,667 of 69,045; BUT mtg_sets 1,000 of 1,000 every night = Scryfall's daily ?epoch on icon_svg_uri -> fixed e00e8100 (sync-mtg strips it; runs from the working copy tonight, no push needed). 10-20 morning: mtg_sets line shows ~0 changed (one last full set push tonight as the links change once).
+- [ ] New set on the site: Mystery Booster Commander Edition (mbc, released 10-19, 77 cards) is in prod mtg_cards + the set list but has 0 priced cards, so /cards/mtg/mystery-booster-commander-edition 404s by design (thin page). Recheck 10-21: page live once TCGplayer prices it.
+
 ## 10-19 ~12:45am ET: 84732733 Pokémon moves pause (cap 10-16/10-17) + 709c36a5 stage cards carry their id (UNPUSHED until Chris says)
 - [ ] After push: re-render 7am (social-post.yml tiktok=1 tiktok_day=2026-10-19 tiktok_slots=morning tiktok_force=1); new social_tiktok:morning:2026-10-19 row is NOT Pokémon dips; every card on it sane vs its own 30-day series.
 - [ ] 7:05am posts (`node scripts/_social-log-today.mjs`): no "Pokémon price drops"; slot did post (fallback kind).
