@@ -29,11 +29,12 @@ export const MOVER_DAYS = 7;
 /**
  * Per game: the first day the listing cap changed prices (from), the first day every price is on the final cap
  * (settled), and the last day a 7-day window can still reach back before settled (end); topMovers pauses that game's
- * moves from `from` through `end`. Magic 6f3fc80f (10-14); Pokémon d4c436e1 (10-16) + 12b63f06 (10-17, 1.45x with no cliff).
+ * moves from `from` through `end`. Magic 6f3fc80f (10-14); Pokémon d4c436e1 (10-16) + 12b63f06 (committed 10-17, first
+ * in the 10-18 data: 528 drops that day). Same days as CAP_BREAK_DAYS in lib/priceOutliers.ts (pages, mail, alerts).
  */
 export const CAP_PAUSES: Partial<Record<GameId, { from: string; settled: string; end: string }>> = {
   mtg: { from: "2026-10-14", settled: "2026-10-14", end: "2026-10-21" },
-  pokemon: { from: "2026-10-16", settled: "2026-10-17", end: "2026-10-24" },
+  pokemon: { from: "2026-10-16", settled: "2026-10-18", end: "2026-10-25" },
 };
 export const MOVER_LIMIT = 5;
 /** Below this the % swing is noise (a $1.83 common "up 69%" is not news; Chris 09-25, was $3). */
@@ -494,7 +495,7 @@ export async function topMovers(
   // old uncapped number with the capped one, so no Magic "this week" move is real until the window is past it (Chris 10-16).
   // Empty = the callers' fallbacks run (Magic at today's price only); remove after 10-21.
   // Pokémon's 10-16/10-17 cap did the same (106 cards $20+ fell 60%+ in 4 days vs 4 a month earlier; the 10-19 7am
-  // "price drops" had Dragonair 1st Ed $198 -> $29): paused the same way until 10-24.
+  // "price drops" had Dragonair 1st Ed $198 -> $29): paused the same way until 10-25.
   const pause = CAP_PAUSES[game];
   if (pause && day >= pause.from && day <= pause.end && addDays(day, -days) < pause.settled) return [];
   const [{ cards: series }, held] = await Promise.all([freshSeries(game, day, days, band), postHolds(game)]);

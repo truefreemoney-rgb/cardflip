@@ -4,6 +4,7 @@ import { askingPriceFor, marketForCondition } from "@/lib/listing";
 import { shipMethodOf } from "@/lib/fees";
 import { heldSeries, preferredVariants, usdSeries } from "@/lib/server/priceHistory";
 import { addDays, dayIndex, todayUtc } from "@/lib/priceSeries";
+import { seriesCapBreak } from "@/lib/priceOutliers";
 import { heldTrustOrOpen } from "@/lib/server/priceTrustSite";
 import type { GameId } from "@/lib/types";
 
@@ -97,6 +98,12 @@ export async function inventoryValueSeries(
     .filter((r) => !trust.flag({ ...r, game }))
     .map((r) => ({
       series: heldSeries(series, r) ?? null,
+      // Before its listing-cap break a series holds the old uncapped number: those days count at the first capped one
+      // (a flat line, not a cliff that never happened; lib/priceOutliers.ts).
+      brk: (() => {
+        const s = heldSeries(series, r);
+        return s ? seriesCapBreak(s, game) : null;
+      })(),
       condition: r.condition,
       shipping: shipMethodOf(r),
       qty: r.quantity ?? 1,
@@ -121,7 +128,7 @@ export async function inventoryValueSeries(
     let value = 0;
     for (const h of held) {
       if (h.until && day > h.until) continue;
-      const market = onDay(h.series!, day);
+      const market = onDay(h.series!, h.brk && day < h.brk ? h.brk : day);
       if (market == null || !(market > 0)) continue;
       value += (basis === "market" ? marketForCondition(market, h.condition) : askingPriceFor(market, h.condition, h.shipping)) * h.qty;
     }

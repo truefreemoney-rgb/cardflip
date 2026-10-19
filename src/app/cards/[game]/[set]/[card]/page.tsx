@@ -112,6 +112,7 @@ function PriceTable({ page }: { page: CardPage }) {
 
 /** Recorded days behind the headline price: the chart series when there is one, else the days since tracking began (0 for a converted figure with no history). */
 function historyDays(page: CardPage): number {
+  if (page.dataDays != null && !page.checked) return page.dataDays; // every recorded day, also those before a listing-cap break
   if (page.chart?.[0]) return page.chart[0].points.length;
   if (page.trackingSince && page.headline) return Math.max(0, dayIndex(page.trackingSince, page.headline.day)) + 1;
   return 0;
@@ -173,7 +174,10 @@ function CardStory({ f, page }: { f: CardFacts; page: CardPage }) {
         </>
       ) : page.headline && page.trackingSince ? (
         <p className="mt-2 text-sm leading-relaxed text-zinc-400">
-          Tracking since {etDate(`${page.trackingSince}T12:00:00Z`)}. The chart appears once CardFlip has a week of prices for this card.
+          {page.dataDays != null && !page.checked
+            ? // Cut at a listing-cap break (lib/priceOutliers.ts): the history is long, the capped part is not yet.
+              `CardFlip's price for this card got more accurate on ${etDate(`${page.trackingSince}T12:00:00Z`)}. The chart comes back after a week of new prices.`
+            : `Tracking since ${etDate(`${page.trackingSince}T12:00:00Z`)}. The chart appears once CardFlip has a week of prices for this card.`}
         </p>
       ) : (
         <p className="mt-2 text-sm leading-relaxed text-zinc-400">No price history is shown for this card right now.</p>

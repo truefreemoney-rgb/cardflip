@@ -6,8 +6,8 @@ import { MTG_REFEREE_SQL, PRICE_TRUST, REF_ALT_SOURCE, lastPriced } from "@/lib/
 import { judgeFull, judgeSeries, loadTrustData, readEbayAsks, readListingLows, type TrustData, type TrustSeries } from "@/lib/server/priceTrustSite";
 import { largeImage } from "@/lib/server/mtgCards";
 import { activeChecks, checkKey, CHECKED_MAX_DAYS } from "@/lib/server/checkedPrices";
-import { addDays, dayIndex, decodePrices, todayUtc } from "@/lib/priceSeries";
-import { cleanSeriesPoints } from "@/lib/priceOutliers";
+import { addDays, dayIndex, decodePrices, toPoints, todayUtc } from "@/lib/priceSeries";
+import { capBreakDay, cleanSeriesPoints, fromCapBreak } from "@/lib/priceOutliers";
 import {
   CHART_MIN_POINTS,
   FRESH_DAYS,
@@ -380,6 +380,8 @@ export interface CardPage extends CardView {
   range: HistoryRange | null;
   /** The headline is a hand eBay sold check's price (checkedPrices.ts: TCGplayer's own number was off): "Checked against eBay sold". */
   checked?: { n: number; day: string } | null;
+  /** Recorded days of the headline series, before-the-cap-break ones included (the confidence badge; chart and words start at the break). */
+  dataDays?: number;
 }
 
 const NO_PRICE: Pick<CardPage, "prices" | "headline" | "chart" | "trackingSince" | "changes" | "range"> = { prices: [], headline: null, chart: null, trackingSince: null, changes: [], range: null };
@@ -459,7 +461,11 @@ export async function loadCardPage(rec: CardRecord, today = todayUtc()): Promise
   if (!headline) return { facts, prices, headline, decision, chart: null, trackingSince: null, changes: [], range: null };
 
   const line = series.find((s) => s.variant === headline.variant);
-  const points = line ? cleanSeriesPoints(line) : []; // junk blips out (lib/priceOutliers.ts): chart, high/low and change words all read these
+  // Junk blips out and history from the listing-cap break on (lib/priceOutliers.ts): chart, high/low and change words all
+  // read these. The confidence badge still counts every recorded day (dataDays): the price did not get younger.
+  const allPoints = line ? cleanSeriesPoints(line) : [];
+  const points = fromCapBreak(allPoints, facts.game);
+  const dataDays = points.length < allPoints.length ? allPoints.length : undefined; // only a cut series reads differently
   const changes: string[] = [];
   for (const days of [30, 90]) {
     const c = changeOver(points, days);
@@ -490,9 +496,9 @@ export async function loadCardPage(rec: CardRecord, today = todayUtc()): Promise
     const since = addDays(checked.day, -CHECKED_MAX_DAYS);
     const kept = points.filter((p) => p.day >= since);
     const fixedChart: Series[] | null = kept.length >= CHART_MIN_POINTS ? [{ variant: headline.variant, source: "tcgplayer", currency: "USD", points: kept }] : null;
-    return { facts, prices, headline, decision, chart: fixedChart, trackingSince: kept[0]?.day ?? null, changes: [], range: null, checked };
+    return { facts, prices, headline, decision, chart: fixedChart, trackingSince: kept[0]?.day ?? null, changes: [], range: null, checked, dataDays };
   }
-  return { facts, prices, headline, decision, chart, trackingSince: points[0]?.day ?? null, changes, range, checked };
+  return { facts, prices, headline, decision, chart, trackingSince: points[0]?.day ?? null, changes, range, checked, dataDays };
 }
 
 // ---------------------------------------------------------------------------
@@ -518,9 +524,11 @@ export interface SetCard {
   was30?: number | null;
 }
 
-/** A series' value `back` days before `today` (the last point on or before that day), or null. */
-function valueBack(s: TrustSeries | undefined, today: string, back: number): number | null {
+/** A series' value `back` days before `today` (the last point on or before that day), or null; null before its listing-cap break too. */
+function valueBack(s: TrustSeries | undefined, today: string, back: number, game: GameId): number | null {
   if (!s) return null;
+  const brk = capBreakDay(toPoints(s), game);
+  if (brk && addDays(today, -back) < brk) return null;
   const i = Math.min(dayIndex(s.startDay, addDays(today, -back)), s.prices.length - 1);
   for (let j = i; j >= 0; j--) if (s.prices[j] != null) return s.prices[j];
   return null;
@@ -591,7 +599,7 @@ export async function loadSetCards(game: GameId, set: SetEntry, today = todayUtc
     const head = headlinePrice(prices);
     const f = factsOf(game, r, "");
     const own = head ? data.series.find((s) => s.variant === head.variant) : undefined;
-    out.push({ key: r.key, name: f.name, number: f.number, tags: f.tags, image: f.image, tile: f.tile, price: head ? head.price : null, flagged: !head, unverified: head ? isUnverified(head) : false, ...(head?.stale ? { stale: true } : {}), was7: valueBack(own, today, 7), was30: valueBack(own, today, 30) });
+    out.push({ key: r.key, name: f.name, number: f.number, tags: f.tags, image: f.image, tile: f.tile, price: head ? head.price : null, flagged: !head, unverified: head ? isUnverified(head) : false, ...(head?.stale ? { stale: true } : {}), was7: valueBack(own, today, 7, game), was30: valueBack(own, today, 30, game) });
   }
   return out.sort((a, b) => (b.price ?? -1) - (a.price ?? -1) || a.name.localeCompare(b.name) || a.number.localeCompare(b.number, "en", { numeric: true }));
 }

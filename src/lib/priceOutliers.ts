@@ -11,7 +11,7 @@
  * and the newest point must match the headline price.
  */
 
-import { toPoints, type HistoryPoint } from "./priceSeries.ts";
+import { addDays, toPoints, type HistoryPoint } from "./priceSeries.ts";
 
 export const OUTLIER = { factor: 4, maxRun: 7, joinRatio: 1.5, side: 5 } as const;
 
@@ -59,5 +59,56 @@ export function dropOutliers<T extends HistoryPoint>(points: T[]): T[] {
 /** How many points dropOutliers would remove. */
 export const countOutliers = (points: HistoryPoint[]): number => points.length - dropOutliers(points).length;
 
-/** A stored series row as chart points, junk blips removed: the way every UI reader turns a row into history. */
-export const cleanSeriesPoints = (row: { startDay: string; prices: (number | null)[] }): HistoryPoint[] => dropOutliers(toPoints(row));
+/**
+ * Days OUR pricing rule changed a game's TCGplayer numbers (the cheapest-listing caps), not the market. Measured 10-19
+ * as $20+ series falling 15%+ in one day (a normal day: ~10): Magic 1,027 on 10-13 (6f3fc80f); Pokémon 779 on 10-16
+ * (d4c436e1) and 528 on 10-18 (12b63f06, 1.45x with no cliff). A history read across one compares the old uncapped
+ * number with the capped one: card pages said "Down 75%" (Dragonair 1st Ed $198 -> $29) and a 7am post called them
+ * price drops. Stored data keeps every point (the price guard still reads all of it).
+ */
+export const CAP_BREAK_DAYS: Readonly<Record<string, readonly string[]>> = { mtg: ["2026-10-13"], pokemon: ["2026-10-16", "2026-10-18"] };
+/** A point on a cap day this far under the one before it is the cap, not a move. */
+export const CAP_BREAK_DROP = 0.85;
+
+/** The last cap day a series fell on (its first point on that day or the next is 15%+ under the point before), or null. */
+export function capBreakDay(points: readonly HistoryPoint[], game: string | undefined): string | null {
+  const days = game ? CAP_BREAK_DAYS[game] : undefined;
+  let found: string | null = null;
+  for (const day of days ?? []) {
+    const i = points.findIndex((p) => p.day >= day);
+    if (i <= 0 || points[i].day > addDays(day, 1)) continue;
+    if (points[i].price < CAP_BREAK_DROP * points[i - 1].price) found = points[i].day;
+  }
+  return found;
+}
+
+/** capBreakDay of a stored series row. Only TCGplayer numbers were capped: a row that names another source has none. */
+export function seriesCapBreak(series: { startDay: string; prices: (number | null)[]; source?: string }, game: string | undefined): string | null {
+  if (series.source && series.source !== "tcgplayer") return null;
+  return game && CAP_BREAK_DAYS[game] ? capBreakDay(toPoints(series), game) : null;
+}
+
+/**
+ * The first day a series' history counts from: its first priced day, or its cap break when that is later (null = no
+ * point at all). A "week ago" or "when you added it" price before this day is no honest before (alerts, mail, insights).
+ */
+export function historyStart(series: { startDay: string; prices: (number | null)[]; source?: string }, game: string | undefined): string | null {
+  const first = series.prices.findIndex((p) => p != null);
+  if (first < 0) return null;
+  const firstDay = addDays(series.startDay, first);
+  const brk = seriesCapBreak(series, game);
+  return brk && brk > firstDay ? brk : firstDay;
+}
+
+/** The points from a series' cap break on (the whole series when it has none). */
+export function fromCapBreak<T extends HistoryPoint>(points: T[], game: string | undefined): T[] {
+  const day = capBreakDay(points, game);
+  return day ? points.filter((p) => p.day >= day) : points;
+}
+
+/**
+ * A stored series row as chart points, junk blips removed: the way every UI reader turns a row into history. With the
+ * game of a TCGplayer row, history starts at its cap break (CAP_BREAK_DAYS); other sources pass no game.
+ */
+export const cleanSeriesPoints = (row: { startDay: string; prices: (number | null)[] }, capGame?: string): HistoryPoint[] =>
+  fromCapBreak(dropOutliers(toPoints(row)), capGame);

@@ -16,6 +16,8 @@ export interface Series {
   source: string;
   currency: string;
   points: Point[];
+  /** Recorded days of the whole series; `points` starts at a listing-cap break (lib/priceOutliers.ts) and can be shorter. */
+  dataDays?: number;
   /** The price guard flags this series (/api/price-history): the drawn history stays, the latest point is not presented as the price. */
   untrusted?: PriceFlag;
   /** The latest value has stood 45+ days (/api/price-history, 10-02): shown, with a note. */

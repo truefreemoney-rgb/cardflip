@@ -6,6 +6,7 @@ import { heldSeries, preferredVariants, usdSeries } from "@/lib/server/priceHist
 import { inventoryValueSeries } from "@/lib/server/inventoryValue";
 import { heldTrustOrOpen } from "@/lib/server/priceTrustSite";
 import { addDays, dayIndex, todayUtc } from "@/lib/priceSeries";
+import { historyStart } from "@/lib/priceOutliers";
 import type { GameId } from "@/lib/types";
 
 /**
@@ -140,6 +141,8 @@ export async function collectionInsights(userId: string, game: GameId, now = Dat
     }
     const marketNow = s && !junkMarket ? onDay(s, today) : null;
     let marketThen = s && !junkMarket ? onDay(s, lastWeek) : null;
+    // A week ago from before the listing-cap break is the old uncapped number, not last week's market (lib/priceOutliers.ts).
+    if (s && marketThen != null && lastWeek < (historyStart(s, r.game ?? undefined) ?? today)) marketThen = null;
     if (held && marketThen != null && marketThen > 0 && trust.flagOld(held, 7, marketThen)) marketThen = null;
     // A hand-set price is the seller's number; otherwise today's market
     // through the condition math, falling back to the stored price.

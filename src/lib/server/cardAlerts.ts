@@ -6,6 +6,7 @@ import { isMailConfigured, sendCardAlertEmail, type CardAlertHit } from "@/lib/s
 import { heldSeries, preferredVariants, usdSeries } from "@/lib/server/priceHistory";
 import { heldTrust } from "@/lib/server/priceTrustSite";
 import { addDays, dayIndex, todayUtc } from "@/lib/priceSeries";
+import { historyStart } from "@/lib/priceOutliers";
 import { sendPushToUser } from "@/lib/server/push";
 import { cardAlertPush } from "@/lib/pushMessages";
 
@@ -106,8 +107,8 @@ export async function sweepCardAlerts(
       hits.push({ rowId: r.id, name: r.card_name, set: r.set_name, number: r.card_number, price, target: r.alert_price, kind: "target" });
     }
     if (r.spike_alerted_at == null || r.spike_alerted_at < cooldown) {
-      const firstIdx = s.prices.findIndex((p) => p != null);
-      const firstDay = firstIdx >= 0 ? addDays(s.startDay, firstIdx) : today;
+      // From the listing-cap break on (lib/priceOutliers.ts): a week-ago uncapped number is no "before".
+      const firstDay = historyStart(s, r.game ?? undefined) ?? today;
       const marketBefore = firstDay > weekAgo ? null : onDay(s, weekAgo);
       if (marketBefore != null && marketBefore > 0 && !trust.flagOld(r, 7, marketBefore)) {
         const before = Math.round(askingPriceFor(marketBefore, r.condition, shipMethodOf(r)) * 100) / 100;

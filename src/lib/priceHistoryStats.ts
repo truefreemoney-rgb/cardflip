@@ -14,6 +14,8 @@ export interface HistorySeries {
   points: HistoryPoint[];
   /** The series' game (price_series.game). */
   game?: string;
+  /** Recorded days of the whole series, including those before a listing-cap break that `points` leaves out (the confidence badge). */
+  dataDays?: number;
   /** Set by /api/price-history on a TCGplayer USD series the price guard flags: the latest point is not a price to present. */
   untrusted?: PriceFlag;
 }

@@ -154,5 +154,29 @@ check("null name", tcgplayerProductPattern(null), null);
   check("McDonald's alias + an exact name beats a bad date", [m.get(1), m.get(2)], ["McDonald's Collection 2014", "POP Series 5"]);
 }
 
+// ---- 10-19: listing-cap breaks (CAP_BREAK_DAYS): history reads start at OUR cap cut, never compare across it ----
+{
+  const { CAP_BREAK_DAYS, capBreakDay, cleanSeriesPoints, historyStart, seriesCapBreak } = await import("../src/lib/priceOutliers.ts");
+  check("cap days measured 10-19", CAP_BREAK_DAYS, { mtg: ["2026-10-13"], pokemon: ["2026-10-16", "2026-10-18"] });
+  // Dragonair 1st Ed (prod): $198 to 10-14, $168.33 on 10-15, $29 from 10-16.
+  const dragonair = { startDay: "2026-10-10", prices: [198, 198, 198, 198, 198, 168.33, 29, 29, 29, 29] };
+  check("a 15%+ fall on a cap day is the break", capBreakDay(toPoints(dragonair), "pokemon"), "2026-10-16");
+  check("chart / change words start at the break", cleanSeriesPoints(dragonair, "pokemon").map((p) => p.day), ["2026-10-16", "2026-10-17", "2026-10-18", "2026-10-19"]);
+  check("no game (another source) keeps the whole history", cleanSeriesPoints(dragonair).length, 10);
+  check("another game's days do not apply", capBreakDay(toPoints(dragonair), "yugioh"), null);
+  check("a cardtrader row is never cut", seriesCapBreak({ ...dragonair, source: "cardtrader" }, "pokemon"), null);
+  // The 10-17 tuning landed in the 10-18 data: the LAST break wins.
+  const twice = { startDay: "2026-10-14", prices: [100, 100, 60, 60, 40, 40] };
+  check("the later of two cap cuts is the break", capBreakDay(toPoints(twice), "pokemon"), "2026-10-18");
+  // A small move on a cap day, or a big one on another day, is a market.
+  check("a 10% dip on a cap day is no break", capBreakDay(toPoints({ startDay: "2026-10-15", prices: [100, 90, 90] }), "pokemon"), null);
+  check("a 60% drop on 10-12 is no break", capBreakDay(toPoints({ startDay: "2026-10-11", prices: [100, 40, 40, 40] }), "pokemon"), null);
+  // A gap on the cap day: the next day's first point counts; later than that it does not.
+  check("first point the day after a cap day counts", capBreakDay(toPoints({ startDay: "2026-10-15", prices: [100, null, 50] }), "pokemon"), "2026-10-17");
+  check("a point days after the last cap day does not", capBreakDay(toPoints({ startDay: "2026-10-15", prices: [100, null, null, null, null, null, 50] }), "pokemon"), null);
+  check("historyStart = the break when later than the first point", historyStart(dragonair, "pokemon"), "2026-10-16");
+  check("historyStart = first priced day otherwise", historyStart({ startDay: "2026-10-01", prices: [null, 5, 5] }, "pokemon"), "2026-10-02");
+}
+
 console.log(failures === 0 ? "\nAll price-history checks passed" : `\n${failures} price-history check(s) failed`);
 process.exit(failures === 0 ? 0 : 1);

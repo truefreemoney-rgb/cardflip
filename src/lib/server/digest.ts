@@ -8,6 +8,7 @@ import { OWNER_EMAIL } from "@/lib/server/users";
 import { usdSeries } from "@/lib/server/priceHistory";
 import { heldTrustOrOpen } from "@/lib/server/priceTrustSite";
 import { addDays, dayIndex, todayUtc } from "@/lib/priceSeries";
+import { historyStart } from "@/lib/priceOutliers";
 
 /**
  * Weekly collection digest (Tier 2 #8, Chris 09-27): one Sunday mail per
@@ -148,8 +149,8 @@ export async function buildDigest(userId: string, now = Date.now()): Promise<Dig
       }
       continue;
     }
-    const firstIdx = s.prices.findIndex((p) => p != null);
-    const firstDay = firstIdx >= 0 ? addDays(s.startDay, firstIdx) : today;
+    // From the listing-cap break on (lib/priceOutliers.ts): the old uncapped number is no "before" either.
+    const firstDay = historyStart(s, r.game ?? undefined) ?? today;
     // A series younger than a week has no honest "before": count it as unchanged.
     let marketBefore = firstDay > weekAgo ? market : (onDay(s, weekAgo) ?? market);
     // A week-ago price the guard calls junk (a plateau that just corrected) is no honest "before": unchanged.

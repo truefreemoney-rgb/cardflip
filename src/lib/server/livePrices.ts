@@ -4,6 +4,7 @@ import { askingPriceFor, marketForCondition } from "@/lib/listing";
 import { shipMethodOf } from "@/lib/fees";
 import { heldSeries, preferredVariants, usdSeries } from "@/lib/server/priceHistory";
 import { dayIndex } from "@/lib/priceSeries";
+import { seriesCapBreak } from "@/lib/priceOutliers";
 import { heldTrust } from "@/lib/server/priceTrustSite";
 import type { PriceFlag, PriceStale } from "@/lib/priceFlag";
 
@@ -115,7 +116,10 @@ export async function refreshLivePrices(userId: string, now = Date.now()): Promi
     // Scan-time price for rows from before scan_price existed: the series
     // value on the scan day through the same condition math, stored once.
     let scanned = row.scan_price;
-    const then = onDay(s, new Date(row.created_at).toISOString().slice(0, 10));
+    const scanDay = new Date(row.created_at).toISOString().slice(0, 10);
+    // A scan day before the listing-cap break would store the old uncapped number as the scan price (lib/priceOutliers.ts).
+    const brk = seriesCapBreak(s, row.game ?? undefined);
+    const then = brk && scanDay < brk ? null : onDay(s, scanDay);
     if (scanned == null) {
       const asking = then != null ? askingPriceFor(then, row.condition, shipMethodOf(row)) : 0;
       if (asking > 0) {

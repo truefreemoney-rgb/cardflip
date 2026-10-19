@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { cardPath, gamePath } from "@/lib/cardPages";
 import { GAMES, GAME_IDS } from "@/lib/games";
 import { addDays, decodePrices, todayUtc } from "@/lib/priceSeries";
+import { historyStart, seriesCapBreak } from "@/lib/priceOutliers";
 import { SITE_URL } from "@/lib/siteUrl";
 import type { GameId } from "@/lib/types";
 import { pageTilesByIds } from "@/lib/server/cardPages";
@@ -240,7 +241,8 @@ async function personalMovers(userId: string, now: number, limit = 3): Promise<M
       const s = series.get(w.cardId!);
       if (!s) continue;
       const nowP = onDay(s, today);
-      const beforeP = onDay(s, weekAgo);
+      // Before the listing-cap break the number is the old uncapped one: no week-ago move (lib/priceOutliers.ts).
+      const beforeP = weekAgo < (historyStart(s, w.game ?? "pokemon") ?? today) ? null : onDay(s, weekAgo);
       if (nowP == null || beforeP == null || !(nowP > 0) || nowP === beforeP) continue;
       if (trust.flag({ catalog_card_id: w.cardId!, variant: null, game: w.game ?? "pokemon" })) continue;
       const game = w.game ?? "pokemon";
@@ -312,6 +314,7 @@ async function youngGameMovers(game: GameId, day: string, { direction = "up" as 
   for (const r of rows) {
     if (checked.has(r.card_id)) continue;
     const s = { startDay: r.start_day, prices: decodePrices(r.prices) };
+    if (weekAgo < (seriesCapBreak(s, game) ?? weekAgo)) continue; // a cap cut is no move (lib/priceOutliers.ts)
     const to = onDay(s, day);
     const from = onDay(s, weekAgo);
     if (to == null || from == null || !(to > 0) || !(from > 0) || Math.min(to, from) < lo || to === from) continue;
@@ -474,6 +477,7 @@ async function gameIndex(game: GameId, day: string): Promise<number | null> {
   for (const r of rows) {
     const s = { startDay: r.start_day, prices: decodePrices(r.prices) };
     if (s.startDay > weekAgo) continue;
+    if (weekAgo < (seriesCapBreak(s, game) ?? weekAgo)) continue; // the cap cut is no market move (lib/priceOutliers.ts)
     const nowP = onDay(s, day);
     const beforeP = onDay(s, weekAgo);
     if (nowP == null || beforeP == null || !(nowP > 0) || !(beforeP > 0)) continue;

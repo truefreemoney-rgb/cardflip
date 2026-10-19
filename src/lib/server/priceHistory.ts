@@ -5,7 +5,7 @@ import { searchEnglishCardsLocal, enrichWithPricing, hasEnglishMirror } from "@/
 import { normalizeNumber } from "@/lib/cardNumber";
 import { type HistorySeries, summarize } from "@/lib/priceHistoryStats";
 import { decodePrices, encodePrices, setDay, todayUtc } from "@/lib/priceSeries";
-import { cleanSeriesPoints } from "@/lib/priceOutliers";
+import { cleanSeriesPoints, fromCapBreak } from "@/lib/priceOutliers";
 import { correctPoint } from "@/lib/server/checkedPrices";
 
 export { summarize, todayUtc };
@@ -95,13 +95,12 @@ export async function getPriceHistory(cardId: string): Promise<HistorySeries[]> 
     // PriceCharting rows (lib/pricecharting.ts) stay off every screen until the PC-first switch is made on purpose.
     .prepare("SELECT variant, source, currency, game, start_day, prices FROM price_series WHERE card_id = ? AND source NOT IN ('tcgdex-cm', 'pricecharting')")
     .all(cardId)) as unknown as { variant: string; source: string; currency: string; game: string; start_day: string; prices: string }[];
-  return rows.map((r) => ({
-    variant: r.variant,
-    source: r.source,
-    currency: r.currency,
-    game: r.game,
-    points: cleanSeriesPoints({ startDay: r.start_day, prices: decodePrices(r.prices) }),
-  }));
+  return rows.map((r) => {
+    const all = cleanSeriesPoints({ startDay: r.start_day, prices: decodePrices(r.prices) });
+    // The chart and its % start at a listing-cap break; the badge still counts every recorded day (lib/priceOutliers.ts).
+    const points = r.source === "tcgplayer" ? fromCapBreak(all, r.game) : all;
+    return { variant: r.variant, source: r.source, currency: r.currency, game: r.game, points, ...(points.length < all.length ? { dataDays: all.length } : {}) };
+  });
 }
 
 /**
@@ -210,21 +209,21 @@ export async function latestUsdPrices(
 export async function usdSeries(
   cardIds: string[],
   prefer?: Map<string, Set<string>>,
-): Promise<Map<string, { variant: string; startDay: string; prices: (number | null)[] }>> {
-  const out = new Map<string, { variant: string; startDay: string; prices: (number | null)[] }>();
+): Promise<Map<string, { variant: string; startDay: string; prices: (number | null)[]; source: string }>> {
+  const out = new Map<string, { variant: string; startDay: string; prices: (number | null)[]; source: string }>();
   const rankOf = (variant: string) => VARIANT_ORDER.indexOf(variant) + 1 || 99;
   for (let i = 0; i < cardIds.length; i += 400) {
     const chunk = cardIds.slice(i, i + 400);
     const rows = (await db
       .prepare(
-        `SELECT card_id, variant, start_day, prices FROM price_series
+        `SELECT card_id, variant, source, start_day, prices FROM price_series
           WHERE currency = 'USD' AND source <> 'pricecharting' AND card_id IN (${chunk.map(() => "?").join(",")})`,
       )
-      .all(...chunk)) as unknown as { card_id: string; variant: string; start_day: string; prices: string }[];
+      .all(...chunk)) as unknown as { card_id: string; variant: string; source: string; start_day: string; prices: string }[];
     for (const r of rows) {
       const prices = decodePrices(r.prices);
       if (!prices.some((p) => p != null)) continue;
-      const entry = { variant: r.variant, startDay: r.start_day, prices };
+      const entry = { variant: r.variant, startDay: r.start_day, prices, source: r.source };
       const rank = rankOf(r.variant);
       const have = out.get(r.card_id);
       if (!have || rank < rankOf(have.variant)) out.set(r.card_id, entry);

@@ -16,7 +16,7 @@ export default function PriceConfidenceLive({ cardId, variant, className = "" }:
     loadSeries(cardId)
       .then((all) => {
         const s = pickSeries(all, variant);
-        if (alive && s && s.points.length > 0 && !s.untrusted) setState({ id: cardId, days: s.points.length, staleDays: s.stale?.days ?? null, few: Boolean(s.stale?.few) });
+        if (alive && s && s.points.length > 0 && !s.untrusted) setState({ id: cardId, days: s.dataDays ?? s.points.length, staleDays: s.stale?.days ?? null, few: Boolean(s.stale?.few) });
       })
       .catch(() => {});
     return () => { alive = false; };
