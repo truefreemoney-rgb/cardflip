@@ -23,6 +23,7 @@
      price, 12 un-hidden as right). Mostly Magic special foils left (same matcher cause); eBay paused 12:10pm (error page).
 
 ## C. App store (main goal)
+ON HOLD 10-19 (Chris: the $99/yr Apple account is not affordable right now): 14 Sign in with Apple, 15 iPhone payments, 16 Apple part, 20 TestFlight. Do not re-ask; he brings it up.
 14. [you] Sign in with Apple: yes or no.
 15. [you] iPhone payments: Apple in-app purchase or web checkout.
 16. [you] Developer accounts: Apple $99/yr, Google $25.
