@@ -391,7 +391,11 @@ check("link: POST confirms, with no session at all", [c1r.status, c1b.ok, c1b.st
 // (10-05) a fresh confirmation signs that browser in; this used to pin "touches no cookie".
 const c1cookie = c1r.cookies.get(SESSION_COOKIE);
 check("link: a fresh confirmation signs in (signedIn, a new session cookie for this account)", [c1b.signedIn, Boolean(c1cookie?.value), c1cookie?.value !== l1.token, (await getSessionUserId(c1cookie?.value ?? "")) === l1.user.id], [true, true, true, true]);
-check("link: the signup session is still live and the account is in", [(await getSessionUserId(l1.token)) === l1.user.id, (await row("link1@example.com")).email_pending, typeof (await row("link1@example.com")).email_verified_at], [true, 0, "number"]);
+// Audit #2 (10-19, Chris "1" twice): opened in a browser that is not the signup's, the typed password and the signup's
+// sessions go (whoever typed them may not own the inbox); this browser is the one signed in. Was "still live" until 10-19.
+check("link: from another browser the signup session and typed password are gone, the account is in",
+  [Boolean(await getSessionUserId(l1.token)), (await row("link1@example.com")).password_hash, (await row("link1@example.com")).email_pending, typeof (await row("link1@example.com")).email_verified_at],
+  [false, "!google-sign-in", 0, "number"]);
 const c1again = await (await confirmRoute.POST(jpost({ t: l1tok }))).json();
 check("link: opening it again is already-confirmed, not an error", [c1again.ok, c1again.already], [true, true]);
 const c1again2 = await confirmRoute.POST(jpost({ t: l1tok }));
@@ -400,7 +404,7 @@ await db.prepare("UPDATE email_verifications SET confirmed_at = confirmed_at - ?
 const c1late = await confirmRoute.POST(jpost({ t: l1tok }));
 check("link: a used link older than 15 minutes signs nobody in (no signedIn, no cookie), so the mail is not a reusable login", [(await c1late.json()).signedIn, c1late.cookies.getAll().length], [false, 0]);
 check("link: a peek now says confirmed", (await (await confirmRoute.GET(peekReq(l1tok))).json()).state, "confirmed");
-asUser(l1.token);
+asUser(c1cookie.value); // the browser the link signed in
 check("link: typing the code after the link is a harmless 200", (await post(verify, { code: "123456" })).body.alreadyConfirmed, true);
 
 const l2 = await signUp("link2@example.com");

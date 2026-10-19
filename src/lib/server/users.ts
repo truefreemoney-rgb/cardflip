@@ -650,6 +650,15 @@ export async function linkGoogleSub(userId: string, sub: string, wipePassword = 
   return Number(res.changes) === 1;
 }
 
+/**
+ * The account's typed password stops working (Google/X, Forgot Password or the Account page's "Set a password" are the
+ * ways back in). Audit #2 (10-19): a signup's password was typed by whoever signed up, not proven to be the inbox
+ * owner's, so the first confirm from another browser drops it.
+ */
+export async function dropPassword(userId: string): Promise<void> {
+  await db.prepare("UPDATE users SET password_hash = ? WHERE id = ?").run(NO_PASSWORD, userId);
+}
+
 export async function findUserByXSub(sub: string): Promise<User | null> {
   const row = (await db.prepare("SELECT * FROM users WHERE x_sub = ?").get(sub)) as UserRow | undefined;
   return row ? fromRow(row) : null;

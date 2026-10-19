@@ -122,6 +122,36 @@ console.log("Email move");
   check("a rename alone signs nobody out", await alive(d), [true, true, true]);
 }
 
+console.log("Signup takeover (audit #2, 10-19)");
+{
+  const { NO_PASSWORD } = await import(at("lib/googleAuth.ts"));
+  // A stranger signs up with the owner's address and picks the password; their browser holds the signup's sessions.
+  const s = await createUser("Sq", "squat@example.com", "stranger1", "user", { emailPending: true });
+  let d = await devices(s.id);
+  await clearLimits();
+  check("walled signup code sent (dev echo)", (await ev.sendWalledCode(s, s.email)).ok !== false, true);
+  const t = new URL(ev.devLastCode("squat@example.com").url).searchParams.get("t");
+  testCookies.delete(SESSION_COOKIE); // the owner opens the mail in their own browser
+  const res = await confirmRoute.POST(post({ t }));
+  const body = await res.json();
+  const after = await findUserById(s.id);
+  check("the owner's link from another browser: confirmed + signed in, the stranger's password and sessions are gone",
+    [res.status, body.signedIn, after.emailPending, after.passwordHash === NO_PASSWORD, await alive(d)], [200, true, false, true, [false, false, false]]);
+  const reopen = await confirmRoute.POST(post({ t }));
+  check("reopening the link signs in again but drops nothing more", [reopen.status, (await reopen.json()).already], [200, true]);
+
+  // The signup's own browser confirms: the person who typed the password keeps it, and their devices stay.
+  const o = await createUser("Own", "own@example.com", "mine1234", "user", { emailPending: true });
+  d = await devices(o.id);
+  await clearLimits();
+  await ev.sendWalledCode(o, o.email);
+  const t2 = new URL(ev.devLastCode("own@example.com").url).searchParams.get("t");
+  const same = await confirmRoute.POST(post({ t: t2 }));
+  const kept = await findUserById(o.id);
+  check("the link in the signup's own browser keeps the password and every device",
+    [same.status, kept.emailPending, kept.passwordHash === NO_PASSWORD, await alive(d)], [200, false, false, [true, true, true]]);
+}
+
 console.log("Sessions stop a year after sign-in");
 {
   const u = await createUser("Old", "old@example.com", "hunter22", "user");

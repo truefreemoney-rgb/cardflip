@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { LIMITS, clientIp } from "@/lib/server/rateLimit";
 import { limitOrRespondShared } from "@/lib/server/rateLimitDb";
 import { consumeLink, limitWithMessage, peekLink } from "@/lib/server/emailVerify";
-import { createSession, sessionCookieOptions } from "@/lib/server/sessions";
+import { createSession, destroyOtherSessions, getSessionUserId, sessionCookieOptions } from "@/lib/server/sessions";
 import { SESSION_COOKIE, signOutOtherDevices } from "@/lib/server/auth";
-import { findUserById } from "@/lib/server/users";
+import { dropPassword, findUserById } from "@/lib/server/users";
 import { setHomeCookie } from "@/lib/homeCookie";
 
 /**
@@ -48,6 +49,19 @@ async function confirmed(result: Extract<Awaited<ReturnType<typeof consumeLink>>
   // #31: an established account's sign-in email just moved: every other device signs in again. A browser already
   // signed in to this account keeps its seat; the link opened anywhere else signs all of them out.
   if (result.moved) await signOutOtherDevices(result.userId);
+  // Audit #2 (10-19, Chris yes): anyone can sign up with someone else's address and pick the password. The inbox owner
+  // confirming from a browser that is NOT the signup's must not leave that password and its sessions working, or the
+  // stranger walks into the owner's account. So a fresh lift from elsewhere drops the typed password and every
+  // session; this browser is signed in below (Forgot Password / Account "Set a password" set a new one). The signup's
+  // own browser keeps both: it proved nothing new, but it is the one that typed them.
+  if (!result.already && result.signIn) {
+    const mine = (await cookies()).get(SESSION_COOKIE)?.value ?? null;
+    const sameBrowser = mine != null && (await getSessionUserId(mine)) === result.userId;
+    if (!sameBrowser) {
+      await dropPassword(result.userId);
+      await destroyOtherSessions(result.userId, null);
+    }
+  }
   const user = result.signIn ? await findUserById(result.userId) : null;
   if (!user) return NextResponse.json({ ...body, signedIn: false });
   const session = await createSession(user.id);
