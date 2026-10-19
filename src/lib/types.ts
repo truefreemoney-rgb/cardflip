@@ -252,7 +252,11 @@ export const LOW_CONFIDENCE = 0.6;
  * matchDoubt keeps the reason for the admin side.
  */
 export function shownDoubt(doubt: string | null | undefined): string | null {
-  return doubt && !doubt.startsWith("low-confidence read") ? doubt : null;
+  // "printing swap" (the second look moved the match to a sister printing,
+  // e.g. Vivillon → High Plains) is hidden too: cut off on a phone and worded
+  // for the developer (Chris 10-19: "drop it"); the card still lands in
+  // "Check these first", with the photo beside the matched card.
+  return doubt && !doubt.startsWith("low-confidence read") && !doubt.startsWith("printing swap") ? doubt : null;
 }
 /** Below this the read is noise, not a card — the scanner asks for a retake
  *  instead of matching a stray word (09-03: "Unknown" at 5% → Unknown Shores). */

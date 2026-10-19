@@ -63,6 +63,13 @@ export function useBackToClose(id: string, onClose: () => void, open = true): vo
       // Every open sheet hears every popstate (CategorySheet stacks over
       // CardDetailModal); only the one whose entry just left the top closes.
       if (isMarker(marker)) return;
+      // A marker pushed AFTER mine is still on top: a layer above me closed,
+      // not me. Three deep (camera → result sheet → "This copy"), Done on the
+      // top sheet left the result sheet's entry on top, and the camera read
+      // "not my marker" as "I was popped" and closed itself — straight into
+      // "Which category?" and the editor (Chris's phone check, 10-19).
+      const top = currentMarker();
+      if (top && top.t >= marker.t) return;
       popped = true;
       onCloseRef.current();
     };

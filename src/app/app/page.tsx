@@ -889,7 +889,7 @@ export default function AppPage() {
                   if (!now?.card || now.card.id !== picked.id || now.verifiedAt || now.status === "listed" || now.status === "sold") return;
                   const other = shown.find((m) => m.id === winner);
                   if (!other) return;
-                  swapCard(next.id, other, shown, `the photo looks more like this printing than ${picked.setName}`);
+                  swapCard(next.id, other, shown, `printing swap: the photo looks more like this printing than ${picked.setName}`);
                 });
               }
               // Persist the seller's own photo now, not at eBay-push time.

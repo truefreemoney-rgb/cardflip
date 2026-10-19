@@ -50,7 +50,11 @@ export default function CopyEditSheet({ item, onChange, onApplyConditionToAll, w
       !(firstEdEligible && isFirstEditionVariant(p.variant)) &&
       all.findIndex((q) => q.variant === p.variant) === i,
   );
-  const variant = effectiveVariant(item) ?? pickPrice(card)?.variant;
+  // The default pick is made among the PRINTINGS on offer, not the whole
+  // card: once eBay comps land, pickPrice(card) prefers the eBay row, whose
+  // variant matches no pill, so no printing ever showed as picked (10-19,
+  // Chris's phone check: Master Ball / Normal / Poké Ball / Reverse all off).
+  const variant = effectiveVariant(item) ?? pickPrice({ ...card, prices: printings })?.variant ?? pickPrice(card)?.variant;
   // The Near Mint market this copy's printing is priced from; each
   // condition chip shows it through the condition multiplier.
   const base = printings.find((p) => p.variant === variant)?.market ?? pickPrice(card)?.market ?? null;
