@@ -622,6 +622,11 @@ console.log("10-16: a week whose start sat on a parked listing is no move (Alpha
 // Magic's 10-14 price cap: no Magic "this week" move while a 7-day window spans it; other games and later days unaffected.
 check("Magic moves paused 10-16 (window spans the 10-14 cap)", (await topMovers("mtg", "2026-10-16")).length, 0);
 check("Magic moves paused through 10-20", (await topMovers("mtg", "2026-10-20")).length, 0);
+// Pokémon's 10-16/10-17 listing cap, same pause (10-19: the 7am "price drops" was all cap cuts, Dragonair 1st Ed $198 -> $29).
+check("Pokemon dips paused 10-19 (window spans the 10-17 cap)", (await topMovers("pokemon", "2026-10-19", { direction: "down" })).length, 0);
+check("Pokemon moves paused through 10-23", (await topMovers("pokemon", "2026-10-23")).length, 0);
+check("Pokemon 6-day fallback paused 10-22", (await topMovers("pokemon", "2026-10-22", { days: 6 })).length, 0);
+check("the pause never reaches back before the cap (09-10 Pokemon moves still read)", (await topMovers("pokemon", TODAY)).length > 0, true);
 
 if (failures) { console.log(`\n${failures} failing`); process.exit(1); }
 console.log("\nall green");
