@@ -4,6 +4,11 @@
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
 
+## 10-19 ~10:30am ET: sign-up takeover closed (94efdbb4) + cap-break history (99159765), COMMIT ONLY
+- After push, takeover: sign up a throwaway test account in one browser (pane, local-dev values only, never a real inbox of Chris's), open its confirm link in another (curl POST /api/auth/confirm-email): that browser is signed in, the first browser's session is gone, the typed password no longer logs in, Forgot Password still works. Same browser: password + session stay.
+- After push, cap break: /cards/pokemon/hidden-legends/groudon-ex--ex5-93 has no "Down 62.6%", no $313.01 high sentence, badge still "Solid price · 153 days of data", line "CardFlip's price for this card got more accurate on Oct 16, 2026". Card pages are ISR-cached 48 h: recheck a cached one on ~10-21.
+- After push: next Sunday mail / card alerts / Insights list no Pokémon (10-16/10-18) or Magic (10-13) cap cut as a move.
+
 ## 10-19 ~8:30am ET: morning checks (TASKS-10-18 #7/#24/#25/#33)
 - [x] #7 PASS: 27 of 32 price_checked rows got tcg_day 10-19; base1-4 ($600 vs TCGplayer $724.99) + Lorcana crd_a08f… ($134 vs $122) retired themselves (within 25%, as designed). The 5 without a 10-19 note (Blaze 98fba951, ygo-38633/476972/78081/92623) have NO TCGplayer point since 10-13 = nothing to note; their check holds.
 - [x] #24 PASS: Production smoke green 10-18 23:45 UTC, 10-19 02:07 + 07:42 UTC (the 21:51 failure was our own country gate, fixed d9118805).
