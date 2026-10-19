@@ -468,8 +468,10 @@ export function postArtUrl(game: GameId, imageUrl: string): string {
  * The usual way is a hand eBay sold check on /admin/prices ("Post cards"): it fixes the price everywhere
  * (checkedPrices.ts) and the card sits out of posts while the check binds (postHolds). The 10-18 four (Snorlax xy0-26,
  * Brock's Ninetales gym2-3-1st, Minun hgssp-HGSS17, Rare Candy bw10-105) moved from here to price_checked.
+ * 10-19: Pot of Greed DB1-EN134 Super Rare $42.97 flat since 09-30 while TCGplayer's cheapest NM ask is $12 + $4.99
+ * (most of 31 listings Damaged at $11-23): the 1pm head to head. Move to price_checked once eBay sold is read.
  */
-const SOCIAL_PRICE_HOLD = new Set<string>([]);
+const SOCIAL_PRICE_HOLD = new Set<string>(["yugioh:ygo-23670"]);
 
 /** Card ids of a game that sit out of posts: the hand list plus every card with a binding eBay sold check. */
 async function postHolds(game: GameId): Promise<Set<string>> {
@@ -798,6 +800,7 @@ async function stageMovers(game: GameId): Promise<Mover[]> {
   const { getGameStageCards } = await import("@/lib/server/stageCards");
   const cards = (await getGameStageCards(game)).cards.filter((c) => c.imageUrl && c.price != null && c.price > 0);
   const pool = game === "onepiece" ? cards.filter((c) => c.lead) : cards;
+  const held = await postHolds(game);
   const out: Mover[] = [];
   for (const c of pool) {
     // The stage's own id first: Yu-Gi-Oh! RA03-EN244 is a $5.25 Platinum and a $53.19 Quarter Century Secret, and the
@@ -805,6 +808,8 @@ async function stageMovers(game: GameId): Promise<Mover[]> {
     const row = c.id
       ? { id: c.id }
       : ((await db.prepare("SELECT id FROM tcg_cards WHERE game = ? AND set_name = ? AND collector_number = ? LIMIT 1").get(game, c.setName, c.number)) as { id: string } | undefined);
+    // A held card sits out here too: head to head and the all-games leads read this pool, not topMovers.
+    if (row && held.has(row.id)) continue;
     out.push({ cardId: row?.id ?? `${game}:${c.setName}:${c.number}`, name: displayName(c.name), setName: cleanSet(c.setName), number: c.number, imageUrl: c.imageUrl, variant: "", from: c.price as number, to: c.price as number, pct: 0, unsettled: true });
   }
   return out;

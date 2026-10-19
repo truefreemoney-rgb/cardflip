@@ -580,6 +580,16 @@ await tcg("lc-2", "lorcana", "Mickey Mouse", "TFC", "The First Chapter", "1", 40
 await db.prepare("INSERT OR REPLACE INTO card_cache (key, payload, cached_at) VALUES (?, ?, ?)").run("stage:v15:lorcana", JSON.stringify([stg("Elsa", "The First Chapter", "42", 61, { lead: true }), stg("Mickey Mouse", "The First Chapter", "1", 40)]), Date.now());
 const pL = await SOC.pair("lorcana", A);
 check("TCG head to head: by price, the dearer card wins, the verdict says so", [pL.byPrice, [pL.a.cardId, pL.b.cardId].sort(), [pL.a, pL.b][pL.winner].cardId, SOC.versusVerdict(pL), SOC.versusCaption("lorcana", pL).split("\n")[0].endsWith("Which is worth more?")], [true, ["lc-1", "lc-2"], "lc-1", "Elsa is worth more today: $61.00 to $40.00.", true]);
+// 10-19: a held card (SOCIAL_PRICE_HOLD yugioh:ygo-23670, Pot of Greed DB1 $42.97 vs a $12 NM ask) never reaches the
+// head to head; the stage's own id names the printing (Slifer RA03-EN244: $5.25 Platinum vs $53.19 Quarter Century).
+await tcg("ygo-23670", "yugioh", "Pot of Greed", "DB1", "Dark Beginning 1", "DB1-EN134", 42.97);
+await tcg("ygo-593096-1st", "yugioh", "Slifer the Sky Dragon", "RA03", "Quarter Century Bonanza", "RA03-EN244", 5.25);
+await tcg("ygo-593097-1st", "yugioh", "Slifer the Sky Dragon", "RA03", "Quarter Century Bonanza", "RA03-EN244", 53.19);
+await tcg("ygo-t3", "yugioh", "Dark Magician", "LOB", "Legend of Blue Eyes", "LOB-005", 30);
+await db.prepare("INSERT OR REPLACE INTO card_cache (key, payload, cached_at) VALUES (?, ?, ?)").run("stage:v15:yugioh", JSON.stringify([stg("Pot of Greed", "Dark Beginning 1", "DB1-EN134", 42.97, { lead: true }), { ...stg("Slifer the Sky Dragon", "Quarter Century Bonanza", "RA03-EN244", 53.19), id: "ygo-593097-1st" }, stg("Dark Magician", "Legend of Blue Eyes", "LOB-005", 30)]), Date.now());
+const pY = await SOC.pair("yugioh", A);
+check("a held card sits out of the head to head; the stage id names the dearer Slifer", [pY.a.cardId, pY.b.cardId].sort(), ["ygo-593097-1st", "ygo-t3"]);
+await db.prepare("INSERT OR REPLACE INTO card_cache (key, payload, cached_at) VALUES (?, ?, ?)").run("stage:v15:yugioh", JSON.stringify(STAGES["stage:v15:yugioh"]), Date.now());
 check("Yu-Gi-Oh's caption says Yu-Gi-Oh without the exclamation mark", SOC.guessCaption("yugioh", [{ ...gL, name: "Dark Magician" }]).includes("Yu-Gi-Oh:") && !SOC.guessCaption("yugioh", [gL]).includes("!"), true);
 
 // The drafts: every angle rides the Pokémon loop with its own game; nothing posts them (no slot names them) but the words and pictures are ready.
