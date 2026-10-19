@@ -19,6 +19,8 @@ import { gameOf, type CardPrice, type GameId, type PokemonCard } from "@/lib/typ
  */
 
 export interface StageCard {
+  /** The catalog row the price and picture came from (mirror games): one number can carry several rarities (10-19). */
+  id?: string;
   name: string;
   setName: string;
   number: string;
@@ -188,8 +190,8 @@ export const GAME_ICONS: Record<OtherGame, string[]> = {
   onepiece: ["Monkey.D.Luffy", "Roronoa Zoro", "Shanks", "Nami", "Trafalgar Law", "Portgas.D.Ace", "Boa Hancock", "Sanji", "Kaido", "Nico Robin"],
 };
 
-type GameRow = { name: string; set_name: string; collector_number: string; image_url: string; own_image_url: string; price_usd: number };
-const ROW_COLS = "name, set_name, collector_number, image_url, own_image_url, price_usd";
+type GameRow = { id: string; name: string; set_name: string; collector_number: string; image_url: string; own_image_url: string; price_usd: number };
+const ROW_COLS = "id, name, set_name, collector_number, image_url, own_image_url, price_usd";
 // Magic's price guard (priceTrust test 1, in SQL, shared with mtgShowcase): Scryfall's Cardmarket price is on the row,
 // so a TCGplayer price >= 5x it (EUR at 1.10; 4x under $100) is junk. A missing or sub-EUR 1 Cardmarket price is no referee.
 const MTG_REFEREE = MTG_REFEREE_SQL;
@@ -251,7 +253,7 @@ async function buildGame(game: OtherGame): Promise<StageCard[]> {
       const key = r.name.toLowerCase();
       if (seen.has(key)) continue;
       seen.add(key);
-      out.push({ name: r.name, setName: r.set_name, number: r.collector_number, imageUrl: toPics(r.own_image_url || large(r.image_url)), price: r.price_usd });
+      out.push({ id: r.id, name: r.name, setName: r.set_name, number: r.collector_number, imageUrl: toPics(r.own_image_url || large(r.image_url)), price: r.price_usd });
       if (out.length === STAGE_CARDS) break;
     }
     if (out[0]) out[0].lead = true;

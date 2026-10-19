@@ -800,7 +800,11 @@ async function stageMovers(game: GameId): Promise<Mover[]> {
   const pool = game === "onepiece" ? cards.filter((c) => c.lead) : cards;
   const out: Mover[] = [];
   for (const c of pool) {
-    const row = (await db.prepare("SELECT id FROM tcg_cards WHERE game = ? AND set_name = ? AND collector_number = ? LIMIT 1").get(game, c.setName, c.number)) as { id: string } | undefined;
+    // The stage's own id first: Yu-Gi-Oh! RA03-EN244 is a $5.25 Platinum and a $53.19 Quarter Century Secret, and the
+    // number lookup named the wrong one (10-19 1pm head to head). The lookup stays for stage copies cached before ids.
+    const row = c.id
+      ? { id: c.id }
+      : ((await db.prepare("SELECT id FROM tcg_cards WHERE game = ? AND set_name = ? AND collector_number = ? LIMIT 1").get(game, c.setName, c.number)) as { id: string } | undefined);
     out.push({ cardId: row?.id ?? `${game}:${c.setName}:${c.number}`, name: displayName(c.name), setName: cleanSet(c.setName), number: c.number, imageUrl: c.imageUrl, variant: "", from: c.price as number, to: c.price as number, pct: 0, unsettled: true });
   }
   return out;
