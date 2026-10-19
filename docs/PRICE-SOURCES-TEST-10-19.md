@@ -33,3 +33,25 @@ Not measurable / not independent:
 eBay sold / asking: never a base. Stays as the "vs N listings" comparison and the referee for catching a WRONG catalog number.
 
 Scripts: scripts/_ct-vs-tcg-measure.mjs (CardTrader, live, read-only), scripts/_cm-vs-tcg-measure.mjs (Magic), scripts/_cm-pokemon-measure.mjs (Pokémon; _ scripts stay untracked) and scratch ck-vs-tcg.mjs (local mirror; Card Kingdom list = https://api.cardkingdom.com/api/pricelist, 47 MB, public). Data: data/ct-vs-tcg-measure.json.
+
+## The other games (measured 10-19 ~8:20pm ET, local mirror)
+
+TCGplayer (tcgcsv) prices the whole catalog for the three small games, so there is almost nothing for a backup to fill:
+
+| Game | Catalog cards | No TCGplayer price | No series at all |
+|---|---|---|---|
+| Yu-Gi-Oh! | 59,991 | 0 | 159 |
+| One Piece | 5,549 | 0 | 214 |
+| Lorcana | 3,505 | 0 | 29 |
+| Pokémon | 22,200 | 112 (0.5%) | 65 |
+| Magic (English) | 99,080 | 1,937 (2.0%) | 1,498 |
+
+Independent second opinions for Yu-Gi-Oh!, One Piece, Lorcana: none worth ranking. Our stored CardTrader / Cardmarket rows for them are a few dozen fills for cards TCGplayer once missed (YGO 89 + 38 pairs, Lorcana 17 + 52, One Piece 0) and they agree with TCGplayer on fewer than 1 card in 5. Card Kingdom is Magic only. So those games get the short chain.
+
+## Chain per game
+
+- Magic: TCGplayer > own 30-day TCGplayer median > Cardmarket x1.12 > Card Kingdom retail /1.24 > CardTrader > unsure.
+- Pokémon, Yu-Gi-Oh!, One Piece, Lorcana: TCGplayer > own 30-day TCGplayer median > CardTrader or Cardmarket (last resort, today's fills, unchanged) > unsure.
+- Every game: eBay sold never a base; hand-checked prices (checkedPrices) keep winning as today.
+
+Scripts: scripts/_other-games-measure.mjs, scripts/_unpriced-by-game.mjs (read-only, untracked).
