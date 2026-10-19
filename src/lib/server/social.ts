@@ -469,10 +469,10 @@ export function postArtUrl(game: GameId, imageUrl: string): string {
  * The usual way is a hand eBay sold check on /admin/prices ("Post cards"): it fixes the price everywhere
  * (checkedPrices.ts) and the card sits out of posts while the check binds (postHolds). The 10-18 four (Snorlax xy0-26,
  * Brock's Ninetales gym2-3-1st, Minun hgssp-HGSS17, Rare Candy bw10-105) moved from here to price_checked.
- * 10-19: Pot of Greed DB1-EN134 Super Rare $42.97 flat since 09-30 while TCGplayer's cheapest NM ask is $12 + $4.99
- * (most of 31 listings Damaged at $11-23): the 1pm head to head. Move to price_checked once eBay sold is read.
+ * 10-19: Pot of Greed DB1-EN134 ($42.97) was held here by mistake and taken back the same morning: its one $12 "NM"
+ * listing came from a 0%-feedback seller, TCGplayer's own cheapest listing was $44.17, played copies $25-31.
  */
-const SOCIAL_PRICE_HOLD = new Set<string>(["yugioh:ygo-23670"]);
+const SOCIAL_PRICE_HOLD = new Set<string>([]);
 
 /** Card ids of a game that sit out of posts: the hand list plus every card with a binding eBay sold check. */
 async function postHolds(game: GameId): Promise<Set<string>> {
