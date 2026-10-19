@@ -4,6 +4,13 @@
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
 
+## 10-19 ~12:45am ET: 84732733 Pokémon moves pause (cap 10-16/10-17) + 709c36a5 stage cards carry their id (UNPUSHED until Chris says)
+- [ ] After push: re-render 7am (social-post.yml tiktok=1 tiktok_day=2026-10-19 tiktok_slots=morning tiktok_force=1); new social_tiktok:morning:2026-10-19 row is NOT Pokémon dips; every card on it sane vs its own 30-day series.
+- [ ] 7:05am posts (`node scripts/_social-log-today.mjs`): no "Pokémon price drops"; slot did post (fallback kind).
+- [ ] Next head to head / all-games video with a YGO stage card: frozen cardId's tcg_cards.price_usd == the price on the video.
+- [ ] 10-25: Pokémon movers/dips are back (pause ends 10-24); then remove the CAP_PAUSES entries (Magic after 10-21 too).
+- [ ] OPEN: 106 Pokémon card pages show a cap cut as "Down 60-80%" (data/crash-2026-10-19.json): decide the fix.
+
 ## 10-18 ~7:20pm ET: PUSHED 3bd3e4b6 (24 commits: trackers out of /app, PriceCharting fence, log cleanup in tcg-prices cron, referee matcher fixes incl. Japan Showcase, no owner [COPY] mails, Sunday mail averages line + checked cards out)
 - [x] PASS CI run 39175798774 + Vercel success + Production smoke after deploy (39175866229) green.
 - [ ] Tue 10-20 10am ET "scans" mail run: email_sends has NO status 'copy' row; Chris gets no [COPY].
