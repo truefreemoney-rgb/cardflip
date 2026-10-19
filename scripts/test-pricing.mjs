@@ -473,9 +473,9 @@ console.log("\nThe chart's current-day point rebases the quote:");
     costCoveredPrice(414.99, "tracked"),
   );
   check(
-    "real eBay sales still win over the chart",
+    "TCGplayer's chart point outranks eBay sold (Chris 10-19: eBay bakes in fees + postage)",
     quotePrice({ ...card, prices: [ebaySold, ...card.prices] }, "Near Mint", "market", undefined, point(472.63)).base,
-    480,
+    472.63,
   );
   check(
     "an explicit same-series pick is refreshed to today",

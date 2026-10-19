@@ -339,11 +339,13 @@ export function withEbayPrices(
 /**
  * The variant we quote by default, or null when the card has no pricing.
  *
- * Source order is deliberate. Sold prices come first because they're the only
- * number here that reflects a completed transaction. TCGplayer's market is
- * next. An eBay asking average says what sellers hope for, including the
- * ones whose cards never sell, so it quotes only when nothing else does
- * (Chris 10-19). Cardmarket is last (EUR, a different regional market).
+ * Source order is deliberate. TCGplayer's market comes first: it is the
+ * card's value before any marketplace cut. eBay sold is next, but an eBay
+ * price carries the buyer's postage and the seller's fee cushion, and the
+ * suggested listing price adds those on top again (Chris 10-19). An eBay
+ * asking average says what sellers hope for, including the ones whose cards
+ * never sell, so it quotes only when nothing else does. Cardmarket is last
+ * (EUR, a different regional market).
  */
 export function pickPrice(card: PokemonCard): CardPrice | null {
   const priced = card.prices.filter(
@@ -358,17 +360,24 @@ export function pickPrice(card: PokemonCard): CardPrice | null {
   const byVariant = (variant: string) =>
     priced.filter((p) => p.variant === variant);
 
-  // eBay sold > TCGplayer > eBay asking (Chris 10-19, "TCGplayer first"):
-  // an asking average is what sellers hope for, not a sale, so it only
-  // quotes when there is no market price at all.
+  // TCGplayer > eBay sold > eBay asking (Chris 10-19): eBay prices "are
+  // always going to be higher and wrong because they bake in the eBay fees
+  // and shipping", and the suggested listing price adds fees and postage on
+  // top again, so an eBay base would count them twice. eBay rows quote only
+  // when TCGplayer has no market the guard believes and that still moves: a
+  // flagged row never outranks real sales (the quote would be null), and a
+  // 45+ day flat one is a thin market where the sales are the better read.
+  const tcgLive = priced.filter((p) => p.source === "tcgplayer" && !p.untrusted && !p.stale);
   const pool =
-    byVariant(EBAY_SOLD_VARIANT).length > 0
-      ? byVariant(EBAY_SOLD_VARIANT)
-      : priced.filter((p) => p.source === "tcgplayer").length > 0
-        ? priced.filter((p) => p.source === "tcgplayer")
+    tcgLive.length > 0
+      ? tcgLive
+      : byVariant(EBAY_SOLD_VARIANT).length > 0
+        ? byVariant(EBAY_SOLD_VARIANT)
         : byVariant(EBAY_VARIANT).length > 0
           ? byVariant(EBAY_VARIANT)
-          : priced;
+          : priced.filter((p) => p.source === "tcgplayer").length > 0
+            ? priced.filter((p) => p.source === "tcgplayer")
+            : priced;
 
   for (const variant of VARIANT_PRIORITY) {
     const hit = pool.find((p) => p.variant === variant);
