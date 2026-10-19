@@ -49,7 +49,7 @@
 32. [you] Pictures for 3 One Piece cards (Boa Hancock DON!! EB-03, Boa Hancock Gold, Luffy P-700 promo).
 33. [me] 10-19: nightly catalog upload sends only changed rows; new cards appear on the site.
 34. [you] Magic + Pokémon catalog updates still run from your PC (move them off it?).
-35. [me] Lorcana "Coconut" set pictures after it releases.
+35. [me] Lorcana "Coconut" set pictures after it releases. (10-19: still Lorcast's grey "FOR BETA TEST ONLY" scans on all 24 cards, same as our copies; a beta format, no real printing yet. Recheck ~11-01.)
 
 ## G. Social, marketing, SEO
 36. [me] Every day: 3 posts, every card checked against eBay sold before it goes out.
