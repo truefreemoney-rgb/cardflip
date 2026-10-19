@@ -67,7 +67,7 @@ ON HOLD 10-19 (Chris: the $99/yr Apple account is not affordable right now): 14 
 ## H. Your decisions (no rush)
 45. DECIDED 10-19 (Chris "1"): LEAVE the ~916 unpriced old cards in (scanner names the exact card + "no price yet"; hiding risks a wrong look-alike price; PriceCharting may price some).
 46. A stronger Pokémon price-limit check?
-47. Support ticket photos: allow gallery photos, or camera only?
+47. DECIDED 10-19 (Chris "1"): help-ticket photos may come from the gallery (screenshots); cards stay camera-only. No code change.
 48. DONE 10-19 (Chris "1", then "1" again after hearing the cost): sign-up takeover closed, 94efdbb4 (commit only).
 46. PARKED 10-19 with the YGO cap until PriceCharting is in (Pokémon cap already live since 10-16/17).
 49. Parked: invite a friend, sales tax estimate, auto-scan, reveal sounds, "Mark sold" on Live rows, shipping tier line, Jenny's trial size.
