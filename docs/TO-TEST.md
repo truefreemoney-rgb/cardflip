@@ -831,3 +831,8 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 - Game picker shows cards per game (pill 'Pokemon · 6', options 'Magic (0)'). Check on phone: pill fits beside the search box at 375px.
 - Game with 0 watched cards: 'No Magic cards on your watchlist.' + 'Show Pokemon (6)' button switches the list. Filter text that matches nothing still says 'Nothing matches that filter.'
 - Totals strip open: 'Alerts' label clear of the fold chevron (desktop). Phone layout unchanged.
+
+## 10-19 s199 (unpushed; test on prod after the push)
+- [ ] a34a418f Scanner: scan a card with several printings, open the big card sheet, tap Change: one Printing pill is highlighted; tap Done: still inside the scanner (no category / editor jump). Scan an orange Vivillon 17/146: no yellow note under it in the queue, still under "Check these first". (Passed on the tunnel 10-19 ~7:30pm.)
+- [ ] 9bb74143 Price pick TCGplayer first: on a card with live eBay comps, the row's market price and "List it at" come from TCGplayer, not the eBay sold/asking average; a card whose TCGplayer row is flagged still quotes eBay sold.
+- [ ] 10-20 morning: cardflip.io/cards/pokemon/base-set/charizard--base1-4 shows ~$600 + "Checked against recent eBay sales" and the "Price looks wrong?" link under the price (2-day cache).
