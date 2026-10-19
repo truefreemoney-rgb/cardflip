@@ -488,14 +488,14 @@ console.log("\nThe chart's current-day point rebases the quote:");
     520.47,
   );
   check(
-    "a stale point (8 days old) is history, not the current price",
+    "a stale point (8 days old) is history, not the current price (TCGplayer default, 10-19)",
     quotePrice(card, "Near Mint", "market", undefined, point(472.63, { day: day(8 * DAY_MS) })).base,
-    520.47,
+    486.2,
   );
   check(
     "a euro point never sets a dollar price",
     quotePrice(card, "Near Mint", "market", undefined, point(400, { currency: "EUR", source: "cardmarket", variant: "average" })).base,
-    520.47,
+    486.2,
   );
   // 09-30 cheap cards (Chris: "start with the total cost of fees and postage
   // then attach the tcg price of the card on top"): under $5 the suggested
@@ -608,9 +608,9 @@ console.log("\nThe chart's current-day point rebases the quote:");
     costCoveredPrice(85, "tracked"), // $100 is over the $20 envelope cap, so USPS tracked. Chris 10-08: fees + postage on every card (COSTS_ON_EVERY_CARD)
   );
   check(
-    "no point → unchanged behaviour",
+    "no point → TCGplayer outranks the eBay asking average (Chris 10-19: sold > TCGplayer > asking)",
     quotePrice(card, "Near Mint", "market"),
-    { price: ebayAsk, base: 520.47, suggested: costCoveredPrice(520.47, "tracked"), floored: true, covers: 520.47, shipping: "tracked" },
+    { price: card.prices[1], base: 486.2, suggested: costCoveredPrice(486.2, "tracked"), floored: true, covers: 486.2, shipping: "tracked" },
   );
 }
 

@@ -340,10 +340,10 @@ export function withEbayPrices(
  * The variant we quote by default, or null when the card has no pricing.
  *
  * Source order is deliberate. Sold prices come first because they're the only
- * number here that reflects a completed transaction — an asking average says
- * what sellers hope for, including the ones whose cards never sell. Asking
- * comes next since it's still eBay, then TCGplayer, then Cardmarket last
- * (EUR, and a different regional market than the seller is listing into).
+ * number here that reflects a completed transaction. TCGplayer's market is
+ * next. An eBay asking average says what sellers hope for, including the
+ * ones whose cards never sell, so it quotes only when nothing else does
+ * (Chris 10-19). Cardmarket is last (EUR, a different regional market).
  */
 export function pickPrice(card: PokemonCard): CardPrice | null {
   const priced = card.prices.filter(
@@ -358,13 +358,16 @@ export function pickPrice(card: PokemonCard): CardPrice | null {
   const byVariant = (variant: string) =>
     priced.filter((p) => p.variant === variant);
 
+  // eBay sold > TCGplayer > eBay asking (Chris 10-19, "TCGplayer first"):
+  // an asking average is what sellers hope for, not a sale, so it only
+  // quotes when there is no market price at all.
   const pool =
     byVariant(EBAY_SOLD_VARIANT).length > 0
       ? byVariant(EBAY_SOLD_VARIANT)
-      : byVariant(EBAY_VARIANT).length > 0
-        ? byVariant(EBAY_VARIANT)
-        : priced.filter((p) => p.source === "tcgplayer").length > 0
-          ? priced.filter((p) => p.source === "tcgplayer")
+      : priced.filter((p) => p.source === "tcgplayer").length > 0
+        ? priced.filter((p) => p.source === "tcgplayer")
+        : byVariant(EBAY_VARIANT).length > 0
+          ? byVariant(EBAY_VARIANT)
           : priced;
 
   for (const variant of VARIANT_PRIORITY) {
