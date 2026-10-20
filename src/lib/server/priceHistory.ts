@@ -5,7 +5,7 @@ import { searchEnglishCardsLocal, enrichWithPricing, hasEnglishMirror } from "@/
 import { normalizeNumber } from "@/lib/cardNumber";
 import { type HistorySeries, summarize } from "@/lib/priceHistoryStats";
 import { decodePrices, encodePrices, setDay, todayUtc } from "@/lib/priceSeries";
-import { cleanSeriesPoints, fromCapBreak } from "@/lib/priceOutliers";
+import { cleanSeriesPoints, fromSeriesBreak } from "@/lib/priceOutliers";
 import { correctPoint } from "@/lib/server/checkedPrices";
 
 export { summarize, todayUtc };
@@ -97,8 +97,8 @@ export async function getPriceHistory(cardId: string): Promise<HistorySeries[]> 
     .all(cardId)) as unknown as { variant: string; source: string; currency: string; game: string; start_day: string; prices: string }[];
   return rows.map((r) => {
     const all = cleanSeriesPoints({ startDay: r.start_day, prices: decodePrices(r.prices) });
-    // The chart and its % start at a listing-cap break; the badge still counts every recorded day (lib/priceOutliers.ts).
-    const points = r.source === "tcgplayer" ? fromCapBreak(all, r.game) : all;
+    // The chart and its % start at a row's break: a TCGplayer cap cut, a Cardmarket-converted lift (lib/priceOutliers.ts); the badge still counts every recorded day.
+    const points = fromSeriesBreak(all, r.source, r.game);
     return { variant: r.variant, source: r.source, currency: r.currency, game: r.game, points, ...(points.length < all.length ? { dataDays: all.length } : {}) };
   });
 }

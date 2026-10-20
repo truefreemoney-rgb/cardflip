@@ -178,5 +178,22 @@ check("null name", tcgplayerProductPattern(null), null);
   check("historyStart = first priced day otherwise", historyStart({ startDay: "2026-10-01", prices: [null, 5, 5] }, "pokemon"), "2026-10-02");
 }
 
+// ---- 10-20: the Cardmarket lift (priceChain 1.12, first fill 10-20) is a break on cardmarket-converted rows, the way a cap cut is on TCGplayer rows ----
+{
+  const { LIFT_BREAK_DAYS, liftBreakDay, seriesBreakDay, fromSeriesBreak, seriesCapBreak, historyStart } = await import("../src/lib/priceOutliers.ts");
+  check("lift day = the first lifted fill", LIFT_BREAK_DAYS, { mtg: ["2026-10-20"] });
+  // Black Lotus Beta (prod): $25,121.77 to 10-19, $28,229.24 from 10-20 (x1.124).
+  const lotus = { startDay: "2026-10-14", prices: [25121.77, 25121.77, 25121.77, 25121.77, 25121.77, 25121.77, 28229.24], source: "cardmarket-converted" };
+  check("a 12% step on the lift day is the break", liftBreakDay(toPoints(lotus), "mtg"), "2026-10-20");
+  check("seriesCapBreak reads it for a cardmarket-converted row", seriesCapBreak(lotus, "mtg"), "2026-10-20");
+  check("historyStart = the lift day", historyStart(lotus, "mtg"), "2026-10-20");
+  check("the chart starts at the lift", fromSeriesBreak(toPoints(lotus), "cardmarket-converted", "mtg").map((p) => p.day), ["2026-10-20"]);
+  check("a TCGplayer row is not cut by the lift day", seriesBreakDay(toPoints(lotus), "tcgplayer", "mtg"), null);
+  check("Pokémon has no lift", seriesCapBreak({ ...lotus }, "pokemon"), null);
+  check("a 25% rise on the lift day is a move, not the lift", liftBreakDay(toPoints({ startDay: "2026-10-19", prices: [100, 125] }), "mtg"), null);
+  check("a 12% rise on another day is a move", liftBreakDay(toPoints({ startDay: "2026-10-17", prices: [100, 112, 112, 112] }), "mtg"), null);
+  check("a cardtrader row never breaks", seriesBreakDay(toPoints(lotus), "cardtrader", "mtg"), null);
+}
+
 console.log(failures === 0 ? "\nAll price-history checks passed" : `\n${failures} price-history check(s) failed`);
 process.exit(failures === 0 ? 0 : 1);

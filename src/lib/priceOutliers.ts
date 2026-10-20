@@ -82,10 +82,49 @@ export function capBreakDay(points: readonly HistoryPoint[], game: string | unde
   return found;
 }
 
-/** capBreakDay of a stored series row. Only TCGplayer numbers were capped: a row that names another source has none. */
+/**
+ * Days OUR pricing rule LIFTED a game's Cardmarket-converted numbers (lib/priceChain.ts CARDMARKET_LIFT, built 10-19,
+ * first nightly fill 10-20): 618 of 708 Magic cardmarket-converted series stepped up 10-14% on 10-20 (Black Lotus Beta
+ * $25,121 -> $28,229, the app's chart said "up 12.4%"). The same read as the caps, the other way round.
+ */
+export const LIFT_BREAK_DAYS: Readonly<Record<string, readonly string[]>> = { mtg: ["2026-10-20"] };
+/** A point on a lift day this far (ratio) over the one before it is the lift, not a move. */
+export const LIFT_BREAK_RANGE: readonly [number, number] = [1.08, 1.16];
+/** The one source the lift touched. */
+export const LIFT_SOURCE = "cardmarket-converted";
+
+/** The last lift day a series stepped up on (its first point on that day or the next is 8-16% over the point before), or null. */
+export function liftBreakDay(points: readonly HistoryPoint[], game: string | undefined): string | null {
+  const days = game ? LIFT_BREAK_DAYS[game] : undefined;
+  let found: string | null = null;
+  for (const day of days ?? []) {
+    const i = points.findIndex((p) => p.day >= day);
+    if (i <= 0 || points[i].day > addDays(day, 1)) continue;
+    const r = points[i].price / points[i - 1].price;
+    if (r >= LIFT_BREAK_RANGE[0] && r <= LIFT_BREAK_RANGE[1]) found = points[i].day;
+  }
+  return found;
+}
+
+/** The break of a row by its source: TCGplayer rows break at a cap cut, Cardmarket-converted rows at the lift; other sources never. */
+export function seriesBreakDay(points: readonly HistoryPoint[], source: string | undefined, game: string | undefined): string | null {
+  if (!source || source === "tcgplayer") return game && CAP_BREAK_DAYS[game] ? capBreakDay(points, game) : null;
+  if (source === LIFT_SOURCE) return game && LIFT_BREAK_DAYS[game] ? liftBreakDay(points, game) : null;
+  return null;
+}
+
+/** The points from a row's break on (the whole series when it has none): fromCapBreak for any source. */
+export function fromSeriesBreak<T extends HistoryPoint>(points: T[], source: string | undefined, game: string | undefined): T[] {
+  const day = seriesBreakDay(points, source, game);
+  return day ? points.filter((p) => p.day >= day) : points;
+}
+
+/**
+ * The break day of a stored series row (seriesBreakDay): a TCGplayer row's cap cut, a Cardmarket-converted row's lift day
+ * (10-20), nothing for any other source. A row that names no source is read as TCGplayer.
+ */
 export function seriesCapBreak(series: { startDay: string; prices: (number | null)[]; source?: string }, game: string | undefined): string | null {
-  if (series.source && series.source !== "tcgplayer") return null;
-  return game && CAP_BREAK_DAYS[game] ? capBreakDay(toPoints(series), game) : null;
+  return seriesBreakDay(toPoints(series), series.source, game);
 }
 
 /**
