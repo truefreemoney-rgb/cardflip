@@ -1,5 +1,8 @@
 # To test later
 
+## 10-20 ~4:30pm ET: review 10-19 #20 db ready() forgets a failed schema run so the next query retries, COMMIT ONLY
+- After push: no visible change. Proof on the next Turso blip: a cold-start error (Vercel log 'schema' / 'initSchema' failure) is followed by healthy responses from the SAME instance on later requests instead of the same error until a recycle; local: npm run test:cards, test:queryplans, test:liveprices PASS 10-20.
+
 ## 10-20 ~4:30pm ET: review 10-19 #19 live refresh price move re-checks lock + status in the UPDATE, COMMIT ONLY
 - After push, signed in, Inventory: open the page (live refresh starts), immediately lock a draft's price (type one) or list/mark it sold; when the refresh lands the typed/listed/sold figure stays (prod check: that row's price in the DB = the typed one, price_locked = 1). Unlocked drafts still move to the market suggestion as before.
 

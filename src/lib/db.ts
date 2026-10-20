@@ -1401,7 +1401,15 @@ async function initSchema(): Promise<void> {
 
 /** Schema-ready gate — every query awaits this once per process. */
 function ready(): Promise<void> {
-  if (!globalForDb.__cardflipReady) globalForDb.__cardflipReady = initSchema();
+  if (!globalForDb.__cardflipReady) {
+    // A rejected run is forgotten so the next query retries (review 10-19 #20): cached, one Turso blip at cold start
+    // left that server instance answering every request with the same old error until it was recycled.
+    const run = initSchema();
+    globalForDb.__cardflipReady = run;
+    run.catch(() => {
+      if (globalForDb.__cardflipReady === run) globalForDb.__cardflipReady = undefined;
+    });
+  }
   return globalForDb.__cardflipReady;
 }
 
