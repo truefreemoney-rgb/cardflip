@@ -1,0 +1,10 @@
+import { createClient } from "@libsql/client";
+const l = createClient({ url: "file:data/cardflip.db" });
+const a = await l.execute({ sql: "SELECT id, set_code, set_name, variant, price_usd FROM tcg_cards WHERE game = ? AND id LIKE ? ORDER BY id", args: ["onepiece", "ST01-002%"] });
+console.log(JSON.stringify(a.rows));
+const b = await l.execute({ sql: "SELECT COUNT(*) n FROM tcg_cards WHERE game = ? AND id LIKE '%#%' AND id NOT LIKE '%#promo'", args: ["onepiece"] });
+console.log("hash-suffixed non-promo rows:", JSON.stringify(b.rows));
+const c = await l.execute({ sql: "SELECT set_code, set_name, COUNT(*) n FROM tcg_cards WHERE game = ? AND id NOT LIKE '%#%' AND substr(id, 1, instr(id, '-') - 1) <> set_code GROUP BY set_code, set_name ORDER BY n DESC LIMIT 8", args: ["onepiece"] });
+console.log("rows whose id prefix differs from set_code:", JSON.stringify(c.rows));
+const d = await l.execute({ sql: "SELECT set_code, set_name, COUNT(*) n FROM tcg_cards WHERE game = ? AND id NOT LIKE '%#%' GROUP BY set_code, set_name HAVING COUNT(*) < 5 ORDER BY set_code LIMIT 40", args: ["onepiece"] });
+console.log("tiny set groups:", d.rows.map((r) => `${r.set_code}|${r.set_name}|${r.n}`).join("\n"));

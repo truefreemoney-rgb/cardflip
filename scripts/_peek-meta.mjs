@@ -1,0 +1,13 @@
+import fs from "node:fs";
+import { createClient } from "@libsql/client";
+const cfg = JSON.parse(fs.readFileSync(".env.migration.json", "utf8").replace(/^﻿/, ""));
+const c = createClient({ url: cfg.dbUrl, authToken: cfg.dbToken });
+const r = await c.execute("SELECT key, value FROM price_history_meta WHERE key LIKE 'daily_%' OR key LIKE '%finished%'");
+for (const x of r.rows) console.log(x.key, "=", x.value, /^\d{12,}$/.test(String(x.value)) ? new Date(Number(x.value)).toLocaleString("en-US", { timeZone: "America/New_York" }) + " ET" : "");
+const l = createClient({ url: "file:data/cardflip.db" });
+const a = await l.execute({ sql: "SELECT (set_release_date = '') AS blank, COUNT(*) n, COUNT(DISTINCT set_code) sets FROM tcg_cards WHERE game = ? GROUP BY blank", args: ["onepiece"] });
+console.log("OP blank-date split:", JSON.stringify(a.rows));
+const b = await l.execute({ sql: "SELECT set_code, MIN(set_name) name, COUNT(*) n, MAX(set_release_date) rel FROM tcg_cards WHERE game = ? GROUP BY set_code ORDER BY set_code LIMIT 14", args: ["onepiece"] });
+for (const x of b.rows) console.log(x.set_code, "|", x.name, "|", x.n, "|", x.rel);
+const d = await l.execute({ sql: "SELECT id, set_code, set_name, collector_number FROM tcg_cards WHERE game = ? AND set_code = ? LIMIT 3", args: ["onepiece", "ST01"] });
+console.log(JSON.stringify(d.rows));

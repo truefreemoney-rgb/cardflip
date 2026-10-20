@@ -13,6 +13,7 @@
 import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
 import path from "node:path";
+import { fixOnePieceSets } from "./lib/onepiece-sets.mjs";
 import { ONE_PIECE_DON_SET, onePieceDonKey, parseOnePieceDon } from "../src/lib/onepiece.ts";
 
 const API = "https://optcgapi.com/api";
@@ -225,6 +226,8 @@ if (process.argv.includes("--with-don")) {
     failedFeeds++;
   }
 }
+// Set names and release dates (scripts/lib/onepiece-sets.mjs): after every feed, before the counts.
+await fixOnePieceSets(db);
 const n = db.prepare("SELECT COUNT(*) AS n FROM tcg_cards WHERE game = 'onepiece'").get().n;
 const variants = db.prepare("SELECT variant, COUNT(*) AS n FROM tcg_cards WHERE game = 'onepiece' GROUP BY variant ORDER BY n DESC LIMIT 8").all();
 console.log(`onepiece: ${total} entries written, ${n} rows in the mirror; variants: ${variants.map((v) => `${v.variant || "base"}=${v.n}`).join(", ")}`);
