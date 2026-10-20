@@ -21,10 +21,16 @@ export async function PATCH(req: Request, { params }: RouteParams) {
 
     // Sold rows are the record (Chris, 09-08): the sale price can be corrected,
     // but a sold card never goes back to a draft or a listing.
-    if (status !== undefined && status !== "sold") {
+    if (status !== undefined && status !== "listed") {
       const existing = await getCardForUser(id, user.id);
-      if (existing?.status === "sold") {
+      if (status !== "sold" && existing?.status === "sold") {
         return NextResponse.json({ error: "Sold cards stay on the record — they can't be relisted or turned back into drafts." }, { status: 409 });
+      }
+      // A LIVE eBay listing is ended through /api/ebay/end (which moves the row itself); a bare status flip
+      // would leave the listing live on eBay with no row behind it (review 10-19 #11). eBay's own sales land
+      // through the sync, not this route.
+      if (existing?.status === "listed" && existing.ebayListingId && !existing.ebayEndedAt) {
+        return NextResponse.json({ error: "This card is live on eBay — end the listing first." }, { status: 409 });
       }
     }
     // Never under the fee floor (lib/fees.ts) — the server is the truth here.
@@ -131,6 +137,10 @@ export async function DELETE(_req: Request, { params }: RouteParams) {
     // Sold rows are the record (Chris, 09-08): never deleted.
     if (existing?.status === "sold") {
       return NextResponse.json({ error: "Sold cards stay on the record and can't be deleted." }, { status: 409 });
+    }
+    // Review 10-19 #11: deleting the row would leave the eBay listing live with nothing behind it.
+    if (existing?.status === "listed" && existing.ebayListingId && !existing.ebayEndedAt) {
+      return NextResponse.json({ error: "This card is live on eBay — end the listing first." }, { status: 409 });
     }
     if (existing) await deleteCardPhoto(id);
     await deleteCard(id, user.id);

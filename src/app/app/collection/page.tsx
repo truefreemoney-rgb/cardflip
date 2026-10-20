@@ -2570,8 +2570,9 @@ export default function CollectionPage() {
             const selCards = cards.filter((c) => selected.has(c.id));
             const ready = selCards.filter((c) => c.status === "ready");
             const listed = selCards.filter(isLive);
-            // Sold rows are the record: neither reverted nor deleted (Chris, 09-08).
-            const revertable = selCards.filter((c) => c.status === "listed");
+            // Sold rows are the record: neither reverted nor deleted (Chris, 09-08). A LIVE eBay row is ended
+            // from its own card (End listing), never flipped in bulk (review 10-19 #11; the API refuses it too).
+            const revertable = selCards.filter((c) => c.status === "listed" && !isLive(c));
             const deletable = selCards.filter((c) => !isLive(c) && c.status !== "sold");
             const bulkBtn =
               "rounded-full border border-edge px-3.5 py-1.5 text-xs font-medium text-zinc-200 transition hover:border-edge-strong hover:bg-surface-2 disabled:opacity-50";
@@ -3554,7 +3555,7 @@ export default function CollectionPage() {
           >
             <p className="font-display text-lg font-semibold leading-snug text-white">Are you sure?</p>
             <p className="mt-2 text-sm text-zinc-300">
-              This marks {bulkSoldAsk.length} {bulkSoldAsk.length === 1 ? "card" : "cards"} sold at {bulkSoldAsk.length === 1 ? "its" : "their"} asking price. It can&apos;t be undone.
+              This marks {bulkSoldAsk.length} {bulkSoldAsk.length === 1 ? "card" : "cards"} sold at {bulkSoldAsk.length === 1 ? "its" : "their"} asking price and ends the eBay {bulkSoldAsk.length === 1 ? "listing" : "listings"} first. It can&apos;t be undone.
             </p>
             <div className="mt-5 flex gap-2">
               <button
@@ -3569,10 +3570,30 @@ export default function CollectionPage() {
                 onClick={() => {
                   const targets = bulkSoldAsk;
                   setBulkSoldAsk(null);
-                  void Promise.all(targets.map((c) => applyPatch(c, soldNowPatch(c.price)))).then(() => {
+                  // Review 10-19 #11: a live eBay listing is ENDED first (a bare "sold" left it up on eBay with no
+                  // row behind it; the API now refuses that), one row at a time; a row whose end fails is named
+                  // and left as it was.
+                  void (async () => {
+                    let done = 0;
+                    const failed: string[] = [];
+                    for (const c of targets) {
+                      let row = c;
+                      if (isLive(c)) {
+                        const res = await endEbayListing(c.id);
+                        if (!res.ok) {
+                          failed.push(c.cardName);
+                          continue;
+                        }
+                        row = res.card;
+                        setCards((prev) => prev.map((x) => (x.id === c.id ? res.card : x)));
+                      }
+                      await applyPatch(row, soldNowPatch(c.price));
+                      done++;
+                    }
                     setSelected(new Set());
-                    toast(`${targets.length} marked sold at asking price`);
-                  });
+                    if (done > 0) toast(`${done} marked sold at asking price`);
+                    if (failed.length > 0) toast(`Still live on eBay (couldn't end): ${failed.join(", ")}`, "err");
+                  })();
                 }}
                 className="flex flex-[2] items-center justify-center rounded-full bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-400"
               >
