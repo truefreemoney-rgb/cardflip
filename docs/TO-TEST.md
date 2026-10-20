@@ -1,5 +1,8 @@
 # To test later
 
+## 10-20 ~3:45pm ET: review 10-19 #14 Inventory value chart refetches on sale/reprice, fetches only while the summary panel is open, COMMIT ONLY
+- After push, signed in, Inventory with the summary panel CLOSED: the Network tab shows NO /api/cards/value-history call on load; tap Show: one call, the chart draws; mark a card sold (or change its price) with the panel open: a second value-history call fires and the line/last point updates without a reload; Hide then Show: one more call, range pill back to 90d (state resets, fine).
+
 ## 10-20 ~3:35pm ET: review 10-19 #13 Inventory catalog stub carries the row's game (340837b3 -> this commit), COMMIT ONLY
 - After push, signed in, Inventory: on a Yu-Gi-Oh, One Piece or Lorcana row with a flagged or stale price, the 'see sold listings' link opens an eBay sold search for THAT game (title/category not Pokemon); tapping the tile opens the detail modal already showing that game's card (not a Pokemon shell) before the row loads; Watch this price from the modal saves a watchlist row with the right game. Pokemon and Magic rows unchanged.
 

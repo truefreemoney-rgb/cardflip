@@ -1601,6 +1601,17 @@ export default function CollectionPage() {
     () => cards.filter((c) => (c.game ?? "pokemon") === gameView),
     [cards, gameView],
   );
+  // What the value chart refetches on: a sale, a reprice, a quantity change or an edit, not just the count
+  // (review 10-19 #14). 0 only for an empty pile: the chart skips its fetch at 0.
+  const valueVersion = useMemo(() => {
+    if (gameCards.length === 0) return 0;
+    let h = gameCards.length;
+    for (const c of gameCards) {
+      const s = `${c.id}|${c.status}|${c.price}|${c.soldPrice ?? ""}|${c.quantity}|${c.updatedAt}`;
+      for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+    }
+    return h === 0 ? 1 : h;
+  }, [gameCards]);
   const gameCounts = useMemo(() => {
     const counts: Partial<Record<GameId, number>> = {};
     for (const g of GAME_IDS) counts[g] = 0;
@@ -2171,7 +2182,8 @@ export default function CollectionPage() {
         </div>
         {/* The pile's value day by day, from our own price series (Chris,
             09-10: "a graph of their listing value changing over time"). */}
-        <InventoryValueChart game={gameView} version={gameCards.length} status={filter} category={category} />
+        {/* Only while the panel is open: hidden, it still fetched value-history, the page's slowest call (review 10-19 #14). */}
+        {summaryOpen && <InventoryValueChart game={gameView} version={valueVersion} status={filter} category={category} />}
         <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 border-t border-edge/60 px-5 py-3 text-sm">
           <span className="text-zinc-400">
             <span className="font-display text-base font-semibold text-white">{stats.drafts.length}</span> {pricingOnly ? "in stock" : "not listed"}
