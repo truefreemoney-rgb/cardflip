@@ -7,6 +7,7 @@ import {
   isVisionConfigured,
 } from "@/lib/server/vision";
 import { recordScanUsage } from "@/lib/server/scanUsage";
+import { scanLogRead } from "@/lib/server/scanLogRead";
 import { SCAN_BUDGET_MS, isBudgetError } from "@/lib/visionBudget";
 import type { ScanLanguage } from "@/lib/types";
 import { parseGame } from "@/lib/games";
@@ -119,25 +120,13 @@ export async function POST(req: Request) {
       readIsEmpty({ conf: card.confidence, kind: card.kind ?? null, slab: card.slab === true, seen: card.detectedGame ?? null, game: card.game ?? parseGame(body?.game) })
         ? Promise.resolve(0)
         : dayBump(readsKey(user.id)).catch((err) => console.error("reads counter failed:", err instanceof Error ? err.message : err)),
-      recordScanUsage(user.id, VISION_MODEL, tokens, {
-        game: card.game ?? parseGame(body?.game),
-        ...(card.switchedFrom ? { from: card.switchedFrom } : {}),
-        // Stored so the second-look rate can be MEASURED next time, not inferred from token counts.
-        ...(card.secondLook ? { second: card.secondLook } : {}),
-        name: card.name,
-        number: card.cardNumber,
-        total: card.setTotal,
-        code: card.setCode,
-        art: card.artStyle,
-        kind: card.kind ?? null,
-        conf: card.confidence,
-        // The give-back reads these (10-11): a slab or another game's card is an empty outcome for the seller.
-        ...(card.slab ? { slab: true } : {}),
-        ...(card.detectedGame ? { seen: card.detectedGame } : {}),
+      // The compact read (lib/server/scanLogRead.ts): name/number/code, the give-back fields, and for
+      // Pokémon the pattern + ball read (B1 10-20: a Master Ball miss is diagnosable from the log).
+      recordScanUsage(user.id, VISION_MODEL, tokens, scanLogRead(card, card.game ?? parseGame(body?.game), {
         // ms spent in the gates before the vision call, and in the call itself.
         pre: visionAt - startedAt,
         ms: visionMs,
-      }, reservation.draw).catch((err) => {
+      }), reservation.draw).catch((err) => {
         console.error("scan_usage write failed:", err instanceof Error ? err.message : err);
         return null;
       }),

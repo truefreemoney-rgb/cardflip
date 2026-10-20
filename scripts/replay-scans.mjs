@@ -103,6 +103,8 @@ if (filePath) {
   console.log(`\n## [${fileGame}] ${path.basename(filePath)}`);
   console.log(`read: name=${read.name} number=${read.cardNumber} total=${read.setTotal} code=${read.setCode} art=${read.artStyle} kind=${read.kind} conf=${read.confidence}`);
   if (fileGame === "mtg") console.log(`cues: finish=${read.finish} treatment=${read.treatment} marks=${(read.marks ?? []).join("+") || "-"} artist=${read.artist} year=${read.copyrightYear} border=${read.borderColor} serial=${read.serialNumber}`);
+  // B1 10-20: the pattern read (Master Ball etc.) is the whole question on a Prismatic miss.
+  if (fileGame === "pokemon") console.log(`pattern: ${read.foilPattern ?? "none"} ball=${read.patternBall ?? "-"}`);
   const names = [read.name, read.englishName].filter(Boolean);
   for (const candidate of names) {
     const code = read.kind === "art" && read.setCode && !read.setCode.toUpperCase().startsWith("A") ? `A${read.setCode}` : read.setCode;
@@ -132,6 +134,7 @@ for (const id of ids) {
   console.log(`\n## [${game}] ${row.card_name} — scanner chose ${row.set_name} ${row.card_number} (${row.catalog_card_id})`);
   console.log(`read: name=${read.name} number=${read.cardNumber} total=${read.setTotal} code=${read.setCode} art=${read.artStyle} kind=${read.kind ?? "-"} conf=${read.confidence}`);
   if (game === "mtg") console.log(`cues: finish=${read.finish} treatment=${read.treatment} marks=${(read.marks ?? []).join("+") || "-"} artist=${read.artist} year=${read.copyrightYear} border=${read.borderColor} serial=${read.serialNumber}`);
+  if (game === "pokemon") console.log(`pattern: ${read.foilPattern ?? "none"} ball=${read.patternBall ?? "-"}`);
 
   // Same walk as src/app/app/page.tsx: name candidates, printed fraction, art.
   const printed = read.cardNumber
