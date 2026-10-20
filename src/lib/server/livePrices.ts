@@ -152,10 +152,13 @@ export async function refreshLivePrices(userId: string, now = Date.now()): Promi
     "scan_price = v.column2",
     backfills.map((b) => [b.id, b.scanned]),
   );
+  // Re-checked in the WHERE (review 10-19 #19): a price the seller locks, or a card listed or sold, between the
+  // read above and this write keeps its figure; the in-memory canApply alone raced that edit.
   await batchUpdate(
     userId,
     "price = v.column2, updated_at = v.column3",
     moves.map((m) => [m.id, m.price, now]),
+    "AND cards.status = 'ready' AND cards.price_locked IS NOT 1",
   );
   return out;
 }
@@ -165,7 +168,7 @@ export async function refreshLivePrices(userId: string, now = Date.now()): Promi
  * priceBulkWrite.updateMtgPriceColumns. SQLite names VALUES columns
  * column1..N (3.33+, true of node's SQLite and Turso); column1 is the card id.
  */
-async function batchUpdate(userId: string, setClause: string, rows: (string | number)[][]): Promise<void> {
+async function batchUpdate(userId: string, setClause: string, rows: (string | number)[][], guard = ""): Promise<void> {
   if (rows.length === 0) return;
   const PER_STMT = 400;
   for (let i = 0; i < rows.length; i += PER_STMT) {
@@ -175,7 +178,7 @@ async function batchUpdate(userId: string, setClause: string, rows: (string | nu
       .prepare(
         `UPDATE cards SET ${setClause}
          FROM (VALUES ${values}) AS v
-         WHERE cards.id = v.column1 AND cards.user_id = ?`,
+         WHERE cards.id = v.column1 AND cards.user_id = ? ${guard}`,
       )
       .run(...slice.flat(), userId);
   }
