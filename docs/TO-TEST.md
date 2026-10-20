@@ -1,5 +1,11 @@
 # To test later
 
+## 10-20 ~11:00am ET: B2 home stamp (76a19ae3) + B3 One Piece sets (96bc17b4) + Watch pill (b1241b1d), COMMIT ONLY
+- After push, the morning after the next daily run (~5:10am ET): cardflip.io home + /scan say "Prices updated <today> 5:0x AM ET" the same morning (curl the home HTML for "Prices updated"), not the day before.
+- After tonight's local sync + catalog push (no deploy needed): /cards/one-piece lists "The World's Strongest Warriors" ONCE (OP17, 161 cards), the starter decks keep their own names, order is newest first (OP17 Aug 28 2026 at the top, ST31-34 Jul 31 2026, EB03 Feb 2026...), and the sets memo/cache (seo:sets:v4:onepiece, SETS_TTL) has rolled; prod check: `SELECT COUNT(*) FROM tcg_cards WHERE game='onepiece' AND set_release_date=''` = 0 (PROMO/DON excepted) and the ghost groups query from scripts/_op-dups.mjs = 0.
+- The nightly sync log (sync-onepiece) prints "onepiece sets: N code(s) renamed" (0 after the first night) and "0 code(s) given a release date" once all are dated; a new set (OP18 Nov 20) gets its date the night it appears.
+- After push, card page bottom bar on the phone: Watch this price pill is small and right-aligned beside the price (docs/shots/watch-pill-signed-in-phone.jpg), signed in and out.
+
 ## 10-20 ~10:15am ET: two price fixes from the A3 pass (2876c06b lift break, d6f9f3b4 flagged -> backup), COMMIT ONLY, shots sent (docs/shots/lotus-2ed-card-page-phone.jpg, lotus-2ed-app-popup-phone.jpg), waiting for Chris's yes
 - After push, app pop-up for Black Lotus Beta (LEB 233) and any Cardmarket-only Magic card: the chart starts Oct 20, no "up 12%" line (prod before: "▲ $3,107.47 (12.4%) 3M"); /api/price-history for 4a2e428c-dd25-484c-bbc8-2d6ce10ef42c cardmarket-converted series has points from 2026-10-20 only + dataDays.
 - After push, Sunday mail / card alerts / Insights: no Magic Cardmarket-only card listed as "up 10-14% this week" from the 10-20 lift.
