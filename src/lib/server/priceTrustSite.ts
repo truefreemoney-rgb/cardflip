@@ -5,10 +5,10 @@ import { pickPrice } from "@/lib/listing";
 import { PRICE_TRUST, REF_ALT_SOURCE, isVintage, lastPriced, priceTrust } from "@/lib/server/priceTrust";
 import { variantRank } from "@/lib/server/priceHistory";
 import type { PriceFlag, PriceStale } from "@/lib/priceFlag";
-import { recentMedian } from "@/lib/priceChain";
+import { BACKUP_ORDER, backupRank, backupSourceLabel, recentMedian } from "@/lib/priceChain";
 import { EBAY_REFEREE, refereeVerdict, type AskReading } from "@/lib/ebayReferee";
 import { activeChecks, checkFor } from "@/lib/server/checkedPrices";
-import type { CardPrice, GameId, PokemonCard } from "@/lib/types";
+import type { CardPrice, GameId, PokemonCard, PriceSource } from "@/lib/types";
 
 /**
  * The price guard on the SITE (09-30): the same rule the social posts use
@@ -485,19 +485,64 @@ export async function withPriceFlags(cards: PokemonCard[], day = todayUtc()): Pr
   const fixOf = (c: PokemonCard, p: CardPrice) => (checks.size > 0 ? checkFor(checks, c.game ?? "pokemon", c.id, p, day) : undefined);
   if (flags.size === 0 && stale.size === 0 && !cards.some((c) => c.prices.some((p) => fixOf(c, p)))) return cards;
   const marked = (c: PokemonCard, p: CardPrice) => isTrustedRow(p) && (flags.has(trustKey(c.id, p.variant)) || stale.has(trustKey(c.id, p.variant)) || !!fixOf(c, p));
+  // A card whose every TCGplayer row is flagged (and none hand-fixed) gets the chain's next reading as a row of its own
+  // (10-20, Black Lotus Unlimited: "looks off" in the app while a stored Cardmarket $17,560 sat in price_series): the stored
+  // backup best ranked for its game (lib/priceChain.ts BACKUP_ORDER), fresh within refMaxAgeDays. pickPrice quotes it before
+  // a flagged row; the flagged row stays in the table with its note.
+  const allFlagged = (c: PokemonCard) => {
+    const tcg = c.prices.filter(isTrustedRow);
+    return tcg.length > 0 && tcg.every((p) => flags.has(trustKey(c.id, p.variant)) && !fixOf(c, p));
+  };
+  const backups = await backupRows(cards.filter(allFlagged), day);
   return cards.map((c) => {
-    if (!c.prices.some((p) => marked(c, p))) return c;
-    return {
-      ...c,
-      prices: c.prices.map((p) => {
-        if (!marked(c, p)) return p;
-        const fix = fixOf(c, p);
-        if (fix) return { ...p, market: fix.usd, untrusted: undefined, stale: undefined, ebayChecked: { usd: fix.usd, n: fix.n, day: fix.day, was: p.market as number } };
-        const k = trustKey(c.id, p.variant);
-        return flags.has(k) ? { ...p, untrusted: flags.get(k) } : { ...p, stale: stale.get(k) };
-      }),
-    };
+    const backup = backups.get(c.id);
+    if (!c.prices.some((p) => marked(c, p)) && !backup) return c;
+    const prices = c.prices.map((p) => {
+      if (!marked(c, p)) return p;
+      const fix = fixOf(c, p);
+      if (fix) return { ...p, market: fix.usd, untrusted: undefined, stale: undefined, ebayChecked: { usd: fix.usd, n: fix.n, day: fix.day, was: p.market as number } };
+      const k = trustKey(c.id, p.variant);
+      return flags.has(k) ? { ...p, untrusted: flags.get(k) } : { ...p, stale: stale.get(k) };
+    });
+    return { ...c, prices: backup ? [...prices, backup] : prices };
   });
+}
+
+/** Stored backup sources a card may quote when its TCGplayer rows are all flagged (lib/priceChain.ts), one row per card. */
+const BACKUP_SOURCES = [...new Set(Object.values(BACKUP_ORDER).flat())];
+
+/**
+ * The best stored backup row per card (BACKUP_ORDER for its game, fresh within refMaxAgeDays), shaped as a USD price row
+ * labelled by its source ("Cardmarket (converted from €)", "Card Kingdom (adjusted)", "CardTrader (listings)").
+ */
+export async function backupRows(cards: PokemonCard[], day = todayUtc()): Promise<Map<string, CardPrice>> {
+  const out = new Map<string, CardPrice>();
+  if (cards.length === 0) return out;
+  const gameOf = new Map(cards.map((c) => [c.id, c.game ?? "pokemon"] as const));
+  const since = addDays(day, -PRICE_TRUST.refMaxAgeDays);
+  const best = new Map<string, { rank: number; row: CardPrice }>();
+  const ids = [...gameOf.keys()];
+  for (let i = 0; i < ids.length; i += 400) {
+    const chunk = ids.slice(i, i + 400);
+    const rows = (await db
+      .prepare(
+        `SELECT card_id, variant, source, prices FROM price_series
+          WHERE currency = 'USD' AND updated_day >= ? AND source IN (${BACKUP_SOURCES.map((s) => `'${s}'`).join(", ")}) AND card_id IN (${chunk.map(() => "?").join(", ")})`,
+      )
+      .all(since, ...chunk)) as unknown as { card_id: string; variant: string; source: string; prices: string }[];
+    for (const r of rows) {
+      const game = gameOf.get(r.card_id) ?? "pokemon";
+      const rank = backupRank(game, r.source);
+      if (rank >= BACKUP_ORDER[game as GameId].length) continue;
+      const market = lastPriced(decodePrices(r.prices));
+      if (market == null || !(market > 0)) continue;
+      const have = best.get(r.card_id);
+      if (have && have.rank <= rank) continue;
+      best.set(r.card_id, { rank, row: { source: r.source as PriceSource, currency: "USD", variant: r.variant, label: backupSourceLabel(r.source), market, low: null, high: null } });
+    }
+  }
+  for (const [id, b] of best) out.set(id, b.row);
+  return out;
 }
 
 /**

@@ -420,7 +420,7 @@ check("other printings and the set rank leave out flagged and unverified prices"
 check("the range's ends go through the guard's old-side check", /old: \{ back, value: end\.price \}/.test(serverSrc), true);
 
 // 10-03: a Magic card with no dollar series (Black Lotus) prints Cardmarket's figure in dollars at the ECB rate, with no chart and no indexing on it.
-check("no fresh dollar price + a Cardmarket price = a dollar headline at usdPerEur, chart null, decision from indexDecision", [serverSrc.includes("if (prices.length === 0 && rec.eur) {"), serverSrc.includes("usdPerEur().catch(() => null)"), serverSrc.includes("headline: converted[0], decision: indexDecision(converted, indexFloorUsd(facts.game)), chart: null")], [true, true, true]);
+check("no fresh dollar price + a Cardmarket price = a dollar headline at usdPerEur, chart null, decision from indexDecision", [serverSrc.includes("if (unpriced && rec.eur) {"), serverSrc.includes("usdPerEur().catch(() => null)"), serverSrc.includes("headline: converted[0], decision: indexDecision(converted, indexFloorUsd(facts.game)), chart: null")], [true, true, true]);
 
 // junk blips never reach the card page's high/low/change words (10-06, Tyranitar $0.32 / $250)
 const spiky = cp.seriesPoints({ startDay: "2026-08-01", prices: [...new Array(30).fill(110), 0.32, 0.32, 0.32, ...new Array(30).fill(111.63), 600, ...new Array(10).fill(113.3)] });
@@ -428,6 +428,9 @@ const spikyRange = cs.historyRange(spiky);
 check("a stored $0.32 stretch and a one-day $600 spike are not the low or the high", [spikyRange.low.price, spikyRange.high.price], [110, 113.3]);
 const stepped = cp.seriesPoints({ startDay: "2026-08-01", prices: [...new Array(40).fill(56.09), ...new Array(20).fill(111.63), 113.3] });
 check("a real doubling survives the filter and drives the 30-day change", [stepped.length, Math.round(cp.changeOver(stepped, 30).pct)], [61, 102]);
+
+// 10-20: every fresh TCGplayer row flagged (Black Lotus Unlimited: $20,000 "doubled 2.7x") = the stored backup headlines, the same way a blank does
+check("a flagged-only card falls through to the stored backup, then Magic's live euro figure", [serverSrc.includes("const unpriced = prices.length === 0 || !headline;"), serverSrc.includes("if (unpriced && convertedUsd != null && convertedUsd > 0) {"), serverSrc.indexOf("if (unpriced && convertedUsd") < serverSrc.indexOf("if (unpriced && rec.eur)")], [true, true, true]);
 
 console.log(`\ncard pages: ${pass} passed, ${fail} failed`);
 if (fail > 0) process.exit(1);

@@ -194,6 +194,9 @@ console.log("loader: one batch, only flagged cards come back");
   await put("mtg-junk", "mtg", "nonfoil", liquid(150));
   await put("mtg-fine", "mtg", "nonfoil", liquid(150));
   await put("ebay-only", "pokemon", "graded-psa-10", Array(60).fill(900), "ebay");
+  // 10-20: a stored backup (CardTrader first for Pokémon, lib/priceChain.ts) for the all-flagged Rayquaza; Umbreon's is never read (nothing flagged).
+  await put("junk-rayquaza", "pokemon", "holofoil", [40.5], "cardtrader", "USD");
+  await put("fine-umbreon", "pokemon", "holofoil", [190], "cardtrader", "USD");
   for (const [id, rd] of [["junk-rayquaza", "2010-03-01"], ["fine-umbreon", "2010-03-01"], ["junk-deoxys", "2010-05-01"]]) {
     await db.prepare(`INSERT INTO en_cards (id, name, set_id, set_name, local_id, set_release_date, synced_at) VALUES (?, ?, 'x', 'X', '1', ?, 0)`).run(id, id, rd);
   }
@@ -241,6 +244,14 @@ console.log("loader: one batch, only flagged cards come back");
   check("the input (and so the card cache behind it) is not mutated", JSON.stringify(input), before);
   check("note text is one sentence", PRICE_FLAG_NOTE, "This price looks off, check sold listings");
   check("no flagged card: same array back", (await withPriceFlags([input[1]]))[0] === input[1], true);
+  console.log("withPriceFlags: an all-flagged card carries the chain's next reading (10-20)");
+  const { pickPrice } = await import(at("lib/listing.ts"));
+  const rayRows = out[0].prices;
+  check("the backup row is appended after the card's own rows", [rayRows.length, rayRows[2]?.source, rayRows[2]?.label, rayRows[2]?.market], [3, "cardtrader", "CardTrader (listings)", 40.5]);
+  check("the flagged row keeps its note", !!rayRows[0].untrusted, true);
+  check("pickPrice quotes the backup, not the flagged row", pickPrice(out[0])?.market, 40.5);
+  check("Magic with one believed finish gets no backup row", out[2].prices.length, 2);
+  check("a believed card gets none", out[1].prices.length, 1);
 
   console.log("marketPriceFlagged: a number about to be saved (a lookup's price, a watchlist baseline)");
   const umbreon = (market, extra = {}) => card("fine-umbreon", [{ ...usd("holofoil", market), ...extra }]);

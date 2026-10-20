@@ -114,6 +114,15 @@ console.log("\nThe regression: a euro figure must never become the listing price
   check("rather than 4184.60", overridden?.base === 4184.6, false);
 }
 
+console.log("A stored backup row quotes before a flagged TCGplayer row (10-20, Black Lotus Unlimited), never before a believed one:");
+{
+  const flagged = { ...usd(20000), untrusted: { hard: true, reason: "doubled 2.7x in the last 10 priced days" } };
+  const backup = { source: "cardmarket-converted", variant: "nonfoil", label: "Cardmarket (converted from €)", currency: "USD", market: 17560.09, low: null, high: null };
+  check("flagged TCGplayer + a backup: the backup", pickPrice(card([flagged, backup]))?.market, 17560.09);
+  check("believed TCGplayer + a backup: TCGplayer", pickPrice(card([usd(818.65), backup]))?.market, 818.65);
+  check("flagged TCGplayer alone: the flagged row (the screens print its note)", pickPrice(card([flagged]))?.untrusted?.hard, true);
+}
+
 console.log("\nA euro-only card yields no quote, rather than a wrong one:");
 check(
   "no quote",

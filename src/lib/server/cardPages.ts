@@ -448,10 +448,20 @@ export async function loadCardPage(rec: CardRecord, today = todayUtc()): Promise
 
   const prices = variantPrices(facts.game, inputs, today);
   const headline = headlinePrice(prices);
-  // No fresh dollar price at all (10-03: Black Lotus, every print; TCGplayer publishes nothing for it, its last series point
+  // No price the page may print: no fresh dollar row at all, or every fresh one flagged (10-20, Black Lotus Unlimited: TCGplayer
+  // $20,000 "doubled 2.7x", page blank while a stored Cardmarket figure of $17,560 sat in the table). The chain (lib/priceChain.ts,
+  // memory: a guard flag is never a blank) goes on to the stored backups, best first per game, then Magic's live euro figure.
+  const unpriced = prices.length === 0 || !headline;
+  // The nightly job stored a backup in dollars (Cardmarket converted, Card Kingdom adjusted, CardTrader): no history behind it
+  // on this page, so no chart, no change words, not indexed on it (unverified).
+  if (unpriced && convertedUsd != null && convertedUsd > 0) {
+    const converted = [{ variant: "average", label: convertedLabel, price: convertedUsd, day: today, days: 0, flag: null }];
+    return { facts, prices: converted, headline: converted[0], decision: indexDecision(converted, indexFloorUsd(facts.game)), chart: null, trackingSince: null, changes: [], range: null };
+  }
+  // Magic with no stored backup (10-03: Black Lotus, every print; TCGplayer publishes nothing for it, its last series point
   // is from August): the page prints Cardmarket's figure in dollars at the cached ECB rate (lib/listing.ts withEurMarket is
-  // the same rule for scans and search). No history behind it: no chart, no change words, not indexed on it (unverified).
-  if (prices.length === 0 && rec.eur) {
+  // the same rule for scans and search).
+  if (unpriced && rec.eur) {
     const variant = rec.eur.nonfoil ? "nonfoil" : rec.eur.foil ? "foil" : null;
     const eur = variant === "nonfoil" ? rec.eur.nonfoil : rec.eur.foil;
     const rate = variant && eur ? await (await import("@/lib/server/fx")).usdPerEur().catch(() => null) : null;
@@ -460,11 +470,6 @@ export async function loadCardPage(rec: CardRecord, today = todayUtc()): Promise
       const converted = [{ variant, label: variantLabel(facts.game, variant), price: Math.round(eur * rate * cardmarketLift(facts.game) * 100) / 100, day: today, days: 0, flag: null }];
       return { facts, prices: converted, headline: converted[0], decision: indexDecision(converted, indexFloorUsd(facts.game)), chart: null, trackingSince: null, changes: [], range: null };
     }
-  }
-  // Pokémon's version of the same (10-05): the nightly job stored Cardmarket's figure in dollars for a card TCGplayer can't price.
-  if (prices.length === 0 && convertedUsd != null && convertedUsd > 0) {
-    const converted = [{ variant: "average", label: convertedLabel, price: convertedUsd, day: today, days: 0, flag: null }];
-    return { facts, prices: converted, headline: converted[0], decision: indexDecision(converted, indexFloorUsd(facts.game)), chart: null, trackingSince: null, changes: [], range: null };
   }
   const decision = indexDecision(prices, indexFloorUsd(facts.game));
   if (!headline) return { facts, prices, headline, decision, chart: null, trackingSince: null, changes: [], range: null };

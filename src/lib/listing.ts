@@ -19,6 +19,7 @@ import { SITE_URL } from "./siteUrl.ts";
 import { GAMES, MTG_FINISH_LABEL, printedCardNumber } from "./games.ts";
 import { CONDITION_ABBREV, titlePrintingWord, titleRarityWord } from "./ebayVocab.ts";
 import { gameOf } from "./types.ts";
+import { BACKUP_ORDER } from "./priceChain.ts";
 import type { PriceFlag, PriceStale } from "./priceFlag.ts";
 import { costTaperedPrice, coversAllCosts, coversCosts, defaultShipMethod, postageFor, type ShipMethod } from "./fees.ts";
 
@@ -368,6 +369,9 @@ export function pickPrice(card: PokemonCard): CardPrice | null {
   // flagged row never outranks real sales (the quote would be null), and a
   // 45+ day flat one is a thin market where the sales are the better read.
   const tcgLive = priced.filter((p) => p.source === "tcgplayer" && !p.untrusted && !p.stale);
+  // A stored backup row (lib/priceChain.ts BACKUP_ORDER: Cardmarket converted, Card Kingdom adjusted, CardTrader) rides along
+  // only when every TCGplayer row is flagged (priceTrustSite withPriceFlags, 10-20): it quotes before the flagged row does.
+  const backups = priced.filter((p) => isBackupSource(p.source) && !p.untrusted);
   const pool =
     tcgLive.length > 0
       ? tcgLive
@@ -375,9 +379,11 @@ export function pickPrice(card: PokemonCard): CardPrice | null {
         ? byVariant(EBAY_SOLD_VARIANT)
         : byVariant(EBAY_VARIANT).length > 0
           ? byVariant(EBAY_VARIANT)
-          : priced.filter((p) => p.source === "tcgplayer").length > 0
-            ? priced.filter((p) => p.source === "tcgplayer")
-            : priced;
+          : backups.length > 0
+            ? backups
+            : priced.filter((p) => p.source === "tcgplayer").length > 0
+              ? priced.filter((p) => p.source === "tcgplayer")
+              : priced;
 
   for (const variant of VARIANT_PRIORITY) {
     const hit = pool.find((p) => p.variant === variant);
@@ -1095,3 +1101,7 @@ export function toEbayDraftsCsv(rows: EbayDraftsCsvRow[]): string {
   );
   return [...info, header.join(","), ...lines].join("\r\n") + "\r\n";
 }
+
+/** A stored backup source the chain may quote (lib/priceChain.ts BACKUP_ORDER, any game). */
+const BACKUP_SOURCE_SET = new Set(Object.values(BACKUP_ORDER).flat());
+export const isBackupSource = (source: string): boolean => BACKUP_SOURCE_SET.has(source);
