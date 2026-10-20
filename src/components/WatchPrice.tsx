@@ -32,7 +32,8 @@ async function addById(game: GameId, id: string): Promise<boolean> {
   return (await addToWishlist(card, "en", pickPrice(card)?.market ?? null)) !== null;
 }
 
-export default function WatchPrice({ game, id, className = "" }: { game: GameId; id: string; className?: string }) {
+/** `compact`: the phone sticky bar's version (Chris 10-20: the pill was too big): shorter, hugging its text, beside the price. */
+export default function WatchPrice({ game, id, className = "", compact = false }: { game: GameId; id: string; className?: string; compact?: boolean }) {
   const router = useRouter();
   const [state, setState] = useState<"idle" | "busy" | "done" | "error">("idle");
 
@@ -57,7 +58,7 @@ export default function WatchPrice({ game, id, className = "" }: { game: GameId;
 
   if (state === "done") {
     return (
-      <p className={`rounded-full border border-emerald-400/30 bg-emerald-400/10 px-5 py-3 text-center text-sm text-emerald-200 ${className}`} role="status">
+      <p className={`rounded-full border border-emerald-400/30 bg-emerald-400/10 ${compact ? "px-4 py-2" : "px-5 py-3"} text-center text-sm text-emerald-200 ${className}`} role="status">
         Watching.{" "}
         <Link href="/app/wishlist" className="font-semibold underline underline-offset-2">
           See your watchlist
@@ -71,7 +72,7 @@ export default function WatchPrice({ game, id, className = "" }: { game: GameId;
         type="button"
         onClick={click}
         disabled={state === "busy"}
-        className="rounded-full border border-edge-strong bg-surface-2 px-6 py-3 text-center text-sm font-semibold text-white transition hover:border-brand-400 disabled:opacity-60"
+        className={`rounded-full border border-edge-strong bg-surface-2 ${compact ? "px-4 py-2" : "px-6 py-3"} text-center text-sm font-semibold text-white transition hover:border-brand-400 disabled:opacity-60`}
       >
         {state === "busy" ? "Adding..." : "Watch this price"}
       </button>

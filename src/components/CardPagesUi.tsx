@@ -91,7 +91,7 @@ export function StickyPriceBar({ price, children }: { price: number | null; chil
           <p className="font-display text-xl font-bold tabular-nums text-emerald-300">{formatMoney(price)}</p>
         </div>
       )}
-      <div className="min-w-0 flex-1 [&>span]:w-full">{children}</div>
+      <div className="flex min-w-0 flex-1 justify-end">{children}</div>
     </div>
   );
 }
