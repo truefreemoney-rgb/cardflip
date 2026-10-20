@@ -535,6 +535,8 @@ export default function AppPage() {
           // tie-breakers for the ranker, and the finish picks the price line.
           let cues: MtgCues | null = null;
           let readError: string | null = null;
+          // The photo is another game's card (the read's detectedGame): offered as a switch, see ScanItem.wrongGame.
+          let wrongGame: GameId | null = null;
           // MTG Art Series: vision flagged it, so only art sets may answer.
           let artOnly = false;
           let artMiss: string | null = null;
@@ -573,6 +575,7 @@ export default function AppPage() {
               vision: read,
               visionStatus: "done",
               language,
+              wrongGame: null,
               ...(condition ? { condition } : {}),
             });
 
@@ -586,12 +589,15 @@ export default function AppPage() {
             // to real cards only.
             const otherGame = read.detectedGame && read.detectedGame !== next.game && read.detectedGame !== "other" ? read.detectedGame : null;
             if (otherGame) {
-              // A game we don't scan, or one not open to this seller yet: say
-              // so instead of forcing a Pokémon match onto it.
-              // A game we scan: name the switch (Chris 10-12: not saved, not counted).
-              readError = isGameId(otherGame)
-                ? `That looks like a ${GAMES[otherGame].label} card — switch to ${GAMES[otherGame].label} and scan again`
-                : `That looks like a ${otherGame} card — CardFlip doesn't scan those yet`;
+              // Another game's card is never forced onto this game's catalogue. One we scan stays on the list with
+              // its photo and a "Switch to <game>" button (wrongGame; Chris 10-20: "keep the scan and ask the user
+              // to switch"); this read is given back as before (10-12: not counted). A game we don't scan says so.
+              if (isGameId(otherGame)) {
+                wrongGame = otherGame;
+                readError = `That looks like a ${GAMES[otherGame].label} card`;
+              } else {
+                readError = `That looks like a ${otherGame} card — CardFlip doesn't scan those yet`;
+              }
               nameCandidates = [];
               printed = null;
             } else if (typeof read.confidence === "number" && read.confidence < UNREADABLE_CONFIDENCE && read.kind !== "art") {
@@ -738,6 +744,7 @@ export default function AppPage() {
               candidates: [],
               card: null,
               error: readError ?? artMiss ?? "No match found — search by name",
+              wrongGame,
             });
             // Nothing found = not a scan (Chris, 10-11: "forgiving of bad scans, it doesn't deliver a product").
             // Every empty outcome asks: no match, couldn't read, another game, token, art card, slab. The server
@@ -1339,6 +1346,19 @@ export default function AppPage() {
   /** Row × / chip ×: off the list, card kept. */
   const clearItem = useCallback((id: string) => takeOffList(id, false), [takeOffList]);
 
+  /**
+   * "Switch to <game>" on a wrong-game scan (Chris 10-20: keep the scan, ask to switch): the scanner's game follows,
+   * so the next shot starts right, and the same photo is read again as that game. Back to "queued" restarts the pump.
+   */
+  const switchItemGame = useCallback(
+    (id: string, to: GameId) => {
+      setGame(to);
+      abandoned.current.delete(id);
+      patchItem(id, { game: to, status: "queued", error: null, wrongGame: null, visionStatus: "idle", vision: null, verifiedAt: null });
+    },
+    [patchItem, setGame],
+  );
+
   /** Card view "Remove from Inventory": asks first, then the card goes from the ledger too. */
   const deleteItem = useCallback(
     async (id: string) => {
@@ -1503,6 +1523,7 @@ export default function AppPage() {
       // Verified cards are not waiting (Chris 10-12: one verified + one new scan said "2 Scans To Verify").
       queue={items.filter((item) => item.card && !item.verifiedAt && item.status !== "listed" && item.status !== "sold")}
       onRemove={clearItem}
+      onSwitchGame={switchItemGame}
       quotaNote={quotaNote ?? (outOfScans ? "You're out of scans. Tap Capture to get more." : null)}
       onSwap={swapCard}
       onCapture={onCameraCapture}
@@ -1879,6 +1900,7 @@ export default function AppPage() {
                     }}
                     onNext={selectNext}
                     onRemove={() => void deleteItem(selected.id)}
+                    onSwitchGame={(to) => switchItemGame(selected.id, to)}
                     onApplyConditionToAll={
                       items.filter(
                         (i) =>

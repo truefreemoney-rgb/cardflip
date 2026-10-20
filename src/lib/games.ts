@@ -150,6 +150,15 @@ export function isGameId(value: unknown): value is GameId {
   return typeof value === "string" && (GAME_IDS as string[]).includes(value);
 }
 
+/**
+ * Whether this seller may scan a game: Pokémon always, the others while their
+ * switch is on (session features; no features yet = open). The game toggle and
+ * the scanner's "Switch to …" offer share this rule.
+ */
+export function gameOpen(game: GameId, features?: Partial<Record<string, boolean>> | null): boolean {
+  return game === "pokemon" || (features ? features[game] ?? true : true);
+}
+
 /** Query-string / form value → GameId, Pokémon when absent or unknown. */
 export function parseGame(value: string | null | undefined): GameId {
   return isGameId(value) ? value : "pokemon";

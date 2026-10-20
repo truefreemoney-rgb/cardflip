@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useOptionalSession } from "@/components/SessionProvider";
-import { GAMES, GAME_IDS } from "@/lib/games";
+import { GAMES, GAME_IDS, gameOpen } from "@/lib/games";
 import { TAP_8 } from "@/lib/tap";
 import type { GameId } from "@/lib/types";
 
@@ -34,7 +34,7 @@ export default function GameToggle({ game, onChange, compact = false, counts, bl
   // snaps back to Pokémon, so nothing downstream sees it.
   const session = useOptionalSession();
   const features = session?.user?.features;
-  const visible = GAME_IDS.filter((id) => id === "pokemon" || (features ? features[id as keyof typeof features] ?? true : true));
+  const visible = GAME_IDS.filter((id) => gameOpen(id, features));
   const hidden = !visible.includes(game);
   useEffect(() => {
     if (hidden) onChange("pokemon");

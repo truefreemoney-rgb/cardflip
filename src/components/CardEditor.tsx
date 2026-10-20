@@ -34,9 +34,11 @@ import { saveCondition, saveStrategy } from "@/lib/client/scanPrefs";
 import { ENVELOPE_LABEL_MAX_USD, ENVELOPE_MAX_USD, envelopeAllowed, formatMoneyPostage } from "@/lib/fees";
 import { ENVELOPE_OVER_CAP, shipOptionsFor } from "@/lib/shipping";
 import ShippingHelpSheet from "@/components/ShippingHelpSheet";
+import WrongGameSwitch from "@/components/WrongGameSwitch";
 import type {
   Condition,
   WearLevel,
+  GameId,
   GradedInfo,
   GradingCompany,
   PokemonCard,
@@ -56,6 +58,8 @@ interface Props {
   onApplyConditionToAll?: (condition: Condition) => void;
   /** Drop this card from the queue and the ledger (the page owns the undo window). */
   onRemove?: () => void;
+  /** A wrong-game scan (item.wrongGame): switch the scanner to that game and read this photo again. */
+  onSwitchGame?: (game: GameId) => void;
 }
 
 const READ_STEPS = [
@@ -256,7 +260,7 @@ function PsaCertVerify({
 /** Session cache of graded comps per card+grade — grade flips shouldn't re-ask eBay. */
 const gradedCompsCache = new Map<string, { average: number; count: number } | null>();
 
-export default function CardEditor({ item, ebayConnected, onChange, onNext, onApplyConditionToAll, onRemove }: Props) {
+export default function CardEditor({ item, ebayConnected, onChange, onNext, onApplyConditionToAll, onRemove, onSwitchGame }: Props) {
   // Pricing only (10-04): no listing price, listing copy or eBay buttons; market data stays.
   const pricingOnly = Boolean(useSession().user?.pricingOnly);
   // Condition-change feedback (QA leftover): the price moves silently
@@ -479,19 +483,33 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
             {item.error ?? "Couldn't identify this card"}
           </p>
           <p className="mt-1 text-sm text-zinc-500">
-            Photos work best straight-on, with the name at the top in focus.
+            {item.wrongGame
+              ? "Your photo is kept. Switch, and it's read again as that game. No new photo needed."
+              : "Photos work best straight-on, with the name at the top in focus."}
           </p>
         </div>
         {/* A failed read is not a dead end (Chris, 09-01 QoL pass): re-run
             the same photo (lookups flake), or fall through to the name search
             below. The page re-pumps whenever an item returns to "queued". */}
         <div className="flex flex-wrap items-center justify-center gap-2">
+          {/* Another game's card (Chris 10-20): the switch is the one obvious action, Scan again steps back. */}
+          {item.file && item.wrongGame && onSwitchGame && (
+            <WrongGameSwitch
+              game={item.wrongGame}
+              onSwitch={() => onSwitchGame(item.wrongGame!)}
+              className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-200"
+            />
+          )}
           {item.file && (
             <button
               onClick={() =>
-                onChange({ status: "queued", error: null, visionStatus: "idle", vision: null, verifiedAt: null })
+                onChange({ status: "queued", error: null, wrongGame: null, visionStatus: "idle", vision: null, verifiedAt: null })
               }
-              className="rounded-full bg-white px-4 py-2 text-sm font-medium text-zinc-900 transition hover:bg-zinc-200"
+              className={
+                item.wrongGame
+                  ? "rounded-full border border-edge px-4 py-2 text-sm font-medium text-zinc-200 transition hover:border-edge-strong hover:text-white"
+                  : "rounded-full bg-white px-4 py-2 text-sm font-medium text-zinc-900 transition hover:bg-zinc-200"
+              }
             >
               Scan again
             </button>

@@ -15,6 +15,7 @@ import CopyEditSheet from "@/components/CopyEditSheet";
 import ScanResultSheet from "@/components/ScanResultSheet";
 import ScannerOptionsSheet from "@/components/ScannerOptionsSheet";
 import VerifyAllSheet from "@/components/VerifyAllSheet";
+import WrongGameSwitch from "@/components/WrongGameSwitch";
 import { effectiveVariant, formatMoney, formatVariantLabel, headlinePrice, marketFlagOf, pickPrice } from "@/lib/listing";
 import { fxCapture, fxMatch, fxMiss, revealTier, type RevealTier } from "@/lib/client/scanFx";
 import type { Condition, PokemonCard, ScanItem } from "@/lib/types";
@@ -155,6 +156,8 @@ interface Props {
   queue?: ScanItem[];
   /** Remove one scan from the queue (the × on the result chip and in the session sheet). */
   onRemove?: (id: string) => void;
+  /** A wrong-game scan's "Switch to <game>" (Chris 10-20): the scanner's game follows and the same photo is read again. */
+  onSwitchGame?: (id: string, game: GameId) => void;
   /** The out-of-scans message while it applies (the page banner is hidden behind this modal). */
   quotaNote?: string | null;
   onCapture: (file: File) => void;
@@ -328,7 +331,7 @@ const TIPS_MAX_OPENS = 3;
  * a real desk — keyboard, hand, monitor — each costing a paid scan. Chris:
  * "capture button is where it's at for speed". Don't rebuild without asking.
  */
-export default function CameraCapture({ game, onGameChange, lastScan, queue, onRemove, quotaNote, onCapture, onClose, onOpen, onSwap: onPick, onCamera, onEdit, onApplyConditionToAll }: Props) {
+export default function CameraCapture({ game, onGameChange, lastScan, queue, onRemove, onSwitchGame, quotaNote, onCapture, onClose, onOpen, onSwap: onPick, onCamera, onEdit, onApplyConditionToAll }: Props) {
   const onCameraRef = useRef(onCamera);
   useEffect(() => {
     onCameraRef.current = onCamera;
@@ -1282,7 +1285,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
               {blurNote}
             </p>
           ) : lastScan ? (
-            <ScanToast key={lastScan.id} item={lastScan} onOpen={onOpen} onRemove={onRemove} onSwap={onPick ? () => setPicking(true) : undefined} onEdit={onEdit ? () => setEditing(true) : undefined} onExpand={() => setExpanded(true)} verify={verify} />
+            <ScanToast key={lastScan.id} item={lastScan} onOpen={onOpen} onRemove={onRemove} onSwap={onPick ? () => setPicking(true) : undefined} onSwitchGame={onSwitchGame && lastScan.wrongGame ? () => onSwitchGame(lastScan.id, lastScan.wrongGame!) : undefined} onEdit={onEdit ? () => setEditing(true) : undefined} onExpand={() => setExpanded(true)} verify={verify} />
           ) : nativeCam ? null : (
             <div className="w-full text-center text-sm leading-snug text-zinc-400">
               Fill the guide with one card, then tap Capture.
@@ -1411,6 +1414,8 @@ interface ToastProps {
   onOpen?: (id: string) => void;
   onRemove?: (id: string) => void;
   onSwap?: () => void;
+  /** Another game's card: read this photo again as item.wrongGame (the scanner's game follows). */
+  onSwitchGame?: () => void;
   /** The details pill: open the "This copy" sheet. Falls back to onOpen when absent. */
   onEdit?: () => void;
   /** Open the result big (ScanResultSheet). */
@@ -1419,7 +1424,7 @@ interface ToastProps {
   verify: { count: number; value: number } | null;
 }
 
-function ScanToast({ item, onOpen, onRemove, onSwap, onEdit, onExpand, verify }: ToastProps) {
+function ScanToast({ item, onOpen, onRemove, onSwap, onSwitchGame, onEdit, onExpand, verify }: ToastProps) {
   const scanning = item.status === "queued" || item.status === "scanning";
 
   if (scanning) {
@@ -1444,11 +1449,19 @@ function ScanToast({ item, onOpen, onRemove, onSwap, onEdit, onExpand, verify }:
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-400/15 text-amber-300">
           ?
         </span>
-        <p className="text-sm font-medium text-amber-300">
+        <p className="min-w-0 flex-1 text-sm font-medium text-amber-300">
           {/* The scanner says WHY when it knows (token, unreadable read);
               the generic line is for a real miss (09-03). */}
           {item.error ?? "No match — line the card up in the guide and try again"}
         </p>
+        {/* Another game's card (Chris 10-20): the photo is kept, one tap reads it again as that game. */}
+        {item.wrongGame && onSwitchGame && (
+          <WrongGameSwitch
+            game={item.wrongGame}
+            onSwitch={onSwitchGame}
+            className="shrink-0 whitespace-nowrap rounded-full bg-amber-400 px-3.5 py-2 text-sm font-semibold text-black transition hover:bg-amber-300"
+          />
+        )}
       </div>
     );
   }

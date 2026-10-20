@@ -163,8 +163,8 @@ export async function scanCardWithVision(
     const data = await res.json().catch(() => null);
 
     if (!res.ok) {
-      // 402 = no scans left to spend. Still falls back to OCR like
-      // any other failure, but the caller can now tell the user why. A 403
+      // 402 = no scans left to spend: the scan fails like any other
+      // failure, but the caller can tell the user why. A 403
       // verifyEmail (the emailed code is not typed yet) reads the same way:
       // the scanner re-reads the session, which puts up the code screen.
       if ((res.status === 402 && data?.quota) || (res.status === 403 && data?.verifyEmail)) {

@@ -459,6 +459,13 @@ export interface ScanItem {
   ebaySoldUrl: string | null;
   error: string | null;
   /**
+   * The photo is another game's card (the read's detectedGame, Chris 10-20):
+   * the scan stays on the list and offers "Switch to <game>", which flips the
+   * scanner's game and reads the same photo again as that game. The wrong-game
+   * read was given back, so the card still costs one scan. Null otherwise.
+   */
+  wrongGame?: GameId | null;
+  /**
    * Set once the draft has been pushed to the seller's own eBay account via
    * the Sell Inventory API (offer id), and once that offer is published (the
    * live item URL). Both are server-issued; the client only mirrors them.
