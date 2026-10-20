@@ -1,5 +1,8 @@
 # To test later
 
+## 10-20 ~3:50pm ET: review 10-19 #15 cleared inline sold-price box no longer saves a $0 sale, COMMIT ONLY
+- After push, signed in, Inventory list view: tap Mark sold on a row, clear the price box (or type 0), press the check: toast 'Enter what it sold for', the box stays open, the row is NOT marked sold (status unchanged, no $0 in Earned); type a price and press the check: sold as before.
+
 ## 10-20 ~3:45pm ET: review 10-19 #14 Inventory value chart refetches on sale/reprice, fetches only while the summary panel is open, COMMIT ONLY
 - After push, signed in, Inventory with the summary panel CLOSED: the Network tab shows NO /api/cards/value-history call on load; tap Show: one call, the chart draws; mark a card sold (or change its price) with the panel open: a second value-history call fires and the line/last point updates without a reload; Hide then Show: one more call, range pill back to 90d (state resets, fine).
 

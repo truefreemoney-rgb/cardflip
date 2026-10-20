@@ -1418,6 +1418,11 @@ export default function CollectionPage() {
 
   function confirmSold(card: ServerCard, value: string) {
     const price = Math.max(0, parseFloat(value) || 0);
+    // A cleared box is not a free sale (review 10-19 #15; the Mark sold sheet already refuses it): keep the box open.
+    if (!(price > 0)) {
+      toast("Enter what it sold for");
+      return;
+    }
     if (card.status === "sold") {
       void applyPatch(card, { soldPrice: price });
     } else {
