@@ -454,6 +454,8 @@ export default function AppPage() {
   const pump = useCallback(async () => {
     if (pumpingRef.current >= SCAN_WORKERS) return;
     pumpingRef.current++;
+    // Set by the watchdog when it hands this worker's slot to a fresh pump() (review 10-19 #5).
+    let freed = false;
 
     try {
       for (;;) {
@@ -477,14 +479,30 @@ export default function AppPage() {
 
         // The watchdog (Chris 10-04: "stalling in general is really bad"): whatever the code below is waiting on,
         // an item still "scanning" at the limit is failed, and anything that lands for it later is ignored.
+        // Known once the server answered: the watchdog hands it back (the server decides if it is refundable).
+        let watchdogScanId: string | null = null;
         const watchdog = setTimeout(() => {
           if (itemsRef.current.find((i) => i.id === next.id)?.status !== "scanning") return;
           patchItem(next.id, { status: "error", error: "Took too long — try again" });
           abandoned.current.add(next.id);
+          // Review 10-19 #5: a timed-out scan used to keep its credit AND its worker slot (the body below was
+          // still awaiting), so two hung scans froze the queue. Give the scan back and hand the slot to a fresh
+          // worker; the hung body finishes on its own and every late patch is ignored (abandoned).
+          if (watchdogScanId) {
+            void giveBackScan(watchdogScanId).then((usage) => {
+              if (!usage) return;
+              setScanUsage(usage);
+              patchUser({ scans: usage });
+            });
+          }
+          freed = true;
+          pumpingRef.current--;
+          void pump();
         }, SCAN_WATCHDOG_MS);
         try {
           // Vision only (no OCR fallback since 10-12): the read is the card, or the scan fails and says so.
           const vision = await scanCardWithVision(next.file, next.language, next.game);
+          watchdogScanId = vision.scanId ?? null;
 
           if (vision.usage) {
             setScanUsage(vision.usage);
@@ -925,9 +943,11 @@ export default function AppPage() {
         } finally {
           clearTimeout(watchdog);
         }
+        // The watchdog already gave this slot to a fresh worker: this one must not pick up another item.
+        if (freed) return;
       }
     } finally {
-      pumpingRef.current--;
+      if (!freed) pumpingRef.current--;
     }
   }, [patchItem, patchUser, refresh, setGame, swapCard]);
 
