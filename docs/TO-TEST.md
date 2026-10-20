@@ -1,5 +1,9 @@
 # To test later
 
+## 10-20 ~4:50pm ET: review 10-19 #21 search-card LIKE walks escape % _ \ and the English substring walk needs 3 letters, COMMIT ONLY
+- After push: curl 'https://cardflip.io/api/search-card?name=%25&game=pokemon' and '?name=_' return an empty/short list fast (not 400 rows), and Vercel function time for that call is tens of ms; a real search ('charizard', 'ashs pikachu', 'poke ball', Magic 'lightning bolt', ja 'ピカチュウ') finds the same cards as before (npm run test:mirror, test:searchtyped, test:mtg, test:cards PASS 10-20 locally).
+- Scanner: a vision read of a 1-2 letter name (e.g. 'Mr' clipped) still identifies by the printed number fraction (the number fallback runs when the walk is skipped).
+
 ## 10-20 ~4:30pm ET: review 10-19 #20 db ready() forgets a failed schema run so the next query retries, COMMIT ONLY
 - After push: no visible change. Proof on the next Turso blip: a cold-start error (Vercel log 'schema' / 'initSchema' failure) is followed by healthy responses from the SAME instance on later requests instead of the same error until a recycle; local: npm run test:cards, test:queryplans, test:liveprices PASS 10-20.
 

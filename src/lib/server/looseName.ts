@@ -48,3 +48,12 @@ export function looseLike(squashed: string): string {
 
 /** Shortest squashed needle worth a walk: two letters match half a catalog. */
 export const LOOSE_MIN = 4;
+
+/**
+ * A typed or vision-read name as a LIKE needle (review 10-19 #21): its own %, _ and backslash are escaped so a crafted
+ * `?name=%` cannot turn the substring walk into a whole-mirror read. The query must say `ESCAPE '\'`. squash()
+ * already strips these, so only the raw-name walks need it.
+ */
+export function likeNeedle(value: string): string {
+  return value.replace(/[\\%_]/g, "\\$&");
+}

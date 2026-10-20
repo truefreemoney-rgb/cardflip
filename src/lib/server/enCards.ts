@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { LOOSE_MIN, looseLike, squash, squashSql } from "@/lib/server/looseName";
+import { LOOSE_MIN, likeNeedle, looseLike, squash, squashSql } from "@/lib/server/looseName";
 import { queryCards, mapCard, type RawTcgCard } from "@/lib/tcg";
 import {
   agreesWithSetCode,
@@ -306,16 +306,18 @@ export async function searchEnglishCardsLocal(
   // it — "Pikachu" read off a Surfing Pikachu, or a name with the front
   // clipped. Same candidates as before in those cases, none of the cost otherwise.
   const numberSatisfied = !wanted || rows.some((r) => normalizeNumber(r.local_id) === wanted);
-  if (rows.length === 0 || !numberSatisfied) {
+  // Three letters at least (review 10-19 #21): a one- or two-letter needle matches most of the mirror and the
+  // exact/prefix tiers above already answer those; the printed-number fallback below still runs.
+  if ((rows.length === 0 || !numberSatisfied) && needle.length >= 3) {
     const wide = (await db
       .prepare(
         `SELECT ${CARD_COLUMNS}
            FROM en_cards
-          WHERE ${FOLDED_NAME} LIKE ?
+          WHERE ${FOLDED_NAME} LIKE ? ESCAPE '\\'
           ORDER BY set_release_date DESC
           LIMIT 400`,
       )
-      .all(`%${needle}%`)) as unknown as EnCardRow[];
+      .all(`%${likeNeedle(needle)}%`)) as unknown as EnCardRow[];
     const have = new Set(rows.map((r) => r.id));
     rows = [...rows, ...wide.filter((r) => !have.has(r.id))]
       .sort((a, b) => (a.set_release_date < b.set_release_date ? 1 : a.set_release_date > b.set_release_date ? -1 : 0))

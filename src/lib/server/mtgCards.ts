@@ -16,7 +16,7 @@
  */
 
 import { cachedList, SET_LIST_TTL_MS } from "@/lib/server/listCache";
-import { LOOSE_MIN, looseLike, squash, squashSql } from "@/lib/server/looseName";
+import { LOOSE_MIN, likeNeedle, looseLike, squash, squashSql } from "@/lib/server/looseName";
 import { db } from "@/lib/db";
 import { withEurMarket } from "@/lib/listing";
 import { cardmarketLift } from "@/lib/priceChain";
@@ -418,11 +418,11 @@ export async function searchMtgCardsLocal(
         .prepare(
           `SELECT ${CARD_COLUMNS_JOINED}
              FROM mtg_cards c LEFT JOIN mtg_sets s ON s.code = c.set_code
-            WHERE REPLACE(LOWER(c.name), ',', '') LIKE ?
+            WHERE REPLACE(LOWER(c.name), ',', '') LIKE ? ESCAPE '\\'
             ORDER BY c.set_release_date DESC
             LIMIT 600`,
         )
-        .all(`%${needle}%`)) as unknown as MtgCardRow[];
+        .all(`%${likeNeedle(needle)}%`)) as unknown as MtgCardRow[];
       const seen = new Set(rows.map((r) => r.id));
       for (const r of wide) if (!seen.has(r.id)) rows.push(r);
     }

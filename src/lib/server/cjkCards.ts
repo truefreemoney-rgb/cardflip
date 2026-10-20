@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { likeNeedle } from "@/lib/server/looseName";
 import type { CardPrice, PokemonCard, ScanLanguage } from "@/lib/types";
 
 /**
@@ -161,8 +162,8 @@ export async function searchCjkCardsLocal(
     .all(name, `${name}￿`, ...numberArgs)) as unknown as CjkCardRow[];
   if (exact.length === 0) {
     exact = (await db
-      .prepare(`SELECT ${cols} FROM ${table} WHERE name LIKE ?${numberClause} LIMIT 12`)
-      .all(`%${name}%`, ...numberArgs)) as unknown as CjkCardRow[];
+      .prepare(`SELECT ${cols} FROM ${table} WHERE name LIKE ? ESCAPE '\\'${numberClause} LIMIT 12`)
+      .all(`%${likeNeedle(name)}%`, ...numberArgs)) as unknown as CjkCardRow[];
   }
 
   // A number filter that matches nothing (misread by OCR) shouldn't hide an
