@@ -817,7 +817,13 @@ export default function AppPage() {
                       ? `${language === "ja" ? "Japanese" : "Chinese"} card, the price shown is for the English print`
                       : foils > 1
                         ? `comes in ${foils} foils, pick yours`
-                        : null,
+                        : // B1 10-20: foil seen, symbol not (Prismatic's big faint ball hides under a lamp), and this
+                          // card sells as pattern printings: the seller tilts it and picks, instead of a silent default.
+                          next.game === "pokemon" &&
+                            (vision.read?.foilPattern === "reverse" || (vision.read?.foilPattern == null && vision.read?.patternLook != null)) &&
+                            card.prices.filter((p) => p.currency === "USD" && p.market != null && p.market > 0 && /BallPattern$/.test(p.variant)).length >= 2
+                          ? "reverse holo: tilt it to see the ball, then pick Poké Ball or Master Ball under Printing"
+                          : null,
             });
 
             // Vision may already have graded the card, so read the condition

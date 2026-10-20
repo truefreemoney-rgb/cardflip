@@ -43,6 +43,12 @@ assert.equal(read.pattern, null);
 assert.equal(read.ball, null);
 assert.ok(JSON.stringify(read).includes('"pattern":null'), "survives JSON");
 
+// The focused look's verdict rides along only when one ran.
+read = scanLogRead({ ...base, foilPattern: "ball", patternBall: "master", patternLook: "found" }, "pokemon", timing);
+assert.equal(read.look, "found");
+read = scanLogRead({ ...base }, "pokemon", timing);
+assert.ok(!("look" in read), "no look key without a look");
+
 // Other games: no pattern keys at all (the log stays compact; the 2000-char slice matters).
 for (const game of ["mtg", "lorcana", "onepiece", "yugioh"]) {
   read = scanLogRead({ ...base, foilPattern: "ball", patternBall: "master" }, game, timing);

@@ -207,6 +207,13 @@ export interface VisionCardRead {
    * "list-twin". Logged for the panels and the scan ledger.
    */
   secondLook?: string | null;
+  /**
+   * Pokémon (B1 10-20): what the focused pattern look on the text box said when the whole-card read saw foil
+   * but no symbol on a pattern set (Prismatic Evolutions, Ascended Heroes, Black Bolt, White Flare):
+   * "found" (foilPattern / patternBall now carry it), the look's own answer ("reverse" / "unknown"),
+   * "skipped-slow" or "failed". Absent when no look was needed.
+   */
+  patternLook?: string | null;
   /** Magic, from the second look: the bottom strip was readable and printed no copyright year (pre-1995 card). */
   noYearLine?: boolean;
   /** Magic, from the second look: a white 1990s border with the Unlimited bevel (true) or flat like Revised/4th (false). */

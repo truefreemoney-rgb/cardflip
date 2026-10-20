@@ -33,6 +33,8 @@ export function scanLogRead(
     ...(card.detectedGame ? { seen: card.detectedGame } : {}),
     // Pokémon only: the reverse-holo symbol read (lib/foilPattern.ts picks the priced line from it).
     ...(game === "pokemon" ? { pattern: card.foilPattern ?? null, ball: card.patternBall ?? null } : {}),
+    // The focused text-box look, when one ran (vision.ts needsPatternLook): "found", "reverse", "skipped-slow", "failed".
+    ...(card.patternLook ? { look: card.patternLook } : {}),
     // ms spent in the gates before the vision call, and in the call itself.
     pre: timing.pre,
     ms: timing.ms,

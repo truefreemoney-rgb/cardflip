@@ -616,6 +616,129 @@ export async function analyzeCardImageWithUsage(
   mediaType: string,
   languageHint: ScanLanguage,
   game: GameId = "pokemon",
+  pocket = false,
+  canSwitchTo?: (detected: GameId) => boolean,
+  startedAt = Date.now(),
+): Promise<{ read: VisionCardRead; usage: VisionUsage }> {
+  const out = await analyzeCore(base64Image, mediaType, languageHint, game, pocket, canSwitchTo, startedAt);
+  // B1 (10-20): a pattern-set reverse holo whose symbol the whole-card read missed gets one focused look at
+  // the text box (Prismatic's one big faint ball, the M on a Master Ball). TCGplayer product shots: 9/9 right
+  // with the crop vs 4/8 whole-card. Only when the read says foil-but-no-symbol on a set that sells patterns.
+  if (!needsPatternLook(out.read, out.read.game ?? game)) return out;
+  const clock = { startedAt, budgetMs: SCAN_BUDGET_MS };
+  if (remainingMs(clock) < SECOND_LOOK_MIN_MS) return { read: { ...out.read, patternLook: "skipped-slow" }, usage: out.usage };
+  try {
+    const look = await patternLook(base64Image, clock);
+    return { read: mergePatternLook(out.read, look.read), usage: addUsage(out.usage, look.usage) };
+  } catch (err) {
+    console.warn("pattern look failed:", err instanceof Error ? err.message : err);
+    return { read: { ...out.read, patternLook: "failed" }, usage: out.usage };
+  }
+}
+
+/** Sets whose reverse holos are sold as pattern printings (lib/tcgcsv.ts PatternVariant), by printed set code. */
+export const PATTERN_SET_CODES = new Set(["PRE", "ASC", "BLK", "WHT"]);
+
+/** Foil seen, symbol not placed, on a set that sells patterns: worth one focused look. */
+export function needsPatternLook(read: Pick<VisionCardRead, "setCode" | "foilPattern" | "patternBall" | "slab" | "kind">, game: GameId): boolean {
+  if (game !== "pokemon") return false;
+  if (read.slab || (read.kind && read.kind !== "card")) return false;
+  const code = read.setCode?.trim().toUpperCase() ?? "";
+  if (!PATTERN_SET_CODES.has(code)) return false;
+  if (read.foilPattern === "reverse" || read.foilPattern == null) return true;
+  // Prismatic's one big ball: the whole-card read called a Master Ball "poke" on TCGplayer's own shot (10-20),
+  // and the M is the $14-vs-$2 difference, so every Prismatic ball read gets the close look.
+  return read.foilPattern === "ball" && (!read.patternBall || code === "PRE");
+}
+
+type PatternLookRead = { foilPattern: string; patternBall: string };
+
+/** Fold the focused look into the read: a symbol it saw wins; otherwise the look's own answer is recorded. */
+export function mergePatternLook(read: VisionCardRead, look: PatternLookRead): VisionCardRead {
+  const norm = normalizeFoilPattern({ ...read, foilPattern: look.foilPattern, patternBall: look.patternBall } as VisionCardRead);
+  if (norm.foilPattern && norm.foilPattern !== "reverse") return { ...read, ...norm, patternLook: "found" };
+  // "reverse" from the crop confirms foil with no symbol; keep the first read's ball if it had one.
+  return { ...read, patternLook: look.foilPattern || "unknown" };
+}
+
+const PATTERN_LOOK_SCHEMA = {
+  type: "object",
+  properties: {
+    foilPattern: {
+      type: "string",
+      enum: ["none", "reverse", "ball", "energySymbol", "teamRocket", "unknown"],
+      description:
+        "What the foil behind the ability / attack text shows. 'ball': a circle cut in half by a horizontal band with a small round button at the centre, either ONE large pale ball as wide as the text box (its outline runs from the ability line to the attack line and the band and button sit under the attack name; on cracked-glass foil it is faint, so trace the outline through the text) or ROWS of many medium balls. 'reverse': foil but no symbol anywhere. 'none': no foil here. 'energySymbol': one large energy icon, no band. 'teamRocket': a large letter R. 'unknown': glare hides the area.",
+    },
+    patternBall: {
+      type: "string",
+      enum: ["poke", "master", "friend", "love", "quick", "dusk", "unknown"],
+      description:
+        "Only when foilPattern is 'ball', else 'unknown'. Judge by shape, the foil tints everything one colour. 'poke': the top half of the ball is empty. 'master': the top half carries a large M (two tall bumps joined by a V, like a crown). 'friend': a leaf on the top half. 'love': a heart. 'quick': four wedge marks. 'dusk': stripes or a zigzag. 'unknown': a ball you cannot place.",
+    },
+  },
+  required: ["foilPattern", "patternBall"],
+  additionalProperties: false,
+} as const;
+
+const SYSTEM_PATTERN_LOOK =
+  "You are inspecting a crop of the lower half of a Pokémon trading card: the ability / attack text box and the lines under it. Reverse holo cards from some sets print a symbol in the foil behind that text, and each symbol is a separate product, so this one detail matters. Look at the foil pattern itself, not the text or the energy icons printed on top of it. Answer with the schema only.";
+
+/** Text box crop (42%-88% of the height), widened to at least 1400px, as JPEG. */
+async function textBoxCrop(base64Image: string): Promise<{ base64: string; mediaType: ImageMediaType }> {
+  const sharp = (await import("sharp")).default;
+  const input = Buffer.from(base64Image, "base64");
+  const meta = await sharp(input).metadata();
+  const w = meta.width ?? 0;
+  const h = meta.height ?? 0;
+  if (!w || !h) throw new Error("pattern look: unreadable image");
+  const top = Math.round(h * 0.42);
+  const bottom = Math.round(h * 0.88);
+  const out = await sharp(input)
+    .extract({ left: 0, top, width: w, height: bottom - top })
+    .resize({ width: Math.min(1568, Math.max(w, 1400)), withoutEnlargement: false })
+    .jpeg({ quality: 90 })
+    .toBuffer();
+  return { base64: out.toString("base64"), mediaType: "image/jpeg" };
+}
+
+async function patternLook(base64Image: string, clock: BudgetClock): Promise<{ read: PatternLookRead; usage: VisionUsage }> {
+  const crop = await textBoxCrop(base64Image);
+  const response = await withinBudget((timeout) => getClient().messages.create({
+    model: VISION_MODEL,
+    max_tokens: 300,
+    // Medium, not low: the M on a Master Ball was read as a plain ball at low effort (10-20 test).
+    output_config: { effort: "medium", format: { type: "json_schema", schema: PATTERN_LOOK_SCHEMA } },
+    system: SYSTEM_PATTERN_LOOK,
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "image", source: { type: "base64", media_type: crop.mediaType, data: crop.base64 } },
+          { type: "text", text: "What symbol, if any, is in the foil behind the attack text?" },
+        ],
+      },
+    ],
+  }, { timeout, maxRetries: 0 }), clock);
+  const text = response.content.find((block) => block.type === "text");
+  if (!text || text.type !== "text") throw new Error("pattern look: no readable result");
+  const u = response.usage;
+  return {
+    read: JSON.parse(text.text) as PatternLookRead,
+    usage: {
+      inputTokens: u.input_tokens,
+      outputTokens: u.output_tokens,
+      cacheReadTokens: u.cache_read_input_tokens ?? 0,
+      cacheWriteTokens: u.cache_creation_input_tokens ?? 0,
+    },
+  };
+}
+
+async function analyzeCore(
+  base64Image: string,
+  mediaType: string,
+  languageHint: ScanLanguage,
+  game: GameId = "pokemon",
   /**
    * The photo is one pocket cut from a binder page. The pocket's plastic
    * edge and the neighbouring sleeve read as a slab holder (3 of 9 cards on
