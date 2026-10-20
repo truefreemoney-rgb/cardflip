@@ -1,5 +1,10 @@
 # To test later
 
+## 10-19 ~10:00pm ET: phone-check fixes #4-#6 (845ea9a2), COMMIT ONLY, no push yet (dev-server verified at 375px: docs/shots/sets-show-more-phone.jpg, card-page-bottom-nav-phone.jpg)
+- After push, on the phone: /cards/pokemon (and the other four games) shows 12 sets then a "Show all N sets" button; tapping it shows every set; no sideways scroll.
+- After push, signed in on the phone: any /cards page shows the app's bottom tab bar (Inventory / Search / Scanner / Watchlist / Account); on a card page the Market + Watch this price bar sits right above it, nothing overlaps; signed out: no bar.
+- PHONE-CHECKS step 4 now reads Market price only.
+
 ## 10-19 ~9:20pm ET: THE PRICE CHAIN built (priceChain.ts; Chris "yes build it"), COMMIT ONLY, no push yet
 - After push, nightly Magic refresh (next run after the deploy): the run log shows cardmarketFilled, cardkingdomFilled (expect ~50 on day 1, dry run 51 of 1,256 blank released printings) and cardtraderFilled LAST; `SELECT source, COUNT(*) FROM price_series WHERE game='mtg' AND source='cardkingdom'` > 0; no $1,000+ cardkingdom row (out-of-stock placeholders skipped: The Mind Stone msh 385 foil must NOT be $36,290).
 - After push, a Card Kingdom-filled page e.g. /cards/mtg/... Enlightened Confidant (pfra 5p, ~$7.65 / $8.86 foil) shows "Card Kingdom (adjusted)" as the price label and on the chart's source line.
