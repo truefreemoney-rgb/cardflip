@@ -54,6 +54,7 @@ import { isSecretRareNumber, normalizeNumber, pickPrinting, readHasPrintedKey, t
 import { buildListing, buildSealedListing, canBeFirstEdition, isFirstEditionCard, itemFirstEdition, withListingOverrides, currentPrice, headlinePrice, describeItemCondition, effectiveVariant, formatMoney, mtgFinishOf, quotePrice, withEbayPrices, quoteForItem } from "@/lib/listing";
 import { GRADED_LOCKED, parseGradeQuery } from "@/lib/grading";
 import { GAMES, isGameId, parseGame, readSavedGame, saveGame } from "@/lib/games";
+import { TAP_8 } from "@/lib/tap";
 import { OPEN_SCAN_NOTE, readActivePackId, readSavedCategory, readSavedCondition, readSavedStrategy, saveCategory } from "@/lib/client/scanPrefs";
 import CategorySheet, { distinctCategories } from "@/components/CategorySheet";
 import ActivePackBar from "@/components/ActivePackBar";
@@ -190,9 +191,6 @@ const SLAB_MESSAGE = "That's a graded slab — graded cards aren't accepted yet.
    usually land inside two seconds; the last step holds until they do. */
 const RESUME_STEPS = ["Finding the match", "Pulling today's prices", "Loading your photo"] as const;
 const RESUME_STAGE_MS = [900, 2000] as const;
-
-/** An invisible 8px layer above and below: a 28-32px pill taps at 44px+ without changing its look (review 10-19 #24). */
-const TAP_8 = "relative before:absolute before:inset-x-0 before:-inset-y-2 before:content-['']";
 
 export default function AppPage() {
   const router = useRouter();

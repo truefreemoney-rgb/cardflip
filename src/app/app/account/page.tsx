@@ -38,6 +38,7 @@ import {
   type TotpSetup,
 } from "@/lib/client/accountApi";
 import { etDate } from "@/lib/time";
+import { TAP_8 } from "@/lib/tap";
 import { PromoCodeBox } from "@/components/PromoCode";
 
 /**
@@ -109,10 +110,9 @@ function Row({
   );
 }
 
-const rowBtn =
-  "shrink-0 rounded-full border border-edge px-3.5 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-edge-strong hover:text-white disabled:cursor-not-allowed disabled:opacity-50";
-const rowPrimary =
-  "shrink-0 rounded-full bg-brand-500 px-3.5 py-1.5 text-xs font-semibold text-white transition hover:bg-brand-400 disabled:cursor-not-allowed disabled:opacity-50";
+// TAP_8: the 28px row buttons tap at 44px (review 10-19 #24).
+const rowBtn = `${TAP_8} shrink-0 rounded-full border border-edge px-3.5 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-edge-strong hover:text-white disabled:cursor-not-allowed disabled:opacity-50`;
+const rowPrimary = `${TAP_8} shrink-0 rounded-full bg-brand-500 px-3.5 py-1.5 text-xs font-semibold text-white transition hover:bg-brand-400 disabled:cursor-not-allowed disabled:opacity-50`;
 
 function Dot({ on }: { on: boolean }) {
   return <span className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full align-middle ${on ? "bg-emerald-400" : "bg-zinc-600"}`} />;

@@ -1,5 +1,8 @@
 # To test later
 
+## 10-20 ~5:05pm ET: review 10-19 #24 slice 2b = list-row tap targets (src/lib/tap.ts shared layers), COMMIT ONLY, VISIBLE (small), shots docs/shots/inventory-24-phone.jpg, watchlist-24-phone.jpg
+- After push, phone: Inventory select/delete circles on a tile tap at ~41x44 and a tap between them never deletes; the selection toolbar pills (Move to listings ... Delete N cards) and Clear / Cancel tap at 44px; "Select all" row taps anywhere on its line; Watchlist "Price alert" pill 12px lighter grey, its X and Set / Clear tap easily; Account row buttons (Change, Manage ...) tap at 44px; Search star taps at 44px; a pack page's "All Packs", Delete Pack, Delete / Keep tap easily (Keep wins a tap between them).
+
 ## 10-20 ~4:40pm ET: review 10-19 #24 slice 2 = scanner + nav tap targets (44px tap layers, look unchanged) + 12px text, COMMIT ONLY, VISIBLE, shots docs/shots/pills-tabs-24-phone.jpg, scanner-list-24-phone.jpg, camera-24-phone.jpg
 - After push, phone: bottom tab labels 12px; the five game pills read 12px and still fit one line (scanner list header, camera, Insights); on the scanner list tap just above/below Connect eBay / Done / Clear / a game pill / Add Cards / Inventory -> still hits it; camera Close / light / ... buttons and the result card's copy pill + Clear tap easily; public header links (How It Works ... Get Started) and the search icon tap at 44px; This copy sheet labels "CONDITION" / "PRINTING" lighter 12px.
 

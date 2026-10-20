@@ -25,6 +25,7 @@ import { normalizeNumber } from "@/lib/cardNumber";
 import { displayCardNumber, GAME_IDS, GAMES } from "@/lib/games";
 import type { GameId, PokemonCard, ScanLanguage } from "@/lib/types";
 import { etDate } from "@/lib/time";
+import { TAP_10, TAP_4, TAP_8 } from "@/lib/tap";
 
 const LANGUAGE_LABEL: Record<string, string> = {
   en: "English",
@@ -87,11 +88,11 @@ function AlertControl({ item, onSaved }: { item: WishlistItem; onSaved: (item: W
           className="w-24 rounded-md border border-edge bg-black/40 px-2.5 py-2 text-center text-base text-white outline-none focus:border-brand-400"
           aria-label={`Alert price for ${item.cardName}`}
         />
-        <button type="submit" disabled={busy} className="rounded-full bg-brand-500/15 px-3.5 py-2 text-sm font-medium text-brand-300 hover:bg-brand-500/25 disabled:opacity-50">
+        <button type="submit" disabled={busy} className={`${TAP_4} rounded-full bg-brand-500/15 px-3.5 py-2 text-sm font-medium text-brand-300 hover:bg-brand-500/25 disabled:opacity-50`}>
           Set
         </button>
         {item.alertPrice != null && (
-          <button type="button" disabled={busy} onClick={() => void save(null)} className="px-1.5 text-sm text-zinc-500 underline underline-offset-2 hover:text-zinc-300">
+          <button type="button" disabled={busy} onClick={() => void save(null)} className={`${TAP_4} px-1.5 py-2 text-sm text-zinc-400 underline underline-offset-2 hover:text-zinc-200`}>
             Clear
           </button>
         )}
@@ -116,10 +117,10 @@ function AlertControl({ item, onSaved }: { item: WishlistItem; onSaved: (item: W
         setEditing(true);
       }}
       title="Get an email when this card's market price dips to your target"
-      className={`w-full truncate whitespace-nowrap rounded-full border px-2.5 py-1.5 text-[11px] font-medium transition ${
+      className={`${TAP_8} w-full truncate whitespace-nowrap rounded-full border px-2.5 py-1.5 text-xs font-medium transition ${
         item.alertPrice != null
           ? "border-amber-400/30 bg-amber-400/10 text-amber-200 hover:bg-amber-400/20"
-          : "border-edge text-zinc-500 hover:border-edge-strong hover:text-zinc-300"
+          : "border-edge text-zinc-400 hover:border-edge-strong hover:text-zinc-200"
       }`}
     >
       {item.alertPrice != null
@@ -573,7 +574,7 @@ export default function WishlistPage() {
               aria-expanded
               aria-label="Fold the totals away"
               title="Fold away"
-              className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full text-zinc-500 transition hover:bg-white/5 hover:text-zinc-200"
+              className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full text-zinc-400 transition before:absolute before:-inset-1.5 before:content-[''] hover:bg-white/5 hover:text-zinc-200"
             >
               <FoldChevron open />
             </button>
@@ -633,7 +634,7 @@ export default function WishlistPage() {
             type="button"
             onClick={toggleSearch}
             aria-expanded
-            className="flex items-center gap-1 rounded-full px-2 py-1 text-xs text-zinc-400 transition hover:bg-white/5 hover:text-zinc-200"
+            className={`${TAP_10} flex items-center gap-1 rounded-full px-2 py-1 text-xs text-zinc-400 transition hover:bg-white/5 hover:text-zinc-200`}
           >
             Hide <FoldChevron open />
           </button>
@@ -718,7 +719,7 @@ export default function WishlistPage() {
               setLoading(true);
               setLoadSeq((n) => n + 1);
             }}
-            className="rounded-full border border-red-400/40 px-3 py-1 text-xs font-semibold text-red-200 transition hover:bg-red-500/10"
+            className={`${TAP_10} rounded-full border border-red-400/40 px-3 py-1 text-xs font-semibold text-red-200 transition hover:bg-red-500/10`}
           >
             Retry
           </button>
@@ -804,7 +805,7 @@ export default function WishlistPage() {
                     <button
                       onClick={() => handleRemove(item.id)}
                       aria-label={`Remove ${item.cardName} from watchlist`}
-                      className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-zinc-400 transition hover:bg-black/80 hover:text-white focus-visible:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
+                      className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-zinc-400 transition before:absolute before:-inset-1.5 before:content-[''] hover:bg-black/80 hover:text-white focus-visible:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
                     >
                       <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
                         <path d="M5 5l10 10M15 5l-10 10" strokeLinecap="round" />

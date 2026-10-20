@@ -7,6 +7,7 @@ import CatalogSearch from "@/components/CatalogSearch";
 import { gameFromSlug } from "@/lib/cardPages";
 import Logo from "@/components/Logo";
 import { fetchCurrentUser, logout, type SessionUser } from "@/lib/client/auth";
+import { TAP_4 } from "@/lib/tap";
 import PublicBottomNav from "./PublicBottomNav";
 
 /**
@@ -77,9 +78,8 @@ export default function MarketingNav() {
     };
   }, []);
 
-  // The before: layer grows each 36px link and button to a 44px tap target without changing its look (review 10-19 #24).
-  const hit = "relative before:absolute before:inset-x-0 before:-inset-y-1 before:content-['']";
-  const link = `${hit} whitespace-nowrap px-2.5 py-2 text-sm text-zinc-400 transition hover:text-white`;
+  // TAP_4 grows each 36px link and button to a 44px tap target without changing its look (review 10-19 #24).
+  const link = `${TAP_4} whitespace-nowrap px-2.5 py-2 text-sm text-zinc-400 transition hover:text-white`;
 
   return (
     <>
@@ -130,7 +130,7 @@ export default function MarketingNav() {
               </button>
               <Link
                 href="/app"
-                className={`${hit} ml-1 whitespace-nowrap rounded-full bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-400`}
+                className={`${TAP_4} ml-1 whitespace-nowrap rounded-full bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-400`}
               >
                 Open the App
               </Link>
@@ -142,7 +142,7 @@ export default function MarketingNav() {
               </Link>
               <Link
                 href="/signup"
-                className={`${hit} ml-1 whitespace-nowrap rounded-full bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-400 ${known ? "" : "invisible"}`}
+                className={`${TAP_4} ml-1 whitespace-nowrap rounded-full bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-400 ${known ? "" : "invisible"}`}
               >
                 Get Started
               </Link>

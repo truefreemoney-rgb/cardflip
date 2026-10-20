@@ -55,6 +55,7 @@ import { saleBreakdown, saleNet } from "@/lib/profit";
 import { toast } from "@/components/Toaster";
 // import CollectorValueHeader from "@/components/CollectorValueHeader"; (parked 10-08, see the render spot)
 import { etDate } from "@/lib/time";
+import { TAP_10, TAP_8 } from "@/lib/tap";
 
 /**
  * Every card the seller has ever scanned, with where it is in its life:
@@ -1003,11 +1004,11 @@ export default function CollectionPage() {
                       />
                     </span>
                     {/* A worded Save (Chris, 09-28): "not many people are going to know to hit return". */}
-                    <button type="submit" className="rounded-full bg-emerald-500 px-3 py-1 text-xs font-semibold text-black transition hover:bg-emerald-400">
+                    <button type="submit" className={`${TAP_10} rounded-full bg-emerald-500 px-3 py-1 text-xs font-semibold text-black transition hover:bg-emerald-400`}>
                       Save
                     </button>
                     {card.alertPrice != null && (
-                      <button type="button" onClick={() => { void applyPatch(card, { alertPrice: null }); setAlertForm(null); }} className="text-xs text-zinc-500 underline underline-offset-2 hover:text-zinc-300">
+                      <button type="button" onClick={() => { void applyPatch(card, { alertPrice: null }); setAlertForm(null); }} className={`${TAP_10} px-1 py-1 text-xs text-zinc-400 underline underline-offset-2 hover:text-zinc-200`}>
                         Clear
                       </button>
                     )}
@@ -2572,7 +2573,7 @@ export default function CollectionPage() {
           (Chris, 09-01 QoL pass). */}
       {visible.length > 0 && (
         <div className="-mt-2 flex flex-wrap items-center gap-3 text-sm">
-          <label className="flex items-center gap-2 text-zinc-400">
+          <label className="relative flex items-center gap-2 text-zinc-400 before:absolute before:inset-x-0 before:-inset-y-3 before:content-['']">
             <input
               type="checkbox"
               checked={visible.length > 0 && visible.every((c) => selected.has(c.id))}
@@ -2583,7 +2584,7 @@ export default function CollectionPage() {
               aria-label="Select all shown cards"
             />
             Select all
-            <span className="text-xs text-zinc-600">· {visible.length} {visible.length === 1 ? "card" : "cards"}{visible.length > limitN ? `, showing ${limitN}` : ""}</span>
+            <span className="text-xs text-zinc-500">· {visible.length} {visible.length === 1 ? "card" : "cards"}{visible.length > limitN ? `, showing ${limitN}` : ""}</span>
           </label>
           {selected.size > 0 && (() => {
             const selCards = cards.filter((c) => selected.has(c.id));
@@ -2593,8 +2594,7 @@ export default function CollectionPage() {
             // from its own card (End listing), never flipped in bulk (review 10-19 #11; the API refuses it too).
             const revertable = selCards.filter((c) => c.status === "listed" && !isLive(c));
             const deletable = selCards.filter((c) => !isLive(c) && c.status !== "sold");
-            const bulkBtn =
-              "rounded-full border border-edge px-3.5 py-1.5 text-xs font-medium text-zinc-200 transition hover:border-edge-strong hover:bg-surface-2 disabled:opacity-50";
+            const bulkBtn = `${TAP_8} rounded-full border border-edge px-3.5 py-1.5 text-xs font-medium text-zinc-200 transition hover:border-edge-strong hover:bg-surface-2 disabled:opacity-50`;
             async function applyToAll(targets: ServerCard[], patch: (c: ServerCard) => Partial<ServerCard>, note: string) {
               await Promise.all(targets.map((c) => applyPatch(c, patch(c))));
               setSelected(new Set());
@@ -2670,7 +2670,7 @@ export default function CollectionPage() {
                       .filter((c) => c.kind !== "sealed")
                       .map((c) => c.id)
                       .join(",")}`}
-                    className="rounded-full bg-brand-500/15 px-3.5 py-1.5 text-xs font-semibold text-brand-300 transition hover:bg-brand-500/25"
+                    className={`${TAP_8} rounded-full bg-brand-500/15 px-3.5 py-1.5 text-xs font-semibold text-brand-300 transition hover:bg-brand-500/25`}
                   >
                     Move to listings ({ready.filter((c) => c.kind !== "sealed").length})
                   </Link>
@@ -2721,13 +2721,13 @@ export default function CollectionPage() {
                   onClick={removeSelected}
                   disabled={deletable.length === 0}
                   title={deletable.length === 0 ? "Live listings can't be deleted — unlist them first" : undefined}
-                  className="rounded-full border border-red-400/40 px-3.5 py-1.5 text-xs font-medium text-red-300 transition hover:bg-red-500/10 disabled:opacity-50"
+                  className={`${TAP_8} rounded-full border border-red-400/40 px-3.5 py-1.5 text-xs font-medium text-red-300 transition hover:bg-red-500/10 disabled:opacity-50`}
                 >
                   {`Delete ${deletable.length} card${deletable.length === 1 ? "" : "s"}`}
                 </button>
                 <button
                   onClick={() => setSelected(new Set())}
-                  className="text-xs text-zinc-500 underline underline-offset-4 hover:text-zinc-300"
+                  className={`${TAP_10} px-1 py-1 text-xs text-zinc-400 underline underline-offset-4 hover:text-zinc-200`}
                 >
                   Clear
                 </button>
@@ -2772,7 +2772,7 @@ export default function CollectionPage() {
                     >
                       {bulkBusy ? "Saving…" : `Apply to ${editable.length}`}
                     </button>
-                    <button onClick={() => setBulkForm(null)} disabled={bulkBusy} className="text-xs text-zinc-500 underline underline-offset-4 hover:text-zinc-300">
+                    <button onClick={() => setBulkForm(null)} disabled={bulkBusy} className={`${TAP_10} px-1 py-1 text-xs text-zinc-400 underline underline-offset-4 hover:text-zinc-200`}>
                       Cancel
                     </button>
                     {skippedEdit > 0 && (
@@ -2957,7 +2957,8 @@ export default function CollectionPage() {
                       aria-checked={isSelected}
                       onClick={(e) => toggleSelected(card.id, e.shiftKey)}
                       aria-label={`Select ${card.cardName}`}
-                      className={`flex h-8 w-8 items-center justify-center rounded-full border backdrop-blur transition ${
+                      // Taps at 41x44: 6px out on the outer sides, 3px (half the gap) toward Delete (review 10-19 #24).
+                      className={`relative flex h-8 w-8 items-center justify-center rounded-full border backdrop-blur transition before:absolute before:-inset-y-1.5 before:-left-1.5 before:-right-[3px] before:content-[''] ${
                         isSelected
                           ? "border-brand-400 bg-brand-500 text-white"
                           : "border-white/40 bg-black/40 text-transparent hover:border-white/70 hover:text-zinc-300"
@@ -2973,7 +2974,7 @@ export default function CollectionPage() {
                     <button
                       onClick={() => remove(card)}
                       aria-label={`Delete ${card.cardName}`}
-                      className="flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-black/60 text-zinc-300 backdrop-blur transition hover:border-white/40 hover:bg-black/80 hover:text-white"
+                      className="relative flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-black/60 text-zinc-300 backdrop-blur transition before:absolute before:-inset-y-1.5 before:-left-[3px] before:-right-1.5 before:content-[''] hover:border-white/40 hover:bg-black/80 hover:text-white"
                     >
                       <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
                         <path d="M5 5l10 10M15 5l-10 10" />

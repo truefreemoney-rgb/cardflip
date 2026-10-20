@@ -2,6 +2,7 @@
 
 import Sheet from "@/components/Sheet";
 import { CONDITIONS, canBeFirstEdition, canPriceListing, effectiveVariant, formatMoney, formatVariantLabel, isFirstEditionVariant, marketForCondition, pickPrice } from "@/lib/listing";
+import { TAP_4 } from "@/lib/tap";
 import type { Condition, ScanItem } from "@/lib/types";
 
 /**
@@ -33,8 +34,6 @@ const TONE: Record<Condition, { dot: string; on: string }> = {
 };
 
 const OFF = "border-edge bg-surface-2 text-zinc-300 hover:border-edge-strong";
-/** 4px above and below: the 38px chips tap at 46px, inside the gap-2 between rows (review 10-19 #24). */
-const TAP = "relative before:absolute before:inset-x-0 before:-inset-y-1 before:content-['']";
 
 export default function CopyEditSheet({ item, onChange, onApplyConditionToAll, waiting = 0, onClose }: Props) {
   const card = item.card!;
@@ -88,7 +87,7 @@ export default function CopyEditSheet({ item, onChange, onApplyConditionToAll, w
                 // sheet ("the condition new scans start as"), never silently from one card's grade.
                 onChange({ condition, priceOverride: null });
               }}
-              className={`${TAP} flex items-center gap-2 whitespace-nowrap rounded-full border px-3 py-2 text-sm font-medium transition ${on ? TONE[condition].on : OFF}`}
+              className={`${TAP_4} flex items-center gap-2 whitespace-nowrap rounded-full border px-3 py-2 text-sm font-medium transition ${on ? TONE[condition].on : OFF}`}
             >
               <span className={`h-2 w-2 shrink-0 rounded-full ${TONE[condition].dot}`} aria-hidden />
               <span>{condition}</span>
@@ -123,7 +122,7 @@ export default function CopyEditSheet({ item, onChange, onApplyConditionToAll, w
                     if (on) return;
                     onChange({ variant: p.variant, priceOverride: null });
                   }}
-                  className={`${TAP} flex items-center gap-2 whitespace-nowrap rounded-full border px-3 py-2 text-sm font-medium transition ${on ? "border-brand-400 bg-brand-500/15 text-white" : OFF}`}
+                  className={`${TAP_4} flex items-center gap-2 whitespace-nowrap rounded-full border px-3 py-2 text-sm font-medium transition ${on ? "border-brand-400 bg-brand-500/15 text-white" : OFF}`}
                 >
                   <span>{formatVariantLabel(p.variant)}</span>
                   {p.market != null && <span className="tabular-nums text-zinc-400">{formatMoney(marketForCondition(p.market, item.condition))}</span>}

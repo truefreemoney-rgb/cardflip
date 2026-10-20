@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useOptionalSession } from "@/components/SessionProvider";
 import { GAMES, GAME_IDS } from "@/lib/games";
+import { TAP_8 } from "@/lib/tap";
 import type { GameId } from "@/lib/types";
 
 interface Props {
@@ -19,9 +20,6 @@ interface Props {
   /** Block row that wraps onto more lines instead of scrolling sideways (the scanner options sheet, 10-15). */
   wrap?: boolean;
 }
-
-// An invisible layer grows each pill to a >= 44px tap target without changing its look (review 10-19 #24).
-const HIT = "relative before:absolute before:inset-x-0 before:-inset-y-2 before:content-['']";
 
 /**
  * Pokémon | Magic. Which catalogue the scanner reads against, which vision
@@ -67,7 +65,7 @@ export default function GameToggle({ game, onChange, compact = false, counts, bl
               role="radio"
               aria-checked={game === id}
               onClick={() => onChange(id)}
-              className={`${HIT} shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 font-medium transition ${
+              className={`${TAP_8} shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 font-medium transition ${
                 game === id ? "border-brand-500 bg-brand-500 text-white" : "border-edge bg-surface-1 text-zinc-400 hover:border-edge-strong hover:text-zinc-200"
               }`}
             >
@@ -95,7 +93,7 @@ export default function GameToggle({ game, onChange, compact = false, counts, bl
           // Five games at text-xs px-2.5 measured 357px on a 375px phone
           // (09-29), past the 16px gutter. 12px (the text floor) / px-1.5
           // measures 317px (10-20), 3px over the old 11px / px-2, and fits a 360px Android.
-          className={`${HIT} whitespace-nowrap rounded-full font-medium transition ${visible.length > 4 ? "px-1.5 py-1.5" : compact ? "px-3 py-1.5" : "px-3.5 py-1.5"} ${
+          className={`${TAP_8} whitespace-nowrap rounded-full font-medium transition ${visible.length > 4 ? "px-1.5 py-1.5" : compact ? "px-3 py-1.5" : "px-3.5 py-1.5"} ${
             game === id
               ? "bg-brand-500 text-white"
               : "text-zinc-400 hover:text-zinc-200"

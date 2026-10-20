@@ -220,7 +220,8 @@ function WatchStar({ watched, busy, name, onClick, className = "" }: { watched: 
       aria-pressed={watched}
       aria-label={watched ? `Stop watching ${name}` : `Watch ${name}`}
       title={watched ? "On your watchlist" : "Add to watchlist"}
-      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border text-base transition disabled:opacity-60 ${
+      // before: = 4px all round, a 44px tap on the 36px star (review 10-19 #24).
+      className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border text-base transition before:absolute before:-inset-1 before:content-[''] disabled:opacity-60 ${
         watched ? "border-holo-gold/40 bg-holo-gold/10 text-holo-gold" : "border-edge text-zinc-400 hover:border-edge-strong hover:text-white"
       } ${className}`}
     >

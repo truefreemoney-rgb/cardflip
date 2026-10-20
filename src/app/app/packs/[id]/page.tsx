@@ -13,6 +13,7 @@ import { readActivePackId, saveActivePackId } from "@/lib/client/scanPrefs";
 import { GAMES } from "@/lib/games";
 import { formatMoney } from "@/lib/listing";
 import { gainClass, roiLabel } from "@/lib/packs";
+import { TAP_LINK } from "@/lib/tap";
 import { etDate } from "@/lib/time";
 
 export default function PackPage({ params }: { params: Promise<{ id: string }> }) {
@@ -50,7 +51,7 @@ export default function PackPage({ params }: { params: Promise<{ id: string }> }
     return (
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-3 px-4 py-6">
         <p className="text-sm text-zinc-400">{missing ? "We can't find that pack." : "Couldn't load the pack. Refresh to try again."}</p>
-        <Link href="/app/packs" className="text-sm font-medium text-brand-300 underline-offset-4 hover:underline">
+        <Link href="/app/packs" className={`${TAP_LINK} text-sm font-medium text-brand-300 underline-offset-4 hover:underline`}>
           All Packs
         </Link>
       </main>
@@ -60,7 +61,7 @@ export default function PackPage({ params }: { params: Promise<{ id: string }> }
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-4 px-4 py-6">
       <div>
-        <Link href="/app/packs" className="text-xs font-medium text-brand-300 underline-offset-4 hover:underline">
+        <Link href="/app/packs" className={`${TAP_LINK} text-xs font-medium text-brand-300 underline-offset-4 hover:underline`}>
           ← All Packs
         </Link>
         <h1 className="mt-1 text-2xl font-bold text-white">{pack.name}</h1>
@@ -124,15 +125,15 @@ export default function PackPage({ params }: { params: Promise<{ id: string }> }
         {confirmDelete ? (
           <div className="flex items-center gap-3 text-xs">
             <span className="text-zinc-400">Delete this pack? Its cards stay in Inventory.</span>
-            <button type="button" onClick={() => void remove()} className="font-semibold text-red-400 hover:text-red-300">
+            <button type="button" onClick={() => void remove()} className={`${TAP_LINK} font-semibold text-red-400 hover:text-red-300`}>
               Delete
             </button>
-            <button type="button" onClick={() => setConfirmDelete(false)} className="text-zinc-400 hover:text-white">
+            <button type="button" onClick={() => setConfirmDelete(false)} className={`${TAP_LINK} text-zinc-400 hover:text-white`}>
               Keep
             </button>
           </div>
         ) : (
-          <button type="button" onClick={() => setConfirmDelete(true)} className="text-xs text-zinc-500 hover:text-red-400">
+          <button type="button" onClick={() => setConfirmDelete(true)} className={`${TAP_LINK} text-xs text-zinc-400 hover:text-red-400`}>
             Delete Pack
           </button>
         )}
