@@ -138,15 +138,13 @@ export async function trialScanWithVision(
 }
 
 /**
- * Never throws — a vision failure means the scanner falls back to OCR rather
- * than losing the card.
+ * Never throws: a vision failure comes back as an error outcome and the scan
+ * fails and says so (no OCR fallback since 10-12).
  */
 export async function scanCardWithVision(
   file: File,
   language: ScanLanguage,
   game: GameId = "pokemon",
-  /** The photo is one pocket cut from a binder page: sleeved, never a slab. */
-  pocket = false,
 ): Promise<VisionScanOutcome> {
   try {
     const { base64, mediaType } = await downscale(file, game === "mtg" ? MAX_EDGE_MTG : MAX_EDGE);
@@ -155,10 +153,10 @@ export async function scanCardWithVision(
     const res = await fetch(apiPath("/api/vision/scan"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ image: base64, mediaType, language, game, ...(pocket ? { pocket: true } : {}) }),
+      body: JSON.stringify({ image: base64, mediaType, language, game }),
       // A stalled cellular socket left the item "scanning" indefinitely
       // (mobile QA 09-06); the catch below turns the abort into an error
-      // outcome so the OCR fallback runs. Guarded: iOS < 16 lacks timeout().
+      // outcome, so the scan fails instead of hanging. Guarded: iOS < 16 lacks timeout().
       // 10-04: the server answers inside its 8 s read budget (lib/visionBudget.ts), so 12 s is a dead socket, not a slow read.
       signal: typeof AbortSignal.timeout === "function" ? AbortSignal.timeout(12_000) : undefined,
     });

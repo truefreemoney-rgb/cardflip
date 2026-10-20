@@ -90,7 +90,8 @@ export async function POST(req: Request) {
         mediaType,
         language,
         parseGame(body?.game),
-        body?.pocket === true,
+        // Never a binder-page pocket: that capture mode went 10-03 (review 10-19 #25).
+        false,
         // No auto-switch (Chris 10-12): another game's card is a bad scan, not saved, given back
         // (scanGiveback readIsEmpty: seen != game). The scanner says which game to switch to.
         undefined,
@@ -141,7 +142,7 @@ export async function POST(req: Request) {
     if (err instanceof VisionNotConfiguredError) {
       return NextResponse.json({ status: "unconfigured", card: null });
     }
-    // A vision failure shouldn't sink the scan — the caller falls back to OCR.
+    // A vision failure is a failed scan the scanner names (no OCR fallback since 10-12).
     console.error("Vision scan failed:", err);
     return NextResponse.json({ status: "error", card: null }, { status: 502 });
   }

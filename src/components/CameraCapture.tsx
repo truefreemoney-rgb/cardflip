@@ -171,15 +171,13 @@ interface Props {
   onApplyConditionToAll?: (condition: Condition) => void;
 }
 
-export type CaptureMode = "card" | "page";
-
 /**
- * Guide ratio per mode. A card is 63×88; a 9-pocket page is about 8×11 with
- * the pockets, and a wider guide also fits three cards laid side by side.
+ * The guide is one card, 63×88: one card per shot, from the camera, is the
+ * only way in (the Binder Page mode, 09-27, went 10-03 with every upload path).
  */
-const GUIDE_RATIO: Record<CaptureMode, number> = { card: 63 / 88, page: 8 / 11 };
+const GUIDE_RATIO = 63 / 88;
 /** Share of the displayed video height the guide takes. */
-const GUIDE_HEIGHT: Record<CaptureMode, number> = { card: 0.82, page: 0.92 };
+const GUIDE_HEIGHT = 0.82;
 
 /**
  * Room between the guide and the viewfinder's edge. Nothing sits on the
@@ -212,10 +210,7 @@ type LiveSource = HTMLVideoElement | HTMLCanvasElement;
 const srcW = (el: LiveSource) => (el instanceof HTMLVideoElement ? el.videoWidth : el.width);
 const srcH = (el: LiveSource) => (el instanceof HTMLVideoElement ? el.videoHeight : el.height);
 
-function guideGeometry(
-  video: LiveSource,
-  mode: CaptureMode = "card",
-): { display: GuideRect; video: GuideRect } | null {
+function guideGeometry(video: LiveSource): { display: GuideRect; video: GuideRect } | null {
   const vw = srcW(video);
   const vh = srcH(video);
   const ew = video.clientWidth;
@@ -226,8 +221,8 @@ function guideGeometry(
   const dh = vh * scale;
   const dx = (ew - dw) / 2;
   const dy = (eh - dh) / 2;
-  const ratio = GUIDE_RATIO[mode];
-  let gh = dh * GUIDE_HEIGHT[mode];
+  const ratio = GUIDE_RATIO;
+  let gh = dh * GUIDE_HEIGHT;
   let gw = gh * ratio;
   const maxW = Math.min(dw, Math.max(dw * 0.5, ew - 2 * GUIDE_GUTTER_PX));
   if (gw > maxW) {
@@ -243,13 +238,13 @@ function guideGeometry(
 }
 
 /** Guide in video px, falling back to the centered 82% rect if not laid out. */
-function guideInVideo(video: LiveSource, mode: CaptureMode = "card"): GuideRect {
-  const g = guideGeometry(video, mode);
+function guideInVideo(video: LiveSource): GuideRect {
+  const g = guideGeometry(video);
   if (g) return g.video;
   const vw = srcW(video);
   const vh = srcH(video);
-  const h = vh * GUIDE_HEIGHT[mode];
-  const w = Math.min(vw, h * GUIDE_RATIO[mode]);
+  const h = vh * GUIDE_HEIGHT;
+  const w = Math.min(vw, h * GUIDE_RATIO);
   return { x: (vw - w) / 2, y: (vh - h) / 2, w, h };
 }
 
@@ -347,9 +342,6 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
   const [expanded, setExpanded] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  // One card fills the guide. The Binder Page mode (09-27) went 10-03 with
-  // every upload path: one card per shot, from the camera, is the only way in.
-  const mode: CaptureMode = "card";
   const [error, setError] = useState<string | null>(null);
   // Bumped by "Try again" to re-run the getUserMedia effect after a denial.
   const [retryKey, setRetryKey] = useState(0);
@@ -473,7 +465,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
   useEffect(() => {
     const video = (mirror ? mirrorRef.current : videoRef.current);
     if (!video || !ready) return;
-    const measure = () => setGuide(guideGeometry(video, mode)?.display ?? null);
+    const measure = () => setGuide(guideGeometry(video)?.display ?? null);
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(video);
@@ -485,7 +477,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
       video.removeEventListener("resize", measure);
       window.removeEventListener("orientationchange", measure);
     };
-  }, [ready, mode, mirror]);
+  }, [ready, mirror]);
 
   useEffect(() => {
     if (nativeCam) return;
@@ -666,7 +658,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
     let lastScores: number[] | null = null;
     const id = window.setInterval(() => {
       if (document.visibilityState !== "visible" || busy.current || srcW(video) === 0) return;
-      const g = guideInVideo(video, mode);
+      const g = guideInVideo(video);
       // Look a quarter-guide past the guide on every side (clamped to the
       // frame): a card lined up to fill the guide has its edges ON the guide,
       // and the edge finder walks in from the frame's border, so a guide-only
@@ -774,7 +766,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
               src: { vw, vh },
               element: { clientWidth: video.clientWidth, clientHeight: video.clientHeight, rect: { x: rect.x, y: rect.y, w: rect.width, h: rect.height } },
               trackSettings: track?.getSettings() ?? null,
-              geometry: guideGeometry(video, mode),
+              geometry: guideGeometry(video),
               crop: { sx, sy, sw, sh, w, h },
               expect,
               quad,
@@ -826,7 +818,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
       window.clearInterval(id);
       outlineTarget.current = null;
     };
-  }, [ready, mode, mirror, debugOutline]);
+  }, [ready, mirror, debugOutline]);
 
   // Tap the picture to focus there (Android); the ring shows only when the camera took it.
   const tapToFocus = (e: React.PointerEvent<HTMLVideoElement>) => {
@@ -870,7 +862,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
     // farther than what was framed (Chris, 09-03: "make it 10% closer").
     const vw = srcW(video);
     const vh = srcH(video);
-    const { x: gx, y: gy, w: gw, h: gh } = guideInVideo(video, mode);
+    const { x: gx, y: gy, w: gw, h: gh } = guideInVideo(video);
     // 10-15: when the live outline has the card and it pokes past the guide,
     // the crop grows to take the whole card (plus 2 %) — a set number under
     // the bottom bracket was being cut off the photo. Inside the guide
@@ -957,7 +949,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
     } finally {
       if (!handedOff) busy.current = false;
     }
-  }, [onCapture, mode, mirror]);
+  }, [onCapture, mirror]);
 
   // The phone's own camera (in-app browsers): the photo is flattened to the card when one is found, then sent like a capture.
   const onNativePhoto = useCallback(
@@ -1210,10 +1202,10 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
                 <span className={`absolute -bottom-px -right-px h-8 w-8 rounded-br-xl border-b-3 border-r-3 transition-colors ${bracket}`} />
                 {/* The strike, then the stamp + ring: the instant the match
                     lands. Keyed by scan id so every card gets its own. */}
-                {mode === "card" && revealed?.card && (
+                {revealed?.card && (
                   <RevealStrike key={`strike-${revealed.id}`} tier={revealTierNow ?? "plain"} />
                 )}
-                {mode === "card" && revealed && (
+                {revealed && (
                   <RevealStamp key={revealed.id} matched={Boolean(revealed.card)} tier={revealTierNow ?? "plain"} />
                 )}
               </div>
@@ -1290,7 +1282,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
               {blurNote}
             </p>
           ) : lastScan ? (
-            <ScanToast key={lastScan.id} item={lastScan} onOpen={onOpen} onRemove={onRemove} onSwap={onPick ? () => setPicking(true) : undefined} onPickSibling={onPick ? (c) => onPick(lastScan.id, c, lastScan.candidates) : undefined} onEdit={onEdit ? () => setEditing(true) : undefined} onExpand={() => setExpanded(true)} verify={verify} />
+            <ScanToast key={lastScan.id} item={lastScan} onOpen={onOpen} onRemove={onRemove} onSwap={onPick ? () => setPicking(true) : undefined} onEdit={onEdit ? () => setEditing(true) : undefined} onExpand={() => setExpanded(true)} verify={verify} />
           ) : nativeCam ? null : (
             <div className="w-full text-center text-sm leading-snug text-zinc-400">
               Fill the guide with one card, then tap Capture.
@@ -1419,8 +1411,6 @@ interface ToastProps {
   onOpen?: (id: string) => void;
   onRemove?: (id: string) => void;
   onSwap?: () => void;
-  /** One-tap switch to a candidate the variant warning named. */
-  onPickSibling?: (card: PokemonCard) => void;
   /** The details pill: open the "This copy" sheet. Falls back to onOpen when absent. */
   onEdit?: () => void;
   /** Open the result big (ScanResultSheet). */
@@ -1429,7 +1419,7 @@ interface ToastProps {
   verify: { count: number; value: number } | null;
 }
 
-function ScanToast({ item, onOpen, onRemove, onSwap, onPickSibling, onEdit, onExpand, verify }: ToastProps) {
+function ScanToast({ item, onOpen, onRemove, onSwap, onEdit, onExpand, verify }: ToastProps) {
   const scanning = item.status === "queued" || item.status === "scanning";
 
   if (scanning) {
@@ -1463,7 +1453,7 @@ function ScanToast({ item, onOpen, onRemove, onSwap, onPickSibling, onEdit, onEx
     );
   }
 
-  return <RevealChip item={item} onOpen={onOpen} onRemove={onRemove} onSwap={onSwap} onPickSibling={onPickSibling} onEdit={onEdit} onExpand={onExpand} verify={verify} />;
+  return <RevealChip item={item} onOpen={onOpen} onRemove={onRemove} onSwap={onSwap} onEdit={onEdit} onExpand={onExpand} verify={verify} />;
 }
 
 /**
