@@ -11,6 +11,7 @@ import DevLoginButton from "@/components/DevLoginButton";
 import GoogleButton, { googleErrorFromUrl } from "@/components/GoogleButton";
 import { xErrorFromUrl } from "@/components/XButton";
 import { TotpRequiredError, afterLoginPath, fetchCurrentUser, login } from "@/lib/client/auth";
+import { TAP_LINK } from "@/lib/tap";
 
 const FIELD =
   "rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-base text-white outline-none sm:text-sm transition placeholder:text-zinc-600 focus:border-brand-400 focus:ring-2 focus:ring-brand-500/20";
@@ -150,7 +151,7 @@ export default function LoginPage() {
               </label>
               <Link
                 href="/forgot-password"
-                className="text-xs text-zinc-500 transition hover:text-zinc-300"
+                className={`${TAP_LINK} text-sm text-zinc-400 transition hover:text-zinc-200`}
               >
                 Forgot Password?
               </Link>
@@ -191,7 +192,7 @@ export default function LoginPage() {
               />
               {mailedTo ? (
                 <>
-                  <p className="text-xs text-zinc-500">{mailedTo}</p>
+                  <p className="text-xs text-zinc-400">{mailedTo}</p>
                   {/* Full-size button (Chris 10-13): the inline text link was easy to miss. */}
                   <button
                     type="button"
@@ -203,7 +204,7 @@ export default function LoginPage() {
                   </button>
                 </>
               ) : (
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-zinc-400">
                   Open your authenticator app and enter the current 6-digit code for CardFlip.
                 </p>
               )}
@@ -230,9 +231,9 @@ export default function LoginPage() {
 
         <DevLoginButton />
 
-        <p className="mt-6 text-center text-xs text-zinc-500">
+        <p className="mt-6 text-center text-sm text-zinc-400">
           No account?{" "}
-          <Link href="/signup" className="text-brand-300 hover:text-brand-200">
+          <Link href="/signup" className={`${TAP_LINK} font-medium text-brand-300 hover:text-brand-200`}>
             Sign Up
           </Link>
         </p>
@@ -240,7 +241,7 @@ export default function LoginPage() {
 
       <Link
         href="/"
-        className="mt-6 text-sm text-zinc-500 transition hover:text-zinc-300"
+        className={`${TAP_LINK} mt-6 text-sm text-zinc-400 transition hover:text-zinc-200`}
       >
         ← Back to home
       </Link>

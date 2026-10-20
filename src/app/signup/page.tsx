@@ -22,6 +22,7 @@ import { PRICING, SCANS } from "@/lib/pricing";
 import { PASSWORD_MIN, passwordProblem } from "@/lib/passwordRules";
 import { suggestEmail } from "@/lib/emailTypo";
 import { leaveOpenScanNote } from "@/lib/client/scanPrefs";
+import { TAP_LINK } from "@/lib/tap";
 
 const FIELD =
   "rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-base text-white outline-none sm:text-sm transition placeholder:text-zinc-600 focus:border-brand-400 focus:ring-2 focus:ring-brand-500/20";
@@ -391,18 +392,19 @@ export default function SignupPage() {
 
           <p className="mt-5 text-center text-sm text-zinc-400">
             Already have an account?{" "}
-            <Link href="/login" className="font-medium text-brand-300 transition hover:text-brand-200">
+            <Link href="/login" className={`${TAP_LINK} font-medium text-brand-300 transition hover:text-brand-200`}>
               Log In
             </Link>
           </p>
 
-          <p className="mt-3 text-center text-xs text-zinc-600">
+          {/* Inline links in a line that wraps: py-1.5 grows each tap box without moving the text (review 10-19 #24). */}
+          <p className="mt-3 text-center text-xs text-zinc-400">
             By continuing you agree to the{" "}
-            <Link href="/terms" className="underline transition hover:text-zinc-300">
+            <Link href="/terms" className="py-1.5 underline transition hover:text-zinc-200">
               Terms of Service
             </Link>{" "}
             and{" "}
-            <Link href="/privacy" className="underline transition hover:text-zinc-300">
+            <Link href="/privacy" className="py-1.5 underline transition hover:text-zinc-200">
               Privacy Policy
             </Link>
             .
@@ -484,7 +486,7 @@ export default function SignupPage() {
 
       <Link
         href="/"
-        className="mt-6 text-sm text-zinc-500 transition hover:text-zinc-300"
+        className={`${TAP_LINK} mt-6 text-sm text-zinc-400 transition hover:text-zinc-200`}
       >
         ← Back to home
       </Link>

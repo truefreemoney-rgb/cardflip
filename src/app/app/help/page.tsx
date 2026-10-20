@@ -13,9 +13,10 @@ export default function HelpPage() {
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col">
       {/* Phones have no room for a Features link in the header, so the Help page (where the header's Help button lands) carries it (10-03). */}
-      <p className="px-4 pt-3 text-xs text-zinc-500">
+      <p className="px-4 pt-3 text-xs text-zinc-400">
         Wondering what CardFlip can do?{" "}
-        <Link href="/features" className="font-medium text-brand-300 transition hover:text-brand-200">
+        {/* py-1.5 grows the tap box without moving the line (review 10-19 #24); the chat starts right below. */}
+        <Link href="/features" className="py-1.5 font-medium text-brand-300 transition hover:text-brand-200">
           See every feature
         </Link>
         .

@@ -39,10 +39,12 @@ export default async function HelpPage() {
         </p>
 
         <nav aria-label="Help topics" className="mt-8 rounded-2xl border border-edge bg-surface-1 p-5">
-          <ul className="grid gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2">
+          {/* 44px rows (review 10-19 #24): the links were 20px tall with 6px between them. Hairlines on phones so the
+              taller rows read as one list, not gaps. */}
+          <ul className="-my-3 grid gap-x-6 text-sm sm:grid-cols-2">
             {articles.map((a) => (
-              <li key={a.id}>
-                <Link href={`/help/${a.id}`} className="text-zinc-400 transition hover:text-zinc-200">
+              <li key={a.id} className="border-b border-white/5 last:border-b-0 sm:border-b-0">
+                <Link href={`/help/${a.id}`} className="block py-3 text-zinc-300 transition hover:text-white">
                   {a.heading}
                 </Link>
               </li>

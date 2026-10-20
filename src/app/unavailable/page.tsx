@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import Logo from "@/components/Logo";
 import WaitlistForm from "@/components/WaitlistForm";
 import { countryName } from "@/lib/countries";
+import { TAP_LINK } from "@/lib/tap";
 
 /**
  * What everyone outside the open countries sees (src/proxy.ts rewrites every
@@ -29,17 +30,17 @@ export default async function UnavailablePage() {
         </h1>
         <p className="mt-2 text-sm text-zinc-400">We&apos;ll email you once, when CardFlip opens in your country.</p>
         <WaitlistForm />
-        <p className="mt-6 text-center text-xs text-zinc-500">
+        <p className="mt-6 text-center text-sm text-zinc-400">
           Already a member?{" "}
-          <a href="/login" className="text-brand-300 hover:text-brand-200">
+          <a href="/login" className={`${TAP_LINK} font-medium text-brand-300 hover:text-brand-200`}>
             Log In
           </a>
         </p>
       </div>
-      <p className="mt-6 text-xs text-zinc-600">
-        <a href="/privacy" className="hover:text-zinc-400">Privacy</a>
+      <p className="mt-4 text-sm text-zinc-400">
+        <a href="/privacy" className="inline-block py-3 hover:text-zinc-200">Privacy</a>
         <span className="mx-2">·</span>
-        <a href="/terms" className="hover:text-zinc-400">Terms</a>
+        <a href="/terms" className="inline-block py-3 hover:text-zinc-200">Terms</a>
       </p>
     </div>
   );

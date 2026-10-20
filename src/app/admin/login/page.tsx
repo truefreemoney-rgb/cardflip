@@ -6,6 +6,7 @@ import Logo from "@/components/Logo";
 import Spinner from "@/components/Spinner";
 import { apiPath } from "@/lib/client/basePath";
 import { useResendGap } from "@/lib/client/resendGap";
+import { TAP_LINK } from "@/lib/tap";
 
 const FIELD =
   "rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-base text-white outline-none sm:text-sm transition placeholder:text-zinc-600 focus:border-brand-400 focus:ring-2 focus:ring-brand-500/20";
@@ -157,7 +158,7 @@ export default function AdminLoginPage() {
           </button>
         </form>
       </div>
-      <Link href="/" className="mt-6 text-sm text-zinc-500 transition hover:text-zinc-300">
+      <Link href="/" className={`${TAP_LINK} mt-6 text-sm text-zinc-400 transition hover:text-zinc-200`}>
         ← Back to home
       </Link>
     </div>

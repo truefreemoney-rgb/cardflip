@@ -9,6 +9,7 @@ import { fetchCurrentUser } from "@/lib/client/auth";
 import { VerifyError, confirmLink, peekConfirmLink, type LinkState } from "@/lib/client/emailConfirm";
 import { hasPendingScan } from "@/lib/client/trialScan";
 import { claimPendingWatch, hasPendingWatch } from "@/components/WatchPrice";
+import { TAP_LINK } from "@/lib/tap";
 
 /**
  * The Confirm Email button in the mail lands here (/confirm-email?t=...).
@@ -245,7 +246,7 @@ export default function ConfirmEmailPage() {
       <Suspense fallback={null}>
         <ConfirmEmail />
       </Suspense>
-      <Link href="/" className="mt-6 text-sm text-zinc-500 transition hover:text-zinc-300">
+      <Link href="/" className={`${TAP_LINK} mt-6 text-sm text-zinc-400 transition hover:text-zinc-200`}>
         ← Back to home
       </Link>
     </div>

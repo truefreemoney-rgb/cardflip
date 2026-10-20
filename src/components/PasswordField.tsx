@@ -22,7 +22,7 @@ export default function PasswordField({ hint = false, minLength = PASSWORD_MIN, 
   const len = typeof value === "string" ? value.length : 0;
   const hintText =
     len === 0 ? `At least ${minLength} characters` : len >= minLength ? "Long enough" : `${minLength - len} more character${minLength - len === 1 ? "" : "s"}`;
-  const hintCls = len === 0 ? "text-zinc-600" : len >= minLength ? "text-emerald-400" : "text-amber-300";
+  const hintCls = len === 0 ? "text-zinc-400" : len >= minLength ? "text-emerald-400" : "text-amber-300";
 
   return (
     <div className="flex flex-col gap-1">
@@ -33,8 +33,8 @@ export default function PasswordField({ hint = false, minLength = PASSWORD_MIN, 
           onClick={() => setShow((s) => !s)}
           aria-label={show ? "Hide password" : "Show password"}
           aria-pressed={show}
-          tabIndex={-1}
-          className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-zinc-500 transition hover:text-zinc-200"
+          // Reachable by Tab (review 10-19 #24): a keyboard user can show the password too.
+          className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-zinc-400 transition hover:text-zinc-200"
         >
           {show ? (
             <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -51,7 +51,7 @@ export default function PasswordField({ hint = false, minLength = PASSWORD_MIN, 
         </button>
       </div>
       {hint && (
-        <span className={`text-[11px] ${hintCls}`} aria-live="polite">
+        <span className={`text-xs ${hintCls}`} aria-live="polite">
           {hintText}
         </span>
       )}

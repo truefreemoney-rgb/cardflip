@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import MarketingNav from "@/components/MarketingNav";
 import Footer from "@/components/Footer";
+import { Crumbs } from "@/components/CardPagesUi";
 import JsonLd from "@/components/JsonLd";
 import { helpArticles, helpArticlesFor, type HelpArticle } from "@/lib/helpArticles";
 import { magicPublic } from "@/lib/server/settings";
@@ -56,17 +57,10 @@ export default async function HelpArticlePage({ params }: PageProps<"/help/[slug
       <MarketingNav />
 
       <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-12 sm:py-16">
-        <nav aria-label="Breadcrumb" className="text-xs text-zinc-500">
-          <Link href="/help" className="transition hover:text-zinc-300">
-            Help
-          </Link>
-          <span className="mx-1.5" aria-hidden>
-            /
-          </span>
-          <span className="text-zinc-400">{article.heading}</span>
-        </nav>
+        {/* The card pages' breadcrumb (14px, 44px tap rows; review 10-19 #24). Its py-2 stands in for most of the h1's old mt-4. */}
+        <Crumbs items={[{ name: "Help", href: "/help" }, { name: article.heading }]} />
 
-        <h1 className="mt-4 text-3xl font-semibold text-white sm:text-4xl">{article.heading}</h1>
+        <h1 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">{article.heading}</h1>
         {article.paragraphs.map((text) => (
           <p key={text.slice(0, 40)} className="mt-4 text-sm leading-relaxed text-zinc-400">
             {text}
@@ -82,16 +76,17 @@ export default async function HelpArticlePage({ params }: PageProps<"/help/[slug
 
         <nav aria-label="More help topics" className="mt-10 rounded-2xl border border-edge bg-surface-1 p-5">
           <h2 className="text-sm font-semibold text-white">More help topics</h2>
-          <ul className="mt-3 grid gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2">
+          {/* 44px rows with phone hairlines (review 10-19 #24), like the /help index. */}
+          <ul className="grid gap-x-6 text-sm sm:grid-cols-2">
             {others.map((a) => (
-              <li key={a.id}>
-                <Link href={`/help/${a.id}`} className="text-zinc-400 transition hover:text-zinc-200">
+              <li key={a.id} className="border-b border-white/5 last:border-b-0 sm:border-b-0">
+                <Link href={`/help/${a.id}`} className="block py-3 text-zinc-300 transition hover:text-white">
                   {a.heading}
                 </Link>
               </li>
             ))}
           </ul>
-          <p className="mt-4 text-sm">
+          <p className="mt-1 text-sm">
             <Link href="/help" className="text-brand-300 transition hover:text-brand-200">
               All Help Topics
             </Link>

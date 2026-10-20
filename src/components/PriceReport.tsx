@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { BASE_PATH, apiFetch } from "@/lib/client/basePath";
+import { TAP_8, TAP_LINK } from "@/lib/tap";
 
 /**
  * "Price looks wrong?" under a card page's price (A-H #9, 10-17). Two taps: open, then too high / too low. The vote
@@ -35,7 +36,7 @@ export default function PriceReport({ variant, price, className = "" }: { varian
   }
   if (state === "closed") {
     return (
-      <button type="button" onClick={() => setState("open")} className={`block text-sm text-zinc-400 underline underline-offset-2 transition hover:text-zinc-200 ${className}`}>
+      <button type="button" onClick={() => setState("open")} className={`${TAP_LINK} block text-sm text-zinc-400 underline underline-offset-2 transition hover:text-zinc-200 ${className}`}>
         Price looks wrong?
       </button>
     );
@@ -49,7 +50,7 @@ export default function PriceReport({ variant, price, className = "" }: { varian
           type="button"
           disabled={state === "busy"}
           onClick={() => send(d)}
-          className="rounded-full border border-edge bg-surface-1 px-3 py-1 text-zinc-200 transition hover:border-zinc-500 disabled:opacity-50"
+          className={`${TAP_8} rounded-full border border-edge bg-surface-1 px-3 py-1 text-zinc-200 transition hover:border-zinc-500 disabled:opacity-50`}
         >
           Too {d}
         </button>

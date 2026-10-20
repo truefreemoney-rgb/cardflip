@@ -1,5 +1,8 @@
 # To test later
 
+## 10-20 ~5:30pm ET: review 10-19 #24 slice 3 = help lists, auth helper links, password hint, "Price looks wrong?", COMMIT ONLY, VISIBLE, shots docs/shots/help-index-24-phone.jpg, help-article-24-phone.jpg, login-24-phone.jpg, signup-24-phone.jpg, price-report-24-phone.jpg, unavailable-24-phone.jpg
+- After push, phone: /help topic list = 44px rows with hairlines, lighter text; a /help/<topic> page has the card pages' breadcrumb (14px) and the same 44px "More help topics" rows; /login "Forgot Password?" 14px lighter and a tap just above it still hits it while the password box keeps its own taps; "No account? Sign Up" 14px; "Back to home" lighter on login, signup, forgot, reset, confirm-email; signup password hint "At least 8 characters" readable 12px; the eye button is reachable with Tab on a keyboard; signup terms line readable; a card page's "Price looks wrong?" and its Too high / Too low tap at 44px; /unavailable Log In + Privacy / Terms 14px with tall tap rows.
+
 ## 10-20 ~5:05pm ET: review 10-19 #24 slice 2b = list-row tap targets (src/lib/tap.ts shared layers), COMMIT ONLY, VISIBLE (small), shots docs/shots/inventory-24-phone.jpg, watchlist-24-phone.jpg
 - After push, phone: Inventory select/delete circles on a tile tap at ~41x44 and a tap between them never deletes; the selection toolbar pills (Move to listings ... Delete N cards) and Clear / Cancel tap at 44px; "Select all" row taps anywhere on its line; Watchlist "Price alert" pill 12px lighter grey, its X and Set / Clear tap easily; Account row buttons (Change, Manage ...) tap at 44px; Search star taps at 44px; a pack page's "All Packs", Delete Pack, Delete / Keep tap easily (Keep wins a tap between them).
 

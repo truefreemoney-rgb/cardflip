@@ -74,7 +74,7 @@ export default function GoogleButton({ mode }: { mode: "signup" | "login" }) {
       <XButton mode={mode} />
       <div className="mt-4 flex items-center gap-3" aria-hidden>
         <span className="h-px flex-1 bg-edge" />
-        <span className="text-[11px] uppercase tracking-widest text-zinc-600">or</span>
+        <span className="text-xs uppercase tracking-widest text-zinc-500">or</span>
         <span className="h-px flex-1 bg-edge" />
       </div>
     </div>
