@@ -83,6 +83,3 @@ export const ADMIN_NAV_GROUPS: ReadonlyArray<{ label: string; pages: ReadonlyArr
   { label: "Content", pages: [["/admin/social", "Social"], ["/admin/cards", "Cards"], ["/admin/prices", "Price checks"], ["/admin/drop", "Drop"]] },
   { label: "Settings", pages: [["/admin/switches", "Switches"], ["/admin/board", "Tasks"], ["/admin/errors", "Log"], ["/admin/system", "System"]] },
 ];
-
-/** Every page, flat, in nav order. */
-export const ADMIN_NAV = ADMIN_NAV_GROUPS.flatMap((g) => g.pages);

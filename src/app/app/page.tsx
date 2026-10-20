@@ -469,8 +469,7 @@ export default function AppPage() {
           patchItem(queued.id, { status: "error", error: "No photo attached" });
           continue;
         }
-        // Reassigned when the scan turns out to be another game (below).
-        let next: ScanItem & { file: File } = { ...queued, file: queued.file };
+        const next: ScanItem & { file: File } = { ...queued, file: queued.file };
 
         patchItem(next.id, { status: "scanning" });
         // More waiting and a free worker slot: run them side by side. The
@@ -542,16 +541,9 @@ export default function AppPage() {
 
           if (vision.status === "done" && vision.read) {
             const read = vision.read;
-            // The switch said one game, the card was another: the server
-            // re-read it as the right game (Chris 09-29, beta testers). The
-            // item and the switch follow, so the next shot starts right.
-            if (read.switchedFrom && read.game && read.game !== next.game) {
-              const g = read.game;
-              next = { ...next, game: g };
-              patchItem(next.id, { game: g });
-              setGame(g);
-              toast(`That's a ${GAMES[g].label} card — switched to ${GAMES[g].label}`, "info");
-            }
+            // No auto-switch here (Chris 10-12; review 10-19 #25): /api/vision/scan never re-reads under another
+            // game, so the read is always this game's; another game's card is the readError below. The free trial
+            // (/api/vision/trial + lib/client/trialScan.ts) still switches by itself.
             // The photo outranks the seller's language toggle — stacks get sorted wrong.
             language = read.language;
             art = read.artStyle ?? null;
@@ -593,7 +585,7 @@ export default function AppPage() {
             // confidence low even when the name is plain — the floor applies
             // to real cards only.
             const otherGame = read.detectedGame && read.detectedGame !== next.game && read.detectedGame !== "other" ? read.detectedGame : null;
-            if (otherGame && !read.switchedFrom) {
+            if (otherGame) {
               // A game we don't scan, or one not open to this seller yet: say
               // so instead of forcing a Pokémon match onto it.
               // A game we scan: name the switch (Chris 10-12: not saved, not counted).
@@ -956,7 +948,7 @@ export default function AppPage() {
     } finally {
       if (!freed) pumpingRef.current--;
     }
-  }, [patchItem, patchUser, refresh, setGame, swapCard]);
+  }, [patchItem, patchUser, refresh, swapCard]);
 
   /**
    * Price the card against what it's actually going for on eBay. Deliberately
