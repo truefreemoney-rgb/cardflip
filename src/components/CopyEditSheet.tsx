@@ -2,7 +2,6 @@
 
 import Sheet from "@/components/Sheet";
 import { CONDITIONS, canBeFirstEdition, canPriceListing, effectiveVariant, formatMoney, formatVariantLabel, isFirstEditionVariant, marketForCondition, pickPrice } from "@/lib/listing";
-import { saveCondition } from "@/lib/client/scanPrefs";
 import type { Condition, ScanItem } from "@/lib/types";
 
 /**
@@ -83,8 +82,9 @@ export default function CopyEditSheet({ item, onChange, onApplyConditionToAll, w
               aria-label={base != null ? `${condition}, market ${formatMoney(marketForCondition(base, condition))}` : condition}
               onClick={() => {
                 if (on) return;
+                // This copy only (review 10-19 #10): the sticky default for NEW scans is set in the scanner options
+                // sheet ("the condition new scans start as"), never silently from one card's grade.
                 onChange({ condition, priceOverride: null });
-                saveCondition(condition);
               }}
               className={`flex items-center gap-2 whitespace-nowrap rounded-full border px-3 py-2 text-sm font-medium transition ${on ? TONE[condition].on : OFF}`}
             >
