@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { revalidatePath } from "next/cache";
 import { reconcilePaidInvoices, type ReconcileResult } from "@/lib/server/billingCredits";
 import { syncEbaySales } from "@/lib/server/ebayOrders";
 import { syncEndedEbayListings } from "@/lib/server/ebayListings";
@@ -302,7 +303,25 @@ export async function recordCronResult(partial: Partial<DailyResult>, markFinish
     // Corrupt/absent — start fresh.
   }
   await metaSet(META.lastResult, JSON.stringify({ ...prev, ran: true, at: Date.now(), ...partial }));
-  if (markFinished) await metaSet(META.finished, String(Date.now()));
+  if (markFinished) {
+    await metaSet(META.finished, String(Date.now()));
+    refreshStatsPages();
+  }
+}
+
+/**
+ * The home and /scan pages print "Prices updated <finish time>" from the stamp above and are ISR-cached a day
+ * (finding #8, 10-19: the home page said Oct 18 while the run had finished Oct 19 5:06am ET). Re-render them when
+ * the run finishes, not on a clock: one page each, so nothing extra on the ISR bill. Outside a request (a script)
+ * revalidatePath throws; that is not an error here.
+ */
+function refreshStatsPages(): void {
+  try {
+    revalidatePath("/");
+    revalidatePath("/scan");
+  } catch {
+    // Not in a Next request scope (scripts/): the next render picks the stamp up on its own.
+  }
 }
 
 /** Run if due; never throws (errors land in the result and the log). */
@@ -321,7 +340,10 @@ export async function runDailyIfDue(force = false, now = Date.now()): Promise<Da
     result.ms = Date.now() - t0;
     // Only a run where Magic actually refreshed counts as "finished"; a
     // failed download leaves it due again on the next trigger.
-    if (result.mtg && !("error" in result.mtg)) await metaSet(META.finished, String(Date.now()));
+    if (result.mtg && !("error" in result.mtg)) {
+      await metaSet(META.finished, String(Date.now()));
+      refreshStatsPages();
+    }
     await metaSet(META.lastResult, JSON.stringify({ at: Date.now(), ...result }));
     console.info("daily jobs:", JSON.stringify(result));
     return result;
