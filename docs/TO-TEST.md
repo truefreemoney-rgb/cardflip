@@ -864,3 +864,5 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 - [ ] a34a418f Scanner: scan a card with several printings, open the big card sheet, tap Change: one Printing pill is highlighted; tap Done: still inside the scanner (no category / editor jump). Scan an orange Vivillon 17/146: no yellow note under it in the queue, still under "Check these first". (Passed on the tunnel 10-19 ~7:30pm.)
 - [ ] 9bb74143 Price pick TCGplayer first: on a card with live eBay comps, the row's market price and "List it at" come from TCGplayer, not the eBay sold/asking average; a card whose TCGplayer row is flagged still quotes eBay sold.
 - [ ] 10-20 morning: cardflip.io/cards/pokemon/base-set/charizard--base1-4 shows ~$600 + "Checked against recent eBay sales" and the "Price looks wrong?" link under the price (2-day cache).
+- [ ] 0728f605 B1 scan log: after the push, scan a Pokemon card (any) on prod, then run 
+pm run replay:scans (or SELECT read FROM scan_usage ORDER BY at DESC LIMIT 1): the stored read has pattern + all keys (null when no symbol). Then Chris's Eevee 074 Master Ball photo under a lamp: pattern should say ball / master.
