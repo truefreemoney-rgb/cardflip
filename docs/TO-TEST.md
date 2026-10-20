@@ -1,5 +1,12 @@
 # To test later
 
+## 10-20 ~10:15am ET: two price fixes from the A3 pass (2876c06b lift break, d6f9f3b4 flagged -> backup), COMMIT ONLY, shots sent (docs/shots/lotus-2ed-card-page-phone.jpg, lotus-2ed-app-popup-phone.jpg), waiting for Chris's yes
+- After push, app pop-up for Black Lotus Beta (LEB 233) and any Cardmarket-only Magic card: the chart starts Oct 20, no "up 12%" line (prod before: "▲ $3,107.47 (12.4%) 3M"); /api/price-history for 4a2e428c-dd25-484c-bbc8-2d6ce10ef42c cardmarket-converted series has points from 2026-10-20 only + dataDays.
+- After push, Sunday mail / card alerts / Insights: no Magic Cardmarket-only card listed as "up 10-14% this week" from the 10-20 lift.
+- After push, /cards/magic/unlimited-edition/black-lotus--2ed-233 shows Market price $17,560.09 labelled "Cardmarket (converted from €)" (no chart, noindex), not "This price looks off"; app Search Cards > Magic > Black Lotus: the 2ED tile shows the price; pop-up Market price + eBay suggested price; the table still lists the flagged TCGplayer row with its note.
+- After push: the 534 "looks off" cards (10-13 sweep) that have a stored backup row now show it; count = `SELECT COUNT(DISTINCT card_id) FROM price_series WHERE source IN ('cardmarket-converted','cardkingdom','cardtrader')` joined to flagged ids (scripts/_lotus-peek.mjs as a start); spot-check 5 of them vs TCGplayer by eye.
+- Open: Pokémon flagged cards with NO stored backup still blank (Cardmarket Pokémon is half of TCGplayer, not used); scan result headline (listing.ts headlinePrice) still 0 for a flagged market: next step if Chris wants scans covered too.
+
 ## 10-19 ~10:00pm ET: phone-check fixes #4-#6 (845ea9a2), PUSHED 10-20 in 2a4c00e4 (dev-server verified at 375px: docs/shots/sets-show-more-phone.jpg, card-page-bottom-nav-phone.jpg)
 - [x] PASS 10-20 ~9:20am ET on prod, pane at 375px: all five games show 12 sets + the button (Pokemon 197 left -> tap -> 177 left; Magic 591, Lorcana 'Show 14 more · 14 left', One Piece 64, Yu-Gi-Oh 623); no sideways scroll (scrollWidth 375). Signed in: Charizard base1-4 page has the tab bar (Inventory/Search/Scanner/Watchlist/Account) with Watch this price above it, no overlap; signed-out HTML has no bar. Phone confirm by Chris = 3 taps, optional.
 - After push, on the phone: /cards/pokemon (and the other four games) shows 12 sets then a "Show 20 more sets · N left" button (Chris 10-19: 20 more, not all); each tap adds 20 and the left count drops; the button disappears after the last set; no sideways scroll.
