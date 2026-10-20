@@ -866,3 +866,10 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 - [ ] 10-20 morning: cardflip.io/cards/pokemon/base-set/charizard--base1-4 shows ~$600 + "Checked against recent eBay sales" and the "Price looks wrong?" link under the price (2-day cache).
 - [ ] 0728f605 B1 scan log: after the push, scan a Pokemon card (any) on prod, then run 
 pm run replay:scans (or SELECT read FROM scan_usage ORDER BY at DESC LIMIT 1): the stored read has pattern + all keys (null when no symbol). Then Chris's Eevee 074 Master Ball photo under a lamp: pattern should say ball / master.
+
+## 10-20 s203 (unpushed; test on prod after the push)
+- [ ] 87dbb217 + d98d407d Pattern read + focused look: scan a Black Bolt / White Flare Poke Ball card: the big card sheet preselects "Poke Ball Pattern" under Printing (7/7 on Chris's 10-20 photos in replay). Scan a Prismatic Evolutions reverse (Slowking 019 / Eevee 074): either the ball is read (Printing = Poke/Master Ball) or the row says "reverse holo: tilt it to see the ball, then pick Poke Ball or Master Ball under Printing" and lands under Check these first. Scan time stays under ~6 s. SELECT read FROM scan_usage ORDER BY at DESC LIMIT 1: has pattern, ball and (when it ran) look.
+- [ ] 0728f605 scan log: every Pokemon read on prod has pattern + ball keys (null when no symbol).
+- [ ] Instagram token replaced 10-20 ~2:40pm ET (Vercel env INSTAGRAM_TOKEN + redeploy dpl_H3ZT5YVbZi7bLz4ZraE2xT79Gfg2 READY): the 7pm autopost must include instagram in social_post_log (7am did, 1pm failed with the old token). No "Social Post Failed on Instagram" mail at 7:05pm.
+- [ ] 99740131 price checks: cardflip.io/cards/pokemon/30th-classic-collection/charizard--30th-c-001 still $143.88 (eBay sold ~$178 is inside the 25% band, check recorded, retires itself); Lugia 30th-c-029 $189.19 (eBay ~$210).
+- [ ] Blender 7pm 10-20 (30th Classic Collection, five reveals chained, 26.7 s): after the post, views at 40 min and 2 h vs the 10-18 7pm spotlight (TikTok ~111-171 views); Pinterest thumbnail = cover with the price landed.
