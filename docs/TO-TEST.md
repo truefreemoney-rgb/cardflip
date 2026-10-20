@@ -1,6 +1,7 @@
 # To test later
 
-## 10-19 ~10:00pm ET: phone-check fixes #4-#6 (845ea9a2), COMMIT ONLY, no push yet (dev-server verified at 375px: docs/shots/sets-show-more-phone.jpg, card-page-bottom-nav-phone.jpg)
+## 10-19 ~10:00pm ET: phone-check fixes #4-#6 (845ea9a2), PUSHED 10-20 in 2a4c00e4 (dev-server verified at 375px: docs/shots/sets-show-more-phone.jpg, card-page-bottom-nav-phone.jpg)
+- [x] PASS 10-20 ~9:20am ET on prod, pane at 375px: all five games show 12 sets + the button (Pokemon 197 left -> tap -> 177 left; Magic 591, Lorcana 'Show 14 more · 14 left', One Piece 64, Yu-Gi-Oh 623); no sideways scroll (scrollWidth 375). Signed in: Charizard base1-4 page has the tab bar (Inventory/Search/Scanner/Watchlist/Account) with Watch this price above it, no overlap; signed-out HTML has no bar. Phone confirm by Chris = 3 taps, optional.
 - After push, on the phone: /cards/pokemon (and the other four games) shows 12 sets then a "Show 20 more sets · N left" button (Chris 10-19: 20 more, not all); each tap adds 20 and the left count drops; the button disappears after the last set; no sideways scroll.
 - After push, signed in on the phone: any /cards page shows the app's bottom tab bar (Inventory / Search / Scanner / Watchlist / Account); on a card page the Market + Watch this price bar sits right above it, nothing overlaps; signed out: no bar.
 - PHONE-CHECKS step 4 now reads Market price only.
