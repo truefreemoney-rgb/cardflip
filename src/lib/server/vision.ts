@@ -191,13 +191,13 @@ export const POKEMON_READ_SCHEMA = {
       type: "string",
       enum: ["none", "reverse", "ball", "energySymbol", "teamRocket", "unknown"],
       description:
-        "The symbol behind the attack text / across the card body. 'none': nothing printed behind the attack text and no foil outside the artwork. 'reverse': foil outside the artwork but no symbol. 'ball': one or more ball symbols (a circle split by a horizontal band with a round button in the middle), one large or many small. 'energySymbol': one large energy-type icon (leaf, flame, drop, bolt, eye, fist, crescent moon, etc.) with no horizontal band and no centre button. 'teamRocket': a large letter R. 'unknown' when glare or the angle hides it.",
+        "The symbol in the foil behind the ability / attack text, or across the card body. 'none': no foil outside the artwork. 'reverse': foil outside the artwork but NO symbol anywhere in it. 'ball': a ball symbol = a circle cut in half by a horizontal band with a small round button at the centre. It comes two ways: ONE large pale ball as wide as the text box, printed faintly under the ability / attack lines (Prismatic Evolutions, Ascended Heroes; the foil around it looks like cracked glass or shards, and the ball is easy to miss, so look for the band and the centre button through the text), or ROWS of many medium balls tiling the whole card including the artwork (Black Bolt, White Flare). 'energySymbol': one large energy-type icon (leaf, flame, drop, bolt, eye, fist, crescent moon, etc.) with no horizontal band and no centre button. 'teamRocket': a large letter R. 'unknown' when glare or the angle hides the text area.",
     },
     patternBall: {
       type: "string",
       enum: ["poke", "master", "friend", "love", "quick", "dusk", "unknown"],
       description:
-        "Only when foilPattern is 'ball', else 'unknown'. The foil tints everything one colour, so judge by SHAPE, not colour. 'poke': a plain ball, the band and button only. 'master': a large letter M on the top half, often with two rounded bumps there. 'friend': a leaf shape on the top half. 'love': a heart on the top half. 'quick': four wedge / X-shaped marks across both halves. 'dusk': stripes or a zigzag across the top half. 'unknown': a ball you cannot place.",
+        "Only when foilPattern is 'ball', else 'unknown'. The foil tints everything one colour, so judge by SHAPE, not colour. 'poke': a plain ball, the top half is empty, only the band and button. 'master': the top half carries a large letter M (two tall bumps joined by a V, like a crown) above the band. 'friend': a leaf shape on the top half. 'love': a heart on the top half. 'quick': four wedge / X-shaped marks across both halves. 'dusk': stripes or a zigzag across the top half. 'unknown': a ball you cannot place.",
     },
   },
   required: [...CARD_READ_SCHEMA.required, "foilPattern", "patternBall"],
@@ -414,10 +414,20 @@ separate product worth many times the unlimited print, so only say true when
 you can actually see the stamp, and false when that spot is visible and blank.
 
 Some reverse holos print a symbol in the foil, and each is its own product with
-its own price: one large ball, energy icon or letter R behind the attack text
-(Ascended Heroes), or many small Poké Balls or Master Balls across the card
-(Prismatic Evolutions). Report it in foilPattern and patternBall, judging the
-symbol by its shape because the foil tints it the card's colour. Say "unknown"
+its own price, so ALWAYS check the foil behind the ability / attack text before
+answering "reverse". Two layouts: ONE large pale ball (or energy icon, or letter
+R) as wide as the text box, printed faintly under the text lines (Prismatic
+Evolutions, Ascended Heroes; the foil around it looks like cracked glass, and
+the ball itself is subtle: find the horizontal band and the small centre button
+showing through the text), or ROWS of many medium balls tiling the whole card,
+artwork included (Black Bolt, White Flare). Report it in foilPattern and
+patternBall, judging the symbol by its shape because the foil tints it the
+card's colour: a plain ball is "poke"; a ball whose top half carries a large M
+and two rounded bumps is "master". A cracked-glass foil texture outside the
+artwork means Prismatic Evolutions, whose reverse holos are almost always a Poké
+Ball or Master Ball pattern: on that texture look for the big circle (its
+outline runs from the ability line down to the attack line, and the band and
+button sit under the attack name) before you answer "reverse". Say "unknown"
 when glare or the angle hides that area; never guess a ball you can't see.
 
 Photos are phone snapshots: angled, glare, uneven light, sometimes still in a
