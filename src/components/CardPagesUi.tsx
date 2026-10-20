@@ -15,16 +15,16 @@ import type { GameId, PokemonCard } from "@/lib/types";
 
 export function Crumbs({ items }: { items: { name: string; href?: string }[] }) {
   return (
-    <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-x-1.5 text-xs text-zinc-500">
+    <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-x-1.5 text-sm text-zinc-400">
       {items.map((it, i) => (
         <span key={`${i}-${it.name}`} className="flex items-center gap-x-1.5">
           {i > 0 && <span aria-hidden>/</span>}
           {it.href ? (
-            <Link href={it.href} className="transition hover:text-zinc-300">
+            <Link href={it.href} className="inline-block py-2 transition hover:text-zinc-200">
               {it.name}
             </Link>
           ) : (
-            <span className="text-zinc-400">{it.name}</span>
+            <span className="py-2 text-zinc-200">{it.name}</span>
           )}
         </span>
       ))}

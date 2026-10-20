@@ -1,5 +1,8 @@
 # To test later
 
+## 10-20 ~4:15pm ET: review 10-19 #24 slice 1 = footer + breadcrumbs (text 14px zinc-400, 44px link rows), COMMIT ONLY, VISIBLE, shots sent (docs/shots/crumbs-24-phone.jpg, footer-24-phone.jpg)
+- After push, phone: any /cards page's breadcrumb is readable grey (not dim), the current page name is light, each crumb has tap padding; the footer links (Features ... Contact) are 14px light grey with 44px tall tap rows, the not-affiliated line readable, side gutter matches the page.
+
 ## 10-20 ~3:50pm ET: review 10-19 #23 /most-valuable in the sitemap, COMMIT ONLY
 - After push (sitemap cache rolls on its TTL, see memory cardflip-search-console purge steps): curl https://cardflip.io/sitemaps/pages.xml (or the pages child the index names) lists /cards/pokemon/most-valuable and the other four games' most-valuable pages next to /movers; Search Console picks them up on the next crawl.
 
