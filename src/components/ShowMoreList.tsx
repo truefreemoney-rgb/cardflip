@@ -3,40 +3,45 @@
 import { useState, type ReactNode } from "react";
 
 /**
- * A long list that starts folded (Chris, 10-19 phone checks #4: the /cards/<game> sets list
- * was a huge scroll). Every item is in the HTML — the hidden ones are only CSS-hidden — so
- * crawlers still see every set link (internal links are a Search Console gate).
+ * A long list that starts folded and grows a step at a time (Chris, 10-19 phone checks #4: the
+ * /cards/<game> sets list was a huge scroll; 10-19: "show 20 more, not all sets"). Every item is
+ * in the HTML — the hidden ones are only CSS-hidden — so crawlers still see every set link
+ * (internal links are a Search Console gate).
  */
 export default function ShowMoreList({
   items,
   initial,
+  step,
   noun,
   className,
 }: {
   items: ReactNode[];
   initial: number;
-  /** Plural word for the button: "Show all 212 sets". */
+  /** How many more each tap reveals. */
+  step: number;
+  /** Plural word for the button: "Show 20 more sets". */
   noun: string;
   className?: string;
 }) {
-  const [open, setOpen] = useState(false);
-  const folded = !open && items.length > initial;
+  const [shown, setShown] = useState(initial);
+  const left = items.length - shown;
   return (
     <>
       <ul className={className}>
         {items.map((item, i) => (
-          <li key={i} className={folded && i >= initial ? "hidden" : undefined}>
+          <li key={i} className={i >= shown ? "hidden" : undefined}>
             {item}
           </li>
         ))}
       </ul>
-      {folded && (
+      {left > 0 && (
         <button
           type="button"
-          onClick={() => setOpen(true)}
+          onClick={() => setShown((n) => n + step)}
           className="mt-3 w-full rounded-xl border border-edge bg-surface-1 px-4 py-3 text-sm font-medium text-zinc-200 transition hover:border-edge-strong"
         >
-          Show all {items.length.toLocaleString("en-US")} {noun}
+          Show {Math.min(step, left)} more {noun}
+          <span className="text-zinc-500"> · {left.toLocaleString("en-US")} left</span>
         </button>
       )}
     </>

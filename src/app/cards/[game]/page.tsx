@@ -134,6 +134,7 @@ export default async function GameHubPage({ params }: PageProps<"/cards/[game]">
               (Magic, 10-14: 386px wide at 375) pushes the list past the screen edge and the page scrolls sideways. */}
           <ShowMoreList
             initial={12}
+            step={20}
             noun="sets"
             className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3"
             items={sets.map((s) => (
