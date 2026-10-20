@@ -1,5 +1,8 @@
 # To test later
 
+## 10-20 ~3:25pm ET: review 10-19 #12 grid sold-net uses saleNet (postage included), COMMIT ONLY
+- After push, Inventory grid for a sold card (not by hand) with a shipping method set: the tile price, the `sold $X Â· net` line and the `you keep $X` button all show the SAME net the Earned tile uses (price minus fees minus postage), lower than before by the postage; a by-hand sale still shows the full sold price.
+
 ## 10-20 ~11:00am ET: B2 home stamp (76a19ae3) + B3 One Piece sets (96bc17b4) + Watch pill (b1241b1d), COMMIT ONLY
 - After push, the morning after the next daily run (~5:10am ET): cardflip.io home + /scan say "Prices updated <today> 5:0x AM ET" the same morning (curl the home HTML for "Prices updated"), not the day before.
 - After tonight's local sync + catalog push (no deploy needed): /cards/one-piece lists "The World's Strongest Warriors" ONCE (OP17, 161 cards), the starter decks keep their own names, order is newest first (OP17 Aug 28 2026 at the top, ST31-34 Jul 31 2026, EB03 Feb 2026...), and the sets memo/cache (seo:sets:v4:onepiece, SETS_TTL) has rolled; prod check: `SELECT COUNT(*) FROM tcg_cards WHERE game='onepiece' AND set_release_date=''` = 0 (PROMO/DON excepted) and the ghost groups query from scripts/_op-dups.mjs = 0.

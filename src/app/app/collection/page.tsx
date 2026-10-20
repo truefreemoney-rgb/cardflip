@@ -2876,7 +2876,7 @@ export default function CollectionPage() {
             );
             const priceText =
               sold && card.soldPrice != null
-                ? formatMoney(card.soldByHand ? card.soldPrice : netAfterFees(card.soldPrice, card.soldFees))
+                ? formatMoney(saleNet(card))
                 : headlineOf(card);
             const firstEd = card.firstEdition || card.setName.endsWith(" (1st Edition)");
             const setLine = firstEd ? card.setName.replace(/ \(1st Edition\)$/, "") : card.setName;
@@ -2995,7 +2995,7 @@ export default function CollectionPage() {
                 <div className="flex items-center justify-between gap-2 px-2.5 pb-2 pt-1">
                   <span className="truncate text-[11px] text-zinc-500">
                     {sold && card.soldPrice != null
-                      ? `sold ${formatMoney(card.soldByHand ? card.soldPrice : netAfterFees(card.soldPrice, card.soldFees))} · net`
+                      ? `sold ${formatMoney(saleNet(card))} · net`
                       : live
                         ? "Awaiting sale"
                         : ended
@@ -3257,7 +3257,7 @@ export default function CollectionPage() {
                           title={`${card.soldByHand ? "Marked sold by hand: no eBay fee or postage" : card.soldFees != null ? `eBay fees ${formatMoney(card.soldFees)} (actual)` : "eBay fees estimated"} — tap to correct the sale price`}
                           className="text-[11px] font-medium text-zinc-400 underline decoration-zinc-700 underline-offset-2 transition hover:text-zinc-200"
                         >
-                          {card.soldByHand || pricingOnly ? "edit" : `you keep ${formatMoney(netAfterFees(card.soldPrice, card.soldFees))}`}
+                          {card.soldByHand || pricingOnly ? "edit" : `you keep ${formatMoney(saleNet(card))}`}
                         </button>
                       </>
                     ) : (
