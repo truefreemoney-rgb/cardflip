@@ -18,7 +18,6 @@ import CardEditor from "@/components/CardEditor";
 import SealedEditor from "@/components/SealedEditor";
 import PageSkeleton from "@/components/PageSkeleton";
 import { useSession } from "@/components/SessionProvider";
-import { scanCard } from "@/lib/ocr";
 /** An item still "scanning" this long is failed by the watchdog, whatever it is waiting on (10-04). */
 const SCAN_WATCHDOG_MS = 20_000;
 
@@ -436,11 +435,6 @@ export default function AppPage() {
     [patchItem],
   );
 
-  // OCR is the fallback behind vision, so its worker + model (several MB of
-  // WASM and traineddata) load on first use, not on every scanner mount —
-  // eagerly warming it competed with the resume/scan requests for a phone's
-  // bandwidth and CPU for nothing in the common case (09-02 clunkiness pass).
-
   // Fresh scanner every visit (Chris, 08-27: "i want fresh starts"). The
   // queue used to rebuild itself from the saved snapshot after a refresh,
   // re-opening the previous session's cards every time the app opened. The
@@ -489,9 +483,7 @@ export default function AppPage() {
           abandoned.current.add(next.id);
         }, SCAN_WATCHDOG_MS);
         try {
-          // Vision first, OCR as the fallback. Tesseract misreads CJK badly
-          // enough that the lookup needs fuzzy matching to cope; when vision
-          // is available it reads the card directly and that guesswork goes away.
+          // Vision only (no OCR fallback since 10-12): the read is the card, or the scan fails and says so.
           const vision = await scanCardWithVision(next.file, next.language, next.game);
 
           if (vision.usage) {
@@ -644,12 +636,11 @@ export default function AppPage() {
             patchItem(next.id, { visionStatus: vision.status, status: "error", error: "Took too long — tap Capture again" });
             continue;
           } else {
-            patchItem(next.id, { visionStatus: vision.status });
-            // On-device OCR (several MB of model on a phone) has no clock of its own: a stall here left the item on
-            // "Reading the card" for minutes (10-04). Past the limit it is a failed read, and the seller shoots again.
-            const scan = await Promise.race([scanCard(next.file, next.language), new Promise<never>((_, reject) => setTimeout(() => reject(new Error("ocr timeout")), 6_000))]);
-            nameCandidates = scan.nameCandidates;
-            printed = scan.printed;
+            // Vision failed or is not configured: no OCR fallback (rule since 10-12, review 10-19 #4: the
+            // on-device OCR read a bedsheet as an Espeon and SAVED it). A failed read is a failed read: the
+            // server already gave the scan back; the seller shoots again.
+            patchItem(next.id, { visionStatus: vision.status, status: "error", error: "Couldn't read this card — tap Capture again" });
+            continue;
           }
 
           let matches: Awaited<ReturnType<typeof searchCards>> = [];
