@@ -1518,7 +1518,7 @@ export default function AppPage() {
       }}
       onEdit={editCopy}
       onApplyConditionToAll={
-        items.filter((i) => i.kind !== "sealed" && !i.grading && i.status !== "listed" && i.status !== "sold").length > 1
+        items.filter((i) => i.kind !== "sealed" && !i.grading && !i.verifiedAt && i.status !== "listed" && i.status !== "sold").length > 1
           ? applyConditionToAll
           : undefined
       }
@@ -1570,12 +1570,15 @@ export default function AppPage() {
     const next = itemsRef.current.map((item) => {
       if (item.kind === "sealed" || item.grading) return item;
       if (item.status === "listed" || item.status === "sold") return item;
+      // Review 10-19 #7: "waiting" = not verified yet. A card the seller already checked keeps its grade, and a
+      // price they typed survives (only a quoted price follows the new condition).
+      if (item.verifiedAt) return item;
       if (item.condition === condition) return item;
       touched++;
-      const next = { ...item, condition, priceOverride: null };
+      const next = { ...item, condition };
       if (item.serverId) {
         // Ledger price follows the condition, same as a single edit.
-        const requote = quoteForItem(next)?.suggested;
+        const requote = item.priceOverride == null ? quoteForItem(next)?.suggested : undefined;
         void updateServerCard(item.serverId, {
           condition: describeItemCondition(next),
           ...(requote ? { price: requote, priceLocked: false } : {}),
@@ -1886,6 +1889,7 @@ export default function AppPage() {
                         (i) =>
                           i.kind !== "sealed" &&
                           !i.grading &&
+                          !i.verifiedAt &&
                           i.status !== "listed" &&
                           i.status !== "sold",
                       ).length > 1
