@@ -5,6 +5,7 @@ import Link from "next/link";
 import ArtImg from "@/components/ArtImg";
 import BuyOnEbayLink from "@/components/BuyOnEbayLink";
 import { showsInLists } from "@/components/CardPagesUi";
+import { PriceFlagText } from "@/components/PriceFlagNote";
 import { cardKey, cardPath, gameTitle, parseCardKey, slugify } from "@/lib/cardPages";
 import { searchTyped } from "@/lib/cards";
 import { GAME_IDS } from "@/lib/games";
@@ -38,6 +39,8 @@ interface Hit {
   number: string;
   image: string;
   price: number | null;
+  /** The guard does not believe this card's market and no backup is stored: the sentence shows, never a blank (review 10-19 #22). */
+  flagged: boolean;
   card: PokemonCard;
 }
 
@@ -48,7 +51,8 @@ function toHits(game: GameId, cards: PokemonCard[], max = SHOWN): Hit[] {
     const key = cardKey(game, c);
     if (parseCardKey(game, key) !== key || !c.imageSmall || seen.has(key)) continue;
     seen.add(key);
-    const picked = priceFlagOf(c) ? null : (pickPrice(c)?.market ?? null);
+    const flagged = Boolean(priceFlagOf(c));
+    const picked = flagged ? null : (pickPrice(c)?.market ?? null);
     out.push({
       key,
       // The set slug here is a best guess; the card page 308s to the exact one.
@@ -58,6 +62,7 @@ function toHits(game: GameId, cards: PokemonCard[], max = SHOWN): Hit[] {
       number: c.number,
       image: c.imageSmall,
       price: picked,
+      flagged,
       card: c,
     });
     if (out.length >= max) break;
@@ -198,7 +203,7 @@ export default function CatalogSearch({
                           {h.setName}
                           {h.number ? ` · ${h.number}` : ""}
                         </span>
-                        {h.price != null && <span className="mt-auto pt-1 font-display text-base font-semibold tabular-nums text-emerald-300">{formatMoney(h.price)}</span>}
+                        {h.price != null ? <span className="mt-auto pt-1 font-display text-base font-semibold tabular-nums text-emerald-300">{formatMoney(h.price)}</span> : h.flagged ? <PriceFlagText className="mt-auto pt-1 text-xs" /> : null}
                       </span>
                     </Link>
                     <BuyOnEbayLink card={h.card} customId="cards-search" solid label="Buy" className="h-9 rounded-full text-sm" />
@@ -250,7 +255,7 @@ export default function CatalogSearch({
                         {h.number ? ` · ${h.number}` : ""}
                       </span>
                     </span>
-                    {h.price != null && <span className="shrink-0 font-display text-sm font-semibold tabular-nums text-emerald-300">{formatMoney(h.price)}</span>}
+                    {h.price != null ? <span className="shrink-0 font-display text-sm font-semibold tabular-nums text-emerald-300">{formatMoney(h.price)}</span> : h.flagged ? <PriceFlagText className="shrink-0 text-xs" /> : null}
                   </Link>
                 </li>
               ))}

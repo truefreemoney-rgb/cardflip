@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { cachedList, cachedListSwr, cachedStaleOk, dropCachedLists } from "@/lib/server/listCache";
 import { gamePublic, type GatedGame } from "@/lib/server/settings";
 import { MTG_REFEREE_SQL, PRICE_TRUST, REF_ALT_SOURCE, lastPriced } from "@/lib/server/priceTrust";
-import { judgeFull, judgeSeries, loadTrustData, readEbayAsks, readListingLows, type TrustData, type TrustSeries } from "@/lib/server/priceTrustSite";
+import { backupRows, judgeFull, judgeSeries, loadTrustData, readEbayAsks, readListingLows, type TrustData, type TrustSeries } from "@/lib/server/priceTrustSite";
 import { largeImage } from "@/lib/server/mtgCards";
 import { activeChecks, checkKey, CHECKED_MAX_DAYS } from "@/lib/server/checkedPrices";
 import { addDays, dayIndex, decodePrices, toPoints, todayUtc } from "@/lib/priceSeries";
@@ -36,7 +36,7 @@ import {
 } from "@/lib/cardPages";
 import { historyRange, type HistoryRange, type SetStanding } from "@/lib/cardStory";
 import type { Series } from "@/lib/client/priceHistoryData";
-import type { GameId } from "@/lib/types";
+import type { PokemonCard, GameId } from "@/lib/types";
 import { BACKUP_ORDER, backupRank, backupSourceLabel, cardmarketLift } from "@/lib/priceChain";
 import { toPics } from "@/lib/pics";
 
@@ -614,6 +614,24 @@ export async function loadSetCards(game: GameId, set: SetEntry, today = todayUtc
     const f = factsOf(game, r, "");
     const own = head ? data.series.find((s) => s.variant === head.variant) : undefined;
     out.push({ key: r.key, name: f.name, number: f.number, tags: f.tags, image: f.image, tile: f.tile, price: head ? head.price : null, flagged: !head, unverified: head ? isUnverified(head) : false, ...(head?.stale ? { stale: true } : {}), was7: valueBack(own, today, 7, game), was30: valueBack(own, today, 30, game) });
+  }
+  // A flagged card prints its stored backup (lib/priceChain.ts) the way its own page does since 10-20, never a blank
+  // (review 10-19 #22); with none stored it keeps the guard's sentence and sorts last. A failed read changes nothing.
+  const flaggedTiles = out.filter((t) => t.flagged);
+  if (flaggedTiles.length > 0) {
+    try {
+      const idOf = new Map(rows.map((r) => [r.key, r.id] as const));
+      const backups = await backupRows(flaggedTiles.map((t) => ({ id: idOf.get(t.key) ?? t.key, game })) as unknown as PokemonCard[], today);
+      for (const t of flaggedTiles) {
+        const b = backups.get(idOf.get(t.key) ?? t.key);
+        if (b && typeof b.market === "number" && b.market > 0) {
+          t.price = b.market;
+          t.flagged = false;
+        }
+      }
+    } catch (err) {
+      console.warn(`card pages: backup read failed on ${game} set ${set.key}`, err);
+    }
   }
   return out.sort((a, b) => (b.price ?? -1) - (a.price ?? -1) || a.name.localeCompare(b.name) || a.number.localeCompare(b.number, "en", { numeric: true }));
 }

@@ -406,7 +406,7 @@ export default async function CardPricePage({ params }: PageProps<"/cards/[game]
       </main>
       <Footer />
       {/* Phones: today's price and the one button stay in reach (hidden from md up). */}
-      <StickyPriceBar price={page.headline?.price ?? null}>
+      <StickyPriceBar price={page.headline?.price ?? null} flagged={!page.headline && page.prices.length > 0}>
         <WatchPrice game={game} id={f.id} compact />
       </StickyPriceBar>
     </div>

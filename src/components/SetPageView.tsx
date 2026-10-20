@@ -38,7 +38,9 @@ const load = cache(async (gameSlug: string, setSlug: string): Promise<Loaded | n
   const found = await setBySlug(game, setSlug);
   if (!found) return null;
   const all = await loadSetCards(game, found.set);
-  return { game, set: found.set, slug: found.slug, cards: all.filter((c) => c.price != null && c.price > 0 && !c.unverified) };
+  // A flagged card stays on the list with the guard's sentence (its tile prints no number), sorted last by loadSetCards; it
+  // used to be dropped outright (review 10-19 #22). Unverified (young, high) prices stay off the list as before.
+  return { game, set: found.set, slug: found.slug, cards: all.filter((c) => !c.unverified && (c.flagged || (c.price != null && c.price > 0))) };
 });
 
 const pageHref = (game: GameId, slug: string, n: number) => (n <= 1 ? setPath(game, slug) : `${setPath(game, slug)}/page/${n}`);

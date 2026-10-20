@@ -1,5 +1,11 @@
 # To test later
 
+## 10-20 ~5:30pm ET: review 10-19 #22 a flagged price is never a blank on the public lists (set list, /u/handle, search hits, sticky bar), COMMIT ONLY, VISIBLE: phone shots to Chris before push
+- After push, /cards/magic/unlimited-edition lists Black Lotus (2ED 233) with its Cardmarket backup price (it was dropped from the set before); a Pokemon flagged card with NO stored backup stays on its set page at the END with 'This price looks off' in the price cell, no number, and the set summary strip ignores it.
+- After push, a flagged no-backup card's own page on the phone: the bottom bar says Market + the looks-off sentence beside Watch this price (it was Watch alone); a card with no prices at all keeps the bare bar.
+- After push, /cards search (CatalogSearch) for that flagged card: the hit shows the looks-off sentence under the set name instead of nothing; a flagged card WITH a backup shows the backup price.
+- After push, a public profile /u/<handle> holding a flagged card: the row shows the backup-based asking price when one is stored (counted in the total), else the dash as before; typed (locked) and live-listed prices untouched. npm run test:cardpages, test:publiccollection, test:sitetrust PASS 10-20.
+
 ## 10-20 ~4:50pm ET: review 10-19 #21 search-card LIKE walks escape % _ \ and the English substring walk needs 3 letters, COMMIT ONLY
 - After push: curl 'https://cardflip.io/api/search-card?name=%25&game=pokemon' and '?name=_' return an empty/short list fast (not 400 rows), and Vercel function time for that call is tens of ms; a real search ('charizard', 'ashs pikachu', 'poke ball', Magic 'lightning bolt', ja 'ピカチュウ') finds the same cards as before (npm run test:mirror, test:searchtyped, test:mtg, test:cards PASS 10-20 locally).
 - Scanner: a vision read of a 1-2 letter name (e.g. 'Mr' clipped) still identifies by the printed number fraction (the number fallback runs when the walk is skipped).

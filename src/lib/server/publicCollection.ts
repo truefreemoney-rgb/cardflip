@@ -2,12 +2,12 @@ import "server-only";
 import { db } from "@/lib/db";
 import { findUserByHandle } from "@/lib/server/users";
 import { latestUsdPrices } from "@/lib/server/priceHistory";
-import { heldTrustOrOpen } from "@/lib/server/priceTrustSite";
+import { backupRows, heldTrustOrOpen } from "@/lib/server/priceTrustSite";
 import { askingPriceFor } from "@/lib/listing";
 import { shipMethodOf } from "@/lib/fees";
 import { ebayListingUrl } from "@/lib/ebayInventory";
 import { formatLocalAmount, marketplaceByEbayId } from "@/lib/marketplaces";
-import type { GameId } from "@/lib/types";
+import type { GameId, PokemonCard } from "@/lib/types";
 import { parseGame } from "@/lib/games";
 import { isOwnBlobUrl } from "@/lib/server/ownBlob";
 
@@ -134,9 +134,8 @@ export async function publicCollection(handle: string): Promise<PublicCollection
   const market = unpriced.length ? await latestUsdPrices([...new Set(unpriced)]) : new Map<string, { price: number; variant: string }>();
 
   const trust = await heldTrustOrOpen(shown.flatMap((r) => (r.catalog_card_id && r.kind !== "sealed" ? [{ catalog_card_id: r.catalog_card_id, variant: r.variant, game: r.game }] : [])));
-  let value = 0;
-  let forSale = 0;
-  const cards: PublicCard[] = shown.map((r) => {
+  // First pass: each row's price and the guard's verdict (the backup read below needs the flagged ids first).
+  const judged = shown.map((r) => {
     let price: number | null = r.price && r.price > 0 ? round(r.price) : null;
     // The fallback reads the card's default series (latestUsdPrices), so it is judged on that
     // one; a stored price came from the row's own variant line and is judged on it.
@@ -146,8 +145,29 @@ export async function publicCollection(handle: string): Promise<PublicCollection
       price = m > 0 ? askingPriceFor(m, r.condition, shipMethodOf(r)) : null;
       judgedVariant = null;
     }
-    // A price that came from a flagged market is not shown (nor counted); the seller's own price and a live ask are.
-    if (price != null && r.catalog_card_id && r.kind !== "sealed" && !r.price_locked && r.status !== "listed" && trust.flag({ catalog_card_id: r.catalog_card_id, variant: judgedVariant, game: r.game })) price = null;
+    // A price that came from a flagged market is not shown as it is; the seller's own price and a live ask are.
+    const flagged = price != null && Boolean(r.catalog_card_id) && r.kind !== "sealed" && !r.price_locked && r.status !== "listed" && Boolean(trust.flag({ catalog_card_id: r.catalog_card_id as string, variant: judgedVariant, game: r.game }));
+    return { price, flagged };
+  });
+  // A flagged market's stand-in is the card's stored backup (lib/priceChain.ts), as on its own page (review 10-19 #22):
+  // none stored = no price, not a wrong one. A failed read leaves those rows unpriced.
+  let backups = new Map<string, { market: number | null }>();
+  const flaggedIds = shown.flatMap((r, i) => (judged[i].flagged ? [{ id: r.catalog_card_id as string, game: parseGame(r.game) }] : []));
+  if (flaggedIds.length > 0) {
+    try {
+      backups = await backupRows(flaggedIds as unknown as PokemonCard[]);
+    } catch (err) {
+      console.warn("public collection: backup read failed", err);
+    }
+  }
+  let value = 0;
+  let forSale = 0;
+  const cards: PublicCard[] = shown.map((r, i) => {
+    let price = judged[i].price;
+    if (judged[i].flagged) {
+      const b = backups.get(r.catalog_card_id as string);
+      price = b && typeof b.market === "number" && b.market > 0 ? askingPriceFor(b.market, r.condition, shipMethodOf(r)) : null;
+    }
     if (price != null) value += price;
     const site = marketplaceByEbayId(r.ebay_marketplace);
     const ebayUrl = r.status === "listed" && r.ebay_listing_id ? ebayListingUrl(r.ebay_listing_id, site) : null;

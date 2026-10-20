@@ -82,15 +82,20 @@ export function PriceCell({ price, flagged, className = "" }: { price: number | 
  * Solid background, safe-area padding, hidden from md up. The page's main
  * gets matching bottom padding so the footer is never covered.
  */
-export function StickyPriceBar({ price, children }: { price: number | null; children: React.ReactNode }) {
+export function StickyPriceBar({ price, flagged = false, children }: { price: number | null; /** No believed price but the card has prices: the guard's sentence, never a bare bar (review 10-19 #22). */ flagged?: boolean; children: React.ReactNode }) {
   return (
     <div className="fixed inset-x-0 bottom-[var(--bottom-nav-h,0px)] z-30 flex items-center gap-3 border-t border-edge-strong bg-[#0f1119] px-4 pt-3 pb-[max(0.75rem,calc(env(safe-area-inset-bottom)-var(--bottom-nav-h,0px)))] md:hidden">
-      {price != null && (
+      {price != null ? (
         <div className="shrink-0 leading-tight">
           <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">Market</p>
           <p className="font-display text-xl font-bold tabular-nums text-emerald-300">{formatMoney(price)}</p>
         </div>
-      )}
+      ) : flagged ? (
+        <div className="min-w-0 shrink leading-tight">
+          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">Market</p>
+          <PriceFlagText className="block text-xs leading-snug" />
+        </div>
+      ) : null}
       <div className="flex min-w-0 flex-1 justify-end">{children}</div>
     </div>
   );
