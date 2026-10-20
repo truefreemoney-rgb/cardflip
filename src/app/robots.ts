@@ -10,10 +10,11 @@ import { SITE_URL } from "@/lib/siteUrl";
 // 74k card pages drove the Vercel ISR/storage bill). Search bots keep access:
 // Googlebot, Bingbot, OAI-SearchBot / ChatGPT-User, PerplexityBot, Claude-SearchBot.
 // 10-19: meta-webindexer (Meta AI's indexer, not the facebookexternalhit link preview) rendered 61K card pages in 12 h
-// (104K ISR writes, $1.67 that day vs ~$0.40); turned away here and by a Vercel Firewall deny rule.
+// (104K ISR writes, $1.67 that day vs ~$0.40); turned away here and by a Vercel Firewall deny rule. Same day: AionBot
+// (Oracle cloud, 31K requests) and Amzn-SearchBot (18K) were the next two; the three were 114K of 125K requests.
 const TRAINING_BOTS = [
   "GPTBot", "CCBot", "ClaudeBot", "anthropic-ai", "Google-Extended", "Applebot-Extended",
-  "Bytespider", "meta-externalagent", "meta-webindexer", "FacebookBot", "Amazonbot", "cohere-ai", "Diffbot",
+  "Bytespider", "meta-externalagent", "meta-webindexer", "AionBot", "Amzn-SearchBot", "FacebookBot", "Amazonbot", "cohere-ai", "Diffbot",
   "Omgilibot", "ImagesiftBot", "Timpibot", "PetalBot", "AhrefsBot", "SemrushBot", "MJ12bot", "DotBot",
 ];
 export default function robots(): MetadataRoute.Robots {
