@@ -79,7 +79,8 @@ export default function QueueRow({ item, selected, onSelect, onRemove }: Props) 
         onClick={onRemove}
         aria-label={`Clear ${item.card ? item.card.englishName || item.card.name : "card"} from the list (it stays in your Inventory)`}
         title="Clear from this list. The card stays in your Inventory."
-        className="flex h-8 shrink-0 items-center rounded-full border border-edge px-2.5 text-[11px] font-medium text-zinc-500 transition hover:border-edge-strong hover:text-zinc-200 focus-visible:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
+        // before: = 6px above and below, a 44px tap on the 32px pill (review 10-19 #24).
+        className="relative flex h-8 shrink-0 items-center rounded-full border border-edge px-2.5 text-xs font-medium text-zinc-400 transition before:absolute before:inset-x-0 before:-inset-y-1.5 before:content-[''] hover:border-edge-strong hover:text-zinc-200 focus-visible:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
       >
         Clear
       </button>

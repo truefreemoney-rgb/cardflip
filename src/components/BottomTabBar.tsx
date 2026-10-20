@@ -75,7 +75,8 @@ const TABS: { href: string; label: string; tour: string; icon: ReactNode; primar
 
 /**
  * Phones only (< md): the app's main tabs as a fixed bottom bar, one thumb
- * from anywhere. Solid background, >= 56px targets, iPhone home-bar padding.
+ * from anywhere. Solid background, >= 56px targets, 12px labels (the text
+ * floor, review 10-19 #24), iPhone home-bar padding.
  * z-40 sits under every modal and the full-screen camera (z-50+), so those
  * cover it. The layout publishes --bottom-nav-h (same height) for content
  * padding and the Toaster offset.
@@ -97,7 +98,7 @@ export default function BottomTabBar() {
               href={tab.href}
               aria-current={active ? "page" : undefined}
               data-tour={tab.tour}
-              className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition ${
+              className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-xs font-medium transition ${
                 active ? "text-brand-300" : "text-zinc-400 active:text-zinc-200"
               }`}
             >

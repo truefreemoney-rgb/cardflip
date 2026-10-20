@@ -54,7 +54,7 @@ function Row({ item, onOpen, onRemove }: { item: ScanItem; onOpen?: (id: string)
           onClick={() => onRemove(item.id)}
           aria-label={`Clear ${card.name} from the list (it stays in your Inventory)`}
           title="Clear from this list. The card stays in your Inventory."
-          className="flex h-8 shrink-0 items-center rounded-full border border-edge px-2.5 text-[11px] font-medium text-zinc-400 transition hover:bg-white/10 hover:text-white"
+          className="relative flex h-8 shrink-0 items-center rounded-full border border-edge px-2.5 text-xs font-medium text-zinc-400 transition before:absolute before:inset-x-0 before:-inset-y-1.5 before:content-[''] hover:bg-white/10 hover:text-white"
         >
           Clear
         </button>

@@ -33,6 +33,8 @@ const TONE: Record<Condition, { dot: string; on: string }> = {
 };
 
 const OFF = "border-edge bg-surface-2 text-zinc-300 hover:border-edge-strong";
+/** 4px above and below: the 38px chips tap at 46px, inside the gap-2 between rows (review 10-19 #24). */
+const TAP = "relative before:absolute before:inset-x-0 before:-inset-y-1 before:content-['']";
 
 export default function CopyEditSheet({ item, onChange, onApplyConditionToAll, waiting = 0, onClose }: Props) {
   const card = item.card!;
@@ -70,7 +72,7 @@ export default function CopyEditSheet({ item, onChange, onApplyConditionToAll, w
         </button>
       }
     >
-      <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-zinc-500">Condition</p>
+      <p className="text-xs font-semibold uppercase tracking-[0.15em] text-zinc-400">Condition</p>
       <div className="mt-2 flex flex-wrap gap-2">
         {CONDITIONS.map((condition) => {
           const on = item.condition === condition;
@@ -86,7 +88,7 @@ export default function CopyEditSheet({ item, onChange, onApplyConditionToAll, w
                 // sheet ("the condition new scans start as"), never silently from one card's grade.
                 onChange({ condition, priceOverride: null });
               }}
-              className={`flex items-center gap-2 whitespace-nowrap rounded-full border px-3 py-2 text-sm font-medium transition ${on ? TONE[condition].on : OFF}`}
+              className={`${TAP} flex items-center gap-2 whitespace-nowrap rounded-full border px-3 py-2 text-sm font-medium transition ${on ? TONE[condition].on : OFF}`}
             >
               <span className={`h-2 w-2 shrink-0 rounded-full ${TONE[condition].dot}`} aria-hidden />
               <span>{condition}</span>
@@ -99,7 +101,7 @@ export default function CopyEditSheet({ item, onChange, onApplyConditionToAll, w
         <button
           type="button"
           onClick={() => onApplyConditionToAll(item.condition)}
-          className="mt-3 text-sm font-medium text-brand-300 underline-offset-4 hover:underline"
+          className="mt-1 py-2 text-sm font-medium text-brand-300 underline-offset-4 hover:underline"
         >
           Use {item.condition} for all {waiting} waiting scans
         </button>
@@ -107,7 +109,7 @@ export default function CopyEditSheet({ item, onChange, onApplyConditionToAll, w
 
       {printings.length > 1 && (
         <>
-          <p className="mt-5 text-[11px] font-semibold uppercase tracking-[0.15em] text-zinc-500">Printing</p>
+          <p className="mt-5 text-xs font-semibold uppercase tracking-[0.15em] text-zinc-400">Printing</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {printings.map((p) => {
               const on = p.variant === variant;
@@ -121,7 +123,7 @@ export default function CopyEditSheet({ item, onChange, onApplyConditionToAll, w
                     if (on) return;
                     onChange({ variant: p.variant, priceOverride: null });
                   }}
-                  className={`flex items-center gap-2 whitespace-nowrap rounded-full border px-3 py-2 text-sm font-medium transition ${on ? "border-brand-400 bg-brand-500/15 text-white" : OFF}`}
+                  className={`${TAP} flex items-center gap-2 whitespace-nowrap rounded-full border px-3 py-2 text-sm font-medium transition ${on ? "border-brand-400 bg-brand-500/15 text-white" : OFF}`}
                 >
                   <span>{formatVariantLabel(p.variant)}</span>
                   {p.market != null && <span className="tabular-nums text-zinc-400">{formatMoney(marketForCondition(p.market, item.condition))}</span>}

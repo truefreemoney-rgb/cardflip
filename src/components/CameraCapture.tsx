@@ -1056,13 +1056,14 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
             here, off the video — the one way out (left), Card / Page
             (middle), the light (right; the sound toggle went 10-02, Chris:
             no audio in the scanner). Solid, no blur: iOS. */}
-        {/* Widths at 360px with the light showing: 60 + 169 + 40 + gaps = 281 of 336. */}
+        {/* Widths at 360px with the light showing: 60 + 169 + 40 + gaps = 281 of 336.
+            The 40px buttons tap at 44px: a before: layer 2px out each side, inside the 6px gaps (review 10-19 #24). */}
         <div className="flex h-12 shrink-0 items-center gap-1.5 px-3 sm:h-auto sm:px-0">
           <button
             type="button"
             onClick={onClose}
             aria-label={captured > 0 ? "Done, close scanner" : "Close scanner"}
-            className="flex h-10 shrink-0 items-center whitespace-nowrap rounded-full border border-edge bg-surface-2 px-3 text-xs font-semibold text-zinc-200 transition hover:border-edge-strong"
+            className="relative flex h-10 shrink-0 items-center whitespace-nowrap rounded-full border border-edge bg-surface-2 px-3 text-xs font-semibold text-zinc-200 transition before:absolute before:-inset-0.5 before:content-[''] hover:border-edge-strong"
           >
             {captured > 0 ? "Done" : "Close"}
           </button>
@@ -1105,7 +1106,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
               onClick={toggleTorch}
               aria-pressed={torch === "on"}
               aria-label="Camera light"
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition ${
+              className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition before:absolute before:-inset-0.5 before:content-[''] ${
                 torch === "on"
                   ? "border-amber-300/60 bg-amber-400 text-black"
                   : "border-edge bg-surface-2 text-zinc-200 hover:border-edge-strong"
@@ -1122,7 +1123,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
             onClick={() => setOptions(true)}
             aria-label="Scanner options"
             aria-haspopup="dialog"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-edge bg-surface-2 text-zinc-200 transition hover:border-edge-strong"
+            className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-edge bg-surface-2 text-zinc-200 transition before:absolute before:-inset-0.5 before:content-[''] hover:border-edge-strong"
           >
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
               <circle cx="5" cy="12" r="2" />
@@ -1296,7 +1297,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
               {tipsOn ? (
                 <span className="mt-1 flex items-center justify-center gap-2 text-xs text-brand-200">
                   <span>Lay It Flat · No Glare · Sleeves OK, No Slabs</span>
-                  <button type="button" onClick={dismissTips} aria-label="Hide camera tips" className="rounded-full border border-edge px-2 py-0.5 text-[11px] text-zinc-300 hover:border-edge-strong">
+                  <button type="button" onClick={dismissTips} aria-label="Hide camera tips" className="relative rounded-full border border-edge px-2 py-1 text-xs text-zinc-300 before:absolute before:inset-x-0 before:-inset-y-2.5 before:content-[''] hover:border-edge-strong">
                     Got It
                   </button>
                 </span>
@@ -1627,7 +1628,8 @@ function RevealChip({ item, onOpen, onRemove, onSwap, onEdit, onExpand, verify }
               type="button"
               onClick={() => (onEdit ? onEdit() : onOpen!(item.id))}
               aria-label={`Change condition or printing: ${copyBits.join(", ")}`}
-              className="flex min-w-0 items-center gap-2 rounded-full border border-white/15 bg-white/5 py-1 pl-2.5 pr-2 text-xs font-medium text-zinc-200 transition hover:border-white/30 hover:bg-white/10"
+              // py-1.5 + an 8px before: layer each way = a 46px tap, kept inside the rows' gap-2 (review 10-19 #24).
+              className="relative flex min-w-0 items-center gap-2 rounded-full border border-white/15 bg-white/5 py-1.5 pl-2.5 pr-2 text-xs font-medium text-zinc-200 transition before:absolute before:inset-x-0 before:-inset-y-2 before:content-[''] hover:border-white/30 hover:bg-white/10"
             >
               <span className={`h-2 w-2 shrink-0 rounded-full ${CONDITION_DOT[item.condition] ?? "bg-zinc-400"}`} aria-hidden />
               <span className="truncate">{copyBits.join(" · ")}</span>
@@ -1642,7 +1644,7 @@ function RevealChip({ item, onOpen, onRemove, onSwap, onEdit, onExpand, verify }
               onClick={() => onRemove(item.id)}
               aria-label={`Clear ${card.name} from the list (it stays in your Inventory)`}
               title="Clear from this list. The card stays in your Inventory."
-              className="flex h-7 shrink-0 items-center rounded-full border border-white/15 px-2.5 text-[11px] font-medium text-zinc-400 transition hover:bg-white/10 hover:text-white"
+              className="relative flex h-7 shrink-0 items-center rounded-full border border-white/15 px-2.5 text-xs font-medium text-zinc-400 transition before:absolute before:inset-x-0 before:-inset-y-2 before:content-[''] hover:bg-white/10 hover:text-white"
             >
               Clear
             </button>

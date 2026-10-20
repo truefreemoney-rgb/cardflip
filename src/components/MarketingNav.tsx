@@ -77,7 +77,9 @@ export default function MarketingNav() {
     };
   }, []);
 
-  const link = "whitespace-nowrap px-2.5 py-2 text-sm text-zinc-400 transition hover:text-white";
+  // The before: layer grows each 36px link and button to a 44px tap target without changing its look (review 10-19 #24).
+  const hit = "relative before:absolute before:inset-x-0 before:-inset-y-1 before:content-['']";
+  const link = `${hit} whitespace-nowrap px-2.5 py-2 text-sm text-zinc-400 transition hover:text-white`;
 
   return (
     <>
@@ -94,7 +96,7 @@ export default function MarketingNav() {
             onClick={() => setSearching((v) => !v)}
             aria-label={searching ? "Close card search" : "Search cards"}
             aria-expanded={searching}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-400 transition hover:text-white"
+            className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-400 transition before:absolute before:-inset-1 before:content-[''] hover:text-white"
           >
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
               {searching ? <path d="M6 6l12 12M18 6L6 18" /> : <><circle cx="11" cy="11" r="7" /><path d="M20 20l-4-4" /></>}
@@ -128,7 +130,7 @@ export default function MarketingNav() {
               </button>
               <Link
                 href="/app"
-                className="ml-1 whitespace-nowrap rounded-full bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-400"
+                className={`${hit} ml-1 whitespace-nowrap rounded-full bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-400`}
               >
                 Open the App
               </Link>
@@ -140,7 +142,7 @@ export default function MarketingNav() {
               </Link>
               <Link
                 href="/signup"
-                className={`ml-1 whitespace-nowrap rounded-full bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-400 ${known ? "" : "invisible"}`}
+                className={`${hit} ml-1 whitespace-nowrap rounded-full bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-400 ${known ? "" : "invisible"}`}
               >
                 Get Started
               </Link>

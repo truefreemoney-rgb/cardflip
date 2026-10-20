@@ -191,6 +191,9 @@ const SLAB_MESSAGE = "That's a graded slab — graded cards aren't accepted yet.
 const RESUME_STEPS = ["Finding the match", "Pulling today's prices", "Loading your photo"] as const;
 const RESUME_STAGE_MS = [900, 2000] as const;
 
+/** An invisible 8px layer above and below: a 28-32px pill taps at 44px+ without changing its look (review 10-19 #24). */
+const TAP_8 = "relative before:absolute before:inset-x-0 before:-inset-y-2 before:content-['']";
+
 export default function AppPage() {
   const router = useRouter();
   const { user, refresh, patchUser } = useSession();
@@ -1705,13 +1708,13 @@ export default function AppPage() {
                   {/* Phones fold the value into the headline; desktop has its own stat. */}
                   <span className="sm:hidden"> · {formatMoney(pendingValue)}</span>
                 </p>
-                <p className="mt-1 truncate whitespace-nowrap text-[11px] text-zinc-500" aria-live="polite">
+                <p className="mt-1 truncate whitespace-nowrap text-xs text-zinc-400" aria-live="polite">
                   {readyCount} ready · {listedItems.length} live · {items.length - identified.length} pending
                 </p>
               </div>
               <div className="hidden sm:block">
                 <p className="font-display text-xl font-semibold leading-none text-white">{formatMoney(pendingValue)}</p>
-                <p className="mt-1 text-[11px] text-zinc-500">In progress</p>
+                <p className="mt-1 text-xs text-zinc-400">In progress</p>
               </div>
               {scanUsage && scanUsage.remaining !== null && (
                 <div className="hidden sm:block">
@@ -1723,13 +1726,13 @@ export default function AppPage() {
                   >
                     {scanUsage.remaining}
                   </p>
-                  <p className="mt-1 text-[11px] text-zinc-500">Scans left</p>
+                  <p className="mt-1 text-xs text-zinc-400">Scans left</p>
                 </div>
               )}
               {soldItems.length > 0 && (
                 <div className="hidden animate-fade-up sm:block">
                   <p className="font-display text-xl font-semibold leading-none text-emerald-400">{formatMoney(totalEarned)}</p>
-                  <p className="mt-1 text-[11px] text-zinc-500">Sold ({soldItems.length})</p>
+                  <p className="mt-1 text-xs text-zinc-400">Sold ({soldItems.length})</p>
                 </div>
               )}
             </div>
@@ -1741,7 +1744,7 @@ export default function AppPage() {
                 // (Chris, 09-06) — the plans page, not the eBay consent screen.
                 <Link
                   href="/pricing"
-                  className="shrink-0 whitespace-nowrap rounded-full bg-brand-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-brand-400 sm:order-last sm:px-4 sm:py-2 sm:text-sm"
+                  className={`${TAP_8} shrink-0 whitespace-nowrap rounded-full bg-brand-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-brand-400 sm:order-last sm:px-4 sm:py-2 sm:text-sm`}
                 >
                   Subscribe Now
                 </Link>
@@ -1751,7 +1754,7 @@ export default function AppPage() {
                   onClick={() => void sendAllToEbay()}
                   disabled={bulkBusy || identified.length === 0}
                   title={user.ebayConnected ? "Send every verified card to your eBay account" : "Connect your eBay account first"}
-                  className="shrink-0 whitespace-nowrap rounded-full bg-ebay px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-ebay-hover disabled:cursor-not-allowed disabled:opacity-40 sm:order-last sm:px-4 sm:py-2 sm:text-sm"
+                  className={`${TAP_8} shrink-0 whitespace-nowrap rounded-full bg-ebay px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-ebay-hover disabled:cursor-not-allowed disabled:opacity-40 sm:order-last sm:px-4 sm:py-2 sm:text-sm`}
                 >
                   {bulkBusy ? "Sending…" : user.ebayConnected ? "Send to eBay" : "Connect eBay"}
                 </button>
@@ -1768,7 +1771,7 @@ export default function AppPage() {
                   onClick={() => router.push("/app/collection")}
                   aria-label="Done, go to Inventory"
                   title="Done, go to Inventory"
-                  className="flex h-8 shrink-0 items-center whitespace-nowrap rounded-full border border-edge px-3 text-xs font-semibold text-zinc-200 transition hover:border-brand-400 hover:text-white sm:order-last sm:h-9 sm:px-4 sm:text-sm"
+                  className={`${TAP_8} flex h-8 shrink-0 items-center whitespace-nowrap rounded-full border border-edge px-3 text-xs font-semibold text-zinc-200 transition hover:border-brand-400 hover:text-white sm:order-last sm:h-9 sm:px-4 sm:text-sm`}
                 >
                   Done
                 </button>
@@ -1792,7 +1795,7 @@ export default function AppPage() {
                 <Uploader onOpenCamera={openCamera} variant="compact" />
                 <Link
                   href="/app/collection"
-                  className="whitespace-nowrap rounded-full border border-edge bg-surface-1 px-4 py-2 text-center text-sm font-medium text-zinc-200 transition hover:border-brand-400 hover:text-white"
+                  className="relative whitespace-nowrap rounded-full border border-edge bg-surface-1 px-4 py-2 text-center text-sm font-medium text-zinc-200 transition before:absolute before:inset-x-0 before:-inset-y-1 before:content-[''] hover:border-brand-400 hover:text-white"
                 >
                   Inventory →
                 </Link>

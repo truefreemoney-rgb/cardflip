@@ -53,7 +53,8 @@ export default function CategorySheet({
   const canConfirm = !busy && (!creating || Boolean(trimmed));
 
   const chip = (active: boolean) =>
-    `inline-flex max-w-full items-center rounded-full border px-3 py-1.5 text-sm font-medium transition ${
+    // before: = 6px above and below: the 34px chip taps at 46px, inside the gap-2 between rows (review 10-19 #24).
+    `relative inline-flex max-w-full items-center rounded-full border px-3 py-1.5 text-sm font-medium transition before:absolute before:inset-x-0 before:-inset-y-1.5 before:content-[''] ${
       active
         ? "border-brand-400 bg-brand-500/15 text-white"
         : "border-edge text-zinc-300 hover:border-edge-strong hover:text-white"

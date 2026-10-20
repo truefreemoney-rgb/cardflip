@@ -20,6 +20,9 @@ interface Props {
   wrap?: boolean;
 }
 
+// An invisible layer grows each pill to a >= 44px tap target without changing its look (review 10-19 #24).
+const HIT = "relative before:absolute before:inset-x-0 before:-inset-y-2 before:content-['']";
+
 /**
  * Pokémon | Magic. Which catalogue the scanner reads against, which vision
  * prompt runs, which words go in the listing. Items already in the queue keep
@@ -51,7 +54,8 @@ export default function GameToggle({ game, onChange, compact = false, counts, bl
         className={
           wrap
             ? "flex flex-wrap gap-2 text-sm"
-            : `${inCard ? "-mx-3 px-3" : "-mx-4 px-4"} flex gap-1.5 overflow-x-auto text-xs [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`
+            : // -my-2 py-2: room inside the scroll box for the pills' taller tap layers (a scroller clips what pokes out).
+              `${inCard ? "-mx-3 px-3" : "-mx-4 px-4"} -my-2 flex gap-1.5 overflow-x-auto py-2 text-xs [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`
         }
       >
         {visible.map((id) => {
@@ -63,7 +67,7 @@ export default function GameToggle({ game, onChange, compact = false, counts, bl
               role="radio"
               aria-checked={game === id}
               onClick={() => onChange(id)}
-              className={`shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 font-medium transition ${
+              className={`${HIT} shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 font-medium transition ${
                 game === id ? "border-brand-500 bg-brand-500 text-white" : "border-edge bg-surface-1 text-zinc-400 hover:border-edge-strong hover:text-zinc-200"
               }`}
             >
@@ -79,7 +83,7 @@ export default function GameToggle({ game, onChange, compact = false, counts, bl
     <div
       role="radiogroup"
       aria-label="Card game"
-      className={`inline-flex rounded-full border border-edge bg-surface-1 p-1 ${visible.length > 4 ? "text-[11px]" : compact ? "text-xs" : "text-sm"}`}
+      className={`inline-flex rounded-full border border-edge bg-surface-1 p-1 ${visible.length > 4 || compact ? "text-xs" : "text-sm"}`}
     >
       {visible.map((id) => (
         <button
@@ -89,8 +93,9 @@ export default function GameToggle({ game, onChange, compact = false, counts, bl
           aria-checked={game === id}
           onClick={() => onChange(id)}
           // Five games at text-xs px-2.5 measured 357px on a 375px phone
-          // (09-29), past the 16px gutter; 11px / px-2 fits a 360px Android.
-          className={`whitespace-nowrap rounded-full font-medium transition ${visible.length > 4 ? "px-2 py-1.5" : compact ? "px-3 py-1.5" : "px-3.5 py-1.5"} ${
+          // (09-29), past the 16px gutter. 12px (the text floor) / px-1.5
+          // measures 317px (10-20), 3px over the old 11px / px-2, and fits a 360px Android.
+          className={`${HIT} whitespace-nowrap rounded-full font-medium transition ${visible.length > 4 ? "px-1.5 py-1.5" : compact ? "px-3 py-1.5" : "px-3.5 py-1.5"} ${
             game === id
               ? "bg-brand-500 text-white"
               : "text-zinc-400 hover:text-zinc-200"
@@ -98,7 +103,7 @@ export default function GameToggle({ game, onChange, compact = false, counts, bl
         >
           {GAMES[id].label}
           {counts?.[id] != null && (
-            <span className={game === id ? "ml-1.5 text-white/70" : "ml-1.5 text-zinc-600"}>· {counts[id]}</span>
+            <span className={game === id ? "ml-1.5 text-white/70" : "ml-1.5 text-zinc-500"}>· {counts[id]}</span>
           )}
         </button>
       ))}

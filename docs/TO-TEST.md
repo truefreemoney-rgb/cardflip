@@ -1,5 +1,8 @@
 # To test later
 
+## 10-20 ~4:40pm ET: review 10-19 #24 slice 2 = scanner + nav tap targets (44px tap layers, look unchanged) + 12px text, COMMIT ONLY, VISIBLE, shots docs/shots/pills-tabs-24-phone.jpg, scanner-list-24-phone.jpg, camera-24-phone.jpg
+- After push, phone: bottom tab labels 12px; the five game pills read 12px and still fit one line (scanner list header, camera, Insights); on the scanner list tap just above/below Connect eBay / Done / Clear / a game pill / Add Cards / Inventory -> still hits it; camera Close / light / ... buttons and the result card's copy pill + Clear tap easily; public header links (How It Works ... Get Started) and the search icon tap at 44px; This copy sheet labels "CONDITION" / "PRINTING" lighter 12px.
+
 ## 10-20 ~4:15pm ET: review 10-19 #24 slice 1 = footer + breadcrumbs (text 14px zinc-400, 44px link rows), COMMIT ONLY, VISIBLE, shots sent (docs/shots/crumbs-24-phone.jpg, footer-24-phone.jpg)
 - After push, phone: any /cards page's breadcrumb is readable grey (not dim), the current page name is light, each crumb has tap padding; the footer links (Features ... Contact) are 14px light grey with 44px tall tap rows, the not-affiliated line readable, side gutter matches the page.
 

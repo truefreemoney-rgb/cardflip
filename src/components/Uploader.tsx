@@ -64,7 +64,8 @@ export default function Uploader({ onOpenCamera, variant = "hero", showcase = []
         <button
           onClick={onOpenCamera}
           disabled={!onOpenCamera}
-          className="flex-1 whitespace-nowrap rounded-full border border-edge bg-surface-1 px-3 py-2 text-sm font-medium text-zinc-200 transition hover:border-edge-strong hover:bg-surface-2 disabled:opacity-50 sm:flex-none sm:px-4"
+          // before: = a 4px layer above and below, so the 38px pill taps at 46px (review 10-19 #24).
+          className="relative flex-1 whitespace-nowrap rounded-full border border-edge bg-surface-1 px-3 py-2 text-sm font-medium text-zinc-200 transition before:absolute before:inset-x-0 before:-inset-y-1 before:content-[''] hover:border-edge-strong hover:bg-surface-2 disabled:opacity-50 sm:flex-none sm:px-4"
         >
           <span aria-hidden>🃏 </span>
           <span className="sm:hidden">Add Cards</span>
