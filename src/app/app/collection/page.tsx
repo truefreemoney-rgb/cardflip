@@ -88,7 +88,9 @@ function catalogStub(card: ServerCard): PokemonCard {
     imageLarge: card.imageUrl,
     prices: [],
     englishName: null,
-    ...(card.game === "mtg" ? { game: "mtg" as const } : {}),
+    // Every game, not just Magic: the sold-listings links, the detail modal and
+    // watchlist saves all read this (review 10-19 #13).
+    game: parseGame(card.game),
   };
 }
 

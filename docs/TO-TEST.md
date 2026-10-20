@@ -1,5 +1,8 @@
 # To test later
 
+## 10-20 ~3:35pm ET: review 10-19 #13 Inventory catalog stub carries the row's game (340837b3 -> this commit), COMMIT ONLY
+- After push, signed in, Inventory: on a Yu-Gi-Oh, One Piece or Lorcana row with a flagged or stale price, the 'see sold listings' link opens an eBay sold search for THAT game (title/category not Pokemon); tapping the tile opens the detail modal already showing that game's card (not a Pokemon shell) before the row loads; Watch this price from the modal saves a watchlist row with the right game. Pokemon and Magic rows unchanged.
+
 ## 10-20 ~3:25pm ET: review 10-19 #12 grid sold-net uses saleNet (postage included), COMMIT ONLY
 - After push, Inventory grid for a sold card (not by hand) with a shipping method set: the tile price, the `sold $X Â· net` line and the `you keep $X` button all show the SAME net the Earned tile uses (price minus fees minus postage), lower than before by the postage; a by-hand sale still shows the full sold price.
 
