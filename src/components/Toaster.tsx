@@ -55,7 +55,7 @@ export default function Toaster() {
     <>
     <ConfirmHost />
     {items.length > 0 && <div
-      className="pointer-events-none fixed inset-x-0 bottom-[calc(max(1rem,env(safe-area-inset-bottom))+var(--bottom-nav-h,0px))] z-[60] flex flex-col items-center gap-2 px-4"
+      className="pointer-events-none fixed inset-x-0 bottom-[calc(max(1rem,env(safe-area-inset-bottom))+var(--bottom-nav-h,0px))] z-[80] flex flex-col items-center gap-2 px-4"
       aria-live="polite"
       role="status"
     >

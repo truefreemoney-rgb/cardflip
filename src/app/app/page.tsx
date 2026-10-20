@@ -1319,7 +1319,9 @@ export default function AppPage() {
         item: target,
         index,
         del,
-        timer: setTimeout(() => finalizeRemoval(id), 5500),
+        // Longer than the Undo toast (Toaster ACTION_DURATION_MS 6000): the button must never outlive the
+        // window it undoes (review 10-19 #8: the last half second did nothing).
+        timer: setTimeout(() => finalizeRemoval(id), 6500),
       });
       const name = target.card ? target.card.englishName || target.card.name : "card";
       // The clear toast says where the card still is, so a tidy-up never reads as a loss.
