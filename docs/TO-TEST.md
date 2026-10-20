@@ -1,5 +1,8 @@
 # To test later
 
+## 10-20 ~3:50pm ET: review 10-19 #23 /most-valuable in the sitemap, COMMIT ONLY
+- After push (sitemap cache rolls on its TTL, see memory cardflip-search-console purge steps): curl https://cardflip.io/sitemaps/pages.xml (or the pages child the index names) lists /cards/pokemon/most-valuable and the other four games' most-valuable pages next to /movers; Search Console picks them up on the next crawl.
+
 ## 10-20 ~5:30pm ET: review 10-19 #22 a flagged price is never a blank on the public lists (set list, /u/handle, search hits, sticky bar), COMMIT ONLY, VISIBLE: phone shots to Chris before push
 - After push, /cards/magic/unlimited-edition lists Black Lotus (2ED 233) with its Cardmarket backup price (it was dropped from the set before); a Pokemon flagged card with NO stored backup stays on its set page at the END with 'This price looks off' in the price cell, no number, and the set summary strip ignores it.
 - After push, a flagged no-backup card's own page on the phone: the bottom bar says Market + the looks-off sentence beside Watch this price (it was Watch alone); a card with no prices at all keeps the bare bar.

@@ -154,6 +154,8 @@ export async function pagesSitemapEntries(): Promise<SitemapEntry[]> {
     if (index.sets.length === 0) continue;
     entries.push({ path: gamePath(game) });
     if (hasMovers(game)) entries.push({ path: `${gamePath(game)}/movers` });
+    // The game's 100 most valuable cards (10-17 #65) was left out of the sitemap (review 10-19 #23).
+    entries.push({ path: `${gamePath(game)}/most-valuable` });
     for (const s of index.sets) {
       const slug = index.slugOf.get(s.key);
       if (slug && s.qualifying > 0) entries.push({ path: setPath(game, slug) });
