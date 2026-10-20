@@ -84,7 +84,7 @@ export function PriceCell({ price, flagged, className = "" }: { price: number | 
  */
 export function StickyPriceBar({ price, children }: { price: number | null; children: React.ReactNode }) {
   return (
-    <div className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-edge-strong bg-[#0f1119] px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden">
+    <div className="fixed inset-x-0 bottom-[var(--bottom-nav-h,0px)] z-30 flex items-center gap-3 border-t border-edge-strong bg-[#0f1119] px-4 pt-3 pb-[max(0.75rem,calc(env(safe-area-inset-bottom)-var(--bottom-nav-h,0px)))] md:hidden">
       {price != null && (
         <div className="shrink-0 leading-tight">
           <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">Market</p>

@@ -265,7 +265,7 @@ export default async function CardPricePage({ params }: PageProps<"/cards/[game]
   const faq = cardFaq(f, page.headline, printings, todayUtc());
 
   return (
-    <div className="flex min-h-dvh flex-col bg-background pb-[calc(4.5rem+env(safe-area-inset-bottom))] text-foreground md:pb-0">
+    <div className="flex min-h-dvh flex-col bg-background pb-[calc(4.5rem+env(safe-area-inset-bottom)+var(--bottom-nav-h,0px))] text-foreground md:pb-0">
       <JsonLd
         data={breadcrumbGraph([
           { name: "CardFlip", path: "/" },

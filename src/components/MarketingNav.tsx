@@ -7,6 +7,7 @@ import CatalogSearch from "@/components/CatalogSearch";
 import { gameFromSlug } from "@/lib/cardPages";
 import Logo from "@/components/Logo";
 import { fetchCurrentUser, logout, type SessionUser } from "@/lib/client/auth";
+import PublicBottomNav from "./PublicBottomNav";
 
 /**
  * The public-page nav. It checks for a live session so a signed-in seller
@@ -51,6 +52,9 @@ export default function MarketingNav() {
   // On /cards/{game}/... the search stays inside that game.
   const pathname = usePathname() ?? "";
   const pageGame = pathname.startsWith("/cards/") ? gameFromSlug(pathname.split("/")[2] ?? "") : null;
+  // Signed in on a /cards page: the app phone tab bar shows (10-19 phone checks #5). `user` only, never the hint:
+  // a stale hint would pin a bar whose every tab bounces to /login.
+  const bottomNav = Boolean(user) && pathname.startsWith("/cards");
 
   useEffect(() => {
     let alive = true;
@@ -76,6 +80,8 @@ export default function MarketingNav() {
   const link = "whitespace-nowrap px-2.5 py-2 text-sm text-zinc-400 transition hover:text-white";
 
   return (
+    <>
+    {bottomNav && <PublicBottomNav />}
     <header className="sticky top-0 z-50 bg-background/85 backdrop-blur-md after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-holo-violet/25 after:to-transparent">
       <nav className="mx-auto flex w-full max-w-6xl flex-col items-center gap-1 px-4 py-2 sm:h-14 sm:flex-row sm:justify-between sm:gap-0 sm:px-6 sm:py-0">
         <Logo />
@@ -148,5 +154,6 @@ export default function MarketingNav() {
         </div>
       )}
     </header>
+    </>
   );
 }

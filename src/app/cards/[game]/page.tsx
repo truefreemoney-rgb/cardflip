@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { cache } from "react";
 import Link from "next/link";
+import ShowMoreList from "@/components/ShowMoreList";
 import { notFound } from "next/navigation";
 import MarketingNav from "@/components/MarketingNav";
 import Footer from "@/components/Footer";
@@ -131,10 +132,13 @@ export default async function GameHubPage({ params }: PageProps<"/cards/[game]">
           <p className="mt-1 text-sm text-zinc-500">Newest first. The count is cards with a price.</p>
           {/* grid-cols-1 = minmax(0,1fr): without it the phone column is auto-sized and one long nowrap set name
               (Magic, 10-14: 386px wide at 375) pushes the list past the screen edge and the page scrolls sideways. */}
-          <ul className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {sets.map((s) => (
-              <li key={s.key}>
+          <ShowMoreList
+            initial={12}
+            noun="sets"
+            className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3"
+            items={sets.map((s) => (
                 <Link
+                  key={s.key}
                   href={setPath(game, index.slugOf.get(s.key) ?? "")}
                   className="flex h-full items-baseline justify-between gap-3 rounded-xl border border-edge bg-surface-1 px-4 py-3 transition hover:border-edge-strong"
                 >
@@ -149,9 +153,8 @@ export default async function GameHubPage({ params }: PageProps<"/cards/[game]">
                   </span>
                   <span className="shrink-0 text-xs tabular-nums text-zinc-400">{s.priced.toLocaleString("en-US")}</span>
                 </Link>
-              </li>
             ))}
-          </ul>
+          />
         </section>
 
         <div className="mt-10 rounded-2xl border border-edge bg-surface-1 p-6 text-center sm:p-8">

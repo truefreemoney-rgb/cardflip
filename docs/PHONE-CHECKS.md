@@ -11,7 +11,7 @@ After each part, tell me "part N ok" or what looked wrong. Skip any part you can
 3. Pick a condition (for example LP), close the sheet, open it again.
    - You should see LP still picked.
 4. Scan any Pokémon card.
-   - You should see the card within about 3 seconds, the price, "List it at", and "vs N listings".
+   - You should see the card within about 3 seconds and its Market price (just the one price, no "List it at").
 5. If you own one: scan a **Prismatic Evolutions Poké Ball or Master Ball** reverse, or an **Ascended Heroes** ball / Energy Symbol reverse.
    - You should see the Printing already set to that pattern (not plain Reverse Holo) with its own price.
 6. If you own one: scan a **Vivillon 17/146** (XY base set).
