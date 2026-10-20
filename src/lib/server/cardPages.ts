@@ -37,6 +37,7 @@ import {
 import { historyRange, type HistoryRange, type SetStanding } from "@/lib/cardStory";
 import type { Series } from "@/lib/client/priceHistoryData";
 import type { GameId } from "@/lib/types";
+import { BACKUP_ORDER, backupRank, backupSourceLabel, cardmarketLift } from "@/lib/priceChain";
 import { toPics } from "@/lib/pics";
 
 /**
@@ -410,14 +411,21 @@ export async function loadCardPage(rec: CardRecord, today = todayUtc()): Promise
   let cmEur: number | null = null;
   let cmEurAlt: number | null = null;
   let convertedUsd: number | null = null;
-  let convertedLabel = "Cardmarket (converted from €)";
+  let convertedLabel = backupSourceLabel("cardmarket-converted");
+  let convertedRank = Number.POSITIVE_INFINITY;
   for (const r of rows) {
     const prices = decodePrices(r.prices);
-    if (r.source === "cardmarket-converted" || r.source === "cardtrader") {
-      // CardTrader (Yu-Gi-Oh listings, 10-06) outranks a converted Cardmarket figure when both are fresh.
-      if (r.updated_day >= cmSince && (convertedUsd == null || r.source === "cardtrader")) {
-        convertedUsd = lastPriced(prices);
-        if (r.source === "cardtrader") convertedLabel = "CardTrader (listings)";
+    if (backupRank(facts.game, r.source) < BACKUP_ORDER[facts.game].length) {
+      // A stored backup (Cardmarket converted, Card Kingdom adjusted, CardTrader): the chain's order per game (lib/priceChain.ts)
+      // picks between fresh ones. Magic: Cardmarket > Card Kingdom > CardTrader; the others: CardTrader > Cardmarket.
+      const rank = backupRank(facts.game, r.source);
+      if (r.updated_day >= cmSince && rank < convertedRank) {
+        const v = lastPriced(prices);
+        if (v != null && v > 0) {
+          convertedUsd = v;
+          convertedLabel = backupSourceLabel(r.source);
+          convertedRank = rank;
+        }
       }
     } else if (r.source === "cardmarket" && r.variant === "average") {
       if (r.updated_day >= cmSince) cmEur = lastPriced(prices);
@@ -448,7 +456,8 @@ export async function loadCardPage(rec: CardRecord, today = todayUtc()): Promise
     const eur = variant === "nonfoil" ? rec.eur.nonfoil : rec.eur.foil;
     const rate = variant && eur ? await (await import("@/lib/server/fx")).usdPerEur().catch(() => null) : null;
     if (variant && eur && rate) {
-      const converted = [{ variant, label: variantLabel(facts.game, variant), price: Math.round(eur * rate * 100) / 100, day: today, days: 0, flag: null }];
+      // Lifted 12% for Magic (lib/priceChain.ts, measured 10-19), the same figure the nightly fill and the scan would show.
+      const converted = [{ variant, label: variantLabel(facts.game, variant), price: Math.round(eur * rate * cardmarketLift(facts.game) * 100) / 100, day: today, days: 0, flag: null }];
       return { facts, prices: converted, headline: converted[0], decision: indexDecision(converted, indexFloorUsd(facts.game)), chart: null, trackingSince: null, changes: [], range: null };
     }
   }

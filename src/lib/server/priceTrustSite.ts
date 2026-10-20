@@ -5,6 +5,7 @@ import { pickPrice } from "@/lib/listing";
 import { PRICE_TRUST, REF_ALT_SOURCE, isVintage, lastPriced, priceTrust } from "@/lib/server/priceTrust";
 import { variantRank } from "@/lib/server/priceHistory";
 import type { PriceFlag, PriceStale } from "@/lib/priceFlag";
+import { recentMedian } from "@/lib/priceChain";
 import { EBAY_REFEREE, refereeVerdict, type AskReading } from "@/lib/ebayReferee";
 import { activeChecks, checkFor } from "@/lib/server/checkedPrices";
 import type { CardPrice, GameId, PokemonCard } from "@/lib/types";
@@ -183,13 +184,25 @@ export function judgeFull(data: TrustData, opts: JudgeOpts = {}): { flag: PriceF
   // A thin market only (10-17): the number shows with "Few recent sales". A second source disagreeing (cardmarket, sibling),
   // a soft spike, or the OLD side of a move stays flagged.
   if (!verdict.hard && !opts.old && isThinOnly(verdict.reason)) return { flag: null, stale: { days: 0, few: true } };
-  const fb = fallbackOf(verdict, data.asks?.[variant]?.reading ?? null, listingLowUsd, siblings);
+  const fb = fallbackOf(verdict, data.asks?.[variant]?.reading ?? null, listingLowUsd, siblings, ownMedianFallback(prices, to));
   return { flag: { hard: !!verdict.hard, reason: verdict.reason, ...fb }, stale: null };
 }
 
 /**
- * The price a flagged card shows instead of none (10-17): the value the failed test measured against, else the median Near
- * Mint eBay ask (3+ asks), else, for a number frozen above the cheapest live listing, that listing, else for a printing 3x
+ * Chain step 2 (lib/priceChain.ts): our own series' 30-day median, offered as a flagged number's stand-in only when it is
+ * a different reading (over 10% away from the flagged value): the median of a series that has carried the same wrong
+ * number for a month is that wrong number again. Pure.
+ */
+export function ownMedianFallback(prices: readonly (number | null)[], flagged: number | null): number | null {
+  const m = recentMedian(prices);
+  if (m == null || flagged == null || !(flagged > 0)) return m;
+  return Math.abs(m - flagged) / flagged > 0.1 ? m : null;
+}
+
+/**
+ * The price a flagged card shows instead of none (10-17): the value the failed test measured against (the level before a
+ * jump, Cardmarket), else our own 30-day median when it reads differently (10-19, chain step 2), else the median Near Mint
+ * eBay ask (3+ asks), else, for a number frozen above the cheapest live listing, that listing, else for a printing 3x
  * every sibling, the highest sibling. Pure.
  */
 export function fallbackOf(
@@ -197,11 +210,13 @@ export function fallbackOf(
   ask: AskReading | null,
   listingLowUsd: number | null,
   siblings: readonly number[],
+  ownMedian: number | null = null,
 ): { fallback?: number; fallbackFrom?: string } {
-  if (verdict.ref != null && verdict.ref > 0) {
-    const from = /^(spike|doubled)/.test(verdict.reason) ? "before jump" : verdict.reason.startsWith("cardmarket") ? "cardmarket" : "ebay ask";
-    return { fallback: verdict.ref, fallbackFrom: from };
-  }
+  const ref = verdict.ref != null && verdict.ref > 0 ? verdict.ref : null;
+  const refFrom = /^(spike|doubled)/.test(verdict.reason) ? "before jump" : verdict.reason.startsWith("cardmarket") ? "cardmarket" : "ebay ask";
+  if (ref != null && refFrom !== "ebay ask") return { fallback: ref, fallbackFrom: refFrom };
+  if (ownMedian != null && ownMedian > 0) return { fallback: ownMedian, fallbackFrom: "30-day median" };
+  if (ref != null) return { fallback: ref, fallbackFrom: refFrom };
   if (ask && ask.median != null && ask.median > 0 && ask.nNm >= PRICE_TRUST.climbMinAsks) return { fallback: ask.median, fallbackFrom: "ebay ask" };
   if (/^flat \d+d, [\d.]+x the cheapest listing/.test(verdict.reason) && listingLowUsd != null && listingLowUsd > 0) return { fallback: listingLowUsd, fallbackFrom: "cheapest listing" };
   const sib = siblings.reduce((m, v) => (v > m ? v : m), 0);

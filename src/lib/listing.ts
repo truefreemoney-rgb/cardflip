@@ -629,17 +629,20 @@ export function tcgPriceOf(
  * row carries a price, so a card with a TCGplayer price is never touched;
  * the EUR row stays beside the new one for the record. null = nothing to add.
  */
-export function eurMarketUsd(prices: CardPrice[], usdPerEur: number | null): CardPrice | null {
+export function eurMarketUsd(prices: CardPrice[], usdPerEur: number | null, lift = 1): CardPrice | null {
   if (!usdPerEur || !(usdPerEur > 0)) return null;
   if (prices.some((p) => p.currency === "USD" && typeof p.market === "number" && p.market > 0)) return null;
   const eur = prices.filter((p) => p.currency === "EUR" && typeof p.market === "number" && p.market > 0);
   const row = VARIANT_PRIORITY.map((v) => eur.find((p) => p.variant === v)).find(Boolean) ?? eur[0];
   if (!row) return null;
-  return { source: row.source, variant: row.variant, label: row.label, currency: "USD", market: Math.round((row.market as number) * usdPerEur * 100) / 100, low: null, high: null };
+  return { source: row.source, variant: row.variant, label: row.label, currency: "USD", market: Math.round((row.market as number) * usdPerEur * lift * 100) / 100, low: null, high: null };
 }
-/** The card with eurMarketUsd's dollar row first, when it applies; the card itself otherwise. */
-export function withEurMarket(card: PokemonCard, usdPerEur: number | null): PokemonCard {
-  const row = eurMarketUsd(card.prices, usdPerEur);
+/**
+ * The card with eurMarketUsd's dollar row first, when it applies; the card itself otherwise. `lift` = lib/priceChain.ts
+ * cardmarketLift(game): Magic 1.12 (Cardmarket runs 11-13% under TCGplayer, measured 10-19), 1 elsewhere.
+ */
+export function withEurMarket(card: PokemonCard, usdPerEur: number | null, lift = 1): PokemonCard {
+  const row = eurMarketUsd(card.prices, usdPerEur, lift);
   return row ? { ...card, prices: [row, ...card.prices] } : card;
 }
 

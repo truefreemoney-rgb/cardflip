@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { formatMoney, formatVariantLabel } from "@/lib/listing";
 import type { Currency } from "@/lib/types";
 import { PRICE_FLAG_NOTE, priceStaleNote } from "@/lib/priceFlag";
+import { backupSourceLabel } from "@/lib/priceChain";
 import { cache, loadSeries, pickSeries, type Series, type TrendAverages } from "@/lib/client/priceHistoryData";
 
 // Compatibility: callers import the data helpers from here; they live in lib/client/priceHistoryData.ts so light users skip the chart code.
@@ -71,7 +72,7 @@ function shortDay(day: string, withYear = false): string {
   });
 }
 function sourceLabel(s: string): string {
-  return s === "tcgplayer" ? "Market" : s === "cardmarket" ? "Cardmarket" : s === "cardmarket-converted" ? "Cardmarket (converted from €)" : s === "cardtrader" ? "CardTrader (listings)" : s;
+  return s === "tcgplayer" ? "Market" : s === "cardmarket" ? "Cardmarket" : backupSourceLabel(s);
 }
 /** Axis-friendly price: whole dollars above $100, cents below. */
 function axisMoney(v: number, currency: Currency): string {

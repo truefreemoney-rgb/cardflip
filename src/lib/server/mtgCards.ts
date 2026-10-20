@@ -19,6 +19,7 @@ import { cachedList, SET_LIST_TTL_MS } from "@/lib/server/listCache";
 import { LOOSE_MIN, looseLike, squash, squashSql } from "@/lib/server/looseName";
 import { db } from "@/lib/db";
 import { withEurMarket } from "@/lib/listing";
+import { cardmarketLift } from "@/lib/priceChain";
 import { MTG_REFEREE_SQL } from "@/lib/server/priceTrust";
 import type { ArtStyle, CardPrice, MtgCues, MtgMark, PokemonCard } from "@/lib/types";
 import type { SetInfo } from "@/lib/grading";
@@ -124,7 +125,7 @@ async function withUsd(cards: PokemonCard[]): Promise<PokemonCard[]> {
   if (!cards.some(needs)) return cards;
   const { usdPerEur } = await import("@/lib/server/fx");
   const rate = await usdPerEur().catch(() => null);
-  return rate ? cards.map((c) => (needs(c) ? withEurMarket(c, rate) : c)) : cards;
+  return rate ? cards.map((c) => (needs(c) ? withEurMarket(c, rate, cardmarketLift("mtg")) : c)) : cards;
 }
 
 function toCard(row: MtgCardRow): PokemonCard {

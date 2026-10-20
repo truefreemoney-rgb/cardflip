@@ -142,7 +142,7 @@ export interface MtgPriceRow {
   eur: number | null;
   eurFoil: number | null;
   /** Series source when not Scryfall/TCGplayer (10-06: "cardtrader" fills). */
-  source?: "cardtrader" | "cardmarket-converted";
+  source?: "cardtrader" | "cardmarket-converted" | "cardkingdom";
 }
 
 /**

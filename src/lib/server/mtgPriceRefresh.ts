@@ -5,6 +5,8 @@ import { streamJsonObjects } from "@/lib/server/jsonStream";
 import { allListingLows, guardFills, readMtgGapRows, readOracleMaxUsd, tcgplayerFills } from "@/lib/server/mtgTcgplayerFill";
 import { CARDTRADER_SOURCE, cardtraderMtgPrices } from "@/lib/server/cardtrader";
 import { CONVERTED_SOURCE } from "@/lib/server/cardmarket";
+import { cardkingdomFills, fetchCardkingdomList } from "@/lib/server/cardkingdom";
+import { CARD_KINGDOM_SOURCE, cardmarketLift } from "@/lib/priceChain";
 import { PRICE_TRUST } from "@/lib/server/priceTrust";
 import { decodePrices, encodePrices, setDay, todayUtc } from "@/lib/priceSeries";
 import {
@@ -67,10 +69,12 @@ export interface RefreshResult {
   seriesSkipped?: number;
   /** Rows Scryfall left without a dollar price that took TCGplayer's. */
   tcgplayerFilled?: number;
-  /** Rows still blank that took CardTrader's cheapest NM listing. */
+  /** Rows still blank that took CardTrader's cheapest NM listing (chain step 5, last). */
   cardtraderFilled?: number;
-  /** Rows still blank that took Scryfall's Cardmarket euro price, converted (10-13). */
+  /** Rows still blank that took Scryfall's Cardmarket euro price, converted and lifted (10-13; step 3). */
   cardmarketFilled?: number;
+  /** Rows still blank that took Card Kingdom's retail divided by 1.24 (10-19; step 4). */
+  cardkingdomFilled?: number;
   /** Prices over 1.5x the cheapest live listing that took the listing (capToListing). */
   cappedToListing?: number;
 }
@@ -89,6 +93,7 @@ export function planMtgWrites(
   day: string,
   ctSeries: Map<string, SeriesKeyed> = new Map(),
   cmSeries: Map<string, SeriesKeyed> = new Map(),
+  ckSeries: Map<string, SeriesKeyed> = new Map(),
 ): { kept: MtgPriceRow[]; mirrorRows: MtgPriceRow[]; upserts: SeriesUpsert[]; seriesSkipped: number } {
   const kept = pending.filter((c) => mirror.has(c.id));
   const same = (a: MtgPriceRow, b: MtgPriceRow) => a.usd === b.usd && a.foil === b.foil && a.etched === b.etched && a.eur === b.eur && a.eurFoil === b.eurFoil;
@@ -98,7 +103,7 @@ export function planMtgWrites(
   for (const c of kept) {
     for (const [variant, price] of [["nonfoil", c.usd], ["foil", c.foil], ["etched", c.etched]] as const) {
       if (price == null) continue;
-      const existing = (c.source === CARDTRADER_SOURCE ? ctSeries : c.source === CONVERTED_SOURCE ? cmSeries : series).get(`${c.id}|${variant}`);
+      const existing = (c.source === CARDTRADER_SOURCE ? ctSeries : c.source === CONVERTED_SOURCE ? cmSeries : c.source === CARD_KINGDOM_SOURCE ? ckSeries : series).get(`${c.id}|${variant}`);
       if (!existing && price < MIN_TRACKED_USD) continue;
       if (existing?.updatedDay === day) {
         seriesSkipped++;
@@ -114,12 +119,15 @@ export function planMtgWrites(
   return { kept, mirrorRows, upserts, seriesSkipped };
 }
 
-/** Pure: blank rows take their euro price in dollars (rounded to the cent) under the Cardmarket source; returns how many. */
-export function fillFromEuro(rows: MtgPriceRow[], usdPerEur: number): number {
+/**
+ * Pure: blank rows take their euro price in dollars (rounded to the cent) under the Cardmarket source; returns how many.
+ * `lift` = lib/priceChain.ts CARDMARKET_LIFT (Magic 1.12, measured 10-19: Cardmarket runs 11-13% under TCGplayer).
+ */
+export function fillFromEuro(rows: MtgPriceRow[], usdPerEur: number, lift = 1): number {
   let n = 0;
   for (const r of rows) {
-    const usd = r.eur != null ? Math.round(r.eur * usdPerEur * 100) / 100 : null;
-    const foil = r.eurFoil != null ? Math.round(r.eurFoil * usdPerEur * 100) / 100 : null;
+    const usd = r.eur != null ? Math.round(r.eur * usdPerEur * lift * 100) / 100 : null;
+    const foil = r.eurFoil != null ? Math.round(r.eurFoil * usdPerEur * lift * 100) / 100 : null;
     if (usd == null && foil == null) continue;
     r.usd = usd;
     r.foil = foil;
@@ -160,7 +168,7 @@ export function capToListing(
   let capped = 0;
   const lows: ListingLow[] = [];
   for (const r of rows) {
-    if (r.source === CARDTRADER_SOURCE) continue;
+    if (r.source === CARDTRADER_SOURCE || r.source === CARD_KINGDOM_SOURCE) continue; // not TCGplayer numbers: a listing cap says nothing about them
     const l = lowsByProduct.get(tcgIdOf.get(r.id) ?? -1);
     if (!l) continue;
     for (const [field, variant, sub] of [["usd", "nonfoil", "Normal"], ["foil", "foil", "Foil"]] as const) {
@@ -236,7 +244,13 @@ export async function refreshMtgPricesFromBulk(day = todayUtc()): Promise<Refres
   }
   // Only printings we carry get written (the mirror's id set), and only the
   // ones whose prices moved; series already written today are skipped.
-  const [mirror, existingSeries, ctSeries, cmSeries] = await Promise.all([readMtgCardPrices(), readSeriesMap("mtg", "tcgplayer"), readSeriesMap("mtg", CARDTRADER_SOURCE), readSeriesMap("mtg", CONVERTED_SOURCE)]);
+  const [mirror, existingSeries, ctSeries, cmSeries, ckSeries] = await Promise.all([
+    readMtgCardPrices(),
+    readSeriesMap("mtg", "tcgplayer"),
+    readSeriesMap("mtg", CARDTRADER_SOURCE),
+    readSeriesMap("mtg", CONVERTED_SOURCE),
+    readSeriesMap("mtg", CARD_KINGDOM_SOURCE),
+  ]);
   // Printings Scryfall leaves without a dollar price (Art Series, Alpha/Beta,
   // Summer Magic…) take TCGplayer's (10-05). A failure only skips the fill.
   let tcgplayerFilled = 0;
@@ -260,14 +274,47 @@ export async function refreshMtgPricesFromBulk(day = todayUtc()): Promise<Refres
   } catch (err) {
     console.warn("mtg tcgplayer fill:", err instanceof Error ? err.message : err);
   }
-  // Still blank after TCGplayer (8th/9th Edition foil ★, Introductory Two-Player
-  // Set…): CardTrader's cheapest Near Mint English listing (10-06), same 15×
-  // guard. Needs CARDTRADER_TOKEN; capped at 45 s, biggest sets first.
+  // The rest of the chain (lib/priceChain.ts, Chris 10-19) fills what is still blank, in order: Cardmarket lifted 12%, then
+  // Card Kingdom retail / 1.24, then CardTrader last. Released printings only (a pre-order price is not a market); a step's
+  // failure only skips it. No 15x guard on Cardmarket or Card Kingdom: the nightly eBay referee reviews every $100+ price.
+  const blank = (c: MtgPriceRow) => mirror.has(c.id) && c.usd == null && c.foil == null && c.etched == null;
+  const releasedIds = async (ids: string[]) => new Set((await readMtgGapRows(ids)).filter((r) => (r.released ?? "") !== "" && (r.released ?? "") <= day).map((r) => r.id));
+  // Step 3: Scryfall's Cardmarket euro price at today's ECB rate, lifted (10-13, Chris: "show the euro price, let the ebay
+  // check review it"; 425 older printings: Alpha/Beta power, Summer Magic, serialized cards).
+  let cardmarketFilled = 0;
+  try {
+    const left = pending.filter((c) => blank(c) && (c.eur != null || c.eurFoil != null));
+    if (left.length) {
+      const released = await releasedIds(left.map((c) => c.id));
+      const rate = released.size ? await (await import("@/lib/server/fx")).usdPerEur().catch(() => null) : null;
+      if (rate) cardmarketFilled = fillFromEuro(left.filter((c) => released.has(c.id)), rate, cardmarketLift("mtg"));
+    }
+  } catch (err) {
+    console.warn("mtg cardmarket euro fill:", err instanceof Error ? err.message : err);
+  }
+  // Step 4: Card Kingdom's public price list (10-19), retail / 1.24, keyed by Scryfall id. One ~47 MB download a run,
+  // fetched only when a blank row is left.
+  let cardkingdomFilled = 0;
+  try {
+    const left = pending.filter(blank);
+    if (left.length) {
+      const released = await releasedIds(left.map((c) => c.id));
+      if (released.size) {
+        const rows = (await readMtgGapRows([...released])).filter((r) => (r.released ?? "") <= day);
+        const oracleMax = await readOracleMaxUsd([...new Set(rows.map((r) => r.oracleId ?? "").filter(Boolean))]);
+        cardkingdomFilled = cardkingdomFills(left, await fetchCardkingdomList(), released, (fills) => guardFills(fills, rows, oracleMax));
+      }
+    }
+  } catch (err) {
+    console.warn("mtg card kingdom fill:", err instanceof Error ? err.message : err);
+  }
+  // Step 5, last resort (8th/9th Edition foil ★, Introductory Two-Player Set…): CardTrader's cheapest Near Mint English
+  // listing (10-06), same 15× guard. Needs CARDTRADER_TOKEN; capped at 45 s, biggest sets first.
   let cardtraderFilled = 0;
   const token = process.env.CARDTRADER_TOKEN?.trim();
   if (token) {
     try {
-      const left = pending.filter((c) => mirror.has(c.id) && c.usd == null && c.foil == null && c.etched == null);
+      const left = pending.filter(blank);
       const rows = (await readMtgGapRows(left.map((g) => g.id))).filter((r) => (r.released ?? "") <= day);
       if (rows.length) {
         const rate = await (await import("@/lib/server/fx")).usdPerEur().catch(() => null);
@@ -287,20 +334,6 @@ export async function refreshMtgPricesFromBulk(day = todayUtc()): Promise<Refres
       console.warn("mtg cardtrader fill:", err instanceof Error ? err.message : err);
     }
   }
-  // Still blank after both: Scryfall's Cardmarket euro price at today's ECB rate (10-13, Chris: "show the euro price, let
-  // the ebay check review it"; 425 older printings: Alpha/Beta power, Summer Magic, serialized cards). No 15x guard: the
-  // nightly eBay referee reviews every $100+ price. Released printings only (a pre-order euro price is not a market).
-  let cardmarketFilled = 0;
-  try {
-    const left = pending.filter((c) => mirror.has(c.id) && c.usd == null && c.foil == null && c.etched == null && (c.eur != null || c.eurFoil != null));
-    if (left.length) {
-      const released = new Set((await readMtgGapRows(left.map((c) => c.id))).filter((r) => (r.released ?? "") !== "" && (r.released ?? "") <= day).map((r) => r.id));
-      const rate = released.size ? await (await import("@/lib/server/fx")).usdPerEur().catch(() => null) : null;
-      if (rate) cardmarketFilled = fillFromEuro(left.filter((c) => released.has(c.id)), rate);
-    }
-  } catch (err) {
-    console.warn("mtg cardmarket euro fill:", err instanceof Error ? err.message : err);
-  }
   // Cap at the cheapest live listing and keep that listing for the trust check (capToListing). A failure only skips it.
   let cappedToListing = 0;
   try {
@@ -311,7 +344,7 @@ export async function refreshMtgPricesFromBulk(day = todayUtc()): Promise<Refres
   } catch (err) {
     console.warn("mtg listing cap:", err instanceof Error ? err.message : err);
   }
-  const plan = planMtgWrites(pending, mirror, existingSeries, day, ctSeries, cmSeries);
+  const plan = planMtgWrites(pending, mirror, existingSeries, day, ctSeries, cmSeries, ckSeries);
   await updateMtgPriceColumns(plan.mirrorRows);
   await upsertSeriesRows(plan.upserts);
   // Scryfall's own dollar prices are TCGplayer's market too, so they freeze the same way: every $100+ printing stuck 45+ days
@@ -341,6 +374,7 @@ export async function refreshMtgPricesFromBulk(day = todayUtc()): Promise<Refres
     tcgplayerFilled,
     cardtraderFilled,
     cardmarketFilled,
+    cardkingdomFilled,
     cappedToListing,
   };
 }

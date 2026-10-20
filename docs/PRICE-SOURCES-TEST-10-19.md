@@ -55,3 +55,12 @@ Independent second opinions for Yu-Gi-Oh!, One Piece, Lorcana: none worth rankin
 - Every game: eBay sold never a base; hand-checked prices (checkedPrices) keep winning as today.
 
 Scripts: scripts/_other-games-measure.mjs, scripts/_unpriced-by-game.mjs (read-only, untracked).
+
+## Built 10-19 ~9:20pm ET (Chris: "yes build it")
+
+- src/lib/priceChain.ts: the order, CARDMARKET_LIFT { mtg: 1.12 }, CARD_KINGDOM_DIVISOR 1.24, BACKUP_ORDER per game, backupRank/backupSourceLabel, recentMedian (30 days, 5+ points).
+- Nightly Magic fill (mtgPriceRefresh.ts) now runs TCGplayer > Cardmarket lifted > Card Kingdom (new, src/lib/server/cardkingdom.ts: public list, retail / 1.24, out-of-stock $100+ placeholders skipped, 15x oracle guard) > CardTrader last. Dry run on the local mirror: Card Kingdom fills 51 of 1,256 blank released printings (Cardmarket already covers the rest).
+- Card pages rank stored backups by the chain per game (Magic: Cardmarket > Card Kingdom > CardTrader; others: CardTrader > Cardmarket) and label "Card Kingdom (adjusted)"; the Magic euro path (card page + scan, withEurMarket) is lifted 12%; Pokémon untouched.
+- Flagged-card fallback (priceTrustSite fallbackOf): before-jump / Cardmarket reference > OWN 30-DAY MEDIAN (when >10% away from the flagged number) > eBay ask > cheapest listing > sibling.
+- Quote (listing.ts pickPrice, 9bb74143): TCGplayer > eBay sold (only flagged / 45+ days flat / missing) > eBay ask > the rest.
+- Tests: scripts/test-price-chain.mjs (26 checks), test-mtg-prices, test-mtg, test-pricing, test-sitetrust, test-cardpages, test-pricetrust, test-mtgfill, test-tcgprices, test-pkcardmarket all green; tsc + eslint clean. Not pushed (Chris: commits only today).

@@ -17,7 +17,7 @@ export interface PriceFlag {
    * best reading the guard holds. See priceTrustSite.judgeFull.
    */
   fallback?: number;
-  /** Where `fallback` came from, for logs and the admin: "before jump", "cardmarket", "ebay ask", "cheapest listing", "sibling". */
+  /** Where `fallback` came from, for logs and the admin: "before jump", "cardmarket", "30-day median", "ebay ask", "cheapest listing", "sibling". */
   fallbackFrom?: string;
 }
 

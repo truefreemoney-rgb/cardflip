@@ -1,4 +1,13 @@
 # To test later
+
+## 10-19 ~9:20pm ET: THE PRICE CHAIN built (priceChain.ts; Chris "yes build it"), COMMIT ONLY, no push yet
+- After push, nightly Magic refresh (next run after the deploy): the run log shows cardmarketFilled, cardkingdomFilled (expect ~50 on day 1, dry run 51 of 1,256 blank released printings) and cardtraderFilled LAST; `SELECT source, COUNT(*) FROM price_series WHERE game='mtg' AND source='cardkingdom'` > 0; no $1,000+ cardkingdom row (out-of-stock placeholders skipped: The Mind Stone msh 385 foil must NOT be $36,290).
+- After push, a Card Kingdom-filled page e.g. /cards/mtg/... Enlightened Confidant (pfra 5p, ~$7.65 / $8.86 foil) shows "Card Kingdom (adjusted)" as the price label and on the chart's source line.
+- After push, Magic euro fills are lifted: a Cardmarket-only printing (Black Lotus lea 232 shows Cardmarket x1.12, i.e. ~12% above the 10-19 figure); Pokémon Cardmarket-converted pages unchanged (no lift).
+- After push, a flagged card whose failed test had no reference: admin /admin/prices "fallback from" can read "30-day median" (only when the median is >10% away from the flagged number).
+- 9bb74143 (same push): in the app, a card with both a live TCGplayer row and an eBay sold row quotes TCGplayer (scan result, card pop-up, Price Check, Wishlist); eBay sold shows only when TCGplayer's row is flagged, 45+ days flat, or missing.
+- a34a418f (same push): scanner Printing pill highlights the chosen print; Done on the stacked sheet stays in the camera; swap note hidden.
+
 - [ ] HALF 10-14 ~11:00pm ET (raw card: the Search/Watchlist sheet "View Sold on eBay" and "Buy on eBay" links carry -psa -bgs -cgc -sgc -graded -slab; /admin/prices half needs your /admin sign-in): After push: /admin/prices 'eBay sold' and a raw card's 'check sold listings' open eBay with '-psa -bgs -cgc -sgc -graded -slab' and no slab titles; a slab item's eBay link still searches its grade (e.g. PSA 9).
 - [x] PASS 10-16 (curl: $939.50, no "looks off") 10-15: /cards/pokemon/crystal-guardians/charizard--ex14-4 shows $939.50 (hand keep POSTed 10-14 ~2:45pm ET; page copy was still "looks off" right after, cache).
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
