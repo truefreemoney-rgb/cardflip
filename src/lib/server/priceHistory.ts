@@ -7,6 +7,7 @@ import { type HistorySeries, summarize } from "@/lib/priceHistoryStats";
 import { decodePrices, encodePrices, setDay, todayUtc } from "@/lib/priceSeries";
 import { cleanSeriesPoints, fromSeriesBreak } from "@/lib/priceOutliers";
 import { correctPoint } from "@/lib/server/checkedPrices";
+import { DEFAULT_VARIANT_ORDER, variantRank } from "@/lib/variantOrder";
 
 export { summarize, todayUtc };
 export type { HistoryPoint, HistorySeries, HistoryStats } from "@/lib/priceHistoryStats";
@@ -110,9 +111,8 @@ export async function getPriceHistory(cardId: string): Promise<HistorySeries[]> 
  * shouldn't ride the plain printing's price. Shared by the wishlist alert
  * sweep and the reprice nudge.
  */
-const VARIANT_ORDER = ["normal", "nonfoil", "holofoil", "reverseHolofoil", "foil", "etched"];
-/** Position in the default-variant order (lower = the printing people usually mean); unknown variants rank last. */
-export const variantRank = (variant: string) => VARIANT_ORDER.indexOf(variant) + 1 || 99;
+const VARIANT_ORDER: readonly string[] = DEFAULT_VARIANT_ORDER;
+export { variantRank };
 export async function latestUsdPrice(cardId: string): Promise<number | null> {
   const series = (await getPriceHistory(cardId)).filter(
     (s) => s.currency === "USD" && s.points.length > 0,

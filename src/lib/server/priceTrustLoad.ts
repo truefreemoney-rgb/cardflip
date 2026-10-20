@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { addDays, decodePrices, todayUtc } from "@/lib/priceSeries";
 import { PRICE_TRUST, REF_ALT_SOURCE, isVintage, lastPriced, priceTrust } from "@/lib/server/priceTrust";
+import { variantRank } from "@/lib/variantOrder";
 
 /**
  * priceTrust for a batch of Pokémon cards (one query per 400 ids): the
@@ -11,8 +12,7 @@ import { PRICE_TRUST, REF_ALT_SOURCE, isVintage, lastPriced, priceTrust } from "
  * printed is the price tested. Cards that fail come back in `rejected`
  * (id + reason) so the caller can log them; they are not in `prices`.
  */
-const VARIANT_ORDER = ["normal", "nonfoil", "holofoil", "reverseHolofoil"];
-const rank = (variant: string) => VARIANT_ORDER.indexOf(variant) + 1 || 99;
+const rank = variantRank;
 
 interface Row {
   card_id: string;

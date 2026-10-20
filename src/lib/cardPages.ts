@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { GAMES, printedCardNumber, SET_IN_NUMBER_GAMES } from "@/lib/games";
 import { formatMoney, formatVariantLabel } from "@/lib/listing";
+import { variantRank } from "@/lib/variantOrder";
 import { addDays, dayIndex, todayUtc, type HistoryPoint } from "@/lib/priceSeries";
 import { cleanSeriesPoints } from "@/lib/priceOutliers";
 import type { PriceFlag, PriceStale } from "@/lib/priceFlag";
@@ -270,9 +271,8 @@ export interface SeriesInput {
   stale?: PriceStale | null;
 }
 
-/** Display order of printings: the one people usually mean first (same as variantRank in lib/server/priceHistory.ts). */
-const VARIANT_ORDER = ["normal", "nonfoil", "holofoil", "reverseHolofoil", "foil", "etched"];
-export const variantRank = (variant: string) => VARIANT_ORDER.indexOf(variant) + 1 || 99;
+/** Display order of printings: the one people usually mean first (lib/variantOrder.ts, shared with the app and the server). */
+export { variantRank };
 
 /** The word a printing goes by: Yu-Gi-Oh! and One Piece have one price line, which is just "Market". */
 export function variantLabel(game: GameId, variant: string): string {

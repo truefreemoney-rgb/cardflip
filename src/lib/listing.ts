@@ -14,6 +14,7 @@ import type {
 // and the plain-Node test runner (test-pricing.mjs) imports this module
 // directly — Node's ESM loader needs the real filename.
 import { gradeLabel } from "./grading.ts";
+import { DEFAULT_VARIANT_ORDER } from "./variantOrder.ts";
 import { descriptionHtml } from "./ebayInventory.ts";
 import { SITE_URL } from "./siteUrl.ts";
 import { GAMES, MTG_FINISH_LABEL, printedCardNumber } from "./games.ts";
@@ -74,16 +75,11 @@ export const EBAY_SOLD_VARIANT = "ebaySoldAverage";
 const VARIANT_PRIORITY = [
   EBAY_SOLD_VARIANT,
   EBAY_VARIANT,
-  "holofoil",
-  "reverseHolofoil",
+  // The shared default (lib/variantOrder.ts, review 10-19 #16): normal first, the printing a seller is
+  // almost always holding; MTG foil/etched sit behind the nonfoil and are picked explicitly.
+  ...DEFAULT_VARIANT_ORDER,
   "unlimitedHolofoil",
-  "normal",
   "unlimited",
-  // MTG finishes (Scryfall): the nonfoil is what a seller is almost always
-  // holding; foil/etched sit behind it and are picked explicitly.
-  "nonfoil",
-  "foil",
-  "etched",
   // 1st Edition prints last: they carry a large premium, so quoting one by
   // default would overprice the unlimited copy a seller is almost always
   // holding. They only drive the price via the explicit 1st Edition toggle.

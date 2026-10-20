@@ -1,6 +1,7 @@
 import "server-only";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { db } from "@/lib/db";
+import { variantRank } from "@/lib/variantOrder";
 import { addDays, decodePrices, todayUtc } from "@/lib/priceSeries";
 import { PRICE_TRUST, REF_ALT_SOURCE, isVintage, lastPriced, priceTrust, stepJump } from "@/lib/server/priceTrust";
 import { GATED_GAMES, gamePublic, getSetting, setSetting, type GatedGame } from "@/lib/server/settings";
@@ -61,7 +62,6 @@ const MTG_POOL_CAP = 20000;
 const MTG_BAND_CAP = 5000;
 /** The price guard logs a run's skipped cards once per game and day (freshSeries runs several times per run). */
 const guardLogged = new Set<string>();
-const VARIANT_ORDER = ["normal", "nonfoil", "holofoil", "reverseHolofoil"];
 
 /**
  * No-repeat rule (Chris 09-25, three posts a day but never the same five
@@ -189,7 +189,7 @@ interface CatalogRow {
 }
 
 function rank(variant: string): number {
-  return VARIANT_ORDER.indexOf(variant) + 1 || 99;
+  return variantRank(variant);
 }
 
 /** Last non-null price at or before index `at` (−1 = the last point), looking back at most `maxBack` days. */

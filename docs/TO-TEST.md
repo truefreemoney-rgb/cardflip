@@ -1,5 +1,9 @@
 # To test later
 
+## 10-20 ~4:10pm ET: review 10-19 #16 ONE default printing order (lib/variantOrder.ts, normal first), COMMIT ONLY. CHRIS DECIDES BEFORE PUSH: the app used to quote holofoil > reverse holo > normal; the public pages, alerts, refresh and price guard quoted normal first. Now everything quotes normal first: 11,171 Pokemon cards with a normal + reverse holo row will show the NORMAL price in Search/Price Check/scan-without-a-pattern-read (lower than before); 236 cards with normal + holofoil likewise. Holo rares (no normal row) unchanged. Seller's pick, the scan's pattern read and the 1st Edition toggle still override.
+- After push, app Search Cards: a common with both printings (e.g. any SV common) shows the normal price, the pop-up's printing selector still lists the reverse holo at its own price; the public /cards page for the same card shows the SAME headline; a holo rare (Charizard ex) unchanged.
+- After push, Inventory load: a draft saved from a scan is NOT repriced to another printing (the review's 'draft repriced on Inventory load' symptom gone); npm run test:pricing, test:printings, test:pricehistory, test:cardpages, test:tcgprices, test:liveprices, test:pricetrust, test:social, test:inventoryvalue all PASS locally 10-20.
+
 ## 10-20 ~3:50pm ET: review 10-19 #15 cleared inline sold-price box no longer saves a $0 sale, COMMIT ONLY
 - After push, signed in, Inventory list view: tap Mark sold on a row, clear the price box (or type 0), press the check: toast 'Enter what it sold for', the box stays open, the row is NOT marked sold (status unchanged, no $0 in Earned); type a price and press the check: sold as before.
 
