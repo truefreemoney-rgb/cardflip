@@ -40,7 +40,7 @@ export async function generateMetadata({ params }: { params: Promise<{ game: str
     title: `Top ${TOP_LIST} most valuable ${name} cards ${todayUtc().slice(0, 4)}`,
     absoluteTitle: true,
     description: top
-      ? `The ${l.tiles.length} most valuable ${name} cards at today's market prices. Number one: ${top.name} from ${top.setName} at ${formatMoney(top.price ?? 0)}. Checked daily.`
+      ? `The ${l.tiles.length} most valuable ${name} cards at today's market prices. Number one: ${top.name} from ${top.setName}${top.price != null && top.price > 0 ? ` at ${formatMoney(top.price)}` : ""}. Checked daily.`
       : `The most valuable ${name} cards at today's market prices. Checked daily.`,
     path: `${gamePath(l.game)}/most-valuable`,
     noindex: l.tiles.length === 0,
@@ -91,7 +91,7 @@ export default async function MostValuablePage({ params }: { params: Promise<{ g
                       {t.tags.length ? ` · ${t.tags.join(", ")}` : ""}
                     </p>
                   </div>
-                  <span className="shrink-0 font-display text-base font-semibold tabular-nums text-emerald-300">{formatMoney(t.price ?? 0)}</span>
+                  {t.price != null && t.price > 0 && <span className="shrink-0 font-display text-base font-semibold tabular-nums text-emerald-300">{formatMoney(t.price)}</span>}
                 </Link>
               </li>
             ))}
