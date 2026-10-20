@@ -4,6 +4,13 @@ Chris (10-14): every support ticket and every social comment is a learning
 experience while the site is new and not fully tested. One entry each: what
 they said, what it taught, what changed, what is still open. Newest first.
 
+## 10-20 · admin Cards list: "looks like the guy was scanning lorcana on pokemon"
+- What: Chris saw TheJoseph's Baymax - Amped Up (Hyperia City 237, $118.11) and Angel - Siren Singer (Winterspell 25, $73.16) listed as Game "Pokémon" on /admin/cards.
+- Found (prod, read only): both rows are saved game=lorcana and both scan reads said lorcana; the switch was on Lorcana. The admin table printed `game === "mtg" ? "Magic" : "Pokémon"`, a two-game label from before Lorcana / One Piece / Yu-Gi-Oh! joined.
+- Changed (commit only): the column prints GAMES[game].label. Grep found no other two-game label.
+- Taught: an admin view that guesses a value can send the owner after a bug that is not there; check the stored row before chasing a user's behaviour.
+- Still open: Chris's rule from the same minute, "a wrong-game scan keeps the scan and asks to switch" (today it is thrown away with "switch to X and scan again"), is being built separately.
+
 ## 10-18 · Sunday digest [COPY]: "what the heck is this email" / "i never used Maxin on anything"
 - What: the weekly "This week in cards" went to 22 users at 6:30pm ET. Chris's [COPY] was the FIRST USER's mail verbatim: "Hi Maxin" (a real user) and that user's own Stop link (one click = that user unsubscribed). Content issues too: Cyber Dragon CRV 1st UTR "+97%" from a thin series (499.96 -> 406.67 -> 799.51 in days), Let It Go $1,456.86 unchecked, a SAMPLE-stamped Sanji picture, subject "Lorcana down" next to a Lorcana +19% row.
 - Taught: an owner copy must be drawn for the owner (sample Stop link, his name), and outbound mail cards need the same guards as social posts (eBay-checked / held prices, no jumpy few-sales series, no SAMPLE pictures).

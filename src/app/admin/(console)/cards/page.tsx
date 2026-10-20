@@ -1,4 +1,5 @@
 import { fmtDate, money, STATUS_STYLE } from "@/components/admin/format";
+import { GAMES, isGameId } from "@/lib/games";
 import { listAllCards } from "@/lib/server/cards";
 import { listAllUsers } from "@/lib/server/users";
 import { requireOwnerPage } from "@/lib/server/adminPage";
@@ -40,7 +41,8 @@ export default async function AdminCardsPage() {
                     <span className="font-medium text-white">{c.cardName}</span>
                     <span className="ml-2 text-xs text-zinc-500">{c.setName} · {c.cardNumber}</span>
                   </td>
-                  <td className="px-4 py-3 text-xs text-zinc-400">{c.game === "mtg" ? "Magic" : "Pokémon"}</td>
+                  {/* Every game by its own name (10-20: Lorcana rows read "Pokémon" here); a row from before the game column is Pokémon. */}
+                  <td className="px-4 py-3 text-xs text-zinc-400">{GAMES[isGameId(c.game) ? c.game : "pokemon"].label}</td>
                   <td className="px-4 py-3 text-zinc-400">{owner?.name ?? "Unknown"}</td>
                   <td className="px-4 py-3"><span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLE[shownStatus]}`}>{shownStatus}</span></td>
                   <td className="px-4 py-3 text-xs">
