@@ -63,6 +63,9 @@ const CHECKS = [
   { game: "pokemon", cardId: "dp6-11", variant: "reverseHolofoil", usd: 55, n: 18, note: "Mewtwo Legends Awakened 11 reverse: Oct sold 20-83, LP-NM 50-83, MP 37-50; TCGplayer 309.82 (hidden)" },
   { game: "pokemon", cardId: "dpp-DP28", variant: "holofoil", usd: 100, n: 12, note: "Mewtwo LV.X DP28: Oct raw sold 29-115 (MP 99/100, LP 67, DMG 30-42; one 589.99 via Authenticity Guarantee left out); TCGplayer 278.48 (hidden)" },
   { game: "pokemon", cardId: "2016xy-7", variant: "holofoil", usd: 65, n: 6, note: "Scraggy McDonald's 2016 7/12 holo (EU): English sold 55.07/59.99/61.81/75.30/79.99, MP 39; TCGplayer 199.99 (hidden)" },
+  // 10-20 ~3pm ET: tonight's 7pm Blender set spotlight (30th Classic Collection), eBay sold read in the pane, raw only.
+  { game: "pokemon", cardId: "30th-c-001", variant: "holofoil", usd: 178, n: 11, day: "2026-10-20", note: "Charizard 30th Classic Collection 4/102: 11 raw sold 10-20 at 140-200 (median ~178), ACE 10 at 319 excluded; TCGplayer 143.88" },
+  { game: "pokemon", cardId: "30th-c-029", variant: "holofoil", usd: 210, n: 10, day: "2026-10-20", note: "Crystal Lugia 30th Classic Collection 149/147: 10 English raw sold 10-19/20 at 175-300 (median ~210); TCGplayer 189" },
 ];
 // --only id,id: write just these checks (the others are already on prod).
 const onlyArg = process.argv.indexOf("--only");
@@ -86,7 +89,7 @@ await c.execute(`CREATE TABLE IF NOT EXISTS price_checked (
 const today = todayUtc();
 console.log(`${prod ? "PROD" : "local"}${dry ? " (dry run)" : ""}, today ${today}`);
 for (const k of CHECKS) {
-  const check = { ...k, day: DAY };
+  const check = { ...k, day: k.day ?? DAY };
   const r = (await c.execute({ sql: "SELECT start_day, prices FROM price_series WHERE card_id = ? AND game = ? AND variant = ? AND source = 'tcgplayer' AND currency = 'USD'", args: [k.cardId, k.game, k.variant] })).rows[0];
   if (!r) {
     console.log(`  ${k.cardId} ${k.variant}: NO TCGplayer series, check recorded only`);
@@ -98,7 +101,7 @@ for (const k of CHECKS) {
   if (dry) continue;
   await c.execute({
     sql: `INSERT OR REPLACE INTO price_checked (game, card_id, variant, usd, n, day, note, tcg_usd, tcg_day, off_day) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
-    args: [k.game, k.cardId, k.variant, k.usd, k.n, DAY, k.note, fixed.raw, fixed.raw == null ? null : today],
+    args: [k.game, k.cardId, k.variant, k.usd, k.n, check.day, k.note, fixed.raw, fixed.raw == null ? null : today],
   });
   if (fixed.changed) {
     await c.execute({
