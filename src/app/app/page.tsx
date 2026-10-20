@@ -882,13 +882,19 @@ export default function AppPage() {
               reportSaveFailed(input, vision.scanId ?? null);
             } else {
               patchItem(next.id, { serverId: server.id });
-              // Verified before the row existed (fast tap): sync it now.
+              // Verified, re-graded or re-printed before the row existed (fast tap in the first 1-2 s): sync it
+              // now. Review 10-19 #6: the row was created from the scan's condition / printing, and an edit made
+              // while POST /api/cards was in flight had no row to land on, so Inventory kept the scan's values.
               const cur = itemsRef.current.find((i) => i.id === next.id);
-              if (cur?.verifiedAt || cur?.matchDoubt || cur?.firstEdition) {
+              const lateCondition = cur && cur.condition !== condition ? describeItemCondition(cur) : null;
+              const lateVariant = cur && (cur.variant ?? null) !== (input.variant ?? null) ? (cur.variant ?? null) : undefined;
+              if (cur && (cur.verifiedAt || cur.matchDoubt || cur.firstEdition || lateCondition || lateVariant !== undefined)) {
                 void updateServerCard(server.id, {
                   ...(cur.verifiedAt ? { verifiedAt: cur.verifiedAt } : {}),
                   ...(cur.matchDoubt ? { matchDoubt: cur.matchDoubt } : {}),
                   ...(cur.firstEdition ? { firstEdition: true } : {}),
+                  ...(lateCondition ? { condition: lateCondition } : {}),
+                  ...(lateVariant !== undefined ? { variant: lateVariant } : {}),
                 });
               }
               // The picture tiebreak, off the critical path (10-11): the row exists, so a late pick renames it
