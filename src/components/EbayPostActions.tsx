@@ -469,7 +469,12 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
                   <button onClick={() => setModal(null)} className={quietButton}>
                     Not yet
                   </button>
-                  <button onClick={() => void runPublish()} className={ebayButton}>
+                  {/* On a local eBay site the seller must see the price in their currency before it goes live. */}
+                  <button
+                    onClick={() => void runPublish()}
+                    disabled={Boolean(local) && !(confirmAsk && "text" in confirmAsk)}
+                    className={ebayButton}
+                  >
                     Publish it
                   </button>
                 </div>
