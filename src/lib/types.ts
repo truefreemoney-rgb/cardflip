@@ -512,4 +512,10 @@ export interface ScanItem {
    * totally screwed up"). Null until loaded, or when the card has none.
    */
   currentPoint?: { price: number; day: string; variant: string; source: string; currency: Currency; untrusted?: PriceFlag } | null;
+  /**
+   * The picture tiebreak between two near-tie printings: "pending" while it is out (~6 s), "done" once it
+   * answered (swapped or kept). The camera holds the price and the tiered moment until then (10-20, the first
+   * Booster buyer: her Charizard showed $122.30 "Nice pull!" for ~6 s, then swapped to the $2.77 print).
+   */
+  printingCheck?: "pending" | "done";
 }

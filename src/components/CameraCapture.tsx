@@ -426,7 +426,12 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
   // The session sheet (10-02): every scan waiting to verify, each with a remove ×.
   const [trayOpen, setTrayOpen] = useState(false);
   const waiting = queue ?? [];
-  const verify = waiting.length > 0 ? { count: waiting.length, value: waiting.reduce((sum, item) => sum + headlinePrice(item), 0) } : null;
+  // A card whose printing check is still out adds nothing yet: its chip says "pricing…", and the tally and
+  // Verify button must not show the first read's figure beside it (10-20, the $122.30 Charizard that was $2.77).
+  const verify =
+    waiting.length > 0
+      ? { count: waiting.length, value: waiting.reduce((sum, item) => sum + (item.printingCheck === "pending" ? 0 : headlinePrice(item)), 0) }
+      : null;
   // The sheet is open only while there is something in it (the last × closes it).
   const sheetOpen = trayOpen && verify !== null;
   // "unavailable" hides the button entirely — torches only exist on phone
@@ -954,17 +959,27 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
   // one-shot CSS animation ends at opacity 0, so it needs no timer; keying
   // it on the scan id replays it for the next grail.
   const revealed = lastScan && !identifying ? lastScan : null;
+  // While the picture tiebreak may still swap the printing, the moment is a plain "Found!": the first
+  // read's price is not celebrated (10-20: a $122.30 "Nice pull!" that became the $2.77 print 6 s later).
   const revealTierNow = revealed?.card
-    ? revealTier(revealMarket(revealed))
+    ? revealed.printingCheck === "pending"
+      ? "plain"
+      : revealTier(revealMarket(revealed))
     : null;
-  const burst = revealTierNow === "grail" ? revealed!.id : null;
+  // Once the check settles on a big one, its "Nice pull!" / "Big one!" plays then, once (a new key replays the stamp).
+  const revealKey = revealed
+    ? revealed.printingCheck === "done" && (revealTierNow === "big" || revealTierNow === "grail")
+      ? `${revealed.id}-settled`
+      : revealed.id
+    : null;
+  const burst = revealTierNow === "grail" ? revealKey : null;
   const announced = useRef<string | null>(null);
   useEffect(() => {
-    if (!revealed || announced.current === revealed.id) return;
-    announced.current = revealed.id;
+    if (!revealed || announced.current === revealKey) return;
+    announced.current = revealKey;
     if (!revealed.card) fxMiss();
     else fxMatch(revealTierNow ?? "plain");
-  }, [revealed, revealTierNow]);
+  }, [revealed, revealKey, revealTierNow]);
 
   // Same modal manners as CardDetailModal: Escape closes, the page behind
   // doesn't scroll, and focus goes back to whatever opened the scanner.
@@ -1164,10 +1179,10 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
                 {/* The strike, then the stamp + ring: the instant the match
                     lands. Keyed by scan id so every card gets its own. */}
                 {revealed?.card && (
-                  <RevealStrike key={`strike-${revealed.id}`} tier={revealTierNow ?? "plain"} />
+                  <RevealStrike key={`strike-${revealKey}`} tier={revealTierNow ?? "plain"} />
                 )}
                 {revealed && (
-                  <RevealStamp key={revealed.id} matched={Boolean(revealed.card)} tier={revealTierNow ?? "plain"} />
+                  <RevealStamp key={revealKey} matched={Boolean(revealed.card)} tier={revealTierNow ?? "plain"} />
                 )}
               </div>
             </div>
@@ -1491,8 +1506,9 @@ function RevealChip({ item, onOpen, onRemove, onSwap, onEdit, onExpand, verify }
   // Hold the number until the chart point is fetched (undefined = not yet):
   // it can move the market to today's figure, and the number is revealed
   // once, never corrected a beat later. eBay comps no longer feed this number
-  // (10-02), so the chip does not wait on them.
-  const settled = item.currentPoint !== undefined;
+  // (10-02), so the chip does not wait on them. It waits on the picture tiebreak too (printingCheck): the
+  // first read's printing may be swapped a few seconds later, and its price would be the one corrected.
+  const settled = item.currentPoint !== undefined && item.printingCheck !== "pending";
   const market = settled ? revealMarket(item) : null;
   // The price guard: a market the rule does not believe is never the reveal number (no count-up, no tier flourish).
   const flagged = settled && market == null && marketFlagOf(card, effectiveVariant(item), item.currentPoint) != null;

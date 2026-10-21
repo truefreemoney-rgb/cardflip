@@ -343,6 +343,8 @@ export default function AppPage() {
 
   // Items the scan watchdog failed (see pump): later patches for them are dropped.
   const abandoned = useRef(new Set<string>());
+  // The latest scan per item (a token object): its picture tiebreak is the only one that may settle printingCheck.
+  const tieRuns = useRef(new Map<string, object>());
   const patchItem = useCallback(
     (id: string, patch: Partial<ScanItem>) => {
       // An item the watchdog gave up on keeps its error: a late result must not revive "scanning" or flip it to ready.
@@ -428,6 +430,8 @@ export default function AppPage() {
         grading: null,
         error: null,
         currentPoint: undefined,
+        // A pick settles the printing; the tiebreak's own swap marks it "done" right after.
+        printingCheck: undefined,
         ebay: null,
         ebayStatus: "idle",
         ebaySold: null,
@@ -731,6 +735,8 @@ export default function AppPage() {
           // shows at once and the tiebreak runs after the ledger row exists (below); if it picks the other
           // printing and the seller has not verified yet, the card swaps with a Check-match line.
           const tieIds = vision.status === "done" ? tiebreakIds(matches, next.game, !printed?.number) : [];
+          // This scan's own check: a "Scan again" inside the ~5 s starts a new one, and the old answer must not settle it.
+          const tieRun = {};
 
           // >= rather than ==: the number-only fallback above can add an error
           // of its own, and a scan that produced no name candidates at all
@@ -809,10 +815,13 @@ export default function AppPage() {
             // English card at the English price (10-01: 8 of 155 eBay seller
             // photos were Japanese prints, most titled as plain or "English").
             const foreignPrint = (next.game === "onepiece" || next.game === "lorcana" || next.game === "yugioh") && language !== "en";
+            tieRuns.current.set(next.id, tieRun);
             patchItem(next.id, {
               status: lowConfidence || ambiguous || numberMismatch || foreignPrint || foils > 1 ? "review" : "ready",
               candidates: matches,
               card,
+              // The picture tiebreak below may still swap the printing: the camera holds the price until it answers.
+              printingCheck: tieIds.length >= 2 && next.file ? "pending" : undefined,
               // 1st Edition is its own catalog card (the "-1st" twin); the
               // stamp vision read chose it in the search ranking above.
               firstEdition: isFirstEditionCard(card),
@@ -893,7 +902,8 @@ export default function AppPage() {
               // Abandoned or deleted while the row was being created: delete the orphan.
               void deleteServerCard(server.id);
             } else if (!server) {
-              patchItem(next.id, { status: "error", error: "Couldn't save — tap Scan again" });
+              // No row = no tiebreak: nothing is left to wait on.
+              patchItem(next.id, { status: "error", error: "Couldn't save — tap Scan again", printingCheck: undefined });
               // The scan was charged and the card showed; the account log should say so (10-14).
               reportSaveFailed(input, vision.scanId ?? null);
             } else {
@@ -938,12 +948,16 @@ export default function AppPage() {
                 const picked = card;
                 const shown = matches;
                 void tiebreakCard(file, next.game, tieIds).then((winner) => {
-                  if (!winner || winner === picked.id) return;
                   const now = itemsRef.current.find((i) => i.id === next.id);
-                  if (!now?.card || now.card.id !== picked.id || now.verifiedAt || now.status === "listed" || now.status === "sold") return;
-                  const other = shown.find((m) => m.id === winner);
-                  if (!other) return;
-                  swapCard(next.id, other, shown, `printing swap: the photo looks more like this printing than ${picked.setName}`);
+                  // A seller's own pick meanwhile (swapCard) already ended the check: their card stands.
+                  if (now?.printingCheck !== "pending" || tieRuns.current.get(next.id) !== tieRun) return;
+                  const other =
+                    winner && winner !== picked.id && now.card?.id === picked.id && !now.verifiedAt && now.status !== "listed" && now.status !== "sold"
+                      ? shown.find((m) => m.id === winner)
+                      : undefined;
+                  if (other) swapCard(next.id, other, shown, `printing swap: the photo looks more like this printing than ${picked.setName}`);
+                  // Swapped or kept, the printing is settled: the camera shows its price now.
+                  patchItem(next.id, { printingCheck: "done" });
                 });
               }
               // Persist the seller's own photo now, not at eBay-push time.
@@ -1923,7 +1937,8 @@ export default function AppPage() {
                       // A chart point carries no card id, so the old card's point would price the new one
                       // (10-20: the D23 promo's point on Angel #25). It goes with the card; the editor's
                       // hook stores the new card's point when it loads.
-                      patchItem(selected.id, newCard && !("currentPoint" in patch) ? { ...patch, currentPoint: undefined } : patch);
+                      // The seller's pick also ends a picture tiebreak still out (printingCheck).
+                      patchItem(selected.id, newCard ? { ...patch, ...("currentPoint" in patch ? {} : { currentPoint: undefined }), printingCheck: undefined } : patch);
                       // A different catalog card (candidate pick, name
                       // search, 1st Edition ↔ unlimited swap) is a different
                       // product: the ledger row follows it, so Inventory
