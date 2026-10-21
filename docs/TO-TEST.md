@@ -2,6 +2,18 @@
 
 **A.4 triage of every open check dated 10-18 and earlier: docs/TO-TEST-TRIAGE-2026-10-21.md** (63 stale, curl + select checks done 10-21 ~4:30am ET, the rest sorted into pane / phone / wait). Old lines below are left as written; that file is the status.
 
+## 10-21 9:35-10:05am ET (real clock): review 10-19 J polish, 20 commits ea7af0ad..fb017186, COMMIT ONLY
+- Each batch: tsc + eslint clean; npm test full suite exit 0 (10:00am; two earlier runs died with exit 5 / 255 at a test's process exit, every test passes alone = the Windows/libsql exit flake); test:auth +1 (?next= refuses /login, /signup, /api), test:countrygate +5 (Google/X routes open abroad), test:listcache +4 (cold bursts walk once), test:xauth, test:webhook green.
+- VISIBLE, shots SENT 10:03am (his yes pending): set strip "7-DAY CHANGE / 30-DAY CHANGE" (polish-1021-set-strip-before/after.jpg), /scan "Open CardFlip" (polish-1021-scan-open-after.jpg). Visible but edge-state, no shot: failure toasts red (Inventory bulk/category/sold, reprice eBay refused, resume lookups, Watchlist alert); Sales Report sealed rows drop "· #"; card page of a converted figure says "As of today." without "Recorded daily"; Top 100/movers set names tidied; admin Sign Out failure text; admin Send Now / Post now use the in-app dialog (same one as Users > Delete); "Log in to send a report."; eBay confirm "Publish it" greyed until the local price shows.
+- PRICE: no slab lines in raw lists (9d1f198e). Prod read 10:00am (scripts/_graded-series-peek.mjs --prod): 2 graded rows, both Charizard-GX sm3-150 (PSA 10 $2,079.39, PSA 9 $780.38). Card pages never read them (TCGplayer lines only).
+- [ ] After push: app search / card sheet for Charizard-GX Burning Shadows 150 (sm3-150): printing list has no "Graded Psa 10/9" rows (read via Watchlist or Recent lookups, not a name search, until af757e38 is live).
+- [ ] After push: curl a Magic card page whose only price is a converted Cardmarket figure: "As of ..." line without "Recorded daily by CardFlip."
+- [ ] After push: curl /cards/pokemon/skyridge: "7-day change" tile; view-source a card page: BreadcrumbList has 5 items ending on the card.
+- [ ] After push: next daily run log (/admin) has the held-card sweep line; Vercel logs show no "pokemon-prices cron: ... failed" lines (or say which step).
+- [ ] After push: one Google sign-in on the pane still works (Chris's account), and the One Tap prompt still signs in; travel case needs a non-US network (skip unless one is handy).
+- [ ] After push: /pricing in the pane, Network tab: /api/auth/me fires once or twice, not ~7.
+- Left on purpose: #22 nav search (all five games public on prod = nothing to hide), #37 billing key (own scope already), #39 in-memory vision cap (harmless), One Tap nonce (marketing #14: needs a prod sign-in test, do it with Chris), #26 Preorder 48 h (needs a shorter revalidate = more ISR writes).
+
 ## 10-21 ~10:50am ET: no up-arrow on a $0.00 move (TASKS J; COMMIT ONLY, VISIBLE: shots docs/shots/chart-zero-change-before-phone.jpg = live Snorlax pl2-81 24h "▲ $0.00 (0.0%)" green, -after-phone.jpg = local Mismagius GL LV.X 3M "No change" grey)
 - PriceHistoryChart: a change that rounds to $0.00 reads "No change" in grey (was a green ▲); same for the Cardmarket "7d vs 30d" trend at 0.0%, and Inventory's value chart header. tsc + eslint clean (no test covers these components).
 - [ ] After push: any card page, 24h pill on a card whose price did not move today -> "No change 24h", grey.
