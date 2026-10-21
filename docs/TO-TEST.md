@@ -1,10 +1,10 @@
 # To test later
 
-## 10-20 ~9:15pm ET: first Booster buyer's scans = (a) a "Not this card?" pick during the row's create reaches the row, (b) a chart point re-prices only the printing quoted, COMMIT ONLY, not visible (prices)
+## 10-20 ~9:15pm ET: first Booster buyer's scans = (a) a "Not this card?" pick during the row's create reaches the row, (b) a chart point re-prices only the printing quoted, PUSHED c5379fb0 ~9:25pm ET (Chris: "push it live"), not visible (prices)
 - Tested locally (fake Umbreon read, POST /api/cards delayed 6 s): pick Obsidian Flames 87 ms in -> after create PATCH catalogCardId sv03-130 + price 1.66 + doubt. Pick after the row exists -> PATCH 1.66 and the follow-up stays 1.66 (was 4.06, the reverse holo's point). test:pricing (+4 point checks), liveprices, printings, pricehistory, pricetrust, tcgprices, inventoryvalue, cardpages PASS; tsc + eslint clean.
 - After push, prod read only: a new scan row whose card has normal + reverse rows (most SV commons/uncommons) and no printing pick keeps the normal-based price after its chart point lands (cards.price stays at the first PATCH, not a 3-10x jump). Her 8:36pm Umbreon row (cards id for created 8:36:26 PM) is the known bad row from before the fix.
 
-## 10-20 ~8:45pm ET: review 10-19 #25 step 3 = ?dbg=outline debug moved to src/components/CameraOutlineDebug.tsx, loaded only when NODE_ENV != production, COMMIT ONLY, not visible
+## 10-20 ~8:45pm ET: review 10-19 #25 step 3 = ?dbg=outline debug moved to src/components/CameraOutlineDebug.tsx, loaded only when NODE_ENV != production, PUSHED c5379fb0 ~9:25pm ET, not visible
 - Tested locally (dev, pane, /app?dbg=outline): panel + canvas + "sampling…" render from the new module, a canvas photo into input[data-dbg-capture] fired /api/vision/scan (stubbed) = onCapture still wired. tsc + eslint clean. Dump format unchanged (frame() at the old spot, tick() at the old push).
 - After push: open the prod scanner's JS chunks (pane, network list on /app + camera open) and search them for "outline-dump" and "sampling" -> not found (Turbopack dropped the dead import). If found, the ternary did not fold: switch to an env-gated file swap.
 
