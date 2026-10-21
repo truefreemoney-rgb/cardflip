@@ -68,6 +68,7 @@ const CHECKS = [
   { game: "pokemon", cardId: "30th-c-029", variant: "holofoil", usd: 210, n: 10, day: "2026-10-20", note: "Crystal Lugia 30th Classic Collection 149/147: 10 English raw sold 10-19/20 at 175-300 (median ~210); TCGplayer 189" },
   // 10-20 ~11pm ET hidden list (s209), eBay sold in the pane, raw only.
   { game: "pokemon", cardId: "bw7-142", variant: "holofoil", usd: 100, n: 15, day: "2026-10-20", note: "Keldeo-EX full art 142/149: 15 raw sold 09-09..10-18 at 60-155 (median 99.99; damaged/HP/MP/Brazilian left out); TCGplayer 140.65 (hidden)" },
+  { game: "pokemon", cardId: "col1-91", variant: "holofoil", usd: 50, n: 13, day: "2026-10-20", note: "Lightning Energy Call of Legends 91/95 (Ampharos): 13 NM/unlabelled raw sold 08-25..10-18 at 39.92-66.44 (median 50), LP 42-54.93; TCGplayer 116 (hidden)" },
 ];
 // --only id,id: write just these checks (the others are already on prod).
 const onlyArg = process.argv.indexOf("--only");

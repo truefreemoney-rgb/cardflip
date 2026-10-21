@@ -146,7 +146,7 @@
 - Skipped: Shining Charizard 1st (sales are fakes), Darkrai & Cresselia LEGEND, Armageddon Unlimited.
 - Batch ~12:45pm ET (s197): fixed Mewtwo LA 11 rev $309.82 -> $55, Mewtwo LV.X DP28 $278.48 -> $100, Scraggy McD 2016 holo $199.99 -> $65. Keep: Jirachi HL 8 rev $118.21 (NM sold 111-130; the cheap asks are played). eBay error page again after 5 searches (~12:50pm): paused to ~1:25pm.
 - ~10-20 (page cache): those card pages show a price again; app search at once.
-- 10-20 ~11pm ET (s209, pane signed in to eBay, 60 s apart): fixed Keldeo-EX BC 142 $140.65 -> $100 (15 raw sold 60-155, median 99.99; live page $100.00 at once). Right, needs a "keep" once Chris signs in to /admin (admin login is his): Snorlax COL 33 rev $190 (NM sold 121-200, the cheap asks are played).
+- 10-20 ~11pm ET (s209, pane signed in to eBay, 60 s apart): fixed Keldeo-EX BC 142 $140.65 -> $100 (15 raw sold 60-155, median 99.99; live page $100.00 at once). Fixed Lightning Energy COL 91 holo $116 -> $50 (13 NM raw sold 39.92-66.44; page headline stays Normal $40.00, Holofoil row $50.00). Right, needs a "keep" once Chris signs in to /admin (admin login is his): Snorlax COL 33 rev $190 (NM sold 121-200, the cheap asks are played).
 
 ## 10-18 ~1pm ET: Hand check queue (388) worked by eBay sold, most valuable first (prod writes done)
 - Fixed (price_checked): Mickey Mouse Iconic 241 $7,500 -> $3,000; Thomas O'Malley Ench 235 $515 -> $134; Lugia GX 227 $370 -> $245; Pikachu POP4 13 $369.63 -> $45; Kingdra delta 10 rev $289.10 (flat 31+ days) -> $92; Charizard SW 3 rev $310.62 -> $200.
