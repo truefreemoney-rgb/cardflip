@@ -952,7 +952,7 @@ async function buildTopTiles(game: GameId, n: number, pool: number): Promise<Til
     const head = headlinePrice(variantPrices(game, judgedSeries(data, today), today));
     if (!head || isUnverified(head) || head.stale) continue;
     const f = factsOf(game, r, "");
-    out.push({ key: r.key, name: f.name, number: f.number, tags: f.tags, image: f.image, tile: f.tile, price: head.price, flagged: false, unverified: false, setSlug: index.slugOf.get(r.set_key) ?? slugify(r.set_name, 80), setName: r.set_name });
+    out.push({ key: r.key, name: f.name, number: f.number, tags: f.tags, image: f.image, tile: f.tile, price: head.price, flagged: false, unverified: false, setSlug: index.slugOf.get(r.set_key) ?? slugify(r.set_name, 80), setName: f.setName });
   }
   return out.sort((a, b) => (b.price ?? 0) - (a.price ?? 0)).slice(0, n);
 }
@@ -964,7 +964,7 @@ export async function pageTilesByIds(game: GameId, ids: string[]): Promise<Map<s
   const index = await setIndex(game);
   for (const r of await catalogByIds(game, ids)) {
     const f = factsOf(game, r, "");
-    out.set(r.id, { key: r.key, name: f.name, number: f.number, tags: f.tags, image: f.image, tile: f.tile, price: null, flagged: false, unverified: false, setSlug: index.slugOf.get(r.set_key) ?? slugify(r.set_name, 80), setName: r.set_name });
+    out.set(r.id, { key: r.key, name: f.name, number: f.number, tags: f.tags, image: f.image, tile: f.tile, price: null, flagged: false, unverified: false, setSlug: index.slugOf.get(r.set_key) ?? slugify(r.set_name, 80), setName: f.setName });
   }
   return out;
 }

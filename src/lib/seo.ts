@@ -48,7 +48,8 @@ export function pageMetadata(input: PageMetaInput): Metadata {
       url: path,
       title: ogTitle,
       description,
-      images: [{ url: picture, ...(imageAlt ? { alt: imageAlt } : {}) }],
+      // The alt only describes the page's own picture; the branded default is not that card (review 10-19 public #30).
+      images: [{ url: picture, ...(imageAlt && image ? { alt: imageAlt } : {}) }],
     },
     twitter: { card: "summary_large_image", title: ogTitle, description, images: [picture] },
     ...(noindex ? { robots: { index: false, follow: true } } : {}),

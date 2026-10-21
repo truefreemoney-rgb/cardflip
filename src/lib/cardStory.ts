@@ -3,6 +3,7 @@ import { CONDITIONS, CONDITION_MULTIPLIER, askingPriceFor, formatMoney } from ".
 import { priceDayLabel, type CardFacts } from "./cardPages.ts";
 import { SCANS } from "./pricing.ts";
 import { dayIndex, type HistoryPoint } from "./priceSeries.ts";
+import { etDate } from "./time.ts";
 import type { Condition, GameId } from "./types.ts";
 
 /**
@@ -215,7 +216,7 @@ export function cardFaq(
     }
   }
   if (f.release && f.release <= today) {
-    const d = new Date(`${f.release}T12:00:00Z`).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "America/New_York" });
+    const d = etDate(`${f.release}T12:00:00Z`, "", { month: "long", day: "numeric", year: "numeric" });
     out.push({ q: `When did ${f.setName} come out?`, a: `${f.setName} was released on ${d}.` });
   }
   return out;
