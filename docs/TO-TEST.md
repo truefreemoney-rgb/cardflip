@@ -1,6 +1,6 @@
 # To test later
 
-## 10-20 ~8:45pm ET: printing switch re-prices the ledger row (Angel #25 kept the D23 promo's $73.16), COMMIT ONLY, not visible
+## 10-20 ~8:18pm ET: printing switch re-prices the ledger row (Angel #25 kept the D23 promo's $73.16), PUSHED 2df03d3f (live 8:22pm), not visible
 - Tested locally (faked read of Angel #25, /api/ebay/comps delayed 6 s): camera "Not this card?" and the editor's list, D23 (or #191) then back to #25 inside the delay -> PATCH price 1.75 at once, the #25 lookup restarts when the old one lands, last PATCH 1.75. Before: last PATCH stayed on the other printing's price. tsc, eslint, test:pricing, test:liveprices green.
 - After push, phone: scan a cheap card, tap "Not this card?", pick an expensive printing, go straight back to the scanned one, Verify -> Inventory shows the cheap card's price, not the expensive one.
 
