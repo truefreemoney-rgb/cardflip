@@ -503,7 +503,20 @@ export async function withPriceFlags(cards: PokemonCard[], day = todayUtc()): Pr
     const held = checks.get(checkKey(game, c.id, p.variant));
     return held && checkBinds(held, day) && Math.abs((p.market as number) - held.usd) < 0.005 ? held : undefined;
   };
-  if (flags.size === 0 && stale.size === 0 && !cards.some((c) => c.prices.some((p) => fixOf(c, p)))) return cards;
+  // A card with no TCGplayer row left (its line stopped) and a binding eBay sold check prints the check, as its page does
+  // (10-21, Copycat RP01-EN092: Yu-Gi-Oh! stopped 10-13, eBay NM sold $672.78, blank in the app; lib/cardPages.ts lastRecordedPrice).
+  const checkedOnly = new Map<string, CardPrice>();
+  if (checks.size > 0) {
+    const ids = new Set(cards.filter((c) => !c.prices.some(isTrustedRow)).map((c) => `${c.game ?? "pokemon"}|${c.id}`));
+    for (const held of checks.values()) {
+      const k = `${held.game}|${held.cardId}`;
+      if (!ids.has(k) || checkedOnly.has(k) || !checkBinds(held, day)) continue;
+      checkedOnly.set(k, { source: "tcgplayer", currency: "USD", variant: held.variant, market: held.usd, low: null, high: null, ebayChecked: { usd: held.usd, n: held.n, day: held.day, was: held.usd } } as CardPrice);
+    }
+  }
+  const withChecked = (list: PokemonCard[]) =>
+    checkedOnly.size === 0 ? list : list.map((c) => { const row = checkedOnly.get(`${c.game ?? "pokemon"}|${c.id}`); return row ? { ...c, prices: [row, ...c.prices] } : c; });
+  if (flags.size === 0 && stale.size === 0 && !cards.some((c) => c.prices.some((p) => fixOf(c, p)))) return withChecked(cards);
   const marked = (c: PokemonCard, p: CardPrice) => isTrustedRow(p) && (flags.has(trustKey(c.id, p.variant)) || stale.has(trustKey(c.id, p.variant)) || !!fixOf(c, p));
   // A card whose every TCGplayer row is flagged (and none hand-fixed) gets the chain's next reading as a row of its own
   // (10-20, Black Lotus Unlimited: "looks off" in the app while a stored Cardmarket $17,560 sat in price_series): the stored
@@ -514,7 +527,7 @@ export async function withPriceFlags(cards: PokemonCard[], day = todayUtc()): Pr
     return tcg.length > 0 && tcg.every((p) => flags.has(trustKey(c.id, p.variant)) && !fixOf(c, p));
   };
   const backups = await backupRows(cards.filter(allFlagged), day);
-  return cards.map((c) => {
+  return withChecked(cards).map((c) => {
     const backup = backups.get(c.id);
     if (!c.prices.some((p) => marked(c, p)) && !backup) return c;
     const prices = c.prices.map((p) => {

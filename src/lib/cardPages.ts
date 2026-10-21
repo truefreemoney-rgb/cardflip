@@ -310,17 +310,24 @@ export const LAST_RECORDED_GAMES: readonly GameId[] = ["pokemon"];
  * 1st Edition Blastoise, the Skyridge H holos). The last market price the guard believes, usual printing first, with its
  * own day (the page says "As of" it) and the "hasn't updated" note. Four figures on too little history stay out, as in
  * variantPrices. null = nothing recorded in LAST_RECORDED_MAX_DAYS. Pure.
+ *
+ * `checked` = the binding eBay sold checks per printing (TrustData.checked). A checked line prints the checked price, in any
+ * game: the check is the proof the 10-13 junk stops lacked (10-21, Copycat RP01-EN092: the 2008 Retro Pack's line stopped
+ * 10-13 at $544.99, eBay NM sold $672.78, page and app blank). It lasts as long as the check binds (CHECKED_MAX_DAYS).
  */
-export function lastRecordedPrice(game: GameId, series: SeriesInput[], today: string): VariantPrice | null {
-  if (!LAST_RECORDED_GAMES.includes(game)) return null;
+export function lastRecordedPrice(game: GameId, series: SeriesInput[], today: string, checked?: Record<string, number>): VariantPrice | null {
+  const open = LAST_RECORDED_GAMES.includes(game);
+  if (!open && !checked) return null;
   const out: VariantPrice[] = [];
   for (const s of series) {
+    const vouched = checked?.[s.variant];
+    if (!open && vouched == null) continue;
     const last = lastPoint(s.startDay, s.prices);
     if (s.flag || !last) continue;
     const age = dayIndex(last.day, today);
     const days = s.prices.filter((p) => p != null && p > 0).length;
-    if (age > LAST_RECORDED_MAX_DAYS || isUnverified({ price: last.price, days })) continue;
-    out.push({ variant: s.variant, label: variantLabel(game, s.variant), price: last.price, day: last.day, days, flag: null, stale: { days: Math.max(age, s.stale?.days ?? 0) } });
+    if (age > LAST_RECORDED_MAX_DAYS || (vouched == null && isUnverified({ price: last.price, days }))) continue;
+    out.push({ variant: s.variant, label: variantLabel(game, s.variant), price: vouched ?? last.price, day: last.day, days, flag: null, stale: { days: Math.max(age, s.stale?.days ?? 0) } });
   }
   return out.sort((a, b) => variantRank(a.variant) - variantRank(b.variant) || a.variant.localeCompare(b.variant))[0] ?? null;
 }

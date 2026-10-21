@@ -196,11 +196,19 @@ check("older than LAST_RECORDED_MAX_DAYS stays out", cp.lastRecordedPrice("pokem
 check("four figures on one day stays out (Rayquaza star, 09-30 single point)", cp.lastRecordedPrice("pokemon", [mk("normal", "2026-09-20", [2500.99])], today), null);
 check("usual printing first", cp.lastRecordedPrice("pokemon", [mk("reverseHolofoil", "2026-08-01", [40, 40]), mk("holofoil", "2026-08-01", [90, 90])], today)?.variant, "holofoil");
 check("Pokemon only: Yu-Gi-Oh!'s 10-13 junk stops and Magic stay out", [cp.lastRecordedPrice("yugioh", [stopped], today), cp.lastRecordedPrice("mtg", [stopped], today)], [null, null]);
+// 10-21 Copycat RP01-EN092: a stopped Yu-Gi-Oh! line an eBay sold check vouches for prints the checked price; others still don't.
+const copycat = mk("normal", "2026-08-20", [...Array(14).fill(544.99), ...Array(8).fill(null)]);
+const cc = cp.lastRecordedPrice("yugioh", [copycat], today, { normal: 544.99 });
+check("a checked Yu-Gi-Oh! stop prints the checked price, dated, stale-noted", [cc?.price, cc?.day, cc?.stale?.days], [544.99, "2026-09-02", 28]);
+check("a check on another printing does not open it", cp.lastRecordedPrice("yugioh", [copycat], today, { foil: 600 }), null);
+check("a Fix price wins over the stopped line's own number", cp.lastRecordedPrice("yugioh", [copycat], today, { normal: 672.78 })?.price, 672.78);
+check("Pokémon keeps its plain fallback, a check there prints the checked price", [cp.lastRecordedPrice("pokemon", [stopped], today)?.price, cp.lastRecordedPrice("pokemon", [stopped], today, { holofoil: 1500 })?.price], [1899.99, 1500]);
 // 10-21: after the stored backup and the euro figure, as on the card page (functional: test:sitetrustroutes "set lists follow").
 check("the set list falls back to it too, only with no fresh row (Pikachu Star was missing from Holon Phantoms)",
-  /const prices = variantPrices\(game, judged, today\);[\s\S]{0,200}if \(prices\.length === 0\) \{\s*const last = lastRecordedPrice\(game, judged, today\);/.test(read("src/lib/server/cardPages.ts")) && /if \(!t\.flagged\) out\.push\(t\);\s*else if \(last\) out\.push\(last\);/.test(read("src/lib/server/cardPages.ts")), true);
+  /const prices = variantPrices\(game, judged, today\);[\s\S]{0,200}if \(prices\.length === 0\) \{\s*const last = lastRecordedPrice\(game, judged, today, data\.checked\);/.test(read("src/lib/server/cardPages.ts")) && /if \(!t\.flagged\) out\.push\(t\);\s*else if \(last\) out\.push\(last\);/.test(read("src/lib/server/cardPages.ts")), true);
 check("a last recorded price carries the stale mark, so strips and top cards skip it", lr?.stale != null && /\.\.\.\(head\?\.stale \? \{ stale: true \} : \{\}\)/.test(read("src/lib/server/cardPages.ts")) && /!c\.stale\)\.slice\(0, STRIP_TILES \+ 1\)/.test(read("src/lib/server/cardPages.ts")), true);
-check("the card loader falls back to it only with no fresh row, noindex",/prices\.length === 0 \? lastRecordedPrice\(/.test(read("src/lib/server/cardPages.ts")) && /headline: last, decision: \{ index: false, reason: "unverified" \}/.test(read("src/lib/server/cardPages.ts")), true);
+check("the card loader falls back to it only with no fresh row, noindex",/prices\.length === 0 \? lastRecordedPrice\(/.test(read("src/lib/server/cardPages.ts")) && /headline: shown, decision: \{ index: false, reason: "unverified" \}/.test(read("src/lib/server/cardPages.ts")), true);
+check("a checked stopped line reads as checked, dated by the check (not 'Old price')", /const shown = vouched \? \{ \.\.\.last, day: vouched\.day, stale: undefined \} : last;/.test(read("src/lib/server/cardPages.ts")) && /\.\.\.\(vouched \? \{ checked: \{ n: vouched\.n, day: vouched\.day \} \} : \{\}\)/.test(read("src/lib/server/cardPages.ts")), true);
 
 // change words: a young series says nothing rather than guessing
 const pts = (n, f) => Array.from({ length: n }, (_, i) => ({ day: new Date(Date.UTC(2026, 8, 30) - (n - 1 - i) * 86_400_000).toISOString().slice(0, 10), price: f(i) }));

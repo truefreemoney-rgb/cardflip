@@ -105,5 +105,17 @@ await upsertSeriesRows([{ cardId: "gym2-3-1st", game: "pokemon", variant: "1stEd
 const kept = await db.prepare("SELECT tcg_usd, off_day FROM price_checked WHERE card_id = 'gym2-3-1st'").get();
 check("a row whose last point is not the day written does not note or retire", [kept.tcg_usd, kept.off_day], [null, null]);
 
+console.log("stopped lines");
+// 10-21 Copycat RP01-EN092: the Yu-Gi-Oh! line stopped, so the app card has no TCGplayer row at all; a binding check prints.
+await putCheck({ ...C, game: "yugioh", cardId: "ygo-78162", variant: "normal", usd: 544.99, n: 1 });
+clearTrustMemo();
+const copycat = (prices) => ({ id: "ygo-78162", game: "yugioh", name: "Copycat", setName: "Retro Pack", setSeries: "", number: "RP01-EN092", rarity: null, imageSmall: "", imageLarge: "", englishName: null, prices });
+const [cc] = await withPriceFlags([copycat([])], TODAY);
+check("no TCGplayer row + a binding check: the checked price as the card's row", [cc.prices.length, cc.prices[0]?.market, cc.prices[0]?.variant, cc.prices[0]?.ebayChecked?.n], [1, 544.99, "normal", 1]);
+const [other] = await withPriceFlags([{ ...copycat([]), id: "ygo-564239" }], TODAY);
+check("…another card (the 2020 reprint) gets nothing from it", other.prices.length, 0);
+const [stale] = await withPriceFlags([copycat([])], addDays(TODAY, CHECKED_MAX_DAYS + 1));
+check("…and a check past CHECKED_MAX_DAYS prints nothing", stale.prices.length, 0);
+
 console.log(failures === 0 ? "\nall green" : `\n${failures} FAILED`);
 process.exit(failures === 0 ? 0 : 1);

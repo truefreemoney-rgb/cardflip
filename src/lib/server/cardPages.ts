@@ -489,8 +489,14 @@ export async function loadCardPage(rec: CardRecord, today = todayUtc()): Promise
   }
   // No fresh row and no backup: the last TCGplayer price the guard believes, dated and noted, not a blank (10-21, lib/cardPages.ts
   // lastRecordedPrice). Not indexed on a number that old.
-  const last = prices.length === 0 ? lastRecordedPrice(facts.game, inputs, today) : null;
-  if (last) return { facts, prices: [last], headline: last, decision: { index: false, reason: "unverified" }, chart: null, trackingSince: null, changes: [], range: null };
+  const last = prices.length === 0 ? lastRecordedPrice(facts.game, inputs, today, data.checked) : null;
+  if (last) {
+    // A check vouched for it: dated by the check and worded like any checked page, not "Old price" (10-21, Copycat).
+    const c = checks.get(checkKey(facts.game, facts.id, last.variant));
+    const vouched = c && checkBinds(c, today) && Math.abs(last.price - c.usd) < 0.005 ? c : null;
+    const shown = vouched ? { ...last, day: vouched.day, stale: undefined } : last;
+    return { facts, prices: [shown], headline: shown, decision: { index: false, reason: "unverified" }, chart: null, trackingSince: null, changes: [], range: null, ...(vouched ? { checked: { n: vouched.n, day: vouched.day } } : {}) };
+  }
   const decision = indexDecision(prices, indexFloorUsd(facts.game));
   if (!headline) return { facts, prices, headline, decision, chart: null, trackingSince: null, changes: [], range: null };
 
@@ -653,7 +659,7 @@ export async function loadSetCards(game: GameId, set: SetEntry, today = todayUtc
     const f = factsOf(game, r, "");
     const base = { key: r.key, name: f.name, number: f.number, tags: f.tags, image: f.image, tile: f.tile };
     if (prices.length === 0) {
-      const last = lastRecordedPrice(game, judged, today);
+      const last = lastRecordedPrice(game, judged, today, data.checked);
       if (last) {
         const own = data.series.find((s) => s.variant === last.variant);
         lastOf.set(r.key, { ...base, price: last.price, flagged: false, unverified: isUnverified(last), ...(last.stale ? { stale: true } : {}), was7: valueBack(own, today, 7, game), was30: valueBack(own, today, 30, game) });
