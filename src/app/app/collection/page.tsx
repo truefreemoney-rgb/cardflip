@@ -2034,12 +2034,13 @@ export default function CollectionPage() {
             <span className="text-xs uppercase tracking-[0.15em] text-zinc-500">Summary</span>
           ) : (
             // Both totals stay on one row at phone width up to $99,999.99 each (10-16): tighter gaps, and "Show" steps aside when they are long.
+            // Plain names (Chris 10-21, option C): "Unsold" was "In Play", "Sold" was "Earned".
             <span className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-0.5 text-xs text-zinc-400 sm:gap-x-4">
               <span className="whitespace-nowrap">
-                {pricingOnly ? "Market Value" : "In Play"} <span className="font-display text-sm font-semibold tabular-nums text-white">{liveLoaded ? formatMoney(stats.inPlayMarket) : "…"}</span>
+                {pricingOnly ? "Market Value" : "Unsold"} <span className="font-display text-sm font-semibold tabular-nums text-white">{liveLoaded ? formatMoney(stats.inPlayMarket) : "…"}</span>
               </span>
               <span className="whitespace-nowrap">
-                Earned <span className="font-display text-sm font-semibold tabular-nums text-emerald-400">{formatMoney(pricingOnly ? stats.earned : stats.net)}</span>
+                Sold <span className="font-display text-sm font-semibold tabular-nums text-emerald-400">{formatMoney(pricingOnly ? stats.earned : stats.net)}</span>
               </span>
             </span>
           )}
@@ -2049,7 +2050,7 @@ export default function CollectionPage() {
             <span
               className={
                 summaryOpen ||
-                `${pricingOnly ? "Market Value" : "In Play"} ${liveLoaded ? formatMoney(stats.inPlayMarket) : "…"} Earned ${formatMoney(pricingOnly ? stats.earned : stats.net)}`.length <= 33
+                `${pricingOnly ? "Market Value" : "Unsold"} ${liveLoaded ? formatMoney(stats.inPlayMarket) : "…"} Sold ${formatMoney(pricingOnly ? stats.earned : stats.net)}`.length <= 33
                   ? ""
                   : "hidden sm:inline"
               }
@@ -2064,7 +2065,7 @@ export default function CollectionPage() {
         <div id="inventory-summary" className={summaryOpen ? "" : "hidden"}>
         <div className="grid sm:grid-cols-2 sm:divide-x sm:divide-edge/60">
           <div className="p-5">
-            <p className="flex min-h-6 items-center text-xs uppercase tracking-[0.15em] text-zinc-500">{pricingOnly ? "In stock" : "In play"}</p>
+            <p className="flex min-h-6 items-center text-xs uppercase tracking-[0.15em] text-zinc-500">{pricingOnly ? "In stock" : "Unsold"}</p>
             {pricingOnly && (
               <div className="mt-1.5 min-w-0">
                 <p className="text-[11px] font-medium text-zinc-400">Market Value</p>
@@ -2118,7 +2119,7 @@ export default function CollectionPage() {
             {/* Same shape as In Play (Chris, 10-02): what the eBay sales netted beside what the off-eBay
                 (hand-marked) sales brought in, with the total of the two on the label row. */}
             <div className="flex min-h-6 items-center justify-between gap-3">
-              <p className="text-xs uppercase tracking-[0.15em] text-zinc-500">Earned</p>
+              <p className="text-xs uppercase tracking-[0.15em] text-zinc-500">Sold</p>
               {/* The sale count rides here; the caption lines under both columns are gone (Chris, 10-02). */}
               <p className="text-xs text-zinc-400">
                 {stats.sold.length > 0 && (

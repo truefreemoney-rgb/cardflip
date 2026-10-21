@@ -72,7 +72,7 @@ export const helpArticles: HelpArticle[] = [
     heading: "Listing on eBay",
     paragraphs: [
       "From a scanned card, tap Verify Match once you've checked it's the right card, then Publish on eBay — the listing goes live with your photo, title and price. Nothing is ever listed without you pressing the button.",
-      "Inventory shows every card: in play, awaiting sale, ended and sold. Tap a price there to change it, and a live listing changes on eBay in the same step.",
+      "Inventory shows every card: unsold, awaiting sale, ended and sold. Tap a price there to change it, and a live listing changes on eBay in the same step.",
     ],
   },
   {
