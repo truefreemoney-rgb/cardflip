@@ -18,4 +18,10 @@ for (const id of ids) {
     local.prepare(`INSERT OR REPLACE INTO price_series (${cols.join(",")}) VALUES (${cols.map(() => "?").join(",")})`).run(...cols.map((k) => r[k]));
     console.log("series", id, r.variant);
   }
+  // 72c4fad2 shots: a binding eBay sold check is part of what the page prints.
+  for (const r of (await prod.execute({ sql: "SELECT * FROM price_checked WHERE card_id = ?", args: [id] })).rows) {
+    const cols = Object.keys(r);
+    local.prepare(`INSERT OR REPLACE INTO price_checked (${cols.join(",")}) VALUES (${cols.map(() => "?").join(",")})`).run(...cols.map((k) => r[k]));
+    console.log("check", id, r.variant, r.price_usd ?? r.usd ?? "");
+  }
 }

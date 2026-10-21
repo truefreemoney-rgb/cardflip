@@ -1,10 +1,13 @@
 // 10-21: phone shots of the public card search for Team Aqua's Kyogre, live vs local (d120e6d7: the app quotes the card
 // page's TCGplayer line, $290, not pokemontcg.io's $542.60 that the guard flags as "looks off").
-// node scripts/_kyogre-search-shots.mjs <out-dir> [local-base]
+// node scripts/_kyogre-search-shots.mjs <out-dir> [local-base] [--live]
+// Local only by default: a live name search writes pokemontcg.io's raw number into prod until af757e38 ships.
 import { chromium } from "@playwright/test";
-const [out = "docs/shots", base = "http://localhost:3000"] = process.argv.slice(2);
+const args = process.argv.slice(2).filter((a) => a !== "--live");
+const [out = "docs/shots", base = "http://localhost:3000"] = args;
+const hosts = [["before-live", "https://cardflip.io"], ["after-local", base]].filter(([t]) => process.argv.includes("--live") || t !== "before-live");
 const b = await chromium.launch();
-for (const [tag, host] of [["before-live", "https://cardflip.io"], ["after-local", base]]) {
+for (const [tag, host] of hosts) {
   const ctx = await b.newContext({ viewport: { width: 375, height: 812 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   const p = await ctx.newPage();
   await p.goto(`${host}/cards/pokemon?heat=off`, { waitUntil: "networkidle", timeout: 180000 });
