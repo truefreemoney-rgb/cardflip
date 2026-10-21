@@ -4,6 +4,12 @@ Chris (10-14): every support ticket and every social comment is a learning
 experience while the site is new and not fully tested. One entry each: what
 they said, what it taught, what changed, what is still open. Newest first.
 
+## 10-21 ~5:30pm ET · "everything is showing up lightly played" / "make the default near mint please" (Chris, scanning Near Mint cards)
+- What: the scan's condition came from the vision read of the photo and overwrote the starting condition. Since ~10-19 it graded harshly: 19 of Chris's 22 scans Lightly Played (before: 43 NM, 0 LP); first Booster buyer jporter1421 had 68 scans, 0 Near Mint (41 LP, 23 MP, 4 Damaged), all unlisted drafts priced down by the condition math.
+- Changed: ae3c1f32 (pushed) every scan keeps the starting condition (Near Mint unless the seller picks another in the scanner options); the photo's call is a hint in the editor only. Her 68 rows set to Near Mint on Chris's explicit word (scripts/_cond-to-nm.mjs, backup .cond-backup-jporter1421-*.json); her prices follow on her next Inventory visit (livePrices reprices unlocked drafts by condition).
+- Taught: a photo-judged grade moves money (the condition multiplier), so it must never be applied silently; check condition mixes when scans spike, not only names and prices.
+- Open: her open app tab runs the old code until it reloads (re-check her rows after the deploy); Chris's own 19 LP rows from 10-19..10-21 = ask.
+
 ## 10-21 ~1:40pm ET · "check the ISR writes, looks a little high today" / "you should be catching these issues sooner when its obviously a bot crawling" (Chris, Vercel usage screenshots: 150.8K write units, $0.42 by 1:15pm ET)
 - What: one scraper via Wave Broadband AS11404 walked ~19K deep card pages 4am-1:30pm ET (~2.2K/hour, still going), from thousands of 154.199/154.211/154.222/45.204 proxy IPs at 1-19 requests each, fake Mac Edg/148 + Chrome/149 names, only two JA4 fingerprints. Every other network was under 2K for the day.
 - Cause of the late catch: nobody watched allowed traffic by network between the 10-19/10-20 blocks; Chris saw it on the bill first.
