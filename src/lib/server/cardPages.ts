@@ -463,12 +463,9 @@ export async function loadCardPage(rec: CardRecord, today = todayUtc()): Promise
   // is from August): the page prints Cardmarket's figure in dollars at the cached ECB rate (lib/listing.ts withEurMarket is
   // the same rule for scans and search).
   if (unpriced && rec.eur) {
-    const variant = rec.eur.nonfoil ? "nonfoil" : rec.eur.foil ? "foil" : null;
-    const eur = variant === "nonfoil" ? rec.eur.nonfoil : rec.eur.foil;
-    const rate = variant && eur ? await (await import("@/lib/server/fx")).usdPerEur().catch(() => null) : null;
-    if (variant && eur && rate) {
-      // Lifted 12% for Magic (lib/priceChain.ts, measured 10-19), the same figure the nightly fill and the scan would show.
-      const converted = [{ variant, label: variantLabel(facts.game, variant), price: Math.round(eur * rate * cardmarketLift(facts.game) * 100) / 100, day: today, days: 0, flag: null }];
+    const e = eurFigure(facts.game, rec.eur, rec.eur.nonfoil || rec.eur.foil ? await eurRate() : null);
+    if (e) {
+      const converted = [{ variant: e.variant, label: variantLabel(facts.game, e.variant), price: e.price, day: today, days: 0, flag: null }];
       return { facts, prices: converted, headline: converted[0], decision: indexDecision(converted, indexFloorUsd(facts.game)), chart: null, trackingSince: null, changes: [], range: null };
     }
   }
@@ -522,6 +519,20 @@ export async function loadCardPage(rec: CardRecord, today = todayUtc()): Promise
 
 // ---------------------------------------------------------------------------
 // Cards of a set
+
+/** The cached ECB rate (dollars per euro), null when it cannot be read. */
+const eurRate = async (): Promise<number | null> => (await import("@/lib/server/fx")).usdPerEur().catch(() => null);
+
+/**
+ * Magic's last step when no fresh row may be printed and no backup is stored: Cardmarket's euro figure in dollars, lifted
+ * 12% (lib/priceChain.ts, measured 10-19), the same figure the nightly fill and the scan would show. Card page and set list.
+ */
+function eurFigure(game: GameId, eur: CardRecord["eur"], rate: number | null): { variant: string; price: number } | null {
+  const variant = eur?.nonfoil ? "nonfoil" : eur?.foil ? "foil" : null;
+  const value = variant === "nonfoil" ? eur?.nonfoil : eur?.foil;
+  if (!variant || !value || !rate) return null;
+  return { variant, price: Math.round(value * rate * cardmarketLift(game) * 100) / 100 };
+}
 
 /** One line of a set page or a strip: what a list may say about a card. `price` null = the guard flagged it (the number is never printed). */
 export interface SetCard {
@@ -610,31 +621,44 @@ export async function loadSetCards(game: GameId, set: SetEntry, today = todayUtc
     return [];
   }
   const out: SetCard[] = [];
+  // No row the guard lists: listed only if the chain below prices it, as its own page does (10-21: Black Lotus Unlimited and
+  // 817 Magic cards priced only by a stored backup were missing from their sets while their pages printed the number).
+  const unlisted: SetCard[] = [];
+  // A stopped market (no TCGplayer sale lately) lists at its last recorded price, like its own page (10-21: Pikachu Star,
+  // 1st Edition Blastoise were missing from their sets); marked stale, so never ranked or featured. Its page tries the stored
+  // backup and the euro figure first, so the list does too: this tile stands only when the chain below has nothing.
+  const lastOf = new Map<string, SetCard>();
   for (const r of rows) {
     const data = trust.get(r.id);
     if (!data) continue;
     const judged = judgedSeries(data, today);
-    // A stopped market (no TCGplayer sale lately) lists at its last recorded price, like its own page (10-21: Pikachu Star,
-    // 1st Edition Blastoise were missing from their sets); marked stale, so never ranked or featured.
-    let prices = variantPrices(game, judged, today);
+    const prices = variantPrices(game, judged, today);
+    const f = factsOf(game, r, "");
+    const base = { key: r.key, name: f.name, number: f.number, tags: f.tags, image: f.image, tile: f.tile };
     if (prices.length === 0) {
       const last = lastRecordedPrice(game, judged, today);
-      if (last) prices = [last];
+      if (last) {
+        const own = data.series.find((s) => s.variant === last.variant);
+        lastOf.set(r.key, { ...base, price: last.price, flagged: false, unverified: isUnverified(last), ...(last.stale ? { stale: true } : {}), was7: valueBack(own, today, 7, game), was30: valueBack(own, today, 30, game) });
+      }
+      unlisted.push({ ...base, price: null, flagged: true, unverified: false });
+      continue;
     }
-    if (prices.length === 0) continue;
     const head = headlinePrice(prices);
-    const f = factsOf(game, r, "");
     const own = head ? data.series.find((s) => s.variant === head.variant) : undefined;
-    out.push({ key: r.key, name: f.name, number: f.number, tags: f.tags, image: f.image, tile: f.tile, price: head ? head.price : null, flagged: !head, unverified: head ? isUnverified(head) : false, ...(head?.stale ? { stale: true } : {}), was7: valueBack(own, today, 7, game), was30: valueBack(own, today, 30, game) });
+    out.push({ ...base, price: head ? head.price : null, flagged: !head, unverified: head ? isUnverified(head) : false, ...(head?.stale ? { stale: true } : {}), was7: valueBack(own, today, 7, game), was30: valueBack(own, today, 30, game) });
   }
-  // A flagged card prints its stored backup (lib/priceChain.ts) the way its own page does since 10-20, never a blank
-  // (review 10-19 #22); with none stored it keeps the guard's sentence and sorts last. A failed read changes nothing.
-  const flaggedTiles = out.filter((t) => t.flagged);
-  if (flaggedTiles.length > 0) {
+  // A flagged or unlisted card prints its stored backup (lib/priceChain.ts) the way its own page does since 10-20, never a
+  // blank (review 10-19 #22), then Magic's live euro figure (10-21: Will-o'-the-Wisp 2ED read "looks off" on the list, $66.41
+  // on its page). A flagged one with neither keeps the guard's sentence and sorts last; an unlisted one takes its last
+  // recorded price, else stays off. A failed read changes nothing.
+  const idOf = new Map(rows.map((r) => [r.key, r.id] as const));
+  const eurOf = (t: SetCard) => trust.get(idOf.get(t.key) ?? "")?.eur ?? null;
+  const open = [...out.filter((t) => t.flagged), ...unlisted];
+  if (open.length > 0) {
     try {
-      const idOf = new Map(rows.map((r) => [r.key, r.id] as const));
-      const backups = await backupRows(flaggedTiles.map((t) => ({ id: idOf.get(t.key) ?? t.key, game })) as unknown as PokemonCard[], today);
-      for (const t of flaggedTiles) {
+      const backups = await backupRows(open.map((t) => ({ id: idOf.get(t.key) ?? t.key, game })) as unknown as PokemonCard[], today);
+      for (const t of open) {
         const b = backups.get(idOf.get(t.key) ?? t.key);
         if (b && typeof b.market === "number" && b.market > 0) {
           t.price = b.market;
@@ -644,6 +668,20 @@ export async function loadSetCards(game: GameId, set: SetEntry, today = todayUtc
     } catch (err) {
       console.warn(`card pages: backup read failed on ${game} set ${set.key}`, err);
     }
+    const euro = open.filter((t) => t.flagged && (eurOf(t)?.nonfoil || eurOf(t)?.foil));
+    const rate = euro.length > 0 ? await eurRate() : null;
+    for (const t of euro) {
+      const e = eurFigure(game, eurOf(t), rate);
+      if (e) {
+        t.price = e.price;
+        t.flagged = false;
+      }
+    }
+  }
+  for (const t of unlisted) {
+    const last = lastOf.get(t.key);
+    if (!t.flagged) out.push(t);
+    else if (last) out.push(last);
   }
   return out.sort((a, b) => (b.price ?? -1) - (a.price ?? -1) || a.name.localeCompare(b.name) || a.number.localeCompare(b.number, "en", { numeric: true }));
 }

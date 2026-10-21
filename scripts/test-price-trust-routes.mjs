@@ -109,6 +109,44 @@ console.log("/api/search-card (a name with no letter or digit never waits on pok
   }
 }
 
+console.log("set lists follow the card page's chain (10-21: Black Lotus Unlimited missing, Will-o'-the-Wisp 'looks off' vs $66.41)");
+{
+  const { loadSetCards } = await import(at("lib/server/cardPages.ts"));
+  const { setSetting } = await import(at("lib/server/settings.ts"));
+  const { addDays: add } = await import(at("lib/priceSeries.ts"));
+  // 1 USD = 0.8 EUR -> 1.25 USD per euro; triedAt now = no network.
+  await setSetting("fx_rates", JSON.stringify({ date: TODAY, fetchedAt: Date.now(), triedAt: Date.now(), rates: { EUR: 0.8 } }));
+  const mtg = db.prepare(`INSERT INTO mtg_cards (id, name, set_code, set_name, collector_number, set_release_date, image_url, price_usd, price_usd_foil, price_eur, price_eur_foil, lang, synced_at)
+                          VALUES (?, ?, 'tsl', 'Test List Set', ?, '2020-01-01', 'https://img/x/normal/front/l.jpg', ?, ?, ?, ?, 'en', 0)`);
+  await mtg.run("sl-eur", "Euro Wisp", "1", null, 150, null, 12);
+  await recordSeries(recordPoint, addDays, TODAY, "sl-eur", "mtg", "foil", liquidPrices(150));
+  await mtg.run("sl-backup", "Backup Lotus", "2", null, null, 13967.64, null);
+  await recordPoint("sl-backup", "mtg", "nonfoil", "cardmarket-converted", "USD", 17560.09, TODAY);
+  await mtg.run("sl-none", "Unpriced Thing", "3", null, null, null, null);
+  await mtg.run("sl-ok", "Plain Bolt", "4", 2, null, 1.5, null);
+  await recordSeries(recordPoint, addDays, TODAY, "sl-ok", "mtg", "nonfoil", liquidPrices(2));
+  clearTrustMemo();
+  const list = await loadSetCards("mtg", { key: "tsl", name: "Test List Set" }, TODAY);
+  const by = Object.fromEntries(list.map((c) => [c.key, c]));
+  check("flagged, no stored backup: Cardmarket's euro figure, as on its page (12 x 1.25 x 1.12)", [by["tsl-1"]?.price, by["tsl-1"]?.flagged], [16.8, false]);
+  check("no TCGplayer row, a stored backup: listed at the backup (was left off)", [by["tsl-2"]?.price, by["tsl-2"]?.flagged], [17560.09, false]);
+  check("nothing at all: still off the list", by["tsl-3"] === undefined);
+  check("a normal card unchanged; most valuable first", [by["tsl-4"]?.price, list.map((c) => c.key)], [2, ["tsl-2", "tsl-1", "tsl-4"]]);
+
+  // Pokémon, a stopped market: its page tries the stored backup before the last recorded price, so the list does too.
+  const pk = db.prepare(`INSERT INTO en_cards (id, name, set_id, set_name, local_id, set_release_date, image_url, synced_at) VALUES (?, ?, 'tsp', 'Test Stopped Set', ?, '2019-05-01', 'https://img/p.webp', 0)`);
+  await pk.run("sp-backup", "Stopped With Backup", "1");
+  await recordSeries(recordPoint, addDays, add(TODAY, -30), "sp-backup", "pokemon", "holofoil", liquidPrices(40));
+  await recordPoint("sp-backup", "pokemon", "holofoil", "cardtrader", "USD", 55, TODAY);
+  await pk.run("sp-last", "Stopped Alone", "2");
+  await recordSeries(recordPoint, addDays, add(TODAY, -30), "sp-last", "pokemon", "holofoil", liquidPrices(30));
+  clearTrustMemo();
+  const plist = await loadSetCards("pokemon", { key: "tsp", name: "Test Stopped Set" }, TODAY);
+  const pby = Object.fromEntries(plist.map((c) => [c.key, c]));
+  check("stopped + fresh backup: the backup, not the old price", [pby["sp-backup"]?.price, pby["sp-backup"]?.stale], [55, undefined]);
+  check("stopped alone: the last recorded price, marked stale (as before)", [pby["sp-last"]?.price, pby["sp-last"]?.stale], [30, true]);
+}
+
 console.log("/api/set-cards");
 {
   const pk = await get(setCards, "/api/set-cards?set=Test%20Pokemon%20Set");
