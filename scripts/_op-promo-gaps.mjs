@@ -1,5 +1,7 @@
 // READ ONLY (prod): which One Piece catalog cards have no price, by set, with promo examples + their price_series rows.
 import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { createClient } from "@libsql/client";
 const cfg = JSON.parse(fs.readFileSync(".env.migration.json", "utf8").replace(/^﻿/, ""));
 const c = createClient({ url: cfg.dbUrl, authToken: cfg.dbToken });
@@ -46,7 +48,7 @@ console.log("--- non-promo unpriced:", other.length);
 for (const r of other.slice(0, 40)) console.log(JSON.stringify([r.id, r.name, r.set_code, r.set_name, r.collector_number, r.variant, r.rarity]));
 
 // dump ids for the offline compare
-fs.writeFileSync(process.env.OUT ?? "op-unpriced.json", JSON.stringify(unpriced.map((r) => ({ id: r.id, name: r.name, set_code: r.set_code, set_name: r.set_name, number: r.collector_number, variant: r.variant, rarity: r.rarity }))));
+fs.writeFileSync(process.env.OUT ?? path.join(os.tmpdir(), "op-unpriced.json"), JSON.stringify(unpriced.map((r) => ({ id: r.id, name: r.name, set_code: r.set_code, set_name: r.set_name, number: r.collector_number, variant: r.variant, rarity: r.rarity }))));
 
 // --- second look: other readings of "no price" (213?)
 console.log("=== other 'no price' readings");
