@@ -1,5 +1,10 @@
 # To test later
 
+## 10-21 ~1:46am ET: firewall "Scrapers: Rackdog hosting network (deny)" LIVE (Chris: "i dont want users on vpns anyway", "i mean just rackdog")
+- What: whole site denied to Rackdog's 5 ASNs (1006, 9087, 142617, 154395, 398465; RIPEstat), firewall v27, scripts/_fw-block-asn.mjs. Was ~2.8K allowed a day under a stale fake Firefox/151 name.
+- Tested: right after: / , /api/geo, /cards/pokemon/holon-phantoms 200 from a normal network.
+- Next day: Firewall > Traffic (Past Day, action=deny) lists Rackdog LLC under the new rule and it is gone from the allowed top networks; if NetActuate (same Firefox/151 name, smaller) is still in the allowed top 5, ask Chris before adding it.
+
 ## 10-21 ~1:45am ET: admin console login joins the shut-out (ipGate + wrong usernames count, 0d11c21b), COMMIT ONLY, not visible
 - What: /api/admin/login refuses shut-out IPs and Tor exits before checking anything; each different refused username from one IP counts toward the 5-an-hour made-up sign-in shut-out (LESSONS 10-21 ~1:45am).
 - Tested: test:adminroutes all pass (+3: five names -> shut out even with the right password; the real name wrong six times is not); test:authroutes, test:torspike, test:adminsession green; tsc + eslint clean.
