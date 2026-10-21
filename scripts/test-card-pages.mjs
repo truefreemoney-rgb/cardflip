@@ -186,6 +186,18 @@ check("the same price with two weeks of history is indexed", cp.indexDecision(ol
 check("a day-old $40 card is indexed", cp.indexDecision(young(40)), { index: true, reason: "ok" });
 check("mature days match the guard's minPricedDays", cp.MATURE_PRICED_DAYS, (await import(at("lib/server/priceTrust.ts"))).PRICE_TRUST.minPricedDays);
 
+// 10-21: no fresh row and no backup -> the last price the guard believes, dated, with the stale note (Pikachu Star, 1st Ed Blastoise).
+const stopped = mk("holofoil", "2026-08-01", [...Array.from({ length: 40 }, () => 1899.99), ...Array(20).fill(null)]);
+const lr = cp.lastRecordedPrice("pokemon", [stopped], today);
+check("a stopped line is dropped by variantPrices (the blank)", cp.variantPrices("pokemon", [stopped], today), []);
+check("lastRecordedPrice prints it with its own day and the weeks since", [lr?.price, lr?.day, lr?.stale?.days, lr?.flag], [1899.99, "2026-09-09", 21, null]);
+check("a flagged stopped line stays out", cp.lastRecordedPrice("pokemon", [{ ...stopped, flag: { hard: true, reason: "x" } }], today), null);
+check("older than LAST_RECORDED_MAX_DAYS stays out", cp.lastRecordedPrice("pokemon", [mk("holofoil", "2026-01-01", [500, 500, 500])], today), null);
+check("four figures on one day stays out (Rayquaza star, 09-30 single point)", cp.lastRecordedPrice("pokemon", [mk("normal", "2026-09-20", [2500.99])], today), null);
+check("usual printing first", cp.lastRecordedPrice("pokemon", [mk("reverseHolofoil", "2026-08-01", [40, 40]), mk("holofoil", "2026-08-01", [90, 90])], today)?.variant, "holofoil");
+check("Pokemon only: Yu-Gi-Oh!'s 10-13 junk stops and Magic stay out", [cp.lastRecordedPrice("yugioh", [stopped], today), cp.lastRecordedPrice("mtg", [stopped], today)], [null, null]);
+check("the card loader falls back to it only with no fresh row, noindex", /prices\.length === 0 \? lastRecordedPrice\(/.test(read("src/lib/server/cardPages.ts")) && /headline: last, decision: \{ index: false, reason: "unverified" \}/.test(read("src/lib/server/cardPages.ts")), true);
+
 // change words: a young series says nothing rather than guessing
 const pts = (n, f) => Array.from({ length: n }, (_, i) => ({ day: new Date(Date.UTC(2026, 8, 30) - (n - 1 - i) * 86_400_000).toISOString().slice(0, 10), price: f(i) }));
 check("30-day change", cp.changeOver(pts(40, (i) => (i < 10 ? 10 : 12)), 30)?.pct, (v) => Math.abs(v - 20) < 0.001);

@@ -22,6 +22,7 @@ import {
   isUnverified,
   isSetSlug,
   keptPokemonId,
+  lastRecordedPrice,
   parseCardKey,
   printingTags,
   setSlugs,
@@ -471,6 +472,10 @@ export async function loadCardPage(rec: CardRecord, today = todayUtc()): Promise
       return { facts, prices: converted, headline: converted[0], decision: indexDecision(converted, indexFloorUsd(facts.game)), chart: null, trackingSince: null, changes: [], range: null };
     }
   }
+  // No fresh row and no backup: the last TCGplayer price the guard believes, dated and noted, not a blank (10-21, lib/cardPages.ts
+  // lastRecordedPrice). Not indexed on a number that old.
+  const last = prices.length === 0 ? lastRecordedPrice(facts.game, inputs, today) : null;
+  if (last) return { facts, prices: [last], headline: last, decision: { index: false, reason: "unverified" }, chart: null, trackingSince: null, changes: [], range: null };
   const decision = indexDecision(prices, indexFloorUsd(facts.game));
   if (!headline) return { facts, prices, headline, decision, chart: null, trackingSince: null, changes: [], range: null };
 

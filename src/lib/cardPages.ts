@@ -295,6 +295,36 @@ export function variantPrices(game: GameId, series: SeriesInput[], today: string
   return out.sort((a, b) => variantRank(a.variant) - variantRank(b.variant) || a.variant.localeCompare(b.variant));
 }
 
+/** How old a last TCGplayer reading may be and still stand in for a blank page (lastRecordedPrice). */
+export const LAST_RECORDED_MAX_DAYS = 180;
+/**
+ * Games whose stopped lines mean "no sale lately" (measured 10-21). Not Yu-Gi-Oh!: its job dropped 247 junk TCGplayer lines on
+ * 10-13 on purpose (Kuriboh - Multiply! GMR 1st "$16,500", CardTrader $7.72). Not Magic until its own 10-13 stops (the
+ * listing-cap day) are understood; its pages fall back to Cardmarket's euro figure first anyway.
+ */
+export const LAST_RECORDED_GAMES: readonly GameId[] = ["pokemon"];
+
+/**
+ * A page's last resort before "No current market price" (10-21): TCGplayer has had no sale in its window, so the series
+ * stopped and aged past FRESH_DAYS (34 Pokémon pages blank, 23 of them $1,000+: Shining Tyranitar 1st, Pikachu Star,
+ * 1st Edition Blastoise, the Skyridge H holos). The last market price the guard believes, usual printing first, with its
+ * own day (the page says "As of" it) and the "hasn't updated" note. Four figures on too little history stay out, as in
+ * variantPrices. null = nothing recorded in LAST_RECORDED_MAX_DAYS. Pure.
+ */
+export function lastRecordedPrice(game: GameId, series: SeriesInput[], today: string): VariantPrice | null {
+  if (!LAST_RECORDED_GAMES.includes(game)) return null;
+  const out: VariantPrice[] = [];
+  for (const s of series) {
+    const last = lastPoint(s.startDay, s.prices);
+    if (s.flag || !last) continue;
+    const age = dayIndex(last.day, today);
+    const days = s.prices.filter((p) => p != null && p > 0).length;
+    if (age > LAST_RECORDED_MAX_DAYS || isUnverified({ price: last.price, days })) continue;
+    out.push({ variant: s.variant, label: variantLabel(game, s.variant), price: last.price, day: last.day, days, flag: null, stale: { days: Math.max(age, s.stale?.days ?? 0) } });
+  }
+  return out.sort((a, b) => variantRank(a.variant) - variantRank(b.variant) || a.variant.localeCompare(b.variant))[0] ?? null;
+}
+
 /** The price a page may print as THE price: the first printing (in display order) the guard believes. null = nothing printable. */
 export function headlinePrice(prices: VariantPrice[]): VariantPrice | null {
   // A doubted printing ranked above this one and worth about as much or more (Skyridge Charizard: Holofoil flagged, Reverse
