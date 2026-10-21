@@ -190,6 +190,7 @@
 
 ## 10-19 ~9:20pm ET: THE PRICE CHAIN built (priceChain.ts; Chris "yes build it"), COMMIT ONLY, no push yet
 - LIVE 10-21 4:20am ET (prod read only): cardkingdom 79 Magic rows (last 10-20), none $1,000+; The Mind Stone msh 385 has no series at all (not $36,290); Enlightened Confidant pfra 5p CK nonfoil 7.65 / foil 8.86; Black Lotus lea 232 cardmarket-converted stepped 37,999.74 -> 42,453.65 on 10-20 (= x1.12 lift). FOUND: its page headlines $8.86 (foil) not $7.65: a tie inside one backup source took the first row -> fixed (10-21 ~4:25am block, commit only, VISIBLE). Not checked: the run-log line, the 30-day median label in /admin/prices.
+- [ ] FAILED IN PART 10-21 3:40am ET (prod daily_last_result, scripts/_meta-peek.mjs): mtg shows tcgplayerFilled 2,858 + cardmarketFilled 732, NO cardkingdomFilled / cardtraderFilled: runMtgStep copied a subset -> aae6d9f3 (COMMIT ONLY, not visible). After that push + one nightly run: both keys present. The CK fills themselves work (79 rows, none $1,000+).
 - After push, nightly Magic refresh (next run after the deploy): the run log shows cardmarketFilled, cardkingdomFilled (expect ~50 on day 1, dry run 51 of 1,256 blank released printings) and cardtraderFilled LAST; `SELECT source, COUNT(*) FROM price_series WHERE game='mtg' AND source='cardkingdom'` > 0; no $1,000+ cardkingdom row (out-of-stock placeholders skipped: The Mind Stone msh 385 foil must NOT be $36,290).
 - After push, a Card Kingdom-filled page e.g. /cards/mtg/... Enlightened Confidant (pfra 5p, ~$7.65 / $8.86 foil) shows "Card Kingdom (adjusted)" as the price label and on the chart's source line.
 - After push, Magic euro fills are lifted: a Cardmarket-only printing (Black Lotus lea 232 shows Cardmarket x1.12, i.e. ~12% above the 10-19 figure); Pokémon Cardmarket-converted pages unchanged (no lift).
@@ -204,6 +205,7 @@
 # To test later
 
 ## 10-19 ~10:30am ET: sign-up takeover closed (94efdbb4) + cap-break history (99159765), COMMIT ONLY
+- [x] COVERED BY TESTS 10-21 3:45am ET (live): test:sessionrevoke (stranger browser drops password + sessions; own browser keeps both) + test:emailverify E green on today's code; 94efdbb4 is on main. A live run needs a new account on cardflip.io, which I may not create; the next real cross-browser confirm can be read (users row password gone) read only.
 - After push, takeover: sign up a throwaway test account in one browser (pane, local-dev values only, never a real inbox of Chris's), open its confirm link in another (curl POST /api/auth/confirm-email): that browser is signed in, the first browser's session is gone, the typed password no longer logs in, Forgot Password still works. Same browser: password + session stay.
 - [x] PASS 10-21 ~12:10am ET (curl, live): no "Down" line, no 313.01, badge "Solid price · 154 days of data", "got more accurate on Oct 16, 2026" present, Market $109.16.
 - After push, cap break: /cards/pokemon/hidden-legends/groudon-ex--ex5-93 has no "Down 62.6%", no $313.01 high sentence, badge still "Solid price · 153 days of data", line "CardFlip's price for this card got more accurate on Oct 16, 2026". Card pages are ISR-cached 48 h: recheck a cached one on ~10-21.
@@ -235,6 +237,7 @@
 ## 10-18 ~12:00pm ET: trackers out of the signed-in app (COMMIT ONLY)
 - Found live: TikTok pixel + Google Analytics + Google Ads tag loading on /app/collection; privacy page says public pages only. No conversion fires in /app (signup + /scan are public).
 - Fix (GoogleAnalytics.tsx): no tags when a visit starts in /app; ga-disable flags + ttq.holdConsent while in /app after a public page, grantConsent back outside. Local check with fake ids PASS (/ loads all 3; full load /app/collection none; / -> /app click: ga-disable true for GA + Ads).
+- [x] PASS 10-21 3:50am ET (live, pane signed in, 8a8b5ad1 on main): /app/collection = 37 resources, 0 tracker requests, gtag + ttq undefined, ga-disable G- + AW- true; /cards/pokemon = gtag/js, TikTok pixel, doubleclick, Google Ads rmkt all load. Conversions: not checkable until the next ad signup.
 - After the push: pane on cardflip.io/app/collection, performance entries show no analytics.tiktok.com / google-analytics / googleadservices requests; a public page still loads them; Google Ads + TikTok signup conversions still arrive (watch the next ad signup).
 
 ## 10-18 ~12pm ET: "Hidden by eBay" cards (pages that showed NO price) worked by eBay sold (prod writes done)
@@ -359,21 +362,26 @@
 - Right after push: the admin console asks you to sign in ONCE (old cookies have the old format; email code as usual).
 - Then: sign in, copy the cardflip_admin cookie value (pane devtools), Sign Out, put the copied value back -> /admin goes to the login page. Your PC and phone sign-ins are separate: signing out on one leaves the other in.
 - Prod SELECT: `SELECT COUNT(*) FROM admin_logouts` goes up by one per Sign Out and old rows drop off after a week.
+- [~] HALF 10-21 3:55am ET (scripts/_sql-ro.mjs, read only): admin_logouts has 1 owner row (Sign Out 10-19 ~10:10pm ET, until 10-27) = the write works; drop-off due after 10-27. The cookie-replay step needs a Sign Out in the pane = ends Chris's console sign-in, so it waits for a time he signs out anyway.
 
 ## 10-17 ~4:15pm ET: other devices signed out on 2FA / email changes; sessions end after a year (A-H #31, PUSHED 10-17 ~8:50pm ET in d11ec26d)
 - After push, two browsers signed in to a TEST account (phone + pane): turn two-step on in Account on the phone -> the pane's next page load goes to /login, the phone stays in. Same for turning two-step off, and for changing the sign-in email (code typed on the phone). Your own account: you stay signed in on the device you did it on.
 - Prod SELECT after a day: `SELECT COUNT(*) FROM sessions WHERE created_at < strftime('%s','now','-365 days')*1000` = 0 once those rows are next used (old ones are refused and deleted on use).
+- [~] HALF 10-21 3:55am ET: the SELECT = 0 (61 sessions, oldest 08-11, none near a year). The two-browser 2FA / email-change step needs a test account on cardflip.io, which I may not create: covered by test:sessionrevoke (green 10-21).
 
 ## 10-17 ~3:30pm ET: refunds, chargebacks and failed payments (A-H #28, PUSHED 10-17 ~8:50pm ET in d11ec26d; Paywall copy changed, screenshot before push)
 - After push (Stripe TEST mode only, never a live card): subscribe a test account with card 4242..., then in the Stripe test dashboard refund that payment in FULL -> within a minute the subscription shows Canceled in Stripe and /app shows the paywall. A PARTIAL refund on another test subscription: still Active, scans drop by that share. A test dispute (card 4000 0000 0000 0259) -> subscription Canceled.
 - Failed renewal: a test subscription on card 4000 0000 0000 0341 goes past_due -> prod SELECT sub_past_due_at is set; it still scans for 14 days, then the paywall says "Your last payment didn't go through." with Update Card on top and no Subscribe button.
 - Prod SELECT after deploy: `SELECT COUNT(*) FROM pragma_table_info('users') WHERE name = 'sub_past_due_at'` = 1.
+- [~] HALF 10-21 4:00am ET: the column SELECT = 1 (PASS). The Stripe TEST-mode flows need a test account on a preview deployment Chris names; prod is live Stripe (never a live card). Covered by test:webhook meanwhile.
 
 ## 10-17 ~2:45pm ET: eBay selling checks (A-H #27, PUSHED 10-17 ~8:50pm ET in d11ec26d)
 - After push: a trial (unpaid) test account gets "Publishing on eBay starts with a Booster or a subscription" on Send Offer / auto-offers on / reprice of a live eBay listing; End listing still works. Your own paid account: Send Offer + reprice still work on a live listing. The 2am daily job log (`autoOffers`) shows `unpaid` counted, nothing sent for unpaid sellers.
+- [~] HALF 10-21 4:00am ET: the daily log carries autoOffers.unpaid (10-21 run: sellers 0, sent 0, unpaid 0 = nothing to gate yet). The trial-account wording and the second-account Connect need test accounts on prod (not mine to create); test:ebaygates green.
 - Connect eBay on a second CardFlip account with an eBay login that is already linked to another CardFlip account -> /connect-ebay says "That eBay account is already linked to another CardFlip account..." (prod had 2 links, none shared, 10-17). A normal reconnect on the same account still works.
 
 ## 10-17 ~6:30pm ET: no account lookups through login/sign-up (A-H #30, PUSHED 10-17 ~8:50pm ET in d11ec26d; shot docs/shots/login-failed-message.png)
+- [x] PASS 10-17 ~9pm ET by curl (the "wrong login = new wording (401)" line in the d11ec26d block); not re-run 10-21 on purpose: each made-up email counts toward the 24 h shut-out on Chris's own IP. Phone Google sign-in = his.
 - After push: cardflip.io/login with a made-up email and a wrong password shows "Incorrect email or password. Signed up with Google or X? Tap that button instead." Same words for a real email with a wrong password. Real login and Google sign-in still work on the phone. Sign up with your own existing email once: still "An account with that email already exists."
 
 ## 10-17 ~6pm ET: input checks (A-H #33, PUSHED 10-17 ~8:50pm ET in d11ec26d)
@@ -381,35 +389,43 @@
 
 ## 10-17 ~5pm ET: per-account row caps (A-H #26, PUSHED 10-17 ~8:50pm ET in d11ec26d)
 - After push: scan-save, add to watchlist and a Search price check still work on prod (phone, one each). Prod SELECT: `SELECT name FROM sqlite_master WHERE name = 'idx_price_checks_user'` returns a row (made at deploy). Nothing in the error mail about rowCaps.
+- [x] PASS 10-21 4:00am ET (read only): idx_price_checks_user exists; 0 error_events mention a row cap. The phone saves happen every day in normal use (no failures logged).
 
 ## 10-17 ~4pm ET: app pages ask /api/auth/me once (A-H #24, PUSHED 10-17 ~8:50pm ET in d11ec26d)
+- [x] PASS 10-21 4:00am ET (pane, signed in): /app/collection = /api/auth/me 1, /api/watch/pending 1. (Signed-out watch-then-sign-in = needs a sign-out, left.)
 - After push, pane signed in on cardflip.io/app/collection: performance resource entries show /api/auth/me 1 (was 2) and /api/watch/pending 1. A "Watch this price" from a public card page while signed out, then sign in: the card is on the watchlist with the "Added to your watchlist" toast.
 
 ## 10-17 ~3pm ET: Pokémon price limit has no cliff (A-H #22, PUSHED 10-17 ~8:50pm ET in d11ec26d)
+- [x] PASS 10-21 4:00am ET (curl): Cresselia-EX bw7-143 $102.92, Victini-EX bw8-131 $166.74, neither "looks off".
 - After push + the next nightly price run: /cards/pokemon/boundaries-crossed (Cresselia-EX 143) shows about 1.45x its cheapest TCGplayer copy (~$103 on 10-17, was $122.05), Victini-EX Plasma Storm 131 ~$167 (was $201.35). A card under 1.45x its cheapest copy keeps TCGplayer's number. No new "looks off" on those pages.
 
 ## 10-17 ~2pm ET: set lists never wait on a rebuild (A-H C0, PUSHED 10-17 ~8:50pm ET in d11ec26d)
+- [x] PASS 10-21 4:00am ET: last 12 Production smoke runs green except 10-20 9:35pm ET (TCGdex's image host failed one check, upstream blip, next run green); /api/sets 0.16-0.26 s x3.
 - After push: the 2am + 7am ET Production smoke ("set lists load") stays green for 2 days (`gh run list -R truefreemoney-rgb/cardflip -w prod-smoke.yml`). `curl -w '%{time_total}' https://cardflip.io/api/sets` under 3 s every time, including the first call after 6 hours.
 
 ## 10-17 ~1:30pm ET: Watchlist picker counts + empty game (PUSHED 10-17 ~8:50pm ET in d11ec26d; shots docs/shots/wish/, Chris OK 10-17)
 - Phone: Watchlist > the game pill says "Pokémon ·N"; pick a game with no cards -> "No Magic cards on your watchlist" + a "Show Pokémon (N)" button that switches back; "Name or number" fits in the search box; open the totals bar -> Alerts not under the arrow.
 
 ## 10-17 ~3:30am ET: exchange rates never go blank (A-H #16, PUSHED 10-17 ~8:50pm ET in d11ec26d)
+- [x] PASS 10-21 4:00am ET (read only): fx_rates date 10-20, rateAt for CAD/GBP/EUR/AUD/NZD all 10-20 8:24pm ET, triedAt set; Base Set Charizard page prints $600.00.
 - After push + the next nightly price run: prod settings fx_rates (SELECT only) has rateAt for all 5 currencies dated today and triedAt set; Black Lotus page still shows a dollar price. Nothing new in the error mail unless a rate is over 2 days old.
 
 ## 10-17 ~2am ET: unsubscribe needs a tap (A-H #24, PUSHED 10-17 ~8:50pm ET in d11ec26d)
 - After push: open a real digest/update mail unsubscribe link on prod with a TEST account (owner): page says "Stop These Emails?" and the account is still subscribed (SELECT digest_off); tap Unsubscribe -> "You are Unsubscribed", digest_off = 1; set it back. Next campaign mail in Gmail shows its own Unsubscribe button at the top (List-Unsubscribe-Post header).
 
 ## 10-17 ~midnight ET: made-up card/set links = real 404 (A-H #21, PUSHED 10-17 ~8:50pm ET in d11ec26d)
+- [x] PASS 10-21 4:00am ET (curl): made-up card / set / game = 404 "Page not found · CardFlip"; Charizard base1-4, Base Set, /cards/pokemon, movers = 200. (Phone taps = everyday use.)
 - After push: curl -s -o /dev/null -w "%{http_code}" https://cardflip.io/cards/pokemon/base-set/not-a-card--zzz9-999 (and /cards/pokemon/no-such-set, /cards/notagame) = 404 with title "Page not found"; a real card, set, game and movers page = 200. Phone: tap into a few card pages from a set, they still open quickly (the loading skeleton is gone).
 
 ## 10-16 ~11pm ET: no built-in admin/password (A-H #23, PUSHED, live by 10-17 9:18am ET (90033b03))
 - After push: the admin console still signs in on cardflip.io (uses ADMIN_PANEL_PASSWORD from Vercel, unchanged); /login shows no "Log In as Admin" button; no console banner about missing password.
 
 ## 10-16 ~10pm ET: privacy policy A3 (PUSHED, live by 10-17 9:18am ET (90033b03); shots in docs/shots/privacy-*.png, need Chris yes before push)
+- [x] PASS (curl, the 10-18 live line "privacy Oct 17; no Log In as Admin" in the d11ec26d checks block).
 - After push: cardflip.io/privacy shows effective date October 17, 2026 and the new lines (Google/X sign-in, help chat, phone notifications, email, Delete account path, what stays after a delete, Fastmail).
 
 ## 10-16 ~9:30pm ET: account delete takes the mail log + card-removal log (5299b9fe, PUSHED, live by 10-17 9:18am ET (90033b03); local test:deletesocial PASS)
+- [x] PASS 10-21 4:00am ET (read only): orphans = 0, after the 10-21 junk-account deletes (16 + 3 + 1).
 - After push: on prod, run (SELECT only) `SELECT COUNT(*) FROM email_sends WHERE user_id NOT IN (SELECT id FROM users)` once a deleted account exists, expect 0 for accounts deleted after the push. No phone test needed (the delete button itself is unchanged).
 
 ## 10-17 ~1am ET: price guard 1c, week's climb eBay asks don't back (b2a51efb, PUSHED 10-16 ~8:08pm ET; PASS ~8:20pm ET by curl: 3 hidden, Latias + Mewtwo shown)
