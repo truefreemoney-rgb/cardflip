@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { apiPath } from "@/lib/client/basePath";
+import ConfirmHost, { confirmAction } from "@/components/ConfirmDialog";
 
 /**
  * /admin/social — the sites strip: which sites the publisher can post to,
@@ -33,7 +34,8 @@ export default function SocialSites({ sites, day, slotNow, notice, morningLabel 
   /** No site = every connected site, next unposted slot. A site = that site only, its 7am post, re-posted if it already went out. */
   async function postNow(site?: SiteView) {
     const ask = site ? `Post today's ${morningLabel} to ${site.label} only, now? (Re-posts if it already went out.)` : `Post the next slot's picture to every connected site now?`;
-    if (!confirm(ask)) return;
+    // The in-app dialog: native confirm() answers false silently in an installed app (review 10-19 admin #7).
+    if (!(await confirmAction({ message: ask, confirmLabel: "Post now" }))) return;
     setBusy(true);
     setNote(null);
     try {
@@ -60,6 +62,7 @@ export default function SocialSites({ sites, day, slotNow, notice, morningLabel 
 
   return (
     <div className="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border border-edge bg-surface-1 px-4 py-3 text-sm">
+      <ConfirmHost />
       {sites.map((s) => (
         <span key={s.site} className="flex items-center gap-1.5">
           <span className={`inline-block h-2 w-2 rounded-full ${s.connected ? "bg-emerald-400" : "bg-zinc-600"}`} aria-hidden />

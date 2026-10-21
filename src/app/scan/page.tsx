@@ -65,7 +65,7 @@ export default async function ScanLandingPage({ searchParams }: { searchParams: 
         <Logo />
         {/* 10-06 (Chris): a signed-in visitor was shown "Log In", and /login bounced him straight to /app. */}
         <Link href={signedIn ? "/app" : "/login"} className="px-2 py-2 text-sm text-zinc-400 transition hover:text-white">
-          {signedIn ? "Open App" : "Log In"}
+          {signedIn ? "Open CardFlip" : "Log In"}
         </Link>
       </header>
       {/* 10-06: 155 of 157 TikTok visitors left without one tap; the first screen is now the question, the promise,

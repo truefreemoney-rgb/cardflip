@@ -47,7 +47,7 @@ const OUTCOMES: Record<string, { tone: "ok" | "warn"; text: string }> = {
   },
   taken: {
     tone: "warn",
-    text: "That eBay account is already linked to another CardFlip account. Sign in to that one and disconnect eBay there first.",
+    text: "That eBay account is already linked to another CardFlip account. Log in to that one and disconnect eBay there first.",
   },
   unavailable: {
     tone: "warn",

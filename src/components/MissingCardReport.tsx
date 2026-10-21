@@ -56,7 +56,7 @@ export default function MissingCardReport({ game, typed = "", read = null }: Pro
       const data = await res.json().catch(() => ({}));
       setError(
         res.status === 401
-          ? "Sign in to send a report."
+          ? "Log in to send a report."
           : typeof data?.error === "string" && data.error
             ? data.error
             : "Couldn't send that. Try again in a minute.",

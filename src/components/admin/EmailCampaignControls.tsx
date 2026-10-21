@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPath } from "@/lib/client/basePath";
+import ConfirmHost, { confirmAction } from "@/components/ConfirmDialog";
 
 /** The weekly mails (/admin/emails): the on/off switch, a per-mail Send Now, and per-version test sends to the owner. */
 
@@ -70,7 +71,8 @@ export function SendNowButton({ id, label, on }: { id: string; label: string; on
 
   if (!on) return null;
   const send = async () => {
-    if (!window.confirm(`Send "${label}" to everyone due now?`)) return;
+    // The in-app dialog: native confirm() answers false silently in an installed app (review 10-19 admin #6).
+    if (!(await confirmAction({ message: `Send "${label}" to everyone due now?`, confirmLabel: "Send Now" }))) return;
     setPending(true);
     setNote(null);
     try {
@@ -85,6 +87,7 @@ export function SendNowButton({ id, label, on }: { id: string; label: string; on
   };
   return (
     <span className="flex items-center gap-2">
+      <ConfirmHost />
       {note && <span className="text-xs text-zinc-300">{note}</span>}
       <button onClick={send} disabled={pending} className="rounded-full border border-amber-400/40 px-3 py-1 text-sm text-amber-200 hover:text-white disabled:opacity-50">
         Send Now
