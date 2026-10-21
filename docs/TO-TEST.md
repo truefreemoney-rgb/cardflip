@@ -1,6 +1,6 @@
 # To test later
 
-## 10-21 ~12:50am ET: blank Pokémon card pages print the last recorded price (dated, noted), COMMIT ONLY, VISIBLE (shots sent, needs Chris's yes before push)
+## 10-21 ~12:50am ET: blank Pokémon card pages print the last recorded price (dated, noted), COMMIT ONLY, VISIBLE, Chris YES 10-21 ~1am ET (ships with the next push)
 - Tested: test:cardpages 316 pass (+8: dated with the stale weeks, flagged out, >180 days out, one-day four figures out, usual printing first, Pokémon only, loader wiring); tsc + eslint clean. Local render at 375px: Pikachu Star $1,899.99 "As of Oct 6, 2026 · Old price · check eBay sold · Market hasn't updated this in 2 weeks"; 1st Ed Blastoise $1,300.00 as of Oct 8 (local db). Prod measure: 31 Pokémon pages priced again (25 at $100+), Yu-Gi-Oh!/Magic 0.
 - After push: curl /cards/pokemon/holon-phantoms/pikachu-star--ex13-104, /cards/pokemon/base-set-1st-edition/blastoise--base1-2-1st, /cards/pokemon/neo-destiny-1st-edition/shining-tyranitar--neo4-113-1st (ISR: may need the page's revalidate): price + "As of" an October/September day + "hasn't updated"; Rayquaza star ex8-107 stays "No current market price" (single point, by design).
 
