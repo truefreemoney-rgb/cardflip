@@ -1,5 +1,10 @@
 # To test later
 
+## 10-20 ~10:05pm ET: TASKS B00 (d) the camera holds the price + big-pull moment while the picture tiebreak is out, COMMIT ONLY d3a7c4fb, VISIBLE, shots docs/shots/printing-check-1-during.jpg + printing-check-2-after.jpg WAITING for Chris's yes
+- Tested locally (pane, phone width, faked "Charizard, no number" read = 4-way tie, faked tiebreak 8-10 s): keep path PRICING... 0.5-9 s, then $144 once; swap path PRICING... until the answer, then Pokémon GO #010 counted up once to $3.84; tally "1 card" and "Verify 1 Scan" with no figure while pending, $3.84 after; the swap's PATCH stored scan_market 3.84 (also proves bec236b7 end to end). tsc + eslint clean.
+- NOT seen in the pane (camera blocked = no guide): the stamp stays "Found!" while pending and a big/grail card's "Nice pull!"/"Big one!" plays once when the check settles.
+- After push, phone: scan a card with no number showing (thumb over it) that has several printings -> PRICING... for a few seconds, then ONE price, no big figure first; a pricey card still gets "Nice pull!" after the check.
+
 ## 10-20 ~9:30pm ET: TASKS B00 (c) a card swap carries the new card's shown market into scan_market (pack value), COMMIT ONLY bec236b7, not visible (pack totals only)
 - Tested: test:cards +7 checks (create stores it, price-only patch keeps it, swap with market stores it, swap without one clears it + scan_price, printing change carries it, 0 clears, wrong user blocked); test:packs, test:pricing green; tsc + eslint clean. Client sends `scanMarket: headlinePrice(item) || null` from swapCard, the editor card pick, the late-card catch-up and the printing picker; NOT pane-tested (field only, typed).
 - After push, prod read only: a pack pull whose card is swapped ("Not this card?" or the picture tiebreak) has cards.scan_market = the new card's market (not the first read's); the pack's total on /packs drops/rises with it.
