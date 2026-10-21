@@ -4,6 +4,13 @@ Chris (10-14): every support ticket and every social comment is a learning
 experience while the site is new and not fully tested. One entry each: what
 they said, what it taught, what changed, what is still open. Newest first.
 
+## 10-21 12am ET · reader report "Price looks wrong?": Base Set Venusaur holo $136.30 "too high" (10-19 2:10pm, anonymous)
+- What: base1-15 unlimited holo showed $136.30 (TCGplayer, was ~$168 until 10-18). eBay sold 10-17..10-20 (pane, Chris's login, search 1 of 20 for 10-21): 39 single raw English copies, median $75 (middle half $40-$96); only 3 NM-labelled copies sold ($125-$218). The reader was right: 1.8x the sold median.
+- Cause: TCGplayer's market on vintage holos tracks its near-mint sales while most raw copies sold are worn; the listing cap never fired (it starts at 1.45x the cheapest listing, and cheap copies on TCGplayer sat close to the market). The eBay asks referee had it at "check" (asks median $99.99) but a check only queues it for a hand look.
+- Changed: price check $75 (n 39) written to prod (scripts/seed-price-checks.mjs --only base1-15); live page shows "$75.00 ... Checked against recent eBay sales (39 sold)" at once.
+- Taught: the reader button works and pointed at a real 1.8x error; "check"-verdict vintage holos are where the next errors sit (C2 queue).
+- Still open: nothing for this card.
+
 ## 10-20 ~11:10pm ET · admin Users: "somebody is doing something weird" / "looks like some sort of obvious bot" (Chris, screenshots of "probe" accounts)
 - What: one IP, 35.183.7.202 (Amazon AWS, Canada), 11:05-11:14pm ET: sign-in tries as admin@/info@/support@cardflip.com and support@cardflip.io, 7 sign-ups (support@, admin@, hello@cardflip.io, example.invalid/.org, vprobe@maxxspace.com), 4 code guesses, then account edit, password, 2-step setup, delete, billing, Google/X finish, Change Email. Fresh device id each time, no landing page or referrer, no earlier visits: an automated account-surface scanner, not one of our routines or sessions.
 - Got: nothing. All 7 stayed unconfirmed, 0 scans (the repeat-signup guard marked the later ones' trial spent), 0 cards; owner rights are tied to Chris's Gmail only; rate limits stopped the code guessing.

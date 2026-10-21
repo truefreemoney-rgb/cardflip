@@ -89,6 +89,8 @@ const CHECKS = [
   { game: "pokemon", cardId: "ex9-96", variant: "normal", usd: 530, n: 20, day: "2026-10-21", note: "Milotic ex 96/106 (holo only): 20 non-damaged raw sold 08-25..10-18, median ~530; TCGplayer normal line from 10-11 at 200 (page headline)" },
   { game: "pokemon", cardId: "np-17", variant: "holofoil", usd: 25, n: 8, day: "2026-10-21", note: "Torchic 017 Nintendo Black Star Promo holo: 8 LP-NM raw sold 08-18..10-04 at 11-40 (median 25; swirls 30-37, MP/HP left out); TCGplayer holofoil 42.85" },
   { game: "pokemon", cardId: "np-17", variant: "normal", usd: 25, n: 8, day: "2026-10-21", note: "Torchic 017 promo: 8 LP-NM raw sold 08-18..10-04, median 25; TCGplayer normal line from 10-06 at 27.94 (stands)" },
+  // 10-21 12am ET: open "Price looks wrong?" report (10-19 2:10pm, "too high").
+  { game: "pokemon", cardId: "base1-15", variant: "holofoil", usd: 75, n: 39, day: "2026-10-21", note: "Venusaur Base Set 15/102 unlimited holo: 39 single raw English sold 10-17..10-20 at 10-265 (median 75, middle half 40-96; MP/HP/DMG/played, lots, pick-your-card, TAG, Spanish, 1st/shadowless, reprints left out); NM-labelled 124.95/210/217.55; TCGplayer 136.30 (user report: too high)" },
 ];
 // --only id,id: write just these checks (the others are already on prod).
 const onlyArg = process.argv.indexOf("--only");
