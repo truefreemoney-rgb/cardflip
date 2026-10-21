@@ -61,10 +61,20 @@ export function emailDomainTypo(email: string): string | null {
  */
 export const OWN_DOMAINS = new Set(["cardflip.io"]);
 
-/** True for a throwaway inbox domain or our own domain, including their subdomains. */
+/**
+ * Domains that can never get mail (RFC 2606 / 6761). Refused on the live site only (10-21: the second probe wave
+ * signed up as probe.*@example.org from Tor); tests and e2e sign up with example.com.
+ */
+const RESERVED_DOMAINS = new Set(["example.com", "example.net", "example.org"]);
+const RESERVED_TLDS = new Set(["example", "invalid", "test", "localhost", "local"]);
+const onLiveSite = () => process.env.VERCEL_ENV === "production";
+
+/** True for a throwaway inbox domain or our own domain, including their subdomains; on the live site, a reserved one. */
 export function isDisposableEmail(email: string): boolean {
-  const domain = email.trim().toLowerCase().split("@").pop() ?? "";
+  // A trailing dot names the same domain ("admin@cardflip.io." got past this, 10-21).
+  const domain = (email.trim().toLowerCase().split("@").pop() ?? "").replace(/\.+$/, "");
   const parts = domain.split(".");
+  if (onLiveSite() && (RESERVED_TLDS.has(parts.at(-1) ?? "") || RESERVED_DOMAINS.has(parts.slice(-2).join(".")))) return true;
   for (let i = 0; i < parts.length - 1; i++) {
     const d = parts.slice(i).join(".");
     if (DISPOSABLE_DOMAINS.has(d) || OWN_DOMAINS.has(d)) return true;

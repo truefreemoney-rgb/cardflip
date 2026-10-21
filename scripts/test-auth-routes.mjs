@@ -83,6 +83,25 @@ check("signup: mailinator refused", (await signup.POST(post({ name: "P", email: 
 check("signup: throwaway subdomain refused", (await signup.POST(post({ name: "P", email: "p@x.yopmail.com", password: "12345678" }))).status, 400);
 check("signup: our own domain refused", (await signup.POST(post({ name: "P", email: "support@cardflip.io", password: "12345678" }))).status, 400);
 check("signup: our own subdomain refused", (await signup.POST(post({ name: "P", email: "a@mail.CardFlip.io", password: "12345678" }))).status, 400);
+// 10-21 second probe wave: trailing dots got past the own-domain check; example.* addresses on the live site.
+check("signup: own domain with a trailing dot refused", (await signup.POST(post({ name: "P", email: "admin@cardflip.io.", password: "12345678" }))).status, 400);
+check("signup: own domain with two trailing dots refused", (await signup.POST(post({ name: "P", email: "admin@cardflip.io..", password: "12345678" }))).status, 400);
+check("signup: empty domain part refused", (await signup.POST(post({ name: "P", email: "p@gmail..com", password: "12345678" }))).status, 400);
+{
+  const { isDisposableEmail } = await import("../src/lib/server/signupGuard.ts");
+  const { isValidEmail } = await import("../src/lib/emailAddress.ts");
+  const was = process.env.VERCEL_ENV;
+  check("example.org allowed off the live site (tests use it)", isDisposableEmail("probe.1@example.org"), false);
+  process.env.VERCEL_ENV = "production";
+  check("live site: example.com/.org/.net, .test/.invalid refused; gmail and a real .org kept",
+    ["probe.1@example.org", "zz@example.com", "a@mail.example.net", "x@foo.test", "y@bar.invalid", "me@gmail.com", "me@wikipedia.org"].map(isDisposableEmail),
+    [true, true, true, true, true, false, false]);
+  if (was === undefined) delete process.env.VERCEL_ENV;
+  else process.env.VERCEL_ENV = was;
+  check("isValidEmail: trailing dot / double dot / leading dot domains are not addresses",
+    ["a@cardflip.io.", "a@cardflip.io..", "a@x..com", "a@.x.com", "a@x.com", "first.last+tag@sub.example.co.uk"].map(isValidEmail),
+    [false, false, false, false, true, true]);
+}
 check("signup: gmail allowed", (await signup.POST(post({ name: "G", email: "someone@gmail.com", password: "12345678" }))).status, 201);
 const firstOnIp = await signup.POST(post({ name: "One", email: "one@example.com", password: "12345678" }, "203.0.113.7"));
 check("signup: first on an IP → 201", firstOnIp.status, 201);
