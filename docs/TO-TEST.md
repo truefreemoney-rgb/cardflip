@@ -1,5 +1,12 @@
 # To test later
 
+## 10-21 ~3:40am ET: an eBay sold check retires only after TWO days back inside the band (checkedPrices.noteRaw), COMMIT ONLY, not visible; + Base Set Charizard check back on prod
+- Why: base1-4's $600 check retired 10-19 on one $724.99 read; TCGplayer $954.65 next day -> 10-14 hand hide -> page blank "looks off" (LESSONS 10-21 ~3:30am).
+- Done on prod 3:35am ET (scripts/_put-check.mjs, --dry first): price_checked base1-4 holofoil $600, n 29, day 10-21 (pane eBay sold re-check, 1 of today's budget), off_day NULL; series tail 954.65 x2 -> 600.
+- Tested: test:checked +3 (one in-band day stays on; second in-band day retires; in band then out = stays on and fixes the jump), test:postcheck, pricing, pricehistory, sitetrust, social green; tsc + eslint clean.
+- After Chris's /admin sign-in: POST /api/admin/post-check for base1-4 (same $600) = revalidates the card page now; else it refreshes within 2 days. Then curl /cards/pokemon/base-set/charizard--base1-4 = $600.00 + "Checked against recent eBay sales"; /api/search-card?id=base1-4 shows 600 with ebayChecked (activeChecks memo 10 min).
+- After push: a check whose TCGplayer comes back in band for one day keeps tcg_usd noted and off_day NULL; off_day set only on the second in-band day.
+
 ## 10-21 ~2:45am ET: set lists follow the card page's price chain (stored backup -> Magic euro figure -> last recorded), COMMIT ONLY, VISIBLE, shots docs/shots/setlist-chain-before-live-phone.jpg + setlist-chain-after-local-phone.jpg SENT, waiting on Chris's yes
 - Why (found by the #22 live check): loadSetCards dropped a card with no listable TCGplayer row BEFORE the backup step (Black Lotus Unlimited, 817 Magic cards priced only by a stored backup, ~140 Pokemon/YGO/Lorcana upper bound), and stopped at stored backups for flagged ones (128 Magic cards "looks off" on the list, a dollar figure from Cardmarket euros on their page: Will-o'-the-Wisp 2ED $66.41, Gandalf the White LTR 299, Rhystic Study WOT, Mana Crypt SPG). Measure: scripts/_mtg-list-eur-measure.mjs (read only). Also its order: a stopped card with a fresh backup listed the old price; its page shows the backup.
 - What: same order as the page: stored backup, then (Magic) Cardmarket euro x ECB rate x 1.12 (shared eurFigure), then the last recorded price (stale), else off the list. A flagged card with none keeps the sentence and sorts last. Not changed: the "thin data" ($1,000+ under 14 days) rule.
@@ -1013,7 +1020,7 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 ## 10-19 s199 (unpushed; test on prod after the push)
 - [ ] a34a418f Scanner: scan a card with several printings, open the big card sheet, tap Change: one Printing pill is highlighted; tap Done: still inside the scanner (no category / editor jump). Scan an orange Vivillon 17/146: no yellow note under it in the queue, still under "Check these first". (Passed on the tunnel 10-19 ~7:30pm.)
 - [ ] 9bb74143 Price pick TCGplayer first: on a card with live eBay comps, the row's market price and "List it at" come from TCGplayer, not the eBay sold/asking average; a card whose TCGplayer row is flagged still quotes eBay sold.
-- [ ] 10-20 morning: cardflip.io/cards/pokemon/base-set/charizard--base1-4 shows ~$600 + "Checked against recent eBay sales" and the "Price looks wrong?" link under the price (2-day cache).
+- [ ] FAILED 10-21 3:25am ET (page blank "looks off": the check retired on one in-band read) -> fixed on prod + code, see the 10-21 ~3:40am block. 10-20 morning: cardflip.io/cards/pokemon/base-set/charizard--base1-4 shows ~$600 + "Checked against recent eBay sales" and the "Price looks wrong?" link under the price (2-day cache).
 - [ ] 0728f605 B1 scan log: after the push, scan a Pokemon card (any) on prod, then run 
 pm run replay:scans (or SELECT read FROM scan_usage ORDER BY at DESC LIMIT 1): the stored read has pattern + all keys (null when no symbol). Then Chris's Eevee 074 Master Ball photo under a lamp: pattern should say ball / master.
 

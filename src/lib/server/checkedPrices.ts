@@ -12,8 +12,9 @@ import type { CardPrice, GameId } from "@/lib/types";
  * screen that reads our history (card pages, charts, movers, posts, Inventory,
  * insights, alerts) agrees, and live rows on their way to a screen are fixed
  * in withPriceFlags. TCGplayer's latest raw number is kept on the row
- * (tcg_usd). The check retires itself once TCGplayer is back within the band,
- * or CHECKED_MAX_DAYS after it was made; the points it fixed stay fixed.
+ * (tcg_usd). The check retires itself once TCGplayer is back within the band
+ * on two different days running, or CHECKED_MAX_DAYS after it was made; the
+ * points it fixed stay fixed.
  */
 
 /** TCGplayer's number counts as wrong while it is more than this far from the checked price. */
@@ -127,12 +128,21 @@ export function checkFor(checks: Map<string, CheckedPrice>, game: GameId, cardId
 // Writing
 
 /**
- * Notes TCGplayer's latest raw number on the check, and retires it when that
- * number is back within the band or the check is too old. Best effort.
+ * Notes TCGplayer's latest raw number on the check, and retires it when the
+ * check is too old, or when that number is back within the band and the one
+ * noted on an earlier day was too (10-21: Base Set Charizard's $600 check
+ * retired on one $724.99 read, TCGplayer said $954.65 the next day and the page
+ * went blank behind a hand "hide"). Best effort.
  */
 async function noteRaw(c: CheckedPrice, raw: number, day: string): Promise<void> {
-  const retire = !checkBinds(c, day) || !isOffCheck(raw, c.usd);
   try {
+    let retire = !checkBinds(c, day);
+    if (!retire && !isOffCheck(raw, c.usd)) {
+      const prev = (await db
+        .prepare("SELECT tcg_usd, tcg_day FROM price_checked WHERE game = ? AND card_id = ? AND variant = ?")
+        .get(c.game, c.cardId, c.variant)) as { tcg_usd: number | null; tcg_day: string | null } | undefined;
+      retire = prev?.tcg_usd != null && !!prev.tcg_day && prev.tcg_day < day && !isOffCheck(Number(prev.tcg_usd), c.usd);
+    }
     await db
       .prepare(`UPDATE price_checked SET tcg_usd = ?, tcg_day = ?${retire ? ", off_day = ?" : ""} WHERE game = ? AND card_id = ? AND variant = ?`)
       .run(...(retire ? [raw, day, day] : [raw, day]), c.game, c.cardId, c.variant);

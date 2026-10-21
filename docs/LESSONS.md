@@ -4,6 +4,13 @@ Chris (10-14): every support ticket and every social comment is a learning
 experience while the site is new and not fully tested. One entry each: what
 they said, what it taught, what changed, what is still open. Newest first.
 
+## 10-21 ~3:30am ET · Base Set Charizard page blank again ("This price looks off") (found by me, TO-TEST A3 s199 line)
+- What: /cards/pokemon/base-set/charizard--base1-4 printed no price. TCGplayer $954.65 (10-19/10-20) hit the 10-14 hand "hide" (made at $968.91); no fresh backup (Cardmarket line stopped 08-25), so nothing stood in.
+- Cause: the 10-18 eBay sold check ($600, 8 sold) RETIRED on 10-19 after ONE TCGplayer read inside the 25% band ($724.99); the next day TCGplayer jumped back out and the check was gone.
+- Changed: (1) prod: check back on, re-checked in the pane 10-21 (29 raw sold 10-20, median 471.95, clean LP+..NM 471.95-659; $600 within 25% = stands), series tail 954.65 x2 -> 600 (scripts/_put-check.mjs, one card, --dry first). (2) code, COMMIT ONLY: a check retires only when TCGplayer is back in the band on two different days running (checkedPrices.noteRaw; test:checked +3 incl. this exact shape).
+- Still open: the live page is cached 2 days (revalidate 172800); the on-demand refresh is /api/admin/post-check, which needs Chris's /admin sign-in. Checked the other retired checks (read only, 3:40am): 2 of 66, both still in the band (Snorlax xy0-26 $42.57 vs $43; Thomas O'Malley lorcana $108.63 vs $134) = no other page flipped.
+- Taught: a price fix that can switch itself off on one reading is not a fix; the top-priority rule needs every safety net to fail closed (keep the checked price), not open (blank).
+
 ## 10-21 ~1:45am ET · same scanner kept going on one Cloudflare IP, now at the admin console (found by me, firewall recheck + rate_limits read)
 - What: 104.28.227.106 (Cloudflare egress: WARP / iCloud Private Relay, shared with real people) 12:46-1:33am ET: sign-ins as admin@cardflip.io (+ trailing dot) and made-up example.com addresses, account edit/password/forgot/code, ~30 console logins (admin, root, owner, operator, support, ops, cardflip, zz-probe, zzwire_ctrl x9, zzthresh_1..9 = testing where the lockout starts), 5 trial scans of junk images (Claude: "Could not process image"), a mailinator sign-up at 1:32. Not one of our sessions (all 24 peers offline); smoke-probe-*@example.com from Azure = our Production smoke.
 - Got: nothing. 0 new accounts, 0 sessions, no console code row; 24 h shut-out at 1:32am on its 5th made-up sign-in email (alert mailed).
