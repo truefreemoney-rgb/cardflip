@@ -152,7 +152,8 @@ export default function SignupPage() {
     setError(null);
 
     if (!name.trim()) return setError("Enter a username.");
-    if (!/^\S+@\S+\.\S+$/.test(email)) return setError("Enter a valid email address.");
+    // Trimmed first: autofill can leave a trailing space, and the request sends the trimmed address anyway.
+    if (!isValidEmail(email.trim())) return setError("Enter a valid email address.");
     const pwProblem = passwordProblem(password);
     if (pwProblem) return setError(pwProblem);
 

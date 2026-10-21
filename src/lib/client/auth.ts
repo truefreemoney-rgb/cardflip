@@ -90,7 +90,10 @@ export function safeNextPath(next: string | null, origin: string): string | null
   if (!next || !next.startsWith("/") || /[\\\s]/.test(next)) return null;
   try {
     const u = new URL(next, origin);
-    return u.origin === origin ? `${u.pathname}${u.search}${u.hash}` : null;
+    if (u.origin !== origin) return null;
+    // Back to a sign-in page (or an API answer) after signing in would loop or print JSON (review 10-19 marketing #19).
+    if (/^\/(login|signup|api)(\/|$)/.test(u.pathname)) return null;
+    return `${u.pathname}${u.search}${u.hash}`;
   } catch {
     return null;
   }

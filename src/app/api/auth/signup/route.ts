@@ -11,6 +11,7 @@ import { isMailConfigured, sendSignupWelcomeEmail } from "@/lib/server/mail";
 import {
   afterResponse,
   emailConfirmEnabled,
+  isUniqueViolation,
   limitCodeMail,
   limitWithMessage,
   liveVerification,
@@ -164,7 +165,15 @@ export async function POST(req: Request) {
   }
   // Home country = where the account is made (Chris 09-30 travel rule); the proxy
   // already refused signups from outside the open countries.
-  const created = await createUser(name, email, password, "user", { emailPending: confirm, homeCountry: countryFrom(req) });
+  let created: User;
+  try {
+    created = await createUser(name, email, password, "user", { emailPending: confirm, homeCountry: countryFrom(req) });
+  } catch (err) {
+    // Two sign-ups for one address at once (a double tap, two tabs): the second loses the race on the email
+    // index; it gets the same answer as the check above, not a bare 500 (review 10-19 marketing #3).
+    if (isUniqueViolation(err)) return NextResponse.json({ error: "An account with that email already exists." }, { status: 409 });
+    throw err;
+  }
   await countSignup(ipHash);
   // The first touch the browser kept (lib/attribution.ts); malformed = dropped, never an error.
   await recordSignup(created.id, ipHash, deviceId, repeat, countryFrom(req), Date.now(), parseTouch(body?.touch), inbox);

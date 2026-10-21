@@ -41,7 +41,8 @@ export default function ForgotPasswordPage() {
         body: JSON.stringify({ email }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.message ?? "Couldn't send a reset link.");
+      // The rate limiter answers with `error` ("Too many tries, wait N s"), the route itself with `message`.
+      if (!res.ok) throw new Error(data.message ?? data.error ?? "Couldn't send a reset link.");
       setSent(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't send a reset link.");

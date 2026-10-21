@@ -119,10 +119,11 @@ export default function MarketingNav() {
               <button
                 type="button"
                 onClick={() => {
-                  void logout().then(() => {
-                    setUser(null);
-                    window.location.reload();
-                  });
+                  // A failed call still reloads: the page then shows whether the session really ended (review 10-19 marketing #20).
+                  void logout()
+                    .then(() => setUser(null))
+                    .catch(() => undefined)
+                    .finally(() => window.location.reload());
                 }}
                 className={link}
               >

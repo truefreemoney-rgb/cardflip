@@ -200,6 +200,11 @@ Date.now = realNow;
   const ok = JSON.stringify(got) === JSON.stringify(["/app/collection?tab=sold#x", null, null, null, null, "/%5Cevil.com", null, null, null, null]);
   if (!ok) failures++;
   console.log(`  ${ok ? "PASS" : "FAIL"}  safeNextPath keeps in-app paths, refuses every way off the site${ok ? "" : ` (got ${JSON.stringify(got)})`}`);
+  // Review 10-19 marketing #19: ?next=/login looped back to the sign-in page; an API path printed JSON.
+  const loops = ["/login", "/login?next=/app", "/signup", "/api/auth/me", "/loginx", "/app/login"].map((n) => safeNextPath(n, O));
+  const okLoops = JSON.stringify(loops) === JSON.stringify([null, null, null, null, "/loginx", "/app/login"]);
+  if (!okLoops) failures++;
+  console.log(`  ${okLoops ? "PASS" : "FAIL"}  safeNextPath refuses the sign-in pages and APIs${okLoops ? "" : ` (got ${JSON.stringify(loops)})`}`);
 }
 console.log(failures === 0 ? "\nAll auth checks passed" : `\n${failures} auth check(s) failed`);
 // No process.exit(): it would skip the beforeExit hook that closes the libsql

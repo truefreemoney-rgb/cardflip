@@ -493,7 +493,7 @@ function sendWelcomeAfterConfirm(userId: string): Promise<void> {
   });
 }
 
-const isUniqueViolation = (err: unknown) => /UNIQUE|constraint/i.test(err instanceof Error ? err.message : String(err));
+export const isUniqueViolation = (err: unknown) => /UNIQUE|constraint/i.test(err instanceof Error ? err.message : String(err));
 
 export type ApplyOutcome =
   /** moved: an established account's sign-in email just changed (the caller signs out its other devices, #31). */
