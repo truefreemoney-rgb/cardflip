@@ -29,7 +29,8 @@ const MAX_AGE_MS = 7 * 86_400_000;
 async function addById(game: GameId, id: string): Promise<boolean> {
   const card = await fetchCardById(id, game).catch(() => null);
   if (!card) return false;
-  return (await addToWishlist(card, "en", pickPrice(card)?.market ?? null)) !== null;
+  const picked = pickPrice(card);
+  return (await addToWishlist(card, "en", picked?.market ?? null, picked?.variant)) !== null;
 }
 
 /** `compact`: the phone sticky bar's version (Chris 10-20: the pill was too big): shorter, hugging its text, beside the price. */

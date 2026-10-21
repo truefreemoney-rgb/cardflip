@@ -4,7 +4,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { catalogPicture } from "@/lib/server/cardPictures";
-import { latestUsdPrice, latestUsdPrices } from "@/lib/server/priceHistory";
+import { latestUsdPrices } from "@/lib/server/priceHistory";
 import { heldTrustOrOpen, marketPriceFlagged } from "@/lib/server/priceTrustSite";
 import type { GameId, PokemonCard, ScanLanguage } from "@/lib/types";
 
@@ -26,6 +26,8 @@ export interface WishlistItem {
   alertPrice: number | null;
   /** When the alert email went out — one-shot until the target changes. */
   alertedAt: number | null;
+  /** The printing `price` was saved on; null on rows saved before 10-21. */
+  variant: string | null;
 }
 
 interface WishlistRow {
@@ -43,6 +45,7 @@ interface WishlistRow {
   game: GameId | null;
   alert_price: number | null;
   alerted_at: number | null;
+  variant: string | null;
 }
 
 function fromRow(row: WishlistRow): WishlistItem {
@@ -61,6 +64,7 @@ function fromRow(row: WishlistRow): WishlistItem {
     game: row.game ?? null,
     alertPrice: row.alert_price ?? null,
     alertedAt: row.alerted_at ?? null,
+    variant: row.variant ?? null,
   };
 }
 
@@ -93,6 +97,8 @@ export async function addToWishlist(
   rawCard: PokemonCard,
   language: ScanLanguage,
   price: number | null,
+  /** The printing `price` belongs to (the client's pickPrice / Inventory quote variant). */
+  variant: string | null = null,
 ): Promise<WishlistItem> {
   const card = cleanCard(rawCard);
   // Our saved copy, whatever link the app sent (lib/server/cardPictures.ts ownPictureUrl).
@@ -103,14 +109,20 @@ export async function addToWishlist(
   // No price from the client (09-08: Inventory's detail opens on a stub with
   // no prices, and Watch while it loads saved null — the tile then showed
   // nothing): our own series knows today's market for the catalog id.
-  if (price == null && card.id) price = await latestUsdPrice(card.id);
+  if (price == null && card.id) {
+    // The series' own default printing, so the row says which one the number is.
+    const latest = (await latestUsdPrices([card.id])).get(card.id);
+    price = latest?.price ?? null;
+    variant = latest?.variant ?? null;
+  }
   // The price guard: a market the rule flags is not saved as the baseline (the since-saved delta would compare against junk).
   if (price != null && card.id && (await marketPriceFlagged(card, price))) price = null;
+  if (price == null) variant = null;
 
   await db.prepare(
     `INSERT INTO wishlist_items
-       (id, user_id, card_name, english_name, set_name, card_number, language, image_url, price, added_at, card_id, game)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       (id, user_id, card_name, english_name, set_name, card_number, language, image_url, price, added_at, card_id, game, variant)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(user_id, card_name, set_name, card_number) DO NOTHING`,
   ).run(
     id,
@@ -125,6 +137,7 @@ export async function addToWishlist(
     addedAt,
     card.id || null,
     card.game ?? "pokemon",
+    variant ? variant.slice(0, 40) : null,
   );
 
   // A row saved before card_id existed learns it when the same card is added again.
@@ -177,7 +190,8 @@ export async function listWishlist(userId: string): Promise<WishlistItem[]> {
       if (!hit || !(hit.price > 0)) continue;
       if (trust.flag({ catalog_card_id: item.cardId!, variant: null, game: item.game })) continue;
       item.price = hit.price;
-      await db.prepare("UPDATE wishlist_items SET price = ? WHERE id = ? AND user_id = ? AND price IS NULL").run(hit.price, item.id, userId);
+      item.variant = hit.variant;
+      await db.prepare("UPDATE wishlist_items SET price = ?, variant = ? WHERE id = ? AND user_id = ? AND price IS NULL").run(hit.price, hit.variant, item.id, userId);
     }
   }
   // Rows saved with no picture (10-02: a search answer from a cache row older

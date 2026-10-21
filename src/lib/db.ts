@@ -1160,6 +1160,9 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
   // users.home_country before a seller routes to a local site.
   ["ebay_tokens", ["account_type TEXT", "registration_marketplace TEXT"]],
   ["wishlist_items", ["card_id TEXT", "game TEXT", "alert_price REAL", "alerted_at INTEGER"]],
+  // The printing the saved price belongs to (10-21: a reverse holo saved at $1,574.99 read as the Normal's $6.70);
+  // NULL = saved before, priced by listing.ts watchPriceOf's nearest-printing rule.
+  ["wishlist_items", ["variant TEXT"]],
   // Catalog id + game so a history row can reopen its card.
   ["price_checks", ["card_id TEXT", "game TEXT", "image_url TEXT"]],
   // What vision read (name/number/code/kind/confidence, JSON) — the only

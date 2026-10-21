@@ -16,7 +16,7 @@ import { useBodyScrollLock } from "@/lib/client/useBodyScrollLock";
 import { gamePath } from "@/lib/cardPages";
 import { fetchCardById, fetchSets } from "@/lib/cards";
 import { displayCardNumber } from "@/lib/games";
-import { pickPrice, priceFlagOf } from "@/lib/listing";
+import { pickPrice, priceFlagOf, watchPriceOf } from "@/lib/listing";
 import { logPriceCheck } from "@/lib/client/priceChecksApi";
 import { addToWishlist, fetchWishlist, removeFromWishlist, type WishlistItem } from "@/lib/client/wishlistApi";
 import type { SetInfo } from "@/lib/grading";
@@ -102,7 +102,7 @@ export default function PriceCheckPage() {
     }
     // The price guard: a market the rule flags is not saved as the watchlist baseline.
     const picked = pickPrice(card);
-    const item = await addToWishlist(card, language, picked?.untrusted ? null : (picked?.market ?? null));
+    const item = await addToWishlist(card, language, picked?.untrusted ? null : (picked?.market ?? null), picked?.variant);
     if (item) {
       setWatch((w) => [item, ...(w ?? [])]);
       toast(`${card.name} added to your watchlist`);
@@ -337,8 +337,10 @@ function WatchRow({
         <div className="-mx-4 flex gap-2.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {head.map((item) => {
             const card = live[item.id];
-            const flagged = card ? priceFlagOf(card) != null : false;
-            const now = card && !flagged ? (pickPrice(card)?.market ?? null) : null;
+            // The printing the row was saved on, as the Watchlist reads it (listing.ts watchPriceOf, 10-21).
+            const usd = card ? watchPriceOf(card, item.variant, item.price) : null;
+            const flagged = usd?.untrusted != null;
+            const now = !flagged ? (usd?.market ?? null) : null;
             const move = now != null && item.price ? (now - item.price) / item.price : null;
             const stub: PokemonCard = {
               id: item.cardId ?? "",

@@ -388,6 +388,31 @@ export function pickPrice(card: PokemonCard): CardPrice | null {
   return pool[0];
 }
 
+/**
+ * The price a watchlist row is compared against: the printing it was saved on
+ * (Chris 10-21: Legendary Collection Pikachu, saved at the reverse holo's
+ * $1,574.99, read as the Normal's $6.70 "down 100%" once the default turned
+ * normal-first on 10-19). A row saved before the printing was kept (variant
+ * null) takes the printing whose market sits nearest its saved price, but
+ * only when the default one is over 3x away from it; else the default.
+ */
+export function watchPriceOf(card: PokemonCard, variant: string | null | undefined, saved: number | null | undefined): CardPrice | null {
+  const fallback = pickPrice(card);
+  const priced = card.prices.filter((p) => typeof p.market === "number" && p.market > 0 && canPriceListing(p));
+  const ofVariant = (v: string): CardPrice | null => {
+    const rows = priced.filter((p) => p.variant === v);
+    return rows.find((p) => p.source === "tcgplayer" && !p.untrusted) ?? rows.find((p) => !p.untrusted) ?? rows[0] ?? null;
+  };
+  if (variant) return ofVariant(variant) ?? fallback;
+  if (saved == null || !(saved > 0) || fallback?.market == null) return fallback;
+  const off = (p: CardPrice) => Math.abs(Math.log((p.market as number) / saved));
+  if (off(fallback) <= Math.log(3)) return fallback;
+  const near = priced
+    .filter((p) => p.variant !== EBAY_SOLD_VARIANT && p.variant !== EBAY_VARIANT && p.variant !== "average" && off(p) < Math.log(1.6))
+    .sort((a, b) => off(a) - off(b))[0];
+  return near ? ofVariant(near.variant) : fallback;
+}
+
 function roundPrice(value: number, strategy: PriceStrategy): number {
   if (value <= 0) return 0;
   // Quick-sale prices get a charm ending; they're meant to catch a browsing eye.

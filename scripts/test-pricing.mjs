@@ -22,6 +22,7 @@ import {
   quoteForItem,
   quotePrice,
   floorNote,
+  watchPriceOf,
 } from "../src/lib/listing.ts";
 import { costCoveredPrice } from "../src/lib/fees.ts";
 import {
@@ -121,6 +122,20 @@ console.log("A stored backup row quotes before a flagged TCGplayer row (10-20, B
   check("flagged TCGplayer + a backup: the backup", pickPrice(card([flagged, backup]))?.market, 17560.09);
   check("believed TCGplayer + a backup: TCGplayer", pickPrice(card([usd(818.65), backup]))?.market, 818.65);
   check("flagged TCGplayer alone: the flagged row (the screens print its note)", pickPrice(card([flagged]))?.untrusted?.hard, true);
+}
+
+console.log("\nA watchlist row reads the printing it was saved on (10-21, Legendary Collection Pikachu 86):");
+{
+  const lc86 = card([usd(6.7, "normal"), usd(1574.99, "reverseHolofoil")]);
+  check("the default quote is the Normal", pickPrice(lc86)?.market, 6.7);
+  check("saved on the reverse holo: the reverse holo", watchPriceOf(lc86, "reverseHolofoil", 1574.99)?.market, 1574.99);
+  check("saved on the Normal: the Normal, whatever the saved price", watchPriceOf(lc86, "normal", 1574.99)?.market, 6.7);
+  check("old row, no printing kept, saved at $1,574.99: the printing that matches it", watchPriceOf(lc86, null, 1574.99)?.variant, "reverseHolofoil");
+  check("old row saved near the default: the default", watchPriceOf(lc86, null, 5.1)?.market, 6.7);
+  check("old row 3x+ off but nothing near it: the default (a real move)", watchPriceOf(card([usd(40, "normal"), usd(300, "reverseHolofoil")]), null, 10)?.market, 40);
+  check("a kept printing the card no longer prices: the default", watchPriceOf(lc86, "holofoil", 100)?.market, 6.7);
+  const flaggedRev = { ...usd(1574.99, "reverseHolofoil"), untrusted: { hard: true, reason: "test" } };
+  check("a flagged kept printing stays flagged (the page prints its note)", watchPriceOf(card([usd(6.7, "normal"), flaggedRev]), "reverseHolofoil", 1574.99)?.untrusted?.hard, true);
 }
 
 console.log("\nA euro-only card yields no quote, rather than a wrong one:");

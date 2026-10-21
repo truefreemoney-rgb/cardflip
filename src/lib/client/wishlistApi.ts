@@ -21,6 +21,8 @@ export interface WishlistItem {
   alertPrice: number | null;
   /** When the alert email went out — quiet until the target changes. */
   alertedAt: number | null;
+  /** The printing `price` was saved on; null on rows saved before 10-21. */
+  variant: string | null;
 }
 
 /** Throws on a failed load (offline, 5xx) so the page can say so instead of "empty". */
@@ -35,12 +37,14 @@ export async function addToWishlist(
   card: PokemonCard,
   language: ScanLanguage,
   price: number | null,
+  /** The printing `price` belongs to, so the Watchlist compares like with like later. */
+  variant?: string | null,
 ): Promise<WishlistItem | null> {
   try {
     const res = await apiFetch("/api/wishlist", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ card, language, price }),
+      body: JSON.stringify({ card, language, price, variant: variant ?? null }),
     });
     if (!res.ok) return null;
     const data = await res.json();

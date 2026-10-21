@@ -678,7 +678,8 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
   async function handleWishlist() {
     if (!card) return;
     setWishlisting(true);
-    const result = await addToWishlist(card, item.language, quote?.base ?? null);
+    // The held printing's price, so the Watchlist later reads that printing too (a reverse holo stays a reverse holo).
+    const result = await addToWishlist(card, item.language, quote?.base ?? null, quote?.price.variant);
     setWishlisting(false);
     if (result) setWishlisted(true);
   }

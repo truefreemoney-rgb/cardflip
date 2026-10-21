@@ -242,6 +242,20 @@ await setWishlistAlert(w5.id, uid, 4);
 mails.length = 0;
 a = await sweepWishlistAlerts(NOW, { send, configured: on });
 check("alerts: Lorcana row fires off the catalog price", mails[0]?.hits, [["Elsa - Spirit of Winter", 3, 4]]);
+// 10-21: a row that kept its printing reads that printing's line (Legendary Collection Pikachu: Normal $6.70, reverse holo $1,574.99).
+await recordPoint("cat-lc86", "pokemon", "normal", "tcgplayer", "USD", 6.7);
+await recordPoint("cat-lc86", "pokemon", "reverseHolofoil", "tcgplayer", "USD", 1574.99);
+const w6 = await addToWishlist(uid, pcard("cat-lc86", "Pikachu"), "en", 1574.99, "reverseHolofoil");
+check("wishlist: the row keeps the printing its price came from", [w6.price, w6.variant], [1574.99, "reverseHolofoil"]);
+const w7 = await addToWishlist(uid, pcard("cat-holo", "Holo Again"), "en", null);
+check("wishlist: no price from the app = the series default, printing kept with it", [w7.price, w7.variant], [12, "normal"]);
+await setWishlistAlert(w6.id, uid, 1400);
+mails.length = 0;
+a = await sweepWishlistAlerts(NOW, { send, configured: on });
+check("alerts: a reverse holo target never fires off the Normal's $6.70", mails.flatMap((m) => m.hits).filter((h) => h[0] === "Pikachu"), []);
+await recordPoint("cat-lc86", "pokemon", "reverseHolofoil", "tcgplayer", "USD", 1300);
+a = await sweepWishlistAlerts(NOW, { send, configured: on });
+check("alerts: ...and fires when the reverse holo itself dips", mails.flatMap((m) => m.hits).filter((h) => h[0] === "Pikachu"), [["Pikachu", 1300, 1400]]);
 
 // --- reprice nudges --------------------------------------------------------------
 await recordPoint("cat-up", "pokemon", "normal", "tcgplayer", "USD", 20);

@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { isMailConfigured, sendWishlistAlertEmail, type WishlistAlertHit } from "@/lib/server/mail";
-import { latestUsdPrices } from "@/lib/server/priceHistory";
+import { latestUsdPrices, preferredVariants, usdSeries } from "@/lib/server/priceHistory";
 import { heldTrust } from "@/lib/server/priceTrustSite";
 import { sendPushToUser } from "@/lib/server/push";
 import { tcgCatalogPrices } from "@/lib/server/tcgCards";
@@ -37,6 +37,7 @@ interface AlertRow {
   game: string | null;
   alert_price: number;
   email: string;
+  variant: string | null;
 }
 
 export interface AlertSweepResult {
@@ -55,7 +56,7 @@ export async function sweepWishlistAlerts(
   const rows = (await db
     .prepare(
       `SELECT w.id, w.user_id, w.card_name, w.english_name, w.set_name, w.card_number,
-              w.card_id, w.game, w.alert_price, u.email
+              w.card_id, w.game, w.alert_price, u.email, w.variant
        FROM wishlist_items w JOIN users u ON u.id = w.user_id
        WHERE w.alert_price IS NOT NULL AND w.alerted_at IS NULL AND w.card_id IS NOT NULL
          AND u.email_pending = 0
@@ -69,12 +70,22 @@ export async function sweepWishlistAlerts(
   const prices = await latestUsdPrices(ids);
   // Lorcana / One Piece / Yu-Gi-Oh! have no price_series: their catalog price.
   const catalog = await tcgCatalogPrices(ids.filter((id) => !prices.has(id)));
-  const trust = await heldTrust(rows.map((r) => ({ catalog_card_id: r.card_id, variant: null, game: r.game })));
+  // A row that kept its printing (10-21) reads that printing's line: a reverse holo target never fires off the Normal's price.
+  const kept = rows.filter((r) => r.variant).map((r) => ({ catalog_card_id: r.card_id, variant: r.variant }));
+  const own = kept.length ? await usdSeries([...new Set(kept.map((k) => k.catalog_card_id))], preferredVariants(kept)) : new Map();
+  const lastOf = (s: { prices: (number | null)[] } | undefined): number | null => {
+    for (let i = (s?.prices.length ?? 0) - 1; i >= 0; i--) if (s!.prices[i] != null) return s!.prices[i];
+    return null;
+  };
+  const trust = await heldTrust(rows.map((r) => ({ catalog_card_id: r.card_id, variant: r.variant, game: r.game })));
   const hitsByUser = new Map<string, { email: string; userId: string; hits: (WishlistAlertHit & { rowId: string })[] }>();
   for (const row of rows) {
-    const price = prices.get(row.card_id)?.price ?? catalog.get(row.card_id) ?? null;
+    const line = row.variant ? own.get(`${row.card_id}|${row.variant}`) : undefined;
+    // A kept printing with no line of its own while the card has others: nothing comparable, no alert.
+    if (row.variant && !line && prices.has(row.card_id)) continue;
+    const price = (line ? lastOf(line) : null) ?? prices.get(row.card_id)?.price ?? catalog.get(row.card_id) ?? null;
     if (price == null || price > row.alert_price) continue;
-    if (trust.flag({ catalog_card_id: row.card_id, variant: null, game: row.game })) continue;
+    if (trust.flag({ catalog_card_id: row.card_id, variant: row.variant, game: row.game })) continue;
     const entry = hitsByUser.get(row.user_id) ?? { email: row.email, userId: row.user_id, hits: [] };
     entry.hits.push({
       rowId: row.id,

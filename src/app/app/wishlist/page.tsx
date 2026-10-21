@@ -18,7 +18,7 @@ import {
   type WishlistItem,
 } from "@/lib/client/wishlistApi";
 import { fetchCardById, searchCards } from "@/lib/cards";
-import { ebaySearchUrl, ebaySoldSearchUrl, formatMoney, pickPrice, priceFlagOf, withEpnParams } from "@/lib/listing";
+import { ebaySearchUrl, ebaySoldSearchUrl, formatMoney, pickPrice, priceFlagOf, watchPriceOf, withEpnParams } from "@/lib/listing";
 import { PriceFlagText } from "@/components/PriceFlagNote";
 import { PRICE_FLAG_LINK, priceFlagLeftOut, type PriceFlag } from "@/lib/priceFlag";
 import { normalizeNumber } from "@/lib/cardNumber";
@@ -148,6 +148,8 @@ interface Repriced {
   /** item.id → the price guard flags today's market (no number, out of the totals). */
   flags: Record<string, PriceFlag>;
   /** item.id → today's market has not updated in 45+ days (10-02): the number shows, with a note under it. */
+  /** item.id → the printing the row is priced on (watchPriceOf), so the sparkline draws that printing's line. */
+  variants: Record<string, string>;
 }
 
 /** eBay Partner Network campaign id (empty until the owner joins EPN: the Buy link is then a plain eBay link). */
@@ -211,6 +213,7 @@ async function fetchCurrentPrices(items: WishlistItem[]): Promise<Repriced> {
   const cardIds: Record<string, string> = {};
   const resolved: Record<string, PokemonCard> = {};
   const flags: Record<string, PriceFlag> = {};
+  const variants: Record<string, string> = {};
   await Promise.all(
     targets.map(async (item) => {
       try {
@@ -228,9 +231,10 @@ async function fetchCurrentPrices(items: WishlistItem[]): Promise<Repriced> {
         if (!match) return;
         resolved[item.id] = match;
         if (!item.cardId && match.id) cardIds[item.id] = match.id;
-        // The same printing's price everywhere else quotes (pickPrice): the first USD row was the plain printing while
-        // the saved baseline came from pickPrice (10-14: a $1,574.99 reverse holo read as $6.62, "down 100%").
-        const usd = pickPrice(match);
+        // The printing the baseline was saved on (10-14 and again 10-21: a $1,574.99 reverse holo read as the Normal's
+        // $6.62 / $6.70, "down 100%"; the default printing changed under the saved row).
+        const usd = watchPriceOf(match, item.variant, item.price);
+        if (usd) variants[item.id] = usd.variant;
         if (usd?.untrusted) flags[item.id] = usd.untrusted;
         else if (usd?.market != null) {
           prices[item.id] = usd.market;
@@ -241,7 +245,7 @@ async function fetchCurrentPrices(items: WishlistItem[]): Promise<Repriced> {
       }
     }),
   );
-  return { prices, cardIds, cards: resolved, flags };
+  return { prices, cardIds, cards: resolved, flags, variants };
 }
 
 /** A panel the viewer can fold away (Chris 10-14: "make the pills for total value and search collapsable"), remembered per browser. */
@@ -305,6 +309,7 @@ export default function WishlistPage() {
   const [nowPrices, setNowPrices] = useState<Record<string, number>>({});
   // Rows whose current market the price guard flags: the note instead of a number, and out of the totals.
   const [nowFlags, setNowFlags] = useState<Record<string, PriceFlag>>({});
+  const [nowVariants, setNowVariants] = useState<Record<string, string>>({});
   // Catalog ids resolved by the repricing pass for rows that predate `cardId`.
   const [resolvedIds, setResolvedIds] = useState<Record<string, string>>({});
   // Tile click → the same detail modal the price-check page opens. NO scanner
@@ -361,10 +366,11 @@ export default function WishlistPage() {
         setItems(list);
         // Deltas fill in as they arrive; the list never waits on pricing.
         fetchCurrentPrices(list)
-          .then(({ prices, cardIds, cards, flags }) => {
+          .then(({ prices, cardIds, cards, flags, variants }) => {
             if (cancelled) return;
             setNowPrices(prices);
             setNowFlags(flags);
+            setNowVariants(variants);
             setResolvedIds(cardIds);
             resolvedCards.current = { ...resolvedCards.current, ...cards };
             setCatalogPictures(Object.fromEntries(Object.entries(cards).map(([id, c]) => [id, c.imageSmall])));
@@ -448,8 +454,8 @@ export default function WishlistPage() {
       return;
     }
     if (addedIds.has(card.id)) return;
-    const price = priceFlagOf(card) ? null : (pickPrice(card)?.market ?? null);
-    const item = await addToWishlist(card, resultsLanguage, price);
+    const picked = priceFlagOf(card) ? null : pickPrice(card);
+    const item = await addToWishlist(card, resultsLanguage, picked?.market ?? null, picked?.variant);
     if (!item) {
       setAddError(`Couldn't add ${card.name} — check your connection and try again.`);
       return;
@@ -891,7 +897,7 @@ export default function WishlistPage() {
                     </a>
 
                     {(item.cardId ?? resolvedIds[item.id]) && (
-                      <PriceSparkline cardId={(item.cardId ?? resolvedIds[item.id])!} stretch />
+                      <PriceSparkline cardId={(item.cardId ?? resolvedIds[item.id])!} preferVariant={nowVariants[item.id] ?? item.variant} stretch />
                     )}
                     {item.cardId && (
                       <div className="mt-auto">

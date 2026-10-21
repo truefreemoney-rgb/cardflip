@@ -25,6 +25,7 @@ export async function POST(req: Request) {
     const language: ScanLanguage =
       body?.language === "ja" || body?.language === "zh" ? body.language : "en";
     const price = typeof body?.price === "number" && Number.isFinite(body.price) ? body.price : null;
+    const variant = typeof body?.variant === "string" && body.variant ? body.variant.slice(0, 40) : null;
 
     if (typeof card?.name !== "string" || !card.name) {
       return NextResponse.json({ error: "Missing card" }, { status: 400 });
@@ -33,7 +34,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: WISHLIST_CAP_MESSAGE }, { status: 409 });
     }
 
-    const item = await addToWishlist(user.id, card, language, price);
+    const item = await addToWishlist(user.id, card, language, price, price == null ? null : variant);
     return NextResponse.json({ item }, { status: 201 });
   } catch (err) {
     if (err instanceof AuthError) {

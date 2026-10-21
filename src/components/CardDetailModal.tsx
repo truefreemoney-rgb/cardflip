@@ -90,7 +90,7 @@ export default function CardDetailModal({
     // The price guard: a market the rule flags is not saved as the watchlist baseline.
     const picked = pickPrice(card);
     const price = picked?.untrusted ? null : (picked?.market ?? null);
-    const result = await addToWishlist(card, language, price);
+    const result = await addToWishlist(card, language, price, picked?.variant);
     setSaving(false);
     if (result) {
       setSaved(true);
