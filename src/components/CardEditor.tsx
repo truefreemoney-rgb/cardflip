@@ -946,8 +946,8 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
           {/* The grade drives the price, so say what the photo showed rather
               than silently applying a multiplier the seller can't check. */}
           {verified && item.vision?.condition && (() => {
-            // Condition suggestion (09-27, Tier 1 #3): the photo's call is
-            // already priced in; here the seller sees why and either agrees
+            // Condition suggestion (09-27, Tier 1 #3): since 10-21 the photo's
+            // call is a hint only (scans start Near Mint); the seller sees it and either agrees
             // or changes it. A manual change of the Condition select is the
             // override, so the strip shrinks to one line either way.
             const v = item.vision;
@@ -963,7 +963,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
             if (overridden) {
               return (
                 <p className="mt-2 text-sm text-zinc-500">
-                  You set {item.condition}. The photo suggested {suggested}
+                  Set to {item.condition}. The photo suggested {suggested}
                   {v.conditionNotes ? `: ${v.conditionNotes}` : "."}
                 </p>
               );

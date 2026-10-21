@@ -590,13 +590,15 @@ export default function AppPage() {
                 }
               : null;
 
-            const condition = asCondition(read.condition);
+            // The photo's condition is a hint in the editor, never the copy's condition (Chris 10-21: "everything is
+            // showing up lightly played", "make the default near mint"): since 10-19 it called 19 of his 22 scans
+            // Lightly Played, and a first buyer's 66 scans had no Near Mint at all. Every scan keeps the starting
+            // condition (Near Mint unless the seller picked another in the scanner's options).
             patchItem(next.id, {
               vision: read,
               visionStatus: "done",
               language,
               wrongGame: null,
-              ...(condition ? { condition } : {}),
             });
 
             // Two reads that must not become a guess (Chris's 09-03 MTG stress
