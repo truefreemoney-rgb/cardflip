@@ -2,6 +2,10 @@
 
 **A.4 triage of every open check dated 10-18 and earlier: docs/TO-TEST-TRIAGE-2026-10-21.md** (63 stale, curl + select checks done 10-21 ~4:30am ET, the rest sorted into pane / phone / wait). Old lines below are left as written; that file is the status.
 
+## 10-21 ~10:50am ET: no up-arrow on a $0.00 move (TASKS J; COMMIT ONLY, VISIBLE: shots docs/shots/chart-zero-change-before-phone.jpg = live Snorlax pl2-81 24h "▲ $0.00 (0.0%)" green, -after-phone.jpg = local Mismagius GL LV.X 3M "No change" grey)
+- PriceHistoryChart: a change that rounds to $0.00 reads "No change" in grey (was a green ▲); same for the Cardmarket "7d vs 30d" trend at 0.0%, and Inventory's value chart header. tsc + eslint clean (no test covers these components).
+- [ ] After push: any card page, 24h pill on a card whose price did not move today -> "No change 24h", grey.
+
 ## 10-21 ~10:30am ET: a stopped line an eBay check vouches for prints (TASKS B Copycat; COMMIT ONLY, VISIBLE: shots docs/shots/copycat-before-phone.jpg = live, -after-phone.jpg = local with a local-only check)
 - Copycat RP01-EN092 (ygo-78162, the 2008 Retro Pack): TCGplayer line stopped 10-13 at $544.99 (flat since 09-30); Yu-Gi-Oh! has no last-recorded fallback (its 10-13 junk stops), so page, set list and app were blank; eBay NM sold $672.78 on 10-20 = inside 25%, $544.99 stands. No price_checked row on prod.
 - Fix: lib/cardPages.ts lastRecordedPrice(…, checked): in any game a stopped line prints while a binding check vouches for that printing, at the checked price (other YGO/Magic stops stay out); the page then reads "Checked against recent eBay sales (N sold)", dated by the check, not "Old price"; set lists list it (stale-marked, never featured); app: priceTrustSite.withPriceFlags adds the checked row to a card with no TCGplayer row (search-card + set-cards). Local proof: page $544.99 + checked line; /api/search-card ygo-78162 = 544.99 ebayChecked; the 2020 reprint ygo-564239 still $25.97. test:cardpages +5 (323), test:checked +3, sitetrust, sitetrustroutes, pricetrust, tsc, eslint green.

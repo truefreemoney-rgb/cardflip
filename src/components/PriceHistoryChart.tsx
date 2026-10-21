@@ -263,6 +263,8 @@ export default function PriceHistoryChart({ cardId, initialSeries, preferVariant
   const changeAbs = first && last ? last.price - first.price : null;
   const changePct = first && last && first.price > 0 ? ((last.price - first.price) / first.price) * 100 : null;
   const up = (changeAbs ?? 0) >= 0;
+  // A move that rounds to $0.00 is no move: no green up-arrow on it (TASKS J, 10-21).
+  const flat = changeAbs !== null && Math.abs(changeAbs) < 0.005;
   // The price guard: the history is still drawn, but its latest point is not presented as the card's price.
   const flagged = Boolean(series?.untrusted);
   const stroke = up ? "#34d399" : "#f87171"; // emerald-400 / red-400 — stock convention
@@ -310,8 +312,8 @@ export default function PriceHistoryChart({ cardId, initialSeries, preferVariant
               {hovered ? (
                 <span className={`${label} text-zinc-400`}>{shortDay(hovered.p.day, true)}</span>
               ) : flagged ? null : changeAbs !== null && shown.length > 1 ? (
-                <span className={`${label} font-medium tabular-nums ${up ? "text-emerald-400" : "text-red-400"}`}>
-                  <span className="whitespace-nowrap">{up ? "▲" : "▼"} {formatMoney(Math.abs(changeAbs), currency)} ({Math.abs(changePct ?? 0).toFixed(1)}%)</span>
+                <span className={`${label} font-medium tabular-nums ${flat ? "text-zinc-400" : up ? "text-emerald-400" : "text-red-400"}`}>
+                  <span className="whitespace-nowrap">{flat ? "No change" : `${up ? "▲" : "▼"} ${formatMoney(Math.abs(changeAbs), currency)} (${Math.abs(changePct ?? 0).toFixed(1)}%)`}</span>
                   <span className="ml-1 whitespace-nowrap font-normal text-zinc-500">{rangeLabel === "All" ? "all time" : rangeLabel}</span>
                 </span>
               ) : (
@@ -465,8 +467,8 @@ export default function PriceHistoryChart({ cardId, initialSeries, preferVariant
           {trend.avg7 != null && <span className="whitespace-nowrap">7d <span className="tabular-nums text-zinc-200">{formatMoney(trend.avg7, trend.currency)}</span></span>}
           {trend.avg1 != null && <span className="whitespace-nowrap">1d <span className="tabular-nums text-zinc-200">{formatMoney(trend.avg1, trend.currency)}</span></span>}
           {trendPct !== null && (
-            <span className={`ml-auto whitespace-nowrap font-medium tabular-nums ${trendPct >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-              {trendPct >= 0 ? "▲" : "▼"} {Math.abs(trendPct).toFixed(1)}% <span className="font-normal text-zinc-500">7d vs 30d</span>
+            <span className={`ml-auto whitespace-nowrap font-medium tabular-nums ${Math.abs(trendPct) < 0.05 ? "text-zinc-400" : trendPct >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+              {Math.abs(trendPct) < 0.05 ? "No change" : `${trendPct >= 0 ? "▲" : "▼"} ${Math.abs(trendPct).toFixed(1)}%`} <span className="font-normal text-zinc-500">7d vs 30d</span>
             </span>
           )}
         </div>

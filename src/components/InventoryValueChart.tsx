@@ -135,8 +135,9 @@ export default function InventoryValueChart({ game, version = 0, status = "all",
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <p className="flex items-baseline gap-3 text-xs uppercase tracking-[0.15em] text-zinc-500">
           Inventory value
-          <span className={`font-medium normal-case tracking-normal tabular-nums ${up ? "text-emerald-400" : "text-red-400"}`}>
-            {up ? "▲" : "▼"} {money(Math.abs(diff))} · {Math.abs(geo.pct).toFixed(1)}%
+          {/* A move that rounds to $0.00 is no move: no green up-arrow (TASKS J, 10-21). */}
+          <span className={`font-medium normal-case tracking-normal tabular-nums ${Math.abs(diff) < 0.005 ? "text-zinc-400" : up ? "text-emerald-400" : "text-red-400"}`}>
+            {Math.abs(diff) < 0.005 ? "No change" : `${up ? "▲" : "▼"} ${money(Math.abs(diff))} · ${Math.abs(geo.pct).toFixed(1)}%`}
           </span>
         </p>
         {pills}
