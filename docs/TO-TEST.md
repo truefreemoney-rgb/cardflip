@@ -1,5 +1,10 @@
 # To test later
 
+## 10-21 ~2:20am ET: search with no letter or digit ("%", "- -") answers at once, no pokemontcg.io wait, a31a5aea COMMIT ONLY, not visible (found by the #21 live check)
+- What: /api/search-card, Pokemon name path: after the mirror finds nothing, a name with no letter/digit returns no cards instead of asking pokemontcg.io (it sat 5-24 s on "%" then 400'd = free function time for a bot). "_____'s Pikachu" still comes from the mirror; a real name the mirror lacks still goes upstream.
+- Tested: test:sitetrustroutes (+2), test:mirror, test:searchtyped green; tsc + eslint clean.
+- After push: curl -w "%{time_total}" 'https://cardflip.io/api/search-card?name=%25&game=pokemon' = {"cards":[]} under 1 s; '?name=_' still 2 cards; '?name=charizard' unchanged.
+
 ## 10-21 ~2:05am ET: alarm mail on 3 unconfirmed sign-ups in an hour (any network), COMMIT ONLY, not visible (Chris: "3 unconfirmed accounts in an hour makes sense")
 - What: rateLimitDb.checkUnconfirmedSignups, run by the 15-min uptime cron: 3+ accounts made in the last hour still waiting for their email code 10 minutes on -> one "CardFlip: Unusual Sign-up Traffic" mail to support@ naming them (once an hour, inside the 5/day security mail cap). Site-wide, not per IP (the bot moved address every account or two).
 - Tested: test:torspike +4 (confirmed / too new / too old left out; the 3rd mails once; no second mail that hour; gone two hours on); test:uptime green; tsc + eslint clean.
