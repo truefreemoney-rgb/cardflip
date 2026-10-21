@@ -74,14 +74,44 @@ export async function recordPoint(
   await recordPointOn(db, cardId, game, variant, source, currency, price, day);
 }
 
-/** Record today's market price for every priced variant of each card. */
+/**
+ * The Pokémon TCGplayer lines the nightly tcgcsv refresh keeps (lib/server/pokemonPriceRefresh.ts): the card is in its
+ * product map and the printing already has a line. Keys "id|variant".
+ */
+async function refreshKeptLines(cards: PokemonCard[]): Promise<Set<string>> {
+  const ids = [...new Set(cards.filter((c) => (c.game ?? "pokemon") === "pokemon").map((c) => c.id))];
+  const out = new Set<string>();
+  for (let i = 0; i < ids.length; i += 400) {
+    const chunk = ids.slice(i, i + 400);
+    const marks = chunk.map(() => "?").join(",");
+    const rows = (await db
+      .prepare(
+        `SELECT s.card_id, s.variant FROM price_series s
+          WHERE s.source = 'tcgplayer' AND s.currency = 'USD' AND s.card_id IN (${marks})
+            AND s.card_id IN (SELECT card_id FROM tcgplayer_products WHERE game = 'pokemon' AND card_id IN (${marks}))`,
+      )
+      .all(...chunk, ...chunk)) as unknown as { card_id: string; variant: string }[];
+    for (const r of rows) out.add(`${r.card_id}|${r.variant}`);
+  }
+  return out;
+}
+
+/**
+ * Record today's market price for every priced variant of each card (a fresh name lookup via putCachedCards, the daily
+ * held-card sweep). 10-21: a TCGplayer line the nightly tcgcsv refresh keeps is left to it. pokemontcg.io's raw market
+ * written after the refresh undid the listing cap for the rest of the day (33 lines over the cap on 10-21; Team Aqua's
+ * Kyogre ex4-3 $290 -> $542.60 after one name search, so its eBay-checked keep stopped binding and the page blanked).
+ * Cardmarket rows and printings the refresh does not price are recorded as before.
+ */
 export async function recordPrices(cards: PokemonCard[], day = todayUtc()): Promise<number> {
+  const kept = await refreshKeptLines(cards).catch(() => new Set<string>());
   return db.transaction(async (tx) => {
     let n = 0;
     for (const card of cards) {
       const game: GameId = card.game ?? "pokemon";
       for (const p of card.prices) {
         if (p.market == null || !(p.market > 0)) continue;
+        if (game === "pokemon" && p.source === "tcgplayer" && p.currency === "USD" && kept.has(`${card.id}|${p.variant}`)) continue;
         await recordPointOn(tx, card.id, game, p.variant, p.source, p.currency, p.market, day);
         n++;
       }
@@ -314,7 +344,8 @@ export async function sweepPriceHistory(now = Date.now(), deadline = Infinity): 
           const priced = await enrichWithPricing(local.cards, local.releaseDates);
           const n = await recordPrices(priced);
           recorded += n;
-          if (n > 0) break;
+          // Priced but nothing new to record (every line is the nightly refresh's, 10-21) is an answer too: no retry.
+          if (n > 0 || priced.some((c) => c.prices.some((p) => p.market != null && p.market > 0))) break;
         } catch {
           // fall through to the retry
         }

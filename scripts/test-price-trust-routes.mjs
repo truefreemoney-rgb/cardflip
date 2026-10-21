@@ -136,6 +136,29 @@ console.log("/api/search-card quotes the card page's TCGplayer line over pokemon
   }
 }
 
+console.log("lookups never write over a line the nightly tcgcsv refresh keeps (10-21: Kyogre $290 -> $542.60 after a name search)");
+{
+  const { recordPrices } = await import(at("lib/server/priceHistory.ts"));
+  const { decodePrices } = await import(at("lib/priceSeries.ts"));
+  await db.prepare("INSERT INTO tcgplayer_products (product_id, group_id, card_id, game) VALUES (89788, 1, 'pk-up', 'pokemon')").run();
+  const lastOf = async (id, variant, source = "tcgplayer") => {
+    const r = await db.prepare("SELECT prices FROM price_series WHERE card_id = ? AND variant = ? AND source = ?").get(id, variant, source);
+    const p = r ? decodePrices(r.prices) : [];
+    return p.length ? p[p.length - 1] : null;
+  };
+  const card = (id, prices) => ({ id, name: "Kyogrex", englishName: null, setName: "Test Pokemon Set", number: "7", imageSmall: "", imageLarge: "", prices });
+  const tcg = (variant, market) => ({ source: "tcgplayer", currency: "USD", variant, label: variant, market, low: null, high: null });
+  const n = await recordPrices([
+    card("pk-up", [tcg("holofoil", 542.6), tcg("reverseHolofoil", 70), { source: "cardmarket", currency: "EUR", variant: "average", label: "Average (EUR)", market: 4.46, low: null, high: null }]),
+    card("pk-up-old", [tcg("holofoil", 130)]),
+  ]);
+  check("a mapped card's kept line keeps the refresh's number", await lastOf("pk-up", "holofoil"), 290);
+  check("... a printing the refresh has no line for is recorded", await lastOf("pk-up", "reverseHolofoil"), 70);
+  check("... the Cardmarket row is recorded", await lastOf("pk-up", "average", "cardmarket"), 4.46);
+  check("... a card the refresh does not map is recorded as before", await lastOf("pk-up-old", "holofoil"), 130);
+  check("... the count says what was written", n, 3);
+}
+
 console.log("set lists follow the card page's chain (10-21: Black Lotus Unlimited missing, Will-o'-the-Wisp 'looks off' vs $66.41)");
 {
   const { loadSetCards } = await import(at("lib/server/cardPages.ts"));
