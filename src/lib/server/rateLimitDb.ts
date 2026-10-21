@@ -190,9 +190,43 @@ export async function shutOutResponse(req: Request): Promise<Response | null> {
   return left > 0 ? Response.json({ error: SHUT_OUT_MESSAGE, retryAfterSeconds: left }, { status: 429, headers: { "Retry-After": String(left) } }) : null;
 }
 
-/** The per-IP guard every sign-in, sign-up, account and billing route opens with: the shut-out, then authAttempt on `${scope}:${ip}`. */
+const TOR_MESSAGE = "Sign-in isn't available over Tor. Turn it off and try again, or email support@cardflip.io.";
+
+/** The 403 a Tor exit gets (lib/server/torExits.ts, 10-21), or null. */
+export async function torResponse(req: Request): Promise<Response | null> {
+  const { isTorExit } = await import("@/lib/server/torExits");
+  return (await isTorExit(clientIp(req))) ? Response.json({ error: TOR_MESSAGE }, { status: 403 }) : null;
+}
+
+/** The per-IP guard every sign-in, sign-up, account and billing route opens with: the shut-out, Tor, then authAttempt on `${scope}:${ip}`. */
 export async function ipGate(req: Request, scope: string): Promise<Response | null> {
-  return (await shutOutResponse(req)) ?? (await limitOrRespondAsync(`${scope}:${clientIp(req)}`, LIMITS.authAttempt));
+  return (await shutOutResponse(req)) ?? (await torResponse(req)) ?? (await limitOrRespondAsync(`${scope}:${clientIp(req)}`, LIMITS.authAttempt));
+}
+
+// ---------------------------------------------------------------------------
+// Site-wide alarm (10-21, after a Tor bot changed IP every few requests: no single IP reached a shut-out, so nobody was
+// told and Chris found 16 junk accounts in /admin himself). Counted across every network; the hour's SPIKE_PER_HOUR-th
+// event emails support@ once (securityAlert, inside its daily cap). It blocks nothing by itself. Normal traffic 08-22..
+// 10-21: at most 5 sign-ups in an hour, 10 in a day.
+
+export const SPIKE_PER_HOUR = { ghostLogin: 10, newAccount: 8, refusedSignup: 10 } as const;
+export type SpikeKind = keyof typeof SPIKE_PER_HOUR;
+const SPIKE_WORDS: Record<SpikeKind, string> = {
+  ghostLogin: "made-up email addresses tried at sign-in",
+  newAccount: "new accounts",
+  refusedSignup: "sign-ups refused (throwaway, look-alike or invalid address)",
+};
+
+/** One event toward the site-wide alarm. Callers skip loopback/unknown (tests and CI). Best effort, never throws. */
+export async function noteSpike(kind: SpikeKind, now = Date.now()): Promise<void> {
+  try {
+    const { count } = await hit(`spike:${kind}`, HOUR, now);
+    if (count !== SPIKE_PER_HOUR[kind]) return;
+    const { securityAlertLater } = await import("@/lib/server/securityAlert");
+    await securityAlertLater({ ip: "many networks", reason: `${count} ${SPIKE_WORDS[kind]} within an hour`, at: now, spike: true });
+  } catch {
+    // Advisory: every per-IP limit still applies.
+  }
 }
 
 /**
@@ -203,6 +237,7 @@ export async function noteGhostLogin(ip: string, email: string, now = Date.now()
   if (!realIp(ip)) return;
   try {
     if ((await hit(`auth:ghost:${ip}:${email.toLowerCase()}`, HOUR, now)).count !== 1) return;
+    await noteSpike("ghostLogin", now);
     const { count } = await hit(`auth:ghosts:${ip}`, HOUR, now);
     if (count >= GHOST_LOGINS_PER_HOUR) await shutOutIp(ip, `${count} made-up emails at sign-in`, now);
   } catch {

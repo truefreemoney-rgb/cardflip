@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { LIMITS, clientIp } from "@/lib/server/rateLimit";
-import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
+import { limitOrRespondAsync, torResponse } from "@/lib/server/rateLimitDb";
 import { countryFrom, hashIp, isDisposableEmail } from "@/lib/server/signupGuard";
 import { isValidEmail } from "@/lib/emailAddress";
 import { joinWaitlist } from "@/lib/server/waitlist";
@@ -12,7 +12,8 @@ import { joinWaitlist } from "@/lib/server/waitlist";
  */
 export async function POST(req: Request) {
   const ip = clientIp(req);
-  const limited = await limitOrRespondAsync(`waitlist:${ip}`, LIMITS.waitlist);
+  // Tor exits too (10-21: the probe bot left 14 junk rows here through them).
+  const limited = (await torResponse(req)) ?? (await limitOrRespondAsync(`waitlist:${ip}`, LIMITS.waitlist));
   if (limited) return limited;
   const body = await req.json().catch(() => null);
   const ok = NextResponse.json({ ok: true });

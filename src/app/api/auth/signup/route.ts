@@ -5,7 +5,7 @@ import { SESSION_COOKIE } from "@/lib/server/auth";
 import { verifyPassword } from "@/lib/server/password";
 import { passwordProblem } from "@/lib/passwordRules";
 import { LIMITS, clientIp } from "@/lib/server/rateLimit";
-import { accountLockout, ipGate, shutOutIp } from "@/lib/server/rateLimitDb";
+import { accountLockout, ipGate, noteSpike, shutOutIp } from "@/lib/server/rateLimitDb";
 import { attachReferral } from "@/lib/server/referrals";
 import { isMailConfigured, sendSignupWelcomeEmail } from "@/lib/server/mail";
 import {
@@ -90,7 +90,12 @@ export async function POST(req: Request) {
   if (name.length > 80) {
     return NextResponse.json({ error: "Name must be 80 characters or fewer." }, { status: 400 });
   }
+  // Refused addresses count toward the site-wide alarm (10-21: the Tor bot's example.org and "admin@cardflip.io." tries).
+  const refused = async () => {
+    if (hashIp(clientIp(req))) await noteSpike("refusedSignup");
+  };
   if (!isValidEmail(email)) {
+    await refused();
     return NextResponse.json({ error: "Enter a valid email." }, { status: 400 });
   }
   const pwProblem = passwordProblem(password);
@@ -99,6 +104,7 @@ export async function POST(req: Request) {
   }
 
   if (isDisposableEmail(email)) {
+    await refused();
     return NextResponse.json({ error: "Please use your real email address." }, { status: 400 });
   }
   // A mistyped domain never gets the confirm link (10-05: a test signup went to gmail.con).

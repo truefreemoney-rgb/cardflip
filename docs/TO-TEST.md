@@ -1,5 +1,9 @@
 # To test later
 
+## 10-21 ~1:40am ET: Tor exits refused in code (daily list) + site-wide sign-up alarm, COMMIT ONLY, not visible to real users (Chris: "yeah go for it")
+- What: lib/server/torExits.ts stores check.torproject.org's exit list once a day (the 15-min uptime cron; a failed day retries next ping, a short/failed download keeps the old list); ipGate (every sign-in/sign-up/account/billing route) and /api/waitlist answer a Tor exit with 403 "Sign-in isn't available over Tor...". rateLimitDb.noteSpike counts across ALL networks per hour: 10 made-up sign-in emails, 8 new accounts, or 10 refused sign-ups -> one "CardFlip: Unusual Sign-up Traffic" mail to support@ (inside the 5-a-day security mail cap). Normal 60-day peak: 5 sign-ups an hour.
+- Tested: test:torspike 16 pass; authroutes/auth/google/xauth/ratelimit/emailverify/uptime/waitlist/attribution/adminroutes/sessionrevoke/apiauth/deletebilling/countrygate green; tsc + eslint clean.
+- After push: within 15 min the uptime cron JSON (Vercel log) shows tor {refreshed: true, exits ~1200}; prod settings row tor_exits exists (read only); /api/auth/me and sign-up from a normal network unchanged; prod-smoke green. The alarm mail itself: only on a real spike (do not fake one on prod).
 ## 10-21 ~1:15am ET: set pages list a stopped Pokémon card at its last recorded price (bdb156a2), COMMIT ONLY, VISIBLE, Chris YES ~1:15am ET (ships with the next push)
 - Tested: test:cardpages 318 pass (+2); tsc + eslint clean. Shots docs/shots/set-last-recorded-holon-phantoms-before.png (live: Pikachu Star missing, 110 cards) / -after.png (local: Pikachu Star $1,899.99 first, 111 cards; "Most valuable" still Gyarados, stale is never featured).
 - After push: /cards/pokemon/holon-phantoms lists Pikachu Star $1,899.99 (ISR: may need the page's revalidate); /cards/pokemon/base-set-1st-edition lists Blastoise $1,300.00; the set's "Most valuable" box never names a stale card.

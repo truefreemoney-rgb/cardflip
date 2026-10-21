@@ -610,21 +610,28 @@ export async function sendOpsAlertEmail(
 }
 
 /** A network was shut out for probing sign-in / sign-up (lib/server/securityAlert.ts, 10-20). The block already happened. */
-export async function sendSecurityAlertEmail(to: string, a: { ip: string; reason: string; at: number }): Promise<void> {
+export async function sendSecurityAlertEmail(to: string, a: { ip: string; reason: string; at: number; spike?: boolean }): Promise<void> {
   if (!isMailConfigured()) throw new Error("Mail isn't configured on this server");
   const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
   const { etDateTime } = await import("@/lib/time");
   const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://cardflip.io";
-  const lines = [
-    `CardFlip blocked a network that was probing sign-in and sign-up (${a.reason}).`,
-    `IP ${a.ip}, ${etDateTime(a.at)}.`,
-    "It can't sign in, sign up or change an account for 24 hours. This happened on its own; nothing needs you.",
-    "Claude reviews these and blocks repeat offenders for good.",
-  ];
+  // The site-wide alarm (rateLimitDb.noteSpike, 10-21): a bot spread over many networks, so no single IP was shut out.
+  const lines = a.spike
+    ? [
+        `Unusual sign-in and sign-up traffic on CardFlip: ${a.reason}.`,
+        `From many networks, so no single one was blocked. ${etDateTime(a.at)}.`,
+        "New accounts still need their emailed code before they can do anything. Ask Claude to look at it; the list is on Users and Errors.",
+      ]
+    : [
+        `CardFlip blocked a network that was probing sign-in and sign-up (${a.reason}).`,
+        `IP ${a.ip}, ${etDateTime(a.at)}.`,
+        "It can't sign in, sign up or change an account for 24 hours. This happened on its own; nothing needs you.",
+        "Claude reviews these and blocks repeat offenders for good.",
+      ];
   const html = `
     ${lines.map((l, i) => `<p${i === 0 ? "" : ' style="color:#444"'}>${i === 0 ? `<strong>${esc(l)}</strong>` : esc(l)}</p>`).join("")}
     <p><a href="${site}/admin/errors" style="display:inline-block;padding:10px 18px;border-radius:999px;background:#6d5dfc;color:#fff;text-decoration:none;font-weight:600">Open Errors</a></p>`;
-  await transport().sendMail({ from: fromAddress(), to, subject: "CardFlip Blocked a Bot", text: lines.join("\n"), html });
+  await transport().sendMail({ from: fromAddress(), to, subject: a.spike ? "CardFlip: Unusual Sign-up Traffic" : "CardFlip Blocked a Bot", text: lines.join("\n"), html });
 }
 
 /* ---------------------------------------------------------------------------

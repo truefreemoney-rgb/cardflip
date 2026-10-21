@@ -92,9 +92,12 @@ export async function signupCapReached(ipHash: string | null): Promise<boolean> 
   return ipHash != null && (await dayBudgetUsed(`signup_made_${ipHash}`)) >= SIGNUPS_PER_NETWORK_DAY;
 }
 
-/** One new account against its network's day. */
+/** One new account against its network's day, and toward the site-wide alarm (rateLimitDb.noteSpike). */
 export async function countSignup(ipHash: string | null): Promise<void> {
-  if (ipHash) await dayBump(`signup_made_${ipHash}`);
+  if (!ipHash) return;
+  await dayBump(`signup_made_${ipHash}`);
+  const { noteSpike } = await import("@/lib/server/rateLimitDb");
+  await noteSpike("newAccount");
 }
 
 /** A sign-up refused by the cap; true once the network has kept going past CAPPED_SIGNUPS_BEFORE_SHUT_OUT of them. */

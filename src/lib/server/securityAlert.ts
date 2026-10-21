@@ -12,6 +12,8 @@ export interface SecurityAlert {
   ip: string;
   reason: string;
   at: number;
+  /** The site-wide alarm (rateLimitDb.noteSpike): many networks, nothing shut out by it. */
+  spike?: boolean;
 }
 
 export async function securityAlert(
