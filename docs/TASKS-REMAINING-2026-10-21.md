@@ -1,30 +1,31 @@
-# What is left, Wed 10-21 ~7:45am ET
+# What is left, Wed 10-21 ~8:50am ET
 Only open items. "(new)" = not on the last list. Done items are at the bottom.
 
-- **A. The push.** 33 changes waiting (11 change the site), held until you say push. Before the push: your yes on the 5 shot sets already sent (set lists, backup tie, admin keeps, Kyogre search, Dark Charizard 1st page). Then the after-push checks. (new) The old test list is sorted: 63 stale lines to delete, 37 I check in the pane, 52 phone checks for you in small batches, 20 waiting on a date.
-- **B. Bugs to fix now.** (new) Copycat (Yu-Gi-Oh!) shows no price though eBay sold it at $672.78 (low: ~3 views a month). Admin can't give a Booster account extra scans (noted, fix later).
-- **C. Prices.** Tomorrow's eBay batch (see D). Five suspicious flat tops to hand-check (Smaug foil, OP05-119, Uria 1st, Red Cliffs Armada, Dragonite Neo 1st). 294 Magic special-art foils wait for the weekly re-read ~10-25. (new) One Piece: 213 unpriced, 143 of them Promotion Cards. 69 round-number and 69 no-source Pokémon. 12 new Hobbit Art Series cards not on TCGplayer yet.
-- **D. Dated reminders.** Today: 1pm and 7pm TikTok/Pinterest with you; Magic pause ends (check tonight's render). 10-22: eBay checks in the pane (Mewtwo Star, Celebi ex, Typhlosion 1st, Shining Tyranitar 1st, Treecko star, Pikachu Star, 1st Ed Blastoise, 1st Ed Charizard, Stitch Rock Star promo, Darkpact, (new) Gengar Fossil #20), page-build cost check, NetActuate look. 10-23 Search Console. 10-25 Pokémon pause ends + Sunday digest hand check ((new) today's draft subject leads with "Official Judge Token TKN4-EN021 +70%": a token, check it or keep tokens out). 10-27 YGO pictures. Nov 5 cloud credit. Nov 16 FLIPBACK.
-- **E. Your decisions.** Easiest first: (new) Blender framing: A, C or D (samples sent); (new) yes/no on the 5 sent shots (set lists, backup tie, admin keeps, Kyogre search, Dark Charizard); (new) ship the second sign-up alarm with the push?; delete test accounts +test3 to +test6; delete 2 orphan email rows; Vercel retention; the $100 shipping line; Magic vintage cap; scanner header; board runner model; (new) Kyogre search: our checked TCGplayer price beats the raw one in the app (shots sent); (new) NetActuate block or leave; (new) a card fixed from eBay: sit out of posts for 30 days (movers, sets, head to head do this) or post at its checked price (Most valuable does this; today's 1pm has 1st Ed Charizard at its checked $4,000); PriceCharting terms.
-- **F. Your own chores.** Seller Hub tracked-shipping check, eBay live tests, runner allowlist, Google support email, EIN for TikTok, Pinterest resubmit, cron-job.org account, GA4 sign_up event. (new) 2-step sign-in on every service; iPhone mail alerts; phone checks I owe you as tap-by-tap steps (scan chip A + reveal hold, Mark as Sold).
+- **A. The push.** 45 changes waiting (13 change the site), held until you say push. Before the push: your yes on the 5 shot sets already sent (set lists, backup tie, admin keeps, Kyogre search, Dark Charizard 1st page) and the new admin wording ("Fixed to $X, posts use this price"). Then the after-push checks. The old test list is sorted: 63 stale lines to delete, about 28 left that I check in the pane, 52 phone checks for you in small batches, 20 waiting on a date.
+- **B. Bugs to fix now.** Copycat (Yu-Gi-Oh!) shows no price though eBay sold it at $672.78 (low: ~3 views a month). Admin can't give a Booster account extra scans (noted, fix later).
+- **C. Prices.** Tomorrow's eBay batch (see D). Five suspicious flat tops to hand-check (Smaug foil, OP05-119, Uria 1st, Red Cliffs Armada, Dragonite Neo 1st). 294 Magic special-art foils wait for the weekly re-read ~10-25. One Piece: 4 thin promo prices need eBay first (the other ~139 prize cards have no price anywhere). 69 round-number and 69 no-source Pokémon. 12 new Hobbit Art Series cards not on TCGplayer yet.
+- **D. Dated reminders.** Today: 1pm and 7pm TikTok/Pinterest with you, plus (new) comment checks at each post and ~1 hour after; Magic pause ends (check tonight's render). 10-22: eBay checks in the pane (Mewtwo Star, Celebi ex, Typhlosion 1st, Shining Tyranitar 1st, Treecko star, Pikachu Star, 1st Ed Blastoise, 1st Ed Charizard, Stitch Rock Star promo, Darkpact, (new) Gengar Fossil #20, Gengar & Mimikyu GX, Kabutops ex, the Judge Token, then the 4 One Piece promos if room), page-build cost check, NetActuate look. 10-23 Search Console. 10-25 Pokémon pause ends + Sunday digest hand check (draft subject leads with "Official Judge Token +70%", a one-step jump). 10-27 YGO pictures. Nov 5 cloud credit. Nov 16 FLIPBACK.
+- **E. Your decisions.** Easiest first: yes/no on the 5 sent shots; ship the second sign-up alarm with the push?; delete test accounts +test3 to +test6; delete 2 orphan email rows; Vercel retention; the $100 shipping line; Magic vintage cap; scanner header; board runner model; Kyogre search: our checked TCGplayer price beats the raw one in the app (shots sent); NetActuate block or leave (after my 10-22 look); PriceCharting terms; (new, optional) a one-week trial posting the 7pm video on the other sites instead of the picture (video scores 1.09 vs picture 0.78).
+- **F. Your own chores.** Seller Hub tracked-shipping check, eBay live tests, runner allowlist, Google support email, EIN for TikTok, Pinterest resubmit, cron-job.org account, GA4 sign_up event, 2-step sign-in on every service, iPhone mail alerts, phone checks I owe you as tap-by-tap steps (scan chip A + reveal hold, Mark as Sold).
 - **G. Waiting on a real event.** First sale, first US publish, first ad signup, first subscribe. Nothing to do until they happen.
 - **H. PriceCharting finale.** Unchanged: build it all before you subscribe, then the day-1 import. Unlocks the YGO cap, 590 frozen prices, 1st Edition twins.
 - **I. App store.** Unchanged: on hold behind the $99. Listing trims, screenshots, Capacitor shell, 27-step TestFlight list, slabs plan as a cloud session before Nov 5.
-- **J. Polish backlog.** About 250 small review items. (new) Delete the Magic pause entry after today; up-arrow shows on a $0.00 change in the price chart.
-- **K. Parked.** Auto-scan, internal links (~10-30), invite a friend, ads tuning, verticals, stewardship. (new) Vulpix tiebreak; bots on home-internet addresses (the alarm tells us).
-- **L. Social.** Mine. 1pm + 7pm today with you, Blender reveals per slot, (new) Blender content too high: framing option built, waiting on your pick (E), Meta follows, TikTok comment scope.
+- **J. Polish backlog.** About 250 small review items. Delete the Magic pause entry after today; up-arrow shows on a $0.00 change in the price chart.
+- **K. Parked.** Auto-scan, internal links (~10-30), invite a friend, ads tuning, verticals, stewardship, Vulpix tiebreak, bots on home-internet addresses (the alarm tells us).
+- **L. Social.** Mine. 1pm + 7pm today with you, (new) comment replies at every post time (Needs You + TikTok by hand), Blender reveals per slot (first full video with framing C checked in TikTok's preview before a batch), Meta follows, TikTok comment scope.
 
 ## Done since the last list
 - 7am TikTok + Pinterest posted today (sound: Epic Orchestral Adventure).
-- 6 extra eBay checks (your OK), all 6 were wrong and are fixed everywhere: Rocket's Mewtwo Best of Game #8 $2,400 -> $1,000, Typhlosion ex $259.63 -> $200, Mewtwo ex (Ruby & Sapphire) $746.79 -> $250, Blaziken $101.02 -> $40.64, Scyther ex $180.86 -> $115, Hitmonchan ex $125.32 -> $70. 1pm + 7pm videos remade.
-- One Piece unpriced answered: prize cards nobody sells, no code change (4 thin ones need eBay first).
-- Old test lines checked in the pane: /admin/prices eBay links (all 911 sold-only, no slabs), nightly run tile, Yu-Gi-Oh! borrowers 233 -> 104, Sunday mail once per person (22), Help chat link, Jenny's removed count.
-- Kyogre search + Dark Charizard 1st shots sent (they were owed).
+- 6 extra eBay checks (your OK), all 6 were wrong and are fixed everywhere: Rocket's Mewtwo Best of Game #8 $2,400 -> $1,000, Typhlosion ex $259.63 -> $200, Mewtwo ex (Ruby & Sapphire) $746.79 -> $250, Blaziken $101.02 -> $40.64, Scyther ex $180.86 -> $115, Hitmonchan ex $125.32 -> $70. 1pm + 7pm videos remade, today's pack rebuilt.
+- Your picks done in code (held for the push): Blender framing C is the default; a fixed card is used in posts at its eBay price with no % (sets no longer swap after a fix); the auto-reply stays vague about how CardFlip works.
+- Comment rule set: checks at each post + ~1 hour after + every resume; old comments left alone.
+- Optimizer report: on, price drops score best (1.14), #PokemonCards stays.
+- One Piece unpriced answered: prize cards nobody sells, no code change.
+- Old test lines checked in the pane (15): eBay links, nightly tiles, borrowers 233 -> 104, Sunday mail once per person, Help chat link, Jenny's removed count, analytics funnel, social drafts, value chart "All", Watchlist Alerts label, errors log read.
+- Kyogre search + Dark Charizard 1st shots sent.
 - Reach-trial verdict: keep the sign-off last.
-- 6 pushes live and checked last night (CI + smoke green): bot blocks, Tor, @cardflip.io sign-ups, alerts to support@, Mark as Sold waits for Verify Match.
-- Review #24/#25 dead code, 10-16 security audit, "static to dynamic" error: all closed.
-- 160 hidden-by-eBay cards: prices fixed or kept; 34 blank Pokémon pages back with their last price.
-- Frozen-price rule decided (no blanket rule, hand-check dearest first); Sunday digest guards built.
-- Prices fixed on live: Base Set Charizard $600, 1st Ed Charizard $4,000, Venusaur, 8 Rocket-era cards, Kyogre $290 (healed this morning).
+- 6 pushes live and checked last night (CI + smoke green).
+- Review #24/#25, 10-16 security audit, "static to dynamic" error: closed.
+- 160 hidden-by-eBay cards handled; 34 blank Pokémon pages back with their last price.
+- Frozen-price rule decided; Sunday digest guards built.
 - Bots: Meta, Rackdog, Fourplex, Tor blocked; junk accounts deleted on your yes.
-- All pushed-block test checks done; old test list sorted.
