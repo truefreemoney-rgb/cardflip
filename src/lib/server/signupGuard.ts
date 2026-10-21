@@ -115,6 +115,12 @@ export function hashIp(ip: string): string | null {
   return createHash("sha256").update(`cardflip-signup:${ip}`).digest("hex").slice(0, 32);
 }
 
+/** "Already exists" answers one network may draw in a day before sign-up closes to it (#30). A person needs one or two.
+ *  Shared by the email sign-up and X's finish step, one budget per network (dayBudget key existsKeyFor). */
+export const EXISTS_PER_NETWORK_DAY = 5;
+export const TOO_MANY_SIGNUPS = "Too many sign-up tries from this network today. Already have an account? Log in instead.";
+export const existsKeyFor = (ip: string) => `signup_exists_${hashIp(ip)}`;
+
 /** The cf_dev cookie from a request, or null. */
 export function deviceIdFrom(req: Request): string | null {
   const m = /(?:^|;\s*)cf_dev=([A-Za-z0-9-]{8,64})/.exec(req.headers.get("cookie") ?? "");

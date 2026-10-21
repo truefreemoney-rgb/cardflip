@@ -30,10 +30,14 @@ import {
   recordSignup,
   repeatSignup,
   signupCapReached,
+  EXISTS_PER_NETWORK_DAY,
+  TOO_MANY_SIGNUPS,
+  existsKeyFor,
 } from "@/lib/server/signupGuard";
 import { isValidEmail } from "@/lib/emailAddress";
 import { setHomeCookie } from "@/lib/homeCookie";
 import { isAllowedCountry } from "@/lib/countries";
+import { dayBudgetUsed, dayBump } from "@/lib/server/dayBudget";
 
 /**
  * "Continue with X", the last step when X did not share an email. The signed "x_pending" cookie
@@ -63,7 +67,14 @@ export async function POST(req: Request) {
   if (fix) {
     return NextResponse.json({ error: `Check your email. Did you mean ${fix}?` }, { status: 400 });
   }
+  // The same "already exists" budget as the email sign-up, shared per network: one pending X cookie must not
+  // be a way to test which addresses have accounts (review 10-19 marketing #1).
+  const existsKey = existsKeyFor(clientIp(req));
+  if ((await dayBudgetUsed(existsKey)) >= EXISTS_PER_NETWORK_DAY) {
+    return NextResponse.json({ error: TOO_MANY_SIGNUPS }, { status: 429, headers: { "Retry-After": "3600" } });
+  }
   if (await findUserByEmail(email)) {
+    await dayBump(existsKey);
     return NextResponse.json(
       { error: "That email already has an account. Log in with it instead." },
       { status: 409 },
