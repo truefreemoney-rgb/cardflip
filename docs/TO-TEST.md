@@ -1,12 +1,13 @@
 # To test later
 
+## 10-20 ~9:30pm ET: TASKS B00 (c) a card swap carries the new card's shown market into scan_market (pack value), COMMIT ONLY bec236b7, not visible (pack totals only)
+- Tested: test:cards +7 checks (create stores it, price-only patch keeps it, swap with market stores it, swap without one clears it + scan_price, printing change carries it, 0 clears, wrong user blocked); test:packs, test:pricing green; tsc + eslint clean. Client sends `scanMarket: headlinePrice(item) || null` from swapCard, the editor card pick, the late-card catch-up and the printing picker; NOT pane-tested (field only, typed).
+- After push, prod read only: a pack pull whose card is swapped ("Not this card?" or the picture tiebreak) has cards.scan_market = the new card's market (not the first read's); the pack's total on /packs drops/rises with it.
+
 ## 10-20 ~8:45pm ET: first Booster buyer's scans = (a) a "Not this card?" pick during the row's create reaches the row, (b) a chart point re-prices only the printing quoted, PUSHED c5379fb0 8:47pm ET (Chris: "push it live"), not visible (prices)
 - Tested locally (fake Umbreon read, POST /api/cards delayed 6 s): pick Obsidian Flames 87 ms in -> after create PATCH catalogCardId sv03-130 + price 1.66 + doubt. Pick after the row exists -> PATCH 1.66 and the follow-up stays 1.66 (was 4.06, the reverse holo's point). test:pricing (+4 point checks), liveprices, printings, pricehistory, pricetrust, tcgprices, inventoryvalue, cardpages PASS; tsc + eslint clean.
 - After push, prod read only: a new scan row whose card has normal + reverse rows (most SV commons/uncommons) and no printing pick keeps the normal-based price after its chart point lands (cards.price stays at the first PATCH, not a 3-10x jump). Her 8:36pm Umbreon row (cards id for created 8:36:26 PM) is the known bad row from before the fix.
 
-## 10-20 ~8:35pm ET: review 10-19 #25 step 3 = ?dbg=outline debug moved to src/components/CameraOutlineDebug.tsx, loaded only when NODE_ENV != production, PUSHED c5379fb0 8:47pm ET, not visible
-- Tested locally (dev, pane, /app?dbg=outline): panel + canvas + "sampling…" render from the new module, a canvas photo into input[data-dbg-capture] fired /api/vision/scan (stubbed) = onCapture still wired. tsc + eslint clean. Dump format unchanged (frame() at the old spot, tick() at the old push).
-- After push: open the prod scanner's JS chunks (pane, network list on /app + camera open) and search them for "outline-dump" and "sampling" -> not found (Turbopack dropped the dead import). If found, the ternary did not fold: switch to an env-gated file swap.
 
 ## 10-20 ~8:18pm ET: printing switch re-prices the ledger row (Angel #25 kept the D23 promo's $73.16), PUSHED 2df03d3f (live 8:22pm), not visible
 - Tested locally (faked read of Angel #25, /api/ebay/comps delayed 6 s): camera "Not this card?" and the editor's list, D23 (or #191) then back to #25 inside the delay -> PATCH price 1.75 at once, the #25 lookup restarts when the old one lands, last PATCH 1.75. Before: last PATCH stayed on the other printing's price. tsc, eslint, test:pricing, test:liveprices green.
