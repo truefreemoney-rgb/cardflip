@@ -102,13 +102,13 @@ function SummaryStrip({ s, game, slug }: { s: SetSummary; game: GameId; slug: st
   return (
     <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
       <div className={cell}>
-        <p className={label}>Set value 7 days</p>
+        <p className={label}>7-day change</p>
         <p className={value}>
           <Change v={s.change7} />
         </p>
       </div>
       <div className={cell}>
-        <p className={label}>Set value 30 days</p>
+        <p className={label}>30-day change</p>
         <p className={value}>
           <Change v={s.change30} />
         </p>

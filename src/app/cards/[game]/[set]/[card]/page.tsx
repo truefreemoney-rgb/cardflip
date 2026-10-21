@@ -127,7 +127,8 @@ function PriceBlock({ page }: { page: CardPage }) {
           Market price{prices.length > 1 ? `, ${headline.label}` : ""}
         </p>
         <p className="font-display text-4xl font-bold tabular-nums text-emerald-300 sm:text-5xl">{formatMoney(headline.price)}</p>
-        <p className="mt-1 text-sm text-zinc-500">As of {priceDayLabel(headline.day)}. Recorded daily by CardFlip.</p>
+        {/* A converted backup figure has no recorded days behind it, so it does not claim a daily record (review 10-19 public #8). */}
+        <p className="mt-1 text-sm text-zinc-500">As of {priceDayLabel(headline.day)}.{historyDays(page) > 0 ? " Recorded daily by CardFlip." : ""}</p>
         {/* A hand eBay sold check replaced TCGplayer's number (10-18, checkedPrices.ts). */}
         {page.checked && <p className="mt-0.5 text-sm text-emerald-300/80">Checked against recent eBay sales{page.checked.n > 0 ? ` (${page.checked.n} sold)` : ""}.</p>}
         {/* How much history stands behind the number (audit G1): only facts we hold, never a sales count. */}
@@ -272,6 +273,8 @@ export default async function CardPricePage({ params }: PageProps<"/cards/[game]
           { name: "Card Prices", path: "/cards" },
           { name, path: gamePath(game) },
           { name: f.setName, path: setPath(game, f.setSlug) },
+          // The page itself closes the trail, as the visible crumbs do (review 10-19 public #39).
+          { name: f.name, path: cardPath(f.game, f.setSlug, f.name, f.key) },
         ])}
       />
       <MarketingNav />
