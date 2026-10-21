@@ -29,14 +29,15 @@ import {
 } from "@/lib/server/users";
 import { createSession, destroyOtherSessions, sessionCookieOptions } from "@/lib/server/sessions";
 import { SESSION_COOKIE } from "@/lib/server/auth";
-import { LIMITS, clientIp } from "@/lib/server/rateLimit";
-import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
+import { clientIp } from "@/lib/server/rateLimit";
+import { ipGate } from "@/lib/server/rateLimitDb";
 import { attachReferral } from "@/lib/server/referrals";
 import { isMailConfigured, sendSignupWelcomeEmail } from "@/lib/server/mail";
 import { afterResponse, markEmailConfirmed } from "@/lib/server/emailVerify";
 import {
   DEVICE_COOKIE,
   DEVICE_COOKIE_MAX_AGE,
+  countSignup,
   countryFrom,
   deviceIdFrom,
   hashIp,
@@ -45,6 +46,7 @@ import {
   newDeviceId,
   recordSignup,
   repeatSignup,
+  signupCapReached,
 } from "@/lib/server/signupGuard";
 import { isAllowedCountry } from "@/lib/countries";
 import { setHomeCookie } from "@/lib/homeCookie";
@@ -71,7 +73,7 @@ export async function GET(req: Request) {
 
   try {
     if (!xConfigured()) return fail();
-    const limited = await limitOrRespondAsync(`auth:x:${clientIp(req)}`, LIMITS.authAttempt);
+    const limited = await ipGate(req, "auth:x");
     if (limited) return fail();
     // Denied consent, or anything X itself refused.
     if (url.searchParams.get("error")) return fail();
@@ -135,6 +137,7 @@ export async function GET(req: Request) {
       // Same guards as the email signup route.
       if (isDisposableEmail(email)) return fail();
       const ipHash = hashIp(clientIp(req));
+      if (await signupCapReached(ipHash)) return fail();
       const knownDevice = deviceIdFrom(req);
       const deviceId = knownDevice ?? newDeviceId();
       const inbox = inboxKey(email);
@@ -145,6 +148,7 @@ export async function GET(req: Request) {
         xSub: profile.sub,
         emailVerified: true,
       });
+      await countSignup(ipHash);
       await recordSignup(created.id, ipHash, deviceId, repeat, here, Date.now(), st.touch, inbox);
       user = repeat ? { ...created, trialScansUsed: TRIAL_SCANS } : created;
       if (st.ref) await attachReferral(user.id, st.ref).catch(() => {});

@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AuthError, requireUser } from "@/lib/server/auth";
-import { LIMITS, clientIp } from "@/lib/server/rateLimit";
-import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
+import { ipGate } from "@/lib/server/rateLimitDb";
 import { createPortalSession, stripeConfigured } from "@/lib/server/stripe";
 
 /** POST — answers { url } to Stripe's hosted manage-billing portal. */
 export async function POST(req: NextRequest) {
-  const limited = await limitOrRespondAsync(`billing:${clientIp(req)}`, LIMITS.authAttempt);
+  const limited = await ipGate(req, "billing");
   if (limited) return limited;
   try {
     const user = await requireUser();

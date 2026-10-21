@@ -5,8 +5,7 @@ import { googleConfigured, verifyGoogleIdToken } from "@/lib/server/googleAuth";
 import { completeGoogleSignIn } from "@/lib/server/googleSignIn";
 import { SESSION_COOKIE } from "@/lib/server/auth";
 import { parseTouch } from "@/lib/attribution";
-import { LIMITS, clientIp } from "@/lib/server/rateLimit";
-import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
+import { ipGate } from "@/lib/server/rateLimitDb";
 
 /**
  * Google One Tap (components/GoogleOneTap.tsx on the public pages). The browser gets an id_token
@@ -21,7 +20,7 @@ import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
  */
 export async function POST(req: Request) {
   if (!googleConfigured()) return NextResponse.json({ error: "Google sign-in is off." }, { status: 503 });
-  const limited = await limitOrRespondAsync(`auth:google:onetap:${clientIp(req)}`, LIMITS.authAttempt);
+  const limited = await ipGate(req, "auth:google:onetap");
   if (limited) return limited;
   // Already signed in: the prompt should never have shown; do nothing rather than switch accounts.
   const jar = await cookies();

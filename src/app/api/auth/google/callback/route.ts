@@ -9,8 +9,7 @@ import {
 } from "@/lib/googleAuth";
 import { exchangeGoogleCode, googleConfigured, googleOrigin, googleRedirectUri } from "@/lib/server/googleAuth";
 import { completeGoogleSignIn } from "@/lib/server/googleSignIn";
-import { LIMITS, clientIp } from "@/lib/server/rateLimit";
-import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
+import { ipGate } from "@/lib/server/rateLimitDb";
 
 /**
  * "Continue with Google", step 2. Checks the state cookie, trades the code for an id_token,
@@ -34,7 +33,7 @@ export async function GET(req: Request) {
 
   try {
     if (!googleConfigured()) return fail();
-    const limited = await limitOrRespondAsync(`auth:google:${clientIp(req)}`, LIMITS.authAttempt);
+    const limited = await ipGate(req, "auth:google");
     if (limited) return fail();
     // Denied consent, or anything Google itself refused.
     if (url.searchParams.get("error")) return fail();

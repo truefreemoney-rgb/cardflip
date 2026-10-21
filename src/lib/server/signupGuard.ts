@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import type { Touch } from "@/lib/attribution";
 import { TRIAL_SCANS } from "@/lib/server/users";
 import { isTestNetwork } from "@/lib/server/trialScan";
-import { dayBudgetSpent } from "@/lib/server/dayBudget";
+import { dayBudgetSpent, dayBudgetUsed, dayBump } from "@/lib/server/dayBudget";
 
 /**
  * Throwaway-account guard (Chris 09-29, after a row of "Probe" accounts on
@@ -70,6 +70,26 @@ export function isDisposableEmail(email: string): boolean {
     if (DISPOSABLE_DOMAINS.has(d) || OWN_DOMAINS.has(d)) return true;
   }
   return false;
+}
+
+/** New accounts one network may open in a UTC day, email, Google and X together (Chris 10-20, after a bot made 7 in 9 minutes). */
+export const SIGNUPS_PER_NETWORK_DAY = 3;
+/** Sign-ups a network may have refused by that cap in a day; one more shuts it out (rateLimitDb.shutOutIp). A person stops. */
+export const CAPPED_SIGNUPS_BEFORE_SHUT_OUT = 2;
+
+/** True once this network (a hashIp) has opened its accounts for today. Loopback/unknown (null) is never capped. */
+export async function signupCapReached(ipHash: string | null): Promise<boolean> {
+  return ipHash != null && (await dayBudgetUsed(`signup_made_${ipHash}`)) >= SIGNUPS_PER_NETWORK_DAY;
+}
+
+/** One new account against its network's day. */
+export async function countSignup(ipHash: string | null): Promise<void> {
+  if (ipHash) await dayBump(`signup_made_${ipHash}`);
+}
+
+/** A sign-up refused by the cap; true once the network has kept going past CAPPED_SIGNUPS_BEFORE_SHUT_OUT of them. */
+export async function cappedSignupRefused(ipHash: string): Promise<boolean> {
+  return (await dayBump(`signup_capped_${ipHash}`)) > CAPPED_SIGNUPS_BEFORE_SHUT_OUT;
 }
 
 /**

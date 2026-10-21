@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { AuthError, SESSION_COOKIE, clearSessionCookie, requireUser, signOutOtherDevices } from "@/lib/server/auth";
 import { confirmsPassword } from "@/lib/server/password";
 import { LIMITS, clientIp, type RateLimitRule } from "@/lib/server/rateLimit";
-import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
+import { ipGate, limitOrRespondAsync } from "@/lib/server/rateLimitDb";
 import {
   deleteUser,
   findUserByEmail,
@@ -78,7 +78,7 @@ export async function GET() {
 
 export async function PATCH(req: NextRequest) {
   // Durable (10-01 sweep): an email change re-checks the password, and the memory limiter never binds on serverless.
-  const limited = await limitOrRespondAsync(`account:patch:${clientIp(req)}`, LIMITS.authAttempt);
+  const limited = await ipGate(req, "account:patch");
   if (limited) return limited;
   try {
     const user = await requireUser();
@@ -222,7 +222,7 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   // Durable, per IP and per account (10-01 sweep): a stolen session guessing the password here deletes the account.
-  const limited = await limitOrRespondAsync(`account:delete:${clientIp(req)}`, LIMITS.authAttempt);
+  const limited = await ipGate(req, "account:delete");
   if (limited) return limited;
   try {
     const user = await requireUser();

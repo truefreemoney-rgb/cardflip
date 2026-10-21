@@ -316,12 +316,54 @@ delete process.env.VERCEL_ENV;
 // --- brute-force limiter ----------------------------------------------------
 const attackerIp = "203.0.113.9";
 let statuses = [];
-// Per IP: a different email each try, so only the IP counter is in play.
+// Per IP: wrong passwords spread over three real accounts (7 each, under the per-account 10), so only the IP counter is
+// in play. Made-up emails would shut the IP out at the 5th (below).
+for (const e of ["bf1@example.com", "bf2@example.com", "bf3@example.com"]) await createUser("BF", e, "right-pass-1");
 for (let i = 0; i < 21; i++) {
-  statuses.push((await login.POST(post({ email: `ghost${i}@example.com`, password: "guess" }, attackerIp))).status);
+  statuses.push((await login.POST(post({ email: `bf${(i % 3) + 1}@example.com`, password: "guess" }, attackerIp))).status);
 }
 check("login: 20 tries per IP allowed, 21st is 429", [statuses.filter((s) => s === 401).length, statuses[20]], [20, 429]);
 check("login: other IPs unaffected", (await login.POST(post({ email: "sam@example.com", password: "hunter22" }))).status, 200);
+
+// --- shut-out (10-20: one AWS IP made 7 accounts and tried every account route in 9 minutes) ----------------------
+{
+  const { GHOST_LOGINS_PER_HOUR, shutOutIp, shutOutLeft } = await import(at("lib/server/rateLimitDb.ts"));
+  const { SIGNUPS_PER_NETWORK_DAY } = await import(at("lib/server/signupGuard.ts"));
+  const ghostIp = "203.0.113.10";
+  const tries = [];
+  for (const e of ["admin@x-corp.example", "info@x-corp.example", "info@x-corp.example", "INFO@x-corp.example", "support@x-corp.example"]) {
+    tries.push((await login.POST(post({ email: e, password: "guess" }, ghostIp))).status);
+  }
+  check("shut-out: made-up emails at sign-in still answer 401 (the same address again is not a new one)", tries, [401, 401, 401, 401, 401]);
+  check("shut-out: not yet after 3 different made-up emails", await shutOutLeft(ghostIp), 0);
+  check(`shut-out: the threshold is ${GHOST_LOGINS_PER_HOUR} different addresses`, GHOST_LOGINS_PER_HOUR, 5);
+  await login.POST(post({ email: "ceo@x-corp.example", password: "guess" }, ghostIp));
+  await login.POST(post({ email: "help@x-corp.example", password: "guess" }, ghostIp));
+  check("shut-out: the 5th different made-up email shuts the IP out for a day", (await shutOutLeft(ghostIp)) > 23 * 3600, true);
+  const shutLogin = await login.POST(post({ email: "sam@example.com", password: "hunter22" }, ghostIp));
+  check("shut-out: even a right password from that IP gets the 429 + plain message", [shutLogin.status, (await shutLogin.json()).error.includes("Try again tomorrow")], [429, true]);
+  check("shut-out: sign-up from that IP refused too", (await signup.POST(post({ name: "S", email: "shut-signup@example.com", password: "12345678" }, ghostIp))).status, 429);
+  check("shut-out: forgot from that IP refused too", (await forgot.POST(post({ email: "sam@example.com" }, ghostIp))).status, 429);
+  check("shut-out: other IPs unaffected", (await login.POST(post({ email: "sam@example.com", password: "hunter22" }, "198.51.100.60"))).status, 200);
+  await shutOutIp("127.0.0.1", "test");
+  await shutOutIp("unknown", "test");
+  check("shut-out: loopback and unknown are never shut out", [await shutOutLeft("127.0.0.1"), await shutOutLeft("unknown")], [0, 0]);
+
+  // Daily cap: SIGNUPS_PER_NETWORK_DAY new accounts a network; a person stops at the refusal, a script that keeps going is shut out.
+  const capIp = "203.0.113.20";
+  const made = [];
+  for (let i = 0; i < SIGNUPS_PER_NETWORK_DAY; i++) made.push((await signup.POST(post({ name: "C", email: `cap${i}@example.com`, password: "12345678" }, capIp))).status);
+  check(`signup cap: ${SIGNUPS_PER_NETWORK_DAY} accounts a network a day`, [SIGNUPS_PER_NETWORK_DAY, made], [3, [201, 201, 201]]);
+  const fourth = await signup.POST(post({ name: "C", email: "cap3@example.com", password: "12345678" }, capIp));
+  check("signup cap: the 4th is refused with the plain message and makes no account", [fourth.status, (await fourth.json()).error.includes("Too many sign-up tries"), (await db.prepare("SELECT COUNT(*) AS n FROM users WHERE email = 'cap3@example.com'").get()).n], [429, true, 0]);
+  check("signup cap: one refusal does not shut the network out (log in still works)", (await login.POST(post({ email: "cap0@example.com", password: "12345678" }, capIp))).status, 200);
+  await signup.POST(post({ name: "C", email: "cap4@example.com", password: "12345678" }, capIp));
+  check("signup cap: two refusals still don't", await shutOutLeft(capIp), 0);
+  await signup.POST(post({ name: "C", email: "cap5@example.com", password: "12345678" }, capIp));
+  check("signup cap: a third refused try shuts the network out", (await shutOutLeft(capIp)) > 0, true);
+  check("signup cap: another network still signs up", (await signup.POST(post({ name: "C", email: "cap-other@example.com", password: "12345678" }, "198.51.100.61"))).status, 201);
+  check("signup cap: loopback (CI) is never capped", (await Promise.all([1, 2, 3, 4].map((i) => signup.POST(post({ name: "L", email: `loop-cap${i}@example.com`, password: "12345678" }, "127.0.0.1"))))).map((r) => r.status), [201, 201, 201, 201]);
+}
 // Per account + IP (10-16 audit; account-only since 09-10 let a stranger lock the owner out): 10 tries, then 429.
 statuses = [];
 for (let i = 0; i < 11; i++) {

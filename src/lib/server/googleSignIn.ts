@@ -21,6 +21,7 @@ import { afterResponse, markEmailConfirmed } from "@/lib/server/emailVerify";
 import {
   DEVICE_COOKIE,
   DEVICE_COOKIE_MAX_AGE,
+  countSignup,
   countryFrom,
   deviceIdFrom,
   hashIp,
@@ -29,6 +30,7 @@ import {
   newDeviceId,
   recordSignup,
   repeatSignup,
+  signupCapReached,
 } from "@/lib/server/signupGuard";
 import { isAllowedCountry } from "@/lib/countries";
 import { setHomeCookie } from "@/lib/homeCookie";
@@ -85,12 +87,14 @@ export async function completeGoogleSignIn(
     // Same guards as the email signup route.
     if (isDisposableEmail(claims.email)) return { ok: false, code: 1 };
     const ipHash = hashIp(clientIp(req));
+    if (await signupCapReached(ipHash)) return { ok: false, code: 1 };
     const knownDevice = deviceIdFrom(req);
     const deviceId = knownDevice ?? newDeviceId();
     const inbox = inboxKey(claims.email);
     const repeat = Boolean(await repeatSignup(ipHash, knownDevice, inbox, clientIp(req)));
     // Google proved the inbox, so no confirmation step: emailPending stays false.
     const created = await createUser(claims.name, claims.email, "", "user", { homeCountry: here, googleSub: claims.sub });
+    await countSignup(ipHash);
     await recordSignup(created.id, ipHash, deviceId, repeat, here, Date.now(), ctx.touch, inbox);
     user = repeat ? { ...created, trialScansUsed: TRIAL_SCANS } : created;
     if (ctx.ref) await attachReferral(user.id, ctx.ref).catch(() => {});

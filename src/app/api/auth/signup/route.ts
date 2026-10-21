@@ -5,7 +5,7 @@ import { SESSION_COOKIE } from "@/lib/server/auth";
 import { verifyPassword } from "@/lib/server/password";
 import { passwordProblem } from "@/lib/passwordRules";
 import { LIMITS, clientIp } from "@/lib/server/rateLimit";
-import { accountLockout, limitOrRespondAsync } from "@/lib/server/rateLimitDb";
+import { accountLockout, ipGate, shutOutIp } from "@/lib/server/rateLimitDb";
 import { attachReferral } from "@/lib/server/referrals";
 import { isMailConfigured, sendSignupWelcomeEmail } from "@/lib/server/mail";
 import {
@@ -29,6 +29,9 @@ import {
   newDeviceId,
   recordSignup,
   repeatSignup,
+  cappedSignupRefused,
+  countSignup,
+  signupCapReached,
 } from "@/lib/server/signupGuard";
 import { isValidEmail } from "@/lib/emailAddress";
 import { parseTouch } from "@/lib/attribution";
@@ -73,7 +76,7 @@ async function resumeSignup(existing: User, req: Request) {
 export async function POST(req: Request) {
   // Brute-force backstop, per IP. Shared counter, not per instance: signup
   // now mails a code to whatever address was typed.
-  const limited = await limitOrRespondAsync(`auth:signup:${clientIp(req)}`, LIMITS.authAttempt);
+  const limited = await ipGate(req, "auth:signup");
   if (limited) return limited;
   const body = await req.json().catch(() => null);
   const name = typeof body?.name === "string" ? body.name.trim() : "";
@@ -128,6 +131,12 @@ export async function POST(req: Request) {
 
   // Free scans once per IP and per device (Chris 09-29).
   const ipHash = hashIp(clientIp(req));
+  // SIGNUPS_PER_NETWORK_DAY new accounts a network a day (Chris 10-20). A person stops at the refusal; a script that
+  // keeps going is shut out of every account route for a day.
+  if (ipHash && (await signupCapReached(ipHash))) {
+    if (await cappedSignupRefused(ipHash)) await shutOutIp(clientIp(req), "kept signing up past the daily cap");
+    return NextResponse.json({ error: TOO_MANY_SIGNUPS }, { status: 429, headers: { "Retry-After": "3600" } });
+  }
   const knownDevice = deviceIdFrom(req);
   const deviceId = knownDevice ?? newDeviceId();
   // …and once per inbox: Gmail dot and plus spellings are the same person (Chris 10-01).
@@ -150,6 +159,7 @@ export async function POST(req: Request) {
   // Home country = where the account is made (Chris 09-30 travel rule); the proxy
   // already refused signups from outside the open countries.
   const created = await createUser(name, email, password, "user", { emailPending: confirm, homeCountry: countryFrom(req) });
+  await countSignup(ipHash);
   // The first touch the browser kept (lib/attribution.ts); malformed = dropped, never an error.
   await recordSignup(created.id, ipHash, deviceId, repeat, countryFrom(req), Date.now(), parseTouch(body?.touch), inbox);
   let user: User = repeat ? { ...created, trialScansUsed: TRIAL_SCANS } : created;

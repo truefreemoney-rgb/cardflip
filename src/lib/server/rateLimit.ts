@@ -157,8 +157,8 @@ export const LIMITS = {
   authAccountWide: [{ limit: 100, windowMs: 60 * MINUTE }] as RateLimitRule[],
   /** Mailing an email-confirmation code (signup resend, Change Email, the account page): one a minute (Chris 10-14), five an hour. Keyed by account and again by target address. */
   emailCode: [{ limit: 1, windowMs: 60_000 }, { limit: 5, windowMs: 60 * MINUTE }] as RateLimitRule[],
-  /** Confirmation codes mailed per IP per day (signup, resend, Change Email together), so one network cannot spend the shared daily mail budget that keeps the wall on for everyone. */
-  emailCodeIpDay: [{ limit: 30, windowMs: DAY }] as RateLimitRule[],
+  /** Confirmation codes mailed per IP per day (signup, resend, Change Email together), so one network cannot spend the shared daily mail budget that keeps the wall on for everyone. 5 from 10-20 (was 30; a bot mailed codes to our support inboxes and a stranger's). */
+  emailCodeIpDay: [{ limit: 5, windowMs: DAY }] as RateLimitRule[],
   /** Help robot: per-IP burst guard; the per-account daily cap lives in helpChat.ts. */
   helpChat: [{ limit: 12, windowMs: MINUTE }] as RateLimitRule[],
   /** "Email me when CardFlip opens here" (/unavailable). Per IP. */

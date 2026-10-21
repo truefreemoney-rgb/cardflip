@@ -12,8 +12,8 @@ function dummyHash(): string {
 }
 import { SESSION_COOKIE } from "@/lib/server/auth";
 import { LOGIN_FAILED_MESSAGE, hasPassword } from "@/lib/googleAuth";
-import { LIMITS, clientIp } from "@/lib/server/rateLimit";
-import { accountLockout, limitOrRespondAsync } from "@/lib/server/rateLimitDb";
+import { clientIp } from "@/lib/server/rateLimit";
+import { accountLockout, ipGate, noteGhostLogin } from "@/lib/server/rateLimitDb";
 import { countryFrom } from "@/lib/server/signupGuard";
 import { isAllowedCountry } from "@/lib/countries";
 import { setHomeCookie } from "@/lib/homeCookie";
@@ -22,7 +22,7 @@ import { maskEmail } from "@/lib/server/emailVerify";
 
 export async function POST(req: Request) {
   // Brute-force backstop, per IP.
-  const limited = await limitOrRespondAsync(`auth:login:${clientIp(req)}`, LIMITS.authAttempt);
+  const limited = await ipGate(req, "auth:login");
   if (limited) return limited;
   const body = await req.json().catch(() => null);
   let email = typeof body?.email === "string" ? body.email.trim() : "";
@@ -46,6 +46,7 @@ export async function POST(req: Request) {
   // one hash (10-01 sweep: skipping scrypt made a miss answer measurably faster).
   const passwordOk = user && hasPassword(user.passwordHash) ? verifyPassword(password, user.passwordHash) : (verifyPassword(password, dummyHash()), false);
   if (!user || !passwordOk) {
+    if (!user && email) await noteGhostLogin(clientIp(req), email);
     return NextResponse.json({ error: LOGIN_FAILED_MESSAGE }, { status: 401 });
   }
 

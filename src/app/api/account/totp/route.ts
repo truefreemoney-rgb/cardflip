@@ -3,8 +3,8 @@ import QRCode from "qrcode";
 import { AuthError, requireUser, signOutOtherDevices } from "@/lib/server/auth";
 import { verifyPassword } from "@/lib/server/password";
 import { hasPassword } from "@/lib/googleAuth";
-import { LIMITS, clientIp } from "@/lib/server/rateLimit";
-import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
+import { LIMITS } from "@/lib/server/rateLimit";
+import { ipGate, limitOrRespondAsync } from "@/lib/server/rateLimitDb";
 import { acceptTotpStep, disableTotp, enableTotp, setTotpBackupCodes, setTotpSecret, totpEnabled } from "@/lib/server/users";
 import { generateBackupCodes, generateTotpSecret, otpauthUrl, totpMatchStep } from "@/lib/server/totp";
 
@@ -20,7 +20,7 @@ import { generateBackupCodes, generateTotpSecret, otpauthUrl, totpMatchStep } fr
 export async function POST(req: NextRequest) {
   // Durable, per IP and per account (10-01 sweep): the in-memory limiter never binds across serverless instances, and a
   // stolen session guessing the password here switches two-step off.
-  const limited = await limitOrRespondAsync(`account:totp:${clientIp(req)}`, LIMITS.authAttempt);
+  const limited = await ipGate(req, "account:totp");
   if (limited) return limited;
   try {
     const user = await requireUser();

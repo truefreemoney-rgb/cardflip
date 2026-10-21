@@ -12,8 +12,7 @@ import {
 import { safeNext } from "@/lib/googleAuth";
 import { xConfigured, xOrigin, xRedirectUri } from "@/lib/server/xAuth";
 import { parseTouch } from "@/lib/attribution";
-import { LIMITS, clientIp } from "@/lib/server/rateLimit";
-import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
+import { ipGate } from "@/lib/server/rateLimitDb";
 
 /**
  * "Continue with X", step 1: remember who is asking (random state, the PKCE verifier, the page they
@@ -25,7 +24,7 @@ export async function GET(req: Request) {
   const mode: XMode = url.searchParams.get("mode") === "signup" ? "signup" : "login";
   const back = `${xOrigin(req)}/${mode === "signup" ? "signup" : "login"}`;
   if (!xConfigured()) return NextResponse.redirect(`${back}?x_error=1`, 302);
-  const limited = await limitOrRespondAsync(`auth:x:start:${clientIp(req)}`, LIMITS.authAttempt);
+  const limited = await ipGate(req, "auth:x:start");
   if (limited) return NextResponse.redirect(`${back}?x_error=1`, 302);
 
   let touch = null;

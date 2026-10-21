@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { LIMITS, RateLimitError, enforceRateLimit, limitOrRespond, rateLimitResponse, type RateLimitRule, type RuleUse } from "@/lib/server/rateLimit";
+import { LIMITS, RateLimitError, clientIp, enforceRateLimit, limitOrRespond, rateLimitResponse, type RateLimitRule, type RuleUse } from "@/lib/server/rateLimit";
 
 /**
  * DB-backed fixed-window limiter for the auth brute-force guard.
@@ -135,6 +135,75 @@ export async function limitOrRespondShared(key: string, rules: RateLimitRule[], 
 export function _resetRateLimitDb(): void {
   warned = false;
   lastSweep = 0;
+}
+
+// ---------------------------------------------------------------------------
+// Shut-out (Chris 10-20, after a bot on one AWS IP made 7 accounts and tried every account route in 9 minutes):
+// an IP that probes is refused on every sign-in, sign-up and account route for a day. Kept as a 24 h row in
+// rate_limits, so the hourly sweep clears it like any other window. Loopback and "unknown" are never shut out
+// (same rule as signupGuard.hashIp: CI and tests come from there, and "unknown" would pool everyone).
+
+const SHUT_OUT_MS = 24 * 60 * 60 * 1000;
+const HOUR: RateLimitRule = { limit: 0, windowMs: 60 * 60 * 1000 };
+/** Made-up addresses one IP may try at sign-in in an hour; this many shuts it out (a person mistypes one or two). */
+export const GHOST_LOGINS_PER_HOUR = 5;
+const SHUT_OUT_MESSAGE = "Too many tries from this network. Try again tomorrow, or email support@cardflip.io.";
+
+const shutOutKey = (ip: string) => `shutout:${ip}|${SHUT_OUT_MS}`;
+const realIp = (ip: string) => Boolean(ip) && ip !== "unknown" && !/^(127\.|::1$|::ffff:127\.)/.test(ip);
+
+/** Shut `ip` out for a day from now. Logged as a warning, so it lands on /admin/errors. Best effort. */
+export async function shutOutIp(ip: string, reason: string, now = Date.now()): Promise<void> {
+  if (!realIp(ip)) return;
+  try {
+    await db
+      .prepare(
+        `INSERT INTO rate_limits (key, count, window_start) VALUES (?, 1, ?)
+         ON CONFLICT(key) DO UPDATE SET count = count + 1, window_start = excluded.window_start`,
+      )
+      .run(shutOutKey(ip), now);
+    console.warn(`ip shut out for 24 h: ${ip} (${reason})`);
+  } catch (err) {
+    console.error("shut-out could not be written:", err);
+  }
+}
+
+/** Seconds left on `ip`'s shut-out, or 0. Fails open, like the limiter. */
+export async function shutOutLeft(ip: string, now = Date.now()): Promise<number> {
+  if (!realIp(ip)) return 0;
+  try {
+    const row = await db.prepare("SELECT window_start FROM rate_limits WHERE key = ?").get<{ window_start: number }>(shutOutKey(ip));
+    const left = row ? Number(row.window_start) + SHUT_OUT_MS - now : 0;
+    return left > 0 ? Math.ceil(left / 1000) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/** The 429 a shut-out IP gets, or null. For routes whose own limits are not keyed `${scope}:${ip}` (ipGate is). */
+export async function shutOutResponse(req: Request): Promise<Response | null> {
+  const left = await shutOutLeft(clientIp(req));
+  return left > 0 ? Response.json({ error: SHUT_OUT_MESSAGE, retryAfterSeconds: left }, { status: 429, headers: { "Retry-After": String(left) } }) : null;
+}
+
+/** The per-IP guard every sign-in, sign-up, account and billing route opens with: the shut-out, then authAttempt on `${scope}:${ip}`. */
+export async function ipGate(req: Request, scope: string): Promise<Response | null> {
+  return (await shutOutResponse(req)) ?? (await limitOrRespondAsync(`${scope}:${clientIp(req)}`, LIMITS.authAttempt));
+}
+
+/**
+ * A sign-in for an address with no account. The GHOST_LOGINS_PER_HOUR-th different one from an IP in an hour
+ * shuts it out (the 10-20 bot tried admin@, info@, support@ and made-up addresses). Best effort.
+ */
+export async function noteGhostLogin(ip: string, email: string, now = Date.now()): Promise<void> {
+  if (!realIp(ip)) return;
+  try {
+    if ((await hit(`auth:ghost:${ip}:${email.toLowerCase()}`, HOUR, now)).count !== 1) return;
+    const { count } = await hit(`auth:ghosts:${ip}`, HOUR, now);
+    if (count >= GHOST_LOGINS_PER_HOUR) await shutOutIp(ip, `${count} made-up emails at sign-in`, now);
+  } catch {
+    // Advisory: the per-IP and per-account limits still apply.
+  }
 }
 
 /**

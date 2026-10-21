@@ -53,6 +53,8 @@ jobs:
       - if: github.event_name == 'deployment_status'
         run: sleep 45
       - run: node scripts/prod-smoke.mjs https://cardflip.io
+        env:
+          SMOKE_PASS: ${{ secrets.SMOKE_PASS }}
       # The mailbox that sends confirmation codes, password resets and the
       # alerts below. A dead one fails open (codes are skipped, nobody is
       # walled) and the site cannot mail anyone about it, so this asks the

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { LIMITS, clientIp } from "@/lib/server/rateLimit";
-import { limitOrRespondShared } from "@/lib/server/rateLimitDb";
+import { limitOrRespondShared, shutOutResponse } from "@/lib/server/rateLimitDb";
 import { consumeLink, limitWithMessage, peekLink } from "@/lib/server/emailVerify";
 import { createSession, destroyOtherSessions, getSessionUserId, sessionCookieOptions } from "@/lib/server/sessions";
 import { SESSION_COOKIE, signOutOtherDevices } from "@/lib/server/auth";
@@ -72,6 +72,8 @@ async function confirmed(result: Extract<Awaited<ReturnType<typeof consumeLink>>
 }
 
 export async function POST(req: Request) {
+  const shut = await shutOutResponse(req);
+  if (shut) return shut;
   const limited = await limitWithMessage([[`auth:confirm:${clientIp(req)}`, LIMITS.authAttempt]]);
   if (limited) return limited;
   const body = await req.json().catch(() => null);

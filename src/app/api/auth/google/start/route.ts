@@ -10,8 +10,7 @@ import {
 } from "@/lib/googleAuth";
 import { googleConfigured, googleOrigin, googleRedirectUri } from "@/lib/server/googleAuth";
 import { parseTouch } from "@/lib/attribution";
-import { LIMITS, clientIp } from "@/lib/server/rateLimit";
-import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
+import { ipGate } from "@/lib/server/rateLimitDb";
 
 /**
  * "Continue with Google", step 1: remember who is asking (random state + nonce, the page they
@@ -23,7 +22,7 @@ export async function GET(req: Request) {
   const mode: GoogleMode = url.searchParams.get("mode") === "signup" ? "signup" : "login";
   const back = `${googleOrigin(req)}/${mode === "signup" ? "signup" : "login"}`;
   if (!googleConfigured()) return NextResponse.redirect(`${back}?google_error=1`, 302);
-  const limited = await limitOrRespondAsync(`auth:google:start:${clientIp(req)}`, LIMITS.authAttempt);
+  const limited = await ipGate(req, "auth:google:start");
   if (limited) return NextResponse.redirect(`${back}?google_error=1`, 302);
 
   let touch = null;

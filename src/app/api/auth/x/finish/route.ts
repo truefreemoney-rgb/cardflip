@@ -6,7 +6,7 @@ import { TRIAL_SCANS, createUser, findUserByEmail, findUserByXSub, trialScansLef
 import { createSession, sessionCookieOptions } from "@/lib/server/sessions";
 import { SESSION_COOKIE } from "@/lib/server/auth";
 import { LIMITS, clientIp } from "@/lib/server/rateLimit";
-import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
+import { ipGate } from "@/lib/server/rateLimitDb";
 import { attachReferral } from "@/lib/server/referrals";
 import { isMailConfigured, sendSignupWelcomeEmail } from "@/lib/server/mail";
 import {
@@ -19,6 +19,7 @@ import {
 import {
   DEVICE_COOKIE,
   DEVICE_COOKIE_MAX_AGE,
+  countSignup,
   countryFrom,
   deviceIdFrom,
   emailDomainTypo,
@@ -28,6 +29,7 @@ import {
   newDeviceId,
   recordSignup,
   repeatSignup,
+  signupCapReached,
 } from "@/lib/server/signupGuard";
 import { isValidEmail } from "@/lib/emailAddress";
 import { setHomeCookie } from "@/lib/homeCookie";
@@ -39,7 +41,7 @@ import { setHomeCookie } from "@/lib/homeCookie";
  * account is refused: no linking without proof of the inbox.
  */
 export async function POST(req: Request) {
-  const limited = await limitOrRespondAsync(`auth:x:finish:${clientIp(req)}`, LIMITS.authAttempt);
+  const limited = await ipGate(req, "auth:x:finish");
   if (limited) return limited;
 
   const jar = await cookies();
@@ -73,6 +75,9 @@ export async function POST(req: Request) {
 
   // Same guards as the email signup route.
   const ipHash = hashIp(clientIp(req));
+  if (await signupCapReached(ipHash)) {
+    return NextResponse.json({ error: "Too many sign-ups from this network today. Try again tomorrow." }, { status: 429, headers: { "Retry-After": "3600" } });
+  }
   const knownDevice = deviceIdFrom(req);
   const deviceId = knownDevice ?? newDeviceId();
   const inbox = inboxKey(email);
@@ -98,6 +103,7 @@ export async function POST(req: Request) {
     console.error("x finish: create failed:", err instanceof Error ? err.message : err);
     return NextResponse.json({ error: "Sign up failed. Try again." }, { status: 400 });
   }
+  await countSignup(ipHash);
   await recordSignup(created.id, ipHash, deviceId, repeat, here, Date.now(), pending.touch, inbox);
   let user: User = repeat ? { ...created, trialScansUsed: TRIAL_SCANS } : created;
   if (pending.ref) await attachReferral(user.id, pending.ref).catch(() => {});

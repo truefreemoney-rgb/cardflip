@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { findUserByEmail } from "@/lib/server/users";
 import { issueResetToken } from "@/lib/server/passwordReset";
 import { isMailConfigured, sendPasswordResetEmail } from "@/lib/server/mail";
-import { LIMITS, clientIp } from "@/lib/server/rateLimit";
-import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
+import { LIMITS } from "@/lib/server/rateLimit";
+import { ipGate, limitOrRespondAsync } from "@/lib/server/rateLimitDb";
 import { afterResponse } from "@/lib/server/emailVerify";
 
 /**
@@ -17,7 +17,7 @@ import { afterResponse } from "@/lib/server/emailVerify";
  */
 export async function POST(req: Request) {
   // Brute-force backstop, per IP.
-  const limited = await limitOrRespondAsync(`auth:forgot:${clientIp(req)}`, LIMITS.authAttempt);
+  const limited = await ipGate(req, "auth:forgot");
   if (limited) return limited;
   if (!isMailConfigured()) {
     return NextResponse.json(

@@ -1,5 +1,5 @@
 // Deny listed IPs at the Vercel Firewall (Chris 10-20 11:15pm ET: "Block it + delete its accounts" for the sign-up/account
-// probing bot on 35.183.7.202, Google Cloud Toronto). One rule; re-running adds any new IP to it instead of a second rule.
+// probing bot on 35.183.7.202, Amazon AWS Canada). One rule; re-running adds any new IP to it instead of a second rule.
 import fs from "node:fs";
 const m = JSON.parse(fs.readFileSync(".env.migration.json", "utf8").replace(/^﻿/, ""));
 const base = "https://api.vercel.com/v1/security/firewall/config";

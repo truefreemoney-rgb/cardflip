@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { AuthError, requireUser, signOutOtherDevices } from "@/lib/server/auth";
 import { LIMITS, clientIp } from "@/lib/server/rateLimit";
+import { shutOutResponse } from "@/lib/server/rateLimitDb";
 import { CODE_MAX_ATTEMPTS, cleanCode, confirmWithCode, limitWithMessage, nothingWaiting, publicUserWithEmailState } from "@/lib/server/emailVerify";
 import { findUserById, needsEmailConfirm } from "@/lib/server/users";
 
@@ -34,6 +35,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const shut = await shutOutResponse(req);
+  if (shut) return shut;
   try {
     const user = await requireUser();
     // Done already (or nothing waiting): say so before any limit or code check.

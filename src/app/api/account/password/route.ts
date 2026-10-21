@@ -3,8 +3,8 @@ import { cookies } from "next/headers";
 import { AuthError, SESSION_COOKIE, requireUser } from "@/lib/server/auth";
 import { confirmsPassword } from "@/lib/server/password";
 import { PASSWORD_MAX, PASSWORD_MIN } from "@/lib/passwordRules";
-import { LIMITS, clientIp } from "@/lib/server/rateLimit";
-import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
+import { LIMITS } from "@/lib/server/rateLimit";
+import { ipGate, limitOrRespondAsync } from "@/lib/server/rateLimitDb";
 import { updateUserPassword } from "@/lib/server/users";
 import { hasPassword } from "@/lib/googleAuth";
 import { destroyOtherSessions } from "@/lib/server/sessions";
@@ -16,7 +16,7 @@ import { destroyOtherSessions } from "@/lib/server/sessions";
  * change keeps working.
  */
 export async function POST(req: NextRequest) {
-  const limited = await limitOrRespondAsync(`account:password:${clientIp(req)}`, LIMITS.authAttempt);
+  const limited = await ipGate(req, "account:password");
   if (limited) return limited;
   try {
     const user = await requireUser();

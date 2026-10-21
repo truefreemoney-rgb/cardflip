@@ -33,8 +33,10 @@ async function check(label, fn) {
 
 let geoGated = false;
 const geoError = () => Object.assign(new Error("country gate: this runner is outside the open countries"), { geo: true });
+// GitHub's runners sit on Microsoft's network, which the firewall keeps off /api/auth/* (10-20); this secret lets the smoke through.
+const passHeader = process.env.SMOKE_PASS ? { "x-cf-smoke": process.env.SMOKE_PASS } : {};
 async function call(path, init = {}) {
-  const res = await fetch(base + path, { ...init, signal: AbortSignal.timeout(TIMEOUT_MS), headers: { "user-agent": "cardflip-smoke", ...(init.headers ?? {}) } });
+  const res = await fetch(base + path, { ...init, signal: AbortSignal.timeout(TIMEOUT_MS), headers: { "user-agent": "cardflip-smoke", ...passHeader, ...(init.headers ?? {}) } });
   const text = await res.text();
   let json = null;
   try { json = JSON.parse(text); } catch { /* html or empty */ }
