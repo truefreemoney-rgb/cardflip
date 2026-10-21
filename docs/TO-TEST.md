@@ -1,5 +1,9 @@
 # To test later
 
+## 10-20 ~8:45pm ET: review 10-19 #25 step 3 = ?dbg=outline debug moved to src/components/CameraOutlineDebug.tsx, loaded only when NODE_ENV != production, COMMIT ONLY, not visible
+- Tested locally (dev, pane, /app?dbg=outline): panel + canvas + "sampling…" render from the new module, a canvas photo into input[data-dbg-capture] fired /api/vision/scan (stubbed) = onCapture still wired. tsc + eslint clean. Dump format unchanged (frame() at the old spot, tick() at the old push).
+- After push: open the prod scanner's JS chunks (pane, network list on /app + camera open) and search them for "outline-dump" and "sampling" -> not found (Turbopack dropped the dead import). If found, the ternary did not fold: switch to an env-gated file swap.
+
 ## 10-20 ~8:18pm ET: printing switch re-prices the ledger row (Angel #25 kept the D23 promo's $73.16), PUSHED 2df03d3f (live 8:22pm), not visible
 - Tested locally (faked read of Angel #25, /api/ebay/comps delayed 6 s): camera "Not this card?" and the editor's list, D23 (or #191) then back to #25 inside the delay -> PATCH price 1.75 at once, the #25 lookup restarts when the old one lands, last PATCH 1.75. Before: last PATCH stayed on the other printing's price. tsc, eslint, test:pricing, test:liveprices green.
 - After push, phone: scan a cheap card, tap "Not this card?", pick an expensive printing, go straight back to the scanned one, Verify -> Inventory shows the cheap card's price, not the expensive one.
@@ -9,6 +13,7 @@
 - After push, phone: scan a Magic/Lorcana card with the switch on Pokémon -> the chip offers the switch, one tap gives the right card; the Scans counter drops by ONE for that card (the wrong-game read is given back).
 
 ## 10-20 ~4:20pm ET: review 10-19 #24 slice 3 = help lists, auth helper links, password hint, "Price looks wrong?", COMMIT ONLY, VISIBLE, shots docs/shots/help-index-24-phone.jpg, help-article-24-phone.jpg, login-24-phone.jpg, signup-24-phone.jpg, price-report-24-phone.jpg, unavailable-24-phone.jpg
+- [x] (prod 10-20 8:35pm ET, pane at 375px + signed-out curl of /login) /help rows 44px 14px, /help/scanning breadcrumb 14px + "More help topics" rows 44px, no sideways scroll; /login Forgot Password / Sign Up / Back to home = text-sm zinc-400 with the -inset-y-3.5 tap layer. Rest of this block (signup hint, price report, /unavailable) rides on the same shipped classes.
 - After push, phone: /help topic list = 44px rows with hairlines, lighter text; a /help/<topic> page has the card pages' breadcrumb (14px) and the same 44px "More help topics" rows; /login "Forgot Password?" 14px lighter and a tap just above it still hits it while the password box keeps its own taps; "No account? Sign Up" 14px; "Back to home" lighter on login, signup, forgot, reset, confirm-email; signup password hint "At least 8 characters" readable 12px; the eye button is reachable with Tab on a keyboard; signup terms line readable; a card page's "Price looks wrong?" and its Too high / Too low tap at 44px; /unavailable Log In + Privacy / Terms 14px with tall tap rows.
 
 ## 10-20 ~4:15pm ET: review 10-19 #24 slice 2b = list-row tap targets (src/lib/tap.ts shared layers), COMMIT ONLY, VISIBLE (small), shots docs/shots/inventory-24-phone.jpg, watchlist-24-phone.jpg

@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import GameToggle from "@/components/GameToggle";
 import { GAMES } from "@/lib/games";
 import type { GameId } from "@/lib/types";
@@ -16,6 +17,7 @@ import ScanResultSheet from "@/components/ScanResultSheet";
 import ScannerOptionsSheet from "@/components/ScannerOptionsSheet";
 import VerifyAllSheet from "@/components/VerifyAllSheet";
 import WrongGameSwitch from "@/components/WrongGameSwitch";
+import type { OutlineDebugApi } from "@/components/CameraOutlineDebug";
 import { effectiveVariant, formatMoney, formatVariantLabel, headlinePrice, marketFlagOf, pickPrice } from "@/lib/listing";
 import { fxCapture, fxMatch, fxMiss, revealTier, type RevealTier } from "@/lib/client/scanFx";
 import type { Condition, PokemonCard, ScanItem } from "@/lib/types";
@@ -51,6 +53,10 @@ import {
 
 /** Frames taken per tap; the sharpest one is sent (10-04: a shaky hand loses the collector number first). */
 const BURST = 4;
+
+/** ?dbg=outline's panel, frame dumps and photo input: dev builds only, production never builds it. */
+const CameraOutlineDebug =
+  process.env.NODE_ENV === "production" ? null : dynamic(() => import("@/components/CameraOutlineDebug"), { ssr: false });
 
 /** The blur score of a guide crop, at the calibration geometry (see lib/sharpness.ts). Infinity when it can't be read. */
 function bandSharpness(canvas: HTMLCanvasElement): number {
@@ -453,12 +459,8 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
       return dbg === "outline";
     }
   });
-  const debugCanvas = useRef<HTMLCanvasElement | null>(null);
-  const [debugText, setDebugText] = useState("");
-  const lastDump = useRef(0);
-  const dumped = useRef(0);
-  // Every tick's result between two dumps (debug): the twitch lives between frames, not in them.
-  const ticks = useRef<unknown[]>([]);
+  // Set by CameraOutlineDebug once it loads (dev, ?dbg=outline); the live tick reports to it.
+  const outlineDebug = useRef<OutlineDebugApi | null>(null);
   // A capture (the burst) is running: no second tap, and the hint sampler rests.
   const busy = useRef(false);
   // Android: the camera takes focus points (tap-to-focus); iPhones don't expose focus to web pages.
@@ -728,68 +730,24 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
       }
       // The card-size check only when nothing more pressing is wrong.
       const next = pickHint(light, null, null) ?? pickHint(light, null, quad ? quad.area * grow : null);
-      if (trace && debugCanvas.current) {
-        const dc = debugCanvas.current;
-        const dctx = dc.getContext("2d");
-        if (dctx) {
-          dc.width = w;
-          dc.height = h;
-          dctx.drawImage(c, 0, 0);
-          // The guide, in the crop.
-          dctx.strokeStyle = "#a78bfa";
-          dctx.lineWidth = 1;
-          dctx.strokeRect(((g.x - sx) / sw) * w, ((g.y - sy) / sh) * h, (g.w / sw) * w, (g.h / sh) * h);
-          if (quad) {
-            dctx.strokeStyle = "#34d399";
-            dctx.lineWidth = 2;
-            dctx.beginPath();
-            quad.corners.forEach((p, i) => (i ? dctx.lineTo(p.x, p.y) : dctx.moveTo(p.x, p.y)));
-            dctx.closePath();
-            dctx.stroke();
-          }
-        }
-        setDebugText(
-          `${trace.reason} · ${trace.sides} · T ${trace.T} max ${trace.maxStep} · luma ${Math.round(light.luma)} blown ${light.blown.toFixed(3)} · hint ${next ?? "none"} · ${mirror ? "mirror" : "video"} ${vw}x${vh} · el ${video.clientWidth}x${video.clientHeight} · dumps ${dumped.current}`,
-        );
-        // Every 2 s, the whole frame + the geometry to the dev server
-        // (api/dev/outline-dump), to tune the finder on real frames offline.
-        if (Date.now() - lastDump.current > 2000) {
-          lastDump.current = Date.now();
-          try {
-            const full = document.createElement("canvas");
-            full.width = vw;
-            full.height = vh;
-            full.getContext("2d")?.drawImage(video, 0, 0);
-            const rect = video.getBoundingClientRect();
-            const track = streamRef.current?.getVideoTracks()[0];
-            const meta = {
-              at: new Date().toISOString(),
-              ua: navigator.userAgent,
-              mirror,
-              src: { vw, vh },
-              element: { clientWidth: video.clientWidth, clientHeight: video.clientHeight, rect: { x: rect.x, y: rect.y, w: rect.width, h: rect.height } },
-              trackSettings: track?.getSettings() ?? null,
-              geometry: guideGeometry(video),
-              crop: { sx, sy, sw, sh, w, h },
-              expect,
-              quad,
-              trace,
-              outlineTarget: outlineTarget.current,
-              ticks: ticks.current.splice(0),
-            };
-            void fetch("/api/dev/outline-dump", {
-              method: "POST",
-              headers: { "content-type": "application/json" },
-              body: JSON.stringify({ frame: full.toDataURL("image/jpeg", 0.85), meta }),
-            }).then((r) => {
-              if (r.ok) dumped.current++;
-            }).catch(() => {
-              // A dropped upload over the tunnel: Safari's "Load failed" popped the dev error badge (10-15).
-            });
-          } catch {
-            // Debug only; never in the way.
-          }
-        }
+      if (trace) {
+        outlineDebug.current?.frame({
+          crop: c,
+          source: video,
+          track: streamRef.current?.getVideoTracks()[0],
+          mirror,
+          vw,
+          vh,
+          guide: g,
+          box: { sx, sy, sw, sh, w, h },
+          geometry: () => guideGeometry(video),
+          expect,
+          quad,
+          trace,
+          light,
+          hint: next,
+          target: outlineTarget.current,
+        });
       }
       if (next === last) streak++;
       else {
@@ -815,7 +773,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
         }
       }
       // Debug: this tick's result, for the next dump.
-      if (trace) ticks.current.push({ t: Date.now(), reason: trace.reason, quad: quad?.corners ?? null, target: outlineTarget.current });
+      if (trace) outlineDebug.current?.tick(trace.reason, quad, outlineTarget.current);
     }, 150);
     return () => {
       window.clearInterval(id);
@@ -1218,24 +1176,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
           {flash && (
             <div className="absolute inset-0 bg-white/70" aria-hidden />
           )}
-          {debugOutline && (
-            <div className="pointer-events-none absolute left-1 top-1 z-30 max-w-[60%] rounded bg-black/80 p-1 text-[10px] leading-tight text-lime-300">
-              <canvas ref={debugCanvas} className="block w-32 border border-zinc-600" />
-              <p className="mt-1 break-words">{debugText || "sampling…"}</p>
-              {/* Dev only: a photo fed in by hand runs the real scan where there is no camera (the browser pane). */}
-              <input
-                type="file"
-                accept="image/*"
-                data-dbg-capture
-                className="pointer-events-auto mt-1 block w-full text-[10px]"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  e.target.value = "";
-                  if (f) onCapture(f);
-                }}
-              />
-            </div>
-          )}
+          {debugOutline && CameraOutlineDebug && <CameraOutlineDebug apiRef={outlineDebug} onCapture={onCapture} />}
           {!ready && !error && !nativeCam && (
             <p className="absolute inset-0 flex items-center justify-center text-sm text-zinc-400">
               Starting camera…
