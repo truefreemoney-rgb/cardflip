@@ -1,7 +1,7 @@
-# What is left, Wed 10-21 ~10:35am ET
+# What is left, Wed 10-21 ~11:00am ET
 Only open items. "(new)" = not on the last list. Done items are at the bottom.
 
-- **A. The push.** 52 changes waiting (16 change the site), held until you say push. Before the push: your yes on the shot sets sent (set lists, backup tie, admin keeps, Kyogre search, Dark Charizard 1st page, (new) Pinterest admin, (new) Watchlist Pikachu, (new) Copycat page) and the admin wording ("Fixed to $X, posts use this price"). Then the after-push checks, incl. (new) recording Copycat's eBay check so its price shows. The old test list: about 20 left that I check in the pane, 52 phone checks for you in small batches, 20 waiting on a date.
+- **A. The push.** 55 changes waiting (17 change the site), held until you say push. Before the push: your yes on the shot sets sent (set lists, backup tie, admin keeps, Kyogre search, Dark Charizard 1st page, (new) Pinterest admin, (new) Watchlist Pikachu, (new) Copycat page, (new) chart "No change") and the admin wording ("Fixed to $X, posts use this price"). Then the after-push checks, incl. (new) recording Copycat's eBay check so its price shows. The old test list: about 20 left that I check in the pane, 52 phone checks for you in small batches, 20 waiting on a date.
 - **B. Bugs to fix now.** Admin can't give a Booster account extra scans (noted, fix later).
 - **C. Prices.** Tomorrow's eBay batch (see D). Five suspicious flat tops to hand-check (Smaug foil, OP05-119, Uria 1st, Red Cliffs Armada, Dragonite Neo 1st). 294 Magic special-art foils wait for the weekly re-read ~10-25. One Piece: 4 thin promo prices need eBay first (the other ~139 prize cards have no price anywhere). 69 round-number and 69 no-source Pokémon. 12 new Hobbit Art Series cards not on TCGplayer yet.
 - **D. Dated reminders.** Today: comment checks at each post and ~1 hour after; Magic pause ends (check tonight's render). 10-22: eBay checks in the pane (Mewtwo Star, Celebi ex, Typhlosion 1st, Shining Tyranitar 1st, Treecko star, Pikachu Star, 1st Ed Blastoise, 1st Ed Charizard, Stitch Rock Star promo, Darkpact, (new) Gengar Fossil #20, Gengar & Mimikyu GX, Kabutops ex, the Judge Token, then the 4 One Piece promos if room), page-build cost check, NetActuate look. 10-23 Search Console. 10-25 Pokémon pause ends + Sunday digest hand check (draft subject leads with "Official Judge Token +70%", a one-step jump). 10-27 YGO pictures. Nov 5 cloud credit. Nov 16 FLIPBACK.
@@ -10,11 +10,12 @@ Only open items. "(new)" = not on the last list. Done items are at the bottom.
 - **G. Waiting on a real event.** First sale, first US publish, first ad signup, first subscribe. Nothing to do until they happen.
 - **H. PriceCharting finale.** Unchanged: build it all before you subscribe, then the day-1 import. Unlocks the YGO cap, 590 frozen prices, 1st Edition twins.
 - **I. App store.** Unchanged: on hold behind the $99. Listing trims, screenshots, Capacitor shell, 27-step TestFlight list, slabs plan as a cloud session before Nov 5.
-- **J. Polish backlog.** About 250 small review items. Delete the Magic pause entry after today; up-arrow shows on a $0.00 change in the price chart.
+- **J. Polish backlog.** About 250 small review items, smallest first. Delete the Magic pause entry tomorrow.
 - **K. Parked.** Auto-scan, internal links (~10-30), invite a friend, ads tuning, verticals, stewardship, Vulpix tiebreak, bots on home-internet addresses (the alarm tells us).
 - **L. Social.** Mine. Comment replies at every post time (Needs You + TikTok by hand), Blender reveals per slot (first full video with framing C checked in TikTok's preview before a batch), Meta follows, TikTok comment scope.
 
 ## Done since the last list
+- (new) Charts: a price that didn't move says "No change" in grey, not a green ▲ $0.00 (held, shots sent).
 - (new) Pinterest: the admin said "never posted" and no pins showed on /admin/social/posts. Your hand pins are now read in with their views, count as posted, and the robot stops its failing tries (held for the push, shots sent).
 - (new) Audit-fix side session: everything in it was live since 10-16; archived. All work stays in this session now.
 - (new) Watchlist: your Legendary Collection Pikachu read $6.70 "down 100%" (the reverse holo you saved at $1,574.99 was being read as the plain one). Rows now keep their printing; price alerts too (held, shots sent).
