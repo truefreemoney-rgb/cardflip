@@ -165,7 +165,7 @@ function CardStory({ f, page }: { f: CardFacts; page: CardPage }) {
         <>
           <div className="mt-4 overflow-hidden rounded-2xl border border-edge bg-surface-1">
             <div className="p-4">
-              <PriceHistoryChart cardId={f.id} initialSeries={page.chart} preferVariant={page.headline?.variant ?? null} compact className="text-left" />
+              <PriceHistoryChart cardId={f.id} initialSeries={page.chart} preferVariant={page.headline?.variant ?? null} compact hideTitle className="text-left" />
             </div>
             {/* The range in words (10-02): server HTML search can read, from guard-checked points only. Sits inside the chart panel as its caption. */}
             {page.range && page.headline && (

@@ -46,6 +46,8 @@ interface Props {
   trend?: TrendAverages | null;
   /** Tighter layout for the editor's market panel. */
   compact?: boolean;
+  /** The page already titles the section (public card page "Price history" h2): the chart's own label is left out. */
+  hideTitle?: boolean;
   className?: string;
   /**
    * Rescale every plotted price (graded slab or non-NM condition estimate):
@@ -107,7 +109,7 @@ function nearExtreme(points: { day: string; price: number }[], factor: number): 
 
 const MONO = "var(--font-geist-mono), ui-monospace, monospace";
 
-export default function PriceHistoryChart({ cardId, initialSeries, preferVariant, trend, compact = false, className = "", scale, scaleLabel }: Props) {
+export default function PriceHistoryChart({ cardId, initialSeries, preferVariant, trend, compact = false, hideTitle = false, className = "", scale, scaleLabel }: Props) {
   const [loadedForFactor, setLoadedForFactor] = useState<Series[] | null>(initialSeries ?? null);
   // A REAL series at the preferred variant (a recorded graded curve) beats
   // any rescaled estimate: when the picked series matches preferVariant
@@ -290,7 +292,7 @@ export default function PriceHistoryChart({ cardId, initialSeries, preferVariant
       <div className="flex flex-col gap-2 @lg:flex-row @lg:flex-wrap @lg:items-end @lg:justify-between @lg:gap-x-4">
         <div>
           <div className={`flex items-baseline gap-2 ${label} text-zinc-500`}>
-            <span className={`${compact ? "text-xs" : "text-sm"} font-medium text-zinc-200`}>Price history</span>
+            {!hideTitle && <span className={`${compact ? "text-xs" : "text-sm"} font-medium text-zinc-200`}>Price history</span>}
             {series && (
               <span>{sourceLabel(series.source)}{series.variant && series.variant !== "normal" && series.variant !== "average" ? ` · ${formatVariantLabel(series.variant)}` : ""}</span>
             )}
