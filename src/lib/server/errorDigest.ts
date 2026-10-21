@@ -1,7 +1,7 @@
 import "server-only";
 import { errorCount24h, errorGroups24h, reportServerError } from "@/lib/server/errorLog";
 import { isMailConfigured, sendErrorDigestEmail } from "@/lib/server/mail";
-import { OWNER_EMAIL } from "@/lib/server/users";
+import { ALERT_EMAIL } from "@/lib/server/users";
 
 /** Email the owner when error_events > this in 24h. Override with ERROR_DIGEST_MIN. */
 export const ERROR_DIGEST_MIN = Math.max(0, Number(process.env.ERROR_DIGEST_MIN ?? 5) || 0);
@@ -32,7 +32,7 @@ export async function sendErrorDigestIfNeeded(
     if (errors24h <= min) return { errors24h, sent: false, reason: `≤ ${min}` };
     if (!(deps.configured ?? isMailConfigured)()) return { errors24h, sent: false, reason: "mail not configured" };
     const groups = await (deps.groups ?? errorGroups24h)();
-    await (deps.send ?? sendErrorDigestEmail)(process.env.ERROR_DIGEST_TO ?? OWNER_EMAIL, errors24h, groups);
+    await (deps.send ?? sendErrorDigestEmail)(process.env.ERROR_DIGEST_TO ?? ALERT_EMAIL, errors24h, groups);
     return { errors24h, sent: true };
   } catch (err) {
     await reportServerError("errorDigest", err);

@@ -23,8 +23,8 @@ export async function securityAlert(
   if (deps.send) await deps.send(a);
   else {
     const { sendSecurityAlertEmail } = await import("@/lib/server/mail");
-    const { OWNER_EMAIL } = await import("@/lib/server/users");
-    await sendSecurityAlertEmail(OWNER_EMAIL, a);
+    const { ALERT_EMAIL } = await import("@/lib/server/users");
+    await sendSecurityAlertEmail(ALERT_EMAIL, a);
   }
   return "sent";
 }

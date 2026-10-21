@@ -281,6 +281,11 @@ export function trialScansLeft(
  */
 export type ScanTier = "owner" | "subscribed" | "legacy" | "pack" | "trial";
 export const OWNER_EMAIL = "truefreemoney@gmail.com";
+/**
+ * Where CardFlip's alerts go: bot blocked, smoke/CI failed, the daily error report (Chris 10-20: his phone notifies
+ * on this inbox, not the Gmail). OWNER_EMAIL stays the owner's sign-in identity.
+ */
+export const ALERT_EMAIL = "support@cardflip.io";
 /** Accounts created before this instant are legacy (the paid switch, 09-04 ~13:25 UTC). */
 export const PAID_SWITCH_AT = Date.UTC(2026, 8, 4, 13, 25, 0);
 export const LEGACY_DAILY_SCANS = 100;

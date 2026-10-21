@@ -53,7 +53,7 @@ r = await sendErrorDigestIfNeeded({ count: async () => 0, send, configured, min:
 check("zero errors with min 0: not sent", r.sent, false);
 
 r = await sendErrorDigestIfNeeded({ count: async () => 6, groups: async () => groups, send, configured, min: 5 });
-check("over threshold: one mail to the owner with the groups", [r.sent, sent], [true, [{ to: "truefreemoney@gmail.com", total: 6, n: 2 }]]);
+check("over threshold: one mail to the alert inbox (support@, 10-20) with the groups", [r.sent, sent], [true, [{ to: "support@cardflip.io", total: 6, n: 2 }]]);
 
 process.env.ERROR_DIGEST_TO = "ops@example.com";
 sent.length = 0;

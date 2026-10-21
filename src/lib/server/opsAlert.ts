@@ -35,8 +35,8 @@ export async function opsAlert(
   if (deps.send) await deps.send(a);
   else {
     const { sendOpsAlertEmail } = await import("@/lib/server/mail");
-    const { OWNER_EMAIL } = await import("@/lib/server/users");
-    await sendOpsAlertEmail(OWNER_EMAIL, a);
+    const { ALERT_EMAIL } = await import("@/lib/server/users");
+    await sendOpsAlertEmail(ALERT_EMAIL, a);
   }
   await set(key, String(now)).catch(() => {});
   return "sent";
