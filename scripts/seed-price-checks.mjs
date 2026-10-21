@@ -91,6 +91,8 @@ const CHECKS = [
   { game: "pokemon", cardId: "np-17", variant: "normal", usd: 25, n: 8, day: "2026-10-21", note: "Torchic 017 promo: 8 LP-NM raw sold 08-18..10-04, median 25; TCGplayer normal line from 10-06 at 27.94 (stands)" },
   // 10-21 12am ET: open "Price looks wrong?" report (10-19 2:10pm, "too high").
   { game: "pokemon", cardId: "base1-15", variant: "holofoil", usd: 75, n: 39, day: "2026-10-21", note: "Venusaur Base Set 15/102 unlimited holo: 39 single raw English sold 10-17..10-20 at 10-265 (median 75, middle half 40-96; MP/HP/DMG/played, lots, pick-your-card, TAG, Spanish, 1st/shadowless, reprints left out); NM-labelled 124.95/210/217.55; TCGplayer 136.30 (user report: too high)" },
+  // 10-21 cap-math check (TASKS C12): the listing cap took this foil to a junk $5 listing (non-foil $32, Cardmarket foil EUR 23).
+  { game: "mtg", cardId: "2c093ce0-2561-4847-ab58-f6f1650d743e", variant: "foil", usd: 20, n: 18, day: "2026-10-21", note: "Ichormoon Gauntlet ONE 56 foil (regular, not Oil Slick 348): 18 NM-LP raw sold 09-09..10-19 at 10.99-34.99 (median ~20); TCGplayer foil capped to a $5 listing" },
 ];
 // --only id,id: write just these checks (the others are already on prod).
 const onlyArg = process.argv.indexOf("--only");
