@@ -96,6 +96,7 @@
 - After push, phone: any /cards page's breadcrumb is readable grey (not dim), the current page name is light, each crumb has tap padding; the footer links (Features ... Contact) are 14px light grey with 44px tall tap rows, the not-affiliated line readable, side gutter matches the page.
 
 ## 10-20 ~3:50pm ET: review 10-19 #23 /most-valuable in the sitemap, COMMIT ONLY
+- LIVE 2:15am ET 10-21 (on main since the 10-20 pushes): sitemap.xml names /sitemaps/pages.xml; it lists most-valuable for all five games next to Pokemon + Magic /movers; all five pages 200. Remaining: Search Console picks them up (next crawl, no action).
 - After push (sitemap cache rolls on its TTL, see memory cardflip-search-console purge steps): curl https://cardflip.io/sitemaps/pages.xml (or the pages child the index names) lists /cards/pokemon/most-valuable and the other four games' most-valuable pages next to /movers; Search Console picks them up on the next crawl.
 
 ## 10-20 ~5:30pm ET: review 10-19 #22 a flagged price is never a blank on the public lists (set list, /u/handle, search hits, sticky bar), COMMIT ONLY, VISIBLE: phone shots APPROVED by Chris 10-20 4:05pm ET ("#22 seem fine")
@@ -105,6 +106,7 @@
 - After push, a public profile /u/<handle> holding a flagged card: the row shows the backup-based asking price when one is stored (counted in the total), else the dash as before; typed (locked) and live-listed prices untouched. npm run test:cardpages, test:publiccollection, test:sitetrust PASS 10-20.
 
 ## 10-20 ~4:50pm ET: review 10-19 #21 search-card LIKE walks escape % _ \ and the English substring walk needs 3 letters, COMMIT ONLY
+- LIVE 2:20am ET 10-21: '?name=_' = 2 cards ("_____'s Pikachu") 0.66 s; charizard 24 cards 0.31 s, ashs pikachu 7, poke ball 24, Magic (game=mtg, NOT "magic") lightning bolt found 0.29 s. FAILED part: '?name=%25' = no cards (escape works) but 24 s then 5 s, {"upstream":"error"/400}: the pokemontcg.io fallback waited on "%" -> fixed in the 10-21 ~2:20am block above (commit only).
 - After push: curl 'https://cardflip.io/api/search-card?name=%25&game=pokemon' and '?name=_' return an empty/short list fast (not 400 rows), and Vercel function time for that call is tens of ms; a real search ('charizard', 'ashs pikachu', 'poke ball', Magic 'lightning bolt', ja 'ピカチュウ') finds the same cards as before (npm run test:mirror, test:searchtyped, test:mtg, test:cards PASS 10-20 locally).
 - Scanner: a vision read of a 1-2 letter name (e.g. 'Mr' clipped) still identifies by the printed number fraction (the number fallback runs when the walk is skipped).
 

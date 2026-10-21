@@ -90,6 +90,25 @@ console.log("/api/search-card (Magic by id)");
   check("a normal card comes back with no flag anywhere", fine.body.cards[0].prices.some((p) => p.untrusted), false);
 }
 
+console.log("/api/search-card (a name with no letter or digit never waits on pokemontcg.io, 10-21)");
+{
+  const realFetch = globalThis.fetch;
+  const asked = [];
+  globalThis.fetch = async (url, init) => {
+    if (String(url).includes("pokemontcg.io")) { asked.push(String(url)); return Response.json({ data: [] }); }
+    return realFetch(url, init);
+  };
+  try {
+    const pct = await get(searchCard, "/api/search-card?name=%25&game=pokemon");
+    const dash = await get(searchCard, "/api/search-card?name=-%20-&game=pokemon");
+    check('"%" and "- -": no cards, no upstream call', [pct.status, pct.body.cards, dash.body.cards, asked.length], [200, [], [], 0]);
+    await get(searchCard, "/api/search-card?name=Zzzmon&game=pokemon");
+    check("a real name the mirror lacks still asks pokemontcg.io", asked.length > 0);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+}
+
 console.log("/api/set-cards");
 {
   const pk = await get(setCards, "/api/set-cards?set=Test%20Pokemon%20Set");

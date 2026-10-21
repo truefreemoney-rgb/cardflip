@@ -424,6 +424,9 @@ export async function GET(req: NextRequest) {
       console.warn("search-card no match", JSON.stringify({ game: "pokemon", name, number, setTotal, setCode, lang }));
       return NextResponse.json({ cards: [], matchedOn });
     }
+    // No letter or digit ("%", "?", "-"): no card is named that, and pokemontcg.io sat 5-24 s on "%" before its
+    // 400 (10-21 live check, during the bot waves). The mirror already answered what exists ("_____'s Pikachu").
+    if (!/[\p{L}\p{N}]/u.test(name)) return NextResponse.json({ cards: [], matchedOn });
 
     // The collector number is a strong disambiguator when OCR found one, but
     // it also rules out every result if OCR misread it — so fall back to the
