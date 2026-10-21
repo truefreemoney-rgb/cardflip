@@ -2,6 +2,13 @@
 
 **A.4 triage of every open check dated 10-18 and earlier: docs/TO-TEST-TRIAGE-2026-10-21.md** (63 stale, curl + select checks done 10-21 ~4:30am ET, the rest sorted into pane / phone / wait). Old lines below are left as written; that file is the status.
 
+## 10-21 ~8:10am ET: 6 post cards fixed on prod from eBay sold (Chris OK'd 2 + 4 extra searches; 10-21 = 26 of 20), /admin/prices Post cards Fix
+- bog-8 Rocket's Mewtwo rev $2,400 -> $1,000 (19 sold); ex2-99 Typhlosion ex $259.63 -> $200 (32); ex1-101 Mewtwo ex $746.79 -> $250 (37; its 10-14 hide sat at $554.98 and no longer bound = TASKS B.8, 387e78ef unpushed); ex1-3 Blaziken holo $101.02 -> $40.64 (36); ex1-102 Scyther ex $180.86 -> $115 (36); ex1-98 Hitmonchan ex $125.32 -> $70 (37). All raw English, lots/foreign/graded/"choose your card" left out, 30-day window.
+- LIVE 8:20am ET: app id lookups show all 6 fixed numbers. 1pm remake: Mewtwo out (fell below the top 5 by price), 1st Ed Charizard base1-4-1st $4,000 in (its own 10-21 check, n=3). 7pm remade twice: Sandstorm -> Ruby & Sapphire -> (third pick pending, run 39597318240).
+- [ ] Card pages of the 6 print the fixed price with "Checked against recent eBay sales" (post-check rebuilds them; curl each).
+- [ ] FOUND (decision, not code yet): "Most valuable" (social.ts topByPrice) never reads postHolds, so a fixed card still posts at its checked price while /admin/prices says "out of posts" (1st Ed Charizard 10-21 1pm). Chris 10-18 "fixed on the fly and used" vs the built 30-day sit-out: his call (TASKS-REMAINING E), then make all kinds + the admin wording agree.
+- Pattern: old ex-era holos ran 1.6-3x eBay sold on TCGplayer (6 of 6 today); 4 of them carried the referee's "check" verdict. Data point only (the 10-18 research says asks alone can't be the catch).
+
 ## 10-21 ~4:10am ET: lookups + the held-card sweep stop writing over the nightly TCGplayer line (af757e38), COMMIT ONLY, not visible (keeps the 10-16 listing cap + keeps binding all day)
 - Why: putCachedCards (every priced name search) and sweepPriceHistory (daily, runs AFTER the tcgcsv refresh) called recordPrices with pokemontcg.io's raw market. Prod 10-21 3:59am ET (scripts/_uncapped-lines.mjs, read only): 33 of 1,452 lines with a fresh listing low end on a point over the cap, 27 written since 8pm ET (bw7-145 543.75 x3 -> 900.96, swshp-SWSH066 $621 vs cap $138, Kyogre ex4-3 290 -> 542.60 = written by MY live Playwright name search at ~3:55am, so its keep stops binding until the refresh).
 - Data: no manual write. The 5:45am ET pokemon-prices run rewrites today's points capped (heals all 27 today-points; the 6 from 10-20 drop behind a capped 10-21 point). Until af757e38 ships, any name search in the day can re-pollute.
