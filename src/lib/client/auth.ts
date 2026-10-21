@@ -111,13 +111,21 @@ export function loginPathFor(pathname: string): string {
  * caller's retry path runs — a 500 used to read as "no session" and bounce a
  * perfectly valid cookie to /login.
  */
-export async function fetchCurrentUser(): Promise<SessionUser | null> {
-  const res = await apiFetch("/api/auth/me");
-  if (res.status === 401 || res.status === 403) return null;
-  if (res.status >= 500) throw new Error(`auth/me ${res.status}`);
-  if (!res.ok) return null;
-  const data = await readJson(res);
-  return data.user ?? null;
+let inFlightMe: Promise<SessionUser | null> | null = null;
+export function fetchCurrentUser(): Promise<SessionUser | null> {
+  // Callers that ask at the same moment share one request (review 10-19 marketing #7: /pricing fired up to 7);
+  // nothing is kept once it answers, so a later call always reads the session as it is then.
+  inFlightMe ??= (async () => {
+    const res = await apiFetch("/api/auth/me");
+    if (res.status === 401 || res.status === 403) return null;
+    if (res.status >= 500) throw new Error(`auth/me ${res.status}`);
+    if (!res.ok) return null;
+    const data = await readJson(res);
+    return (data.user ?? null) as SessionUser | null;
+  })().finally(() => {
+    inFlightMe = null;
+  });
+  return inFlightMe;
 }
 
 /**

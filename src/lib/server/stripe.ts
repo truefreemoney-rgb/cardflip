@@ -1,4 +1,4 @@
-﻿import "server-only";
+import "server-only";
 import crypto from "node:crypto";
 import { SITE_URL } from "@/lib/siteUrl";
 import { PRICING, scansForPriceId } from "@/lib/pricing";
