@@ -1,5 +1,9 @@
 # To test later
 
+## 10-21 ~1:45am ET: admin console login joins the shut-out (ipGate + wrong usernames count, 0d11c21b), COMMIT ONLY, not visible
+- What: /api/admin/login refuses shut-out IPs and Tor exits before checking anything; each different refused username from one IP counts toward the 5-an-hour made-up sign-in shut-out (LESSONS 10-21 ~1:45am).
+- Tested: test:adminroutes all pass (+3: five names -> shut out even with the right password; the real name wrong six times is not); test:authroutes, test:torspike, test:adminsession green; tsc + eslint clean.
+- After push: Chris signs in to /admin once in the pane (password + emailed code still works); prod-smoke green. Do not probe it from our IP (5 names = our own 24 h shut-out).
 ## 10-21 ~1:20am ET: Tor exits refused in code (daily list) + site-wide sign-up alarm, COMMIT ONLY, not visible to real users (Chris: "yeah go for it"), PUSHED 0a4ea166 1:21am ET
 - What: lib/server/torExits.ts stores check.torproject.org's exit list once a day (the 15-min uptime cron; a failed day retries next ping, a short/failed download keeps the old list); ipGate (every sign-in/sign-up/account/billing route) and /api/waitlist answer a Tor exit with 403 "Sign-in isn't available over Tor...". rateLimitDb.noteSpike counts across ALL networks per hour: 10 made-up sign-in emails, 8 new accounts, or 10 refused sign-ups -> one "CardFlip: Unusual Sign-up Traffic" mail to support@ (inside the 5-a-day security mail cap). Normal 60-day peak: 5 sign-ups an hour.
 - Tested: test:torspike 16 pass; authroutes/auth/google/xauth/ratelimit/emailverify/uptime/waitlist/attribution/adminroutes/sessionrevoke/apiauth/deletebilling/countrygate green; tsc + eslint clean.

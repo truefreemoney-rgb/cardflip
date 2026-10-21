@@ -4,6 +4,14 @@ Chris (10-14): every support ticket and every social comment is a learning
 experience while the site is new and not fully tested. One entry each: what
 they said, what it taught, what changed, what is still open. Newest first.
 
+## 10-21 ~1:45am ET · same scanner kept going on one Cloudflare IP, now at the admin console (found by me, firewall recheck + rate_limits read)
+- What: 104.28.227.106 (Cloudflare egress: WARP / iCloud Private Relay, shared with real people) 12:46-1:33am ET: sign-ins as admin@cardflip.io (+ trailing dot) and made-up example.com addresses, account edit/password/forgot/code, ~30 console logins (admin, root, owner, operator, support, ops, cardflip, zz-probe, zzwire_ctrl x9, zzthresh_1..9 = testing where the lockout starts), 5 trial scans of junk images (Claude: "Could not process image"), a mailinator sign-up at 1:32. Not one of our sessions (all 24 peers offline); smoke-probe-*@example.com from Azure = our Production smoke.
+- Got: nothing. 0 new accounts, 0 sessions, no console code row; 24 h shut-out at 1:32am on its 5th made-up sign-in email (alert mailed).
+- Cause: it paced the made-up emails (5 in 46 min) and spent the rest on /api/admin/login, which had its own IP limit (20/10 min) and per-username lockout but no shut-out/Tor check, and wrong usernames there counted toward nothing.
+- Changed (COMMIT ONLY 0d11c21b, not visible): /api/admin/login opens with ipGate (shut-out, Tor, the same auth:admin:<ip> limit); each different refused username counts like a made-up sign-in email (5 an hour = 24 h shut-out); the real name mistyped any number of times is not a shut-out. test:adminroutes +3.
+- Not done: no firewall block on 104.28.227.106 (shared Cloudflare/Private Relay egress; the app shut-out already holds it 24 h). Note: the helper console login is password-only (no emailed code); its lockouts are the same.
+- Taught: a slow scanner stays under every per-route count; every sign-in door (console included) must feed the same shut-out.
+
 ## 10-21 ~1am ET · "your fixes didnt work" / "look at the server log, its getting pounded" (Chris, admin Users screenshot: 16 "probe" accounts)
 - What: 12:15-12:55am ET, 16 unconfirmed accounts (probe.*@example.org, rnd*@example.com, "admin@cardflip.io." and "admin@cardflip.io.."); sign-in tries as admin@/support@cardflip.io; forgot/reset/code/account/admin routes; /api/...%2f and %5C paths that crashed Next with a 500 (two error rows each, 50 in 12:00-12:10am).
 - Cause: (1) 20 of 22 IPs were Tor exits, a new one every few requests, so the per-network limits (3 sign-ups a day, 5 made-up sign-in emails an hour) never added up: only 2 IPs were shut out. (2) isValidEmail accepted an empty domain part and isDisposableEmail read "cardflip.io." as another domain. (3) example.com/.org addresses were accepted. (4) An encoded slash in an /api/ path 500s in the router.
