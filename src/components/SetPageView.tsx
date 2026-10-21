@@ -152,7 +152,8 @@ function Pager({ game, slug, page, pages }: { game: GameId; slug: string; page: 
       )}
       {page < pages && (
         <Link href={pageHref(game, slug, page + 1)} rel="next" className={`${cell} border-edge bg-surface-1 text-zinc-200 hover:border-edge-strong`}>
-          Show more
+          {/* It opens the next page, so it says so (review 10-19 public #19: "Show more" read as loading more here). */}
+          Next Page
         </Link>
       )}
     </nav>

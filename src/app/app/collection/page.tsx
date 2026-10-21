@@ -1024,7 +1024,7 @@ export default function CollectionPage() {
                       card.alertPrice != null ? "text-amber-200 hover:text-amber-100" : "text-brand-300 hover:text-brand-200"
                     }`}
                   >
-                    <span className="truncate">{card.alertPrice != null ? `🔔 ${formatMoney(card.alertPrice)}${card.alertedAt ? " · sent" : ""}` : "Set a price alert"}</span>
+                    <span className="truncate">{card.alertPrice != null ? `🔔 ${formatMoney(card.alertPrice)}${card.alertedAt ? " · emailed" : ""}` : "Set a price alert"}</span>
                   </button>
                 )}
               </dd>
@@ -1157,7 +1157,7 @@ export default function CollectionPage() {
                   }}
                   className={quiet}
                 >
-                  End auction
+                  End Listing
                 </button>
               )}
               {sold && card.ebayListingUrl && !pricingOnly && (
@@ -1474,7 +1474,7 @@ export default function CollectionPage() {
     if (
       !(await confirmAction({
         message: `Send ${pct}% off ${card.cardName} (${formatMoney(card.price)} → ${formatMoney(discounted)}) to everyone watching it? This emails real buyers and can't be recalled.`,
-        confirmLabel: "Send offer",
+        confirmLabel: "Send Offer",
         danger: false,
       }))
     )
@@ -1722,7 +1722,7 @@ export default function CollectionPage() {
     filter !== "all" ? FILTERS.find((f) => f.value === filter)?.label : null,
     category === "none" ? "Uncategorized" : category !== "all" ? category : null,
     query.trim() ? `"${query.trim()}"` : null,
-    quick === "dupes" ? "Duplicates" : quick === "noprice" ? "Missing price" : null,
+    quick === "dupes" ? "Duplicates" : quick === "noprice" ? "Missing Price" : null,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -2345,7 +2345,7 @@ export default function CollectionPage() {
             ))}
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
-              {([["dupes", "Duplicates"], ["noprice", "Missing price"]] as [QuickFilter, string][]).map(([value, label]) => (
+              {([["dupes", "Duplicates"], ["noprice", "Missing Price"]] as [QuickFilter, string][]).map(([value, label]) => (
                 <button
                   key={value}
                   type="button"
@@ -2368,7 +2368,7 @@ export default function CollectionPage() {
                 offerPanel ? "border-brand-400 bg-brand-500/15 text-white" : "border-edge text-zinc-300 hover:border-edge-strong hover:text-white"
               }`}
             >
-              Offer to watchers
+              Offer to Watchers
             </button>
           )}
         </div>
@@ -2508,7 +2508,7 @@ export default function CollectionPage() {
                                 disabled={offerSending !== null}
                                 className="rounded-full bg-brand-500 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-brand-400 disabled:opacity-50"
                               >
-                                {offerSending === card.id ? "Sending…" : "Send offer"}
+                                {offerSending === card.id ? "Sending…" : "Send Offer"}
                               </button>
                             )}
                           </li>
@@ -3099,7 +3099,7 @@ export default function CollectionPage() {
                   onClick={() => setLimit({ key: limitKey, n: limitN + PAGE_SIZE })}
                   className="rounded-full border border-edge px-5 py-2.5 text-sm font-medium text-zinc-200 transition hover:border-edge-strong hover:bg-surface-2"
                 >
-                  Show more ({visible.length - limitN} left)
+                  Show More ({visible.length - limitN} left)
                 </button>
               </div>
             )}
@@ -3389,7 +3389,7 @@ export default function CollectionPage() {
                       {pricingOnly ? "Edit Card" : "Build Listing"}
                     </Link>
                   )}
-                  {/* Row states: live → End Auction (flips to Sold on its own
+                  {/* Row states: live → End Listing (flips to Sold on its own
                       from eBay orders); draft / ended → Mark as Sold (a sale
                       made off eBay, Chris 10-01) + the X delete; sold → the
                       record. */}
@@ -3401,7 +3401,7 @@ export default function CollectionPage() {
                       // Delete sits on other rows, and reads as a warning, not a grey nothing.
                       className={`${slotBase} order-last sm:col-start-3 sm:col-span-2 border-amber-400/35 text-amber-300 hover:border-amber-400/70 hover:bg-amber-400/10`}
                     >
-                      {ending === card.id ? "Ending…" : "End Auction"}
+                      {ending === card.id ? "Ending…" : "End Listing"}
                     </button>
                   )}
                   {ended && !pricingOnly && (
@@ -3490,7 +3490,7 @@ export default function CollectionPage() {
                   onClick={() => setLimit({ key: limitKey, n: limitN + PAGE_SIZE })}
                   className="rounded-full border border-edge px-5 py-2.5 text-sm font-medium text-zinc-200 transition hover:border-edge-strong hover:bg-surface-2"
                 >
-                  Show more ({visible.length - limitN} left)
+                  Show More ({visible.length - limitN} left)
                 </button>
               </div>
             )}

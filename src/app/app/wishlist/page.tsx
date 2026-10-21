@@ -124,7 +124,7 @@ function AlertControl({ item, onSaved }: { item: WishlistItem; onSaved: (item: W
       }`}
     >
       {item.alertPrice != null
-        ? `🔔 Alert at ${formatMoney(item.alertPrice)}${item.alertedAt ? " · sent" : ""}`
+        ? `🔔 Alert at ${formatMoney(item.alertPrice)}${item.alertedAt ? " · emailed" : ""}`
         : "🔔 Price alert"}
     </button>
   );
