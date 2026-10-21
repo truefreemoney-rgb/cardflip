@@ -613,7 +613,14 @@ export async function loadSetCards(game: GameId, set: SetEntry, today = todayUtc
   for (const r of rows) {
     const data = trust.get(r.id);
     if (!data) continue;
-    const prices = variantPrices(game, judgedSeries(data, today), today);
+    const judged = judgedSeries(data, today);
+    // A stopped market (no TCGplayer sale lately) lists at its last recorded price, like its own page (10-21: Pikachu Star,
+    // 1st Edition Blastoise were missing from their sets); marked stale, so never ranked or featured.
+    let prices = variantPrices(game, judged, today);
+    if (prices.length === 0) {
+      const last = lastRecordedPrice(game, judged, today);
+      if (last) prices = [last];
+    }
     if (prices.length === 0) continue;
     const head = headlinePrice(prices);
     const f = factsOf(game, r, "");

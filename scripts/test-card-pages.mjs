@@ -196,7 +196,10 @@ check("older than LAST_RECORDED_MAX_DAYS stays out", cp.lastRecordedPrice("pokem
 check("four figures on one day stays out (Rayquaza star, 09-30 single point)", cp.lastRecordedPrice("pokemon", [mk("normal", "2026-09-20", [2500.99])], today), null);
 check("usual printing first", cp.lastRecordedPrice("pokemon", [mk("reverseHolofoil", "2026-08-01", [40, 40]), mk("holofoil", "2026-08-01", [90, 90])], today)?.variant, "holofoil");
 check("Pokemon only: Yu-Gi-Oh!'s 10-13 junk stops and Magic stay out", [cp.lastRecordedPrice("yugioh", [stopped], today), cp.lastRecordedPrice("mtg", [stopped], today)], [null, null]);
-check("the card loader falls back to it only with no fresh row, noindex", /prices\.length === 0 \? lastRecordedPrice\(/.test(read("src/lib/server/cardPages.ts")) && /headline: last, decision: \{ index: false, reason: "unverified" \}/.test(read("src/lib/server/cardPages.ts")), true);
+check("the set list falls back to it too, only with no fresh row (Pikachu Star was missing from Holon Phantoms)",
+  /let prices = variantPrices\(game, judged, today\);\s*if \(prices\.length === 0\) \{\s*const last = lastRecordedPrice\(game, judged, today\);\s*if \(last\) prices = \[last\];/.test(read("src/lib/server/cardPages.ts")), true);
+check("a last recorded price carries the stale mark, so strips and top cards skip it", lr?.stale != null && /\.\.\.\(head\?\.stale \? \{ stale: true \} : \{\}\)/.test(read("src/lib/server/cardPages.ts")) && /!c\.stale\)\.slice\(0, STRIP_TILES \+ 1\)/.test(read("src/lib/server/cardPages.ts")), true);
+check("the card loader falls back to it only with no fresh row, noindex",/prices\.length === 0 \? lastRecordedPrice\(/.test(read("src/lib/server/cardPages.ts")) && /headline: last, decision: \{ index: false, reason: "unverified" \}/.test(read("src/lib/server/cardPages.ts")), true);
 
 // change words: a young series says nothing rather than guessing
 const pts = (n, f) => Array.from({ length: n }, (_, i) => ({ day: new Date(Date.UTC(2026, 8, 30) - (n - 1 - i) * 86_400_000).toISOString().slice(0, 10), price: f(i) }));
