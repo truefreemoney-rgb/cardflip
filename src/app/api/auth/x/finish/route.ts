@@ -33,6 +33,7 @@ import {
 } from "@/lib/server/signupGuard";
 import { isValidEmail } from "@/lib/emailAddress";
 import { setHomeCookie } from "@/lib/homeCookie";
+import { isAllowedCountry } from "@/lib/countries";
 
 /**
  * "Continue with X", the last step when X did not share an email. The signed "x_pending" cookie
@@ -73,6 +74,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "That X account is already signed up. Log in with X." }, { status: 409 });
   }
 
+  // The country gate lets /api/auth/x/ through for travelling members (proxy.ts): a new account checks it here.
+  const from = countryFrom(req);
+  if (from && !isAllowedCountry(from)) {
+    return NextResponse.json({ error: "CardFlip isn't available in your country yet.", unavailable: true }, { status: 403 });
+  }
+
   // Same guards as the email signup route.
   const ipHash = hashIp(clientIp(req));
   if (await signupCapReached(ipHash)) {
@@ -90,7 +97,7 @@ export async function POST(req: Request) {
     if (mailLimited) return mailLimited;
   }
 
-  const here = countryFrom(req);
+  const here = from;
   let created: User;
   try {
     // The inbox is not proven here: no emailVerified. Pending while the confirmation switch is on.

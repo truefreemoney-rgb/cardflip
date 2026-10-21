@@ -134,6 +134,8 @@ export async function GET(req: Request) {
     let deviceToSet: string | null = null;
 
     if (decision === "create") {
+      // The country gate lets X sign-in through for travelling members (proxy.ts): a new account checks it here.
+      if (here && !isAllowedCountry(here)) return fail();
       // Same guards as the email signup route.
       if (isDisposableEmail(email)) return fail();
       const ipHash = hashIp(clientIp(req));

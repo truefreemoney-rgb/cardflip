@@ -84,6 +84,9 @@ export async function completeGoogleSignIn(
   let deviceToSet: string | null = null;
 
   if (decision === "create") {
+    // The country gate lets Google sign-in through for travelling members (proxy.ts), so a new account checks it here:
+    // the email signup route stays behind the gate.
+    if (here && !isAllowedCountry(here)) return { ok: false, code: 1 };
     // Same guards as the email signup route.
     if (isDisposableEmail(claims.email)) return { ok: false, code: 1 };
     const ipHash = hashIp(clientIp(req));

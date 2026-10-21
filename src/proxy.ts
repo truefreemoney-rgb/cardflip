@@ -112,6 +112,10 @@ const GATE_EXEMPT_PREFIXES = [
   "/api/auth/reset",
   "/api/auth/confirm-email",
   "/api/auth/verify-email",
+  // Google / X sign-in for members travelling (review 10-19 marketing #2: a raw 403 JSON page). Their create
+  // paths refuse a NEW account from a closed country themselves (googleSignIn.ts, x/callback, x/finish).
+  "/api/auth/google/",
+  "/api/auth/x/",
   "/sitemaps/",
   "/opengraph-image",
   "/icon",

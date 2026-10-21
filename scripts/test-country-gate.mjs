@@ -57,6 +57,8 @@ for (const p of [
   "/opengraph-image", "/googleb77c2796ee19a2c8.html", "/tiktokWwS7fGv6FYzU7e27YEIzjd4aMmjwnCOd.txt",
   "/api/stripe/webhook", "/api/ebay/callback", "/api/cron/pokemon-prices", "/api/social/publish", "/api/ops/alert",
   "/api/runner/status", "/api/digest/unsubscribe",
+  // Google / X sign-in for travelling members; their create paths refuse a new account from a closed country.
+  "/api/auth/google/start", "/api/auth/google/callback", "/api/auth/google/onetap", "/api/auth/x/start", "/api/auth/x/callback",
 ]) check(`DE reaches exempt ${p}`, outcome(hit(p, "DE")), "open");
 check("look-alike google file is not exempt", outcome(hit("/googleXYZ.html", "DE")), "waitlist");
 
