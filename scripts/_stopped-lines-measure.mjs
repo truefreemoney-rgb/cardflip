@@ -1,42 +1,59 @@
-// READ ONLY (prod + public tcgcsv.com): Pokémon TCGplayer lines that stopped updating (last point before yesterday), and
-// what today's TCGCSV file says about their product: listed with no market price (no sale in TCGplayer's window: the
-// 10-21 carry fixes these), listed WITH a price (something else drops it), or not in the file at all.
-// node scripts/_stopped-lines-measure.mjs
+﻿// READ ONLY (prod), 10-21: for catalog cards with no price line updated in the last 7 days (and, Magic, no mirror price),
+// when did their lines stop and from which source? Answers "why did Magic + Yu-Gi-Oh! lines stop on 10-13".
+// node scripts/_stopped-lines-measure.mjs mtg|yugioh
 import fs from "node:fs";
 import { createClient } from "@libsql/client";
-const cfg = JSON.parse(fs.readFileSync(".env.migration.json", "utf8").replace(/^﻿/, ""));
+const cfg = JSON.parse(fs.readFileSync(".env.migration.json", "utf8").replace(/^ï»¿/, ""));
 const c = createClient({ url: cfg.dbUrl, authToken: cfg.dbToken });
 const q = async (sql, args = []) => (await c.execute({ sql, args })).rows;
-const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
-const stopped = (await q(`SELECT card_id, variant, updated_day, prices FROM price_series WHERE game='pokemon' AND source='tcgplayer' AND currency='USD' AND updated_day < ? AND updated_day >= '2026-07-01' AND card_id NOT LIKE 'sealed-%' AND card_id NOT LIKE 'tcgp-sealed-%'`, [yesterday]));
-const map = await q("SELECT product_id, group_id, card_id FROM tcgplayer_products WHERE game='pokemon'");
+const game = process.argv[2] ?? "mtg";
+const since = new Date(Date.now() - 7 * 86_400_000).toISOString().slice(0, 10);
+const catalog = game === "mtg"
+  ? "SELECT id, name || ' | ' || set_code || ' ' || collector_number AS label, set_code AS st, lower(set_code || '-' || collector_number) AS slug, (price_usd IS NOT NULL OR price_usd_foil IS NOT NULL OR price_eur IS NOT NULL OR price_eur_foil IS NOT NULL) AS scry FROM mtg_cards"
+  : "SELECT id, name || ' | ' || set_name || ' ' || collector_number AS label, set_name AS st, 0 AS scry FROM tcg_cards WHERE game = 'yugioh'";
+const cards = (await q(catalog)).filter((r) => !String(r.id).startsWith("sealed-") && !String(r.id).startsWith("tcgp-sealed-"));
+const lines = await q("SELECT card_id, variant, source, updated_day, start_day FROM price_series WHERE game = ?", [game]);
 const byCard = new Map();
-for (const m of map) (byCard.get(String(m.card_id)) ?? byCard.set(String(m.card_id), []).get(String(m.card_id))).push({ pid: Number(m.product_id), gid: Number(m.group_id) });
-// TCGplayer subtype -> our variant key (lib/tcgcsv.ts tcgplayerVariantKey, simplified for the common names).
-const key = (s) => { const t = String(s ?? "Normal"); if (/^1st Edition Holofoil$/i.test(t)) return "1stEditionHolofoil"; if (/^1st Edition/i.test(t)) return "1stEditionNormal"; if (/Unlimited Holofoil/i.test(t)) return "unlimitedHolofoil"; if (/Reverse Holofoil/i.test(t)) return "reverseHolofoil"; if (/Holofoil/i.test(t)) return "holofoil"; return "normal"; };
-const groups = new Map();
-const last = (p) => { const a = JSON.parse(String(p)).filter((v) => v != null); return a[a.length - 1] ?? 0; };
-const rows = stopped.map((r) => { const id = String(r.card_id); const base = id.endsWith("-1st") ? id.slice(0, -4) : id; return { id, variant: r.variant, upd: r.updated_day, last: last(r.prices), products: byCard.get(id) ?? byCard.get(base) ?? [] }; });
-for (const r of rows) for (const p of r.products) groups.set(p.gid, null);
-let n = 0;
-for (const gid of groups.keys()) {
-  const res = await fetch(`https://tcgcsv.com/tcgplayer/3/${gid}/prices`, { headers: { "User-Agent": "CardFlip price check (support@cardflip.io)" } });
-  groups.set(gid, res.ok ? ((await res.json()).results ?? []) : null);
-  if (++n % 10 === 0) process.stdout.write(`${n}/${groups.size} groups\r`);
-  await new Promise((r) => setTimeout(r, 300));
+for (const l of lines) {
+  const k = String(l.card_id);
+  if (!byCard.has(k)) byCard.set(k, []);
+  byCard.get(k).push(l);
 }
-const out = { listedNoSale: [], listedWithPrice: [], notInFile: [], noProduct: [] };
-for (const r of rows) {
-  if (!r.products.length) { out.noProduct.push(r); continue; }
-  const hits = r.products.flatMap((p) => (groups.get(p.gid) ?? []).filter((x) => x.productId === p.pid));
-  const mine = hits.filter((h) => key(h.subTypeName) === r.variant || (r.variant === "1stEditionHolofoil" && /1st Edition Holofoil/i.test(h.subTypeName ?? "")));
-  const pick = mine.length ? mine : hits;
-  if (!pick.length) out.notInFile.push(r);
-  else if (pick.every((h) => h.marketPrice == null)) out.listedNoSale.push({ ...r, low: pick[0].lowPrice, mid: pick[0].midPrice });
-  else out.listedWithPrice.push({ ...r, market: pick.map((h) => `${h.subTypeName}:${h.marketPrice}`).join(",") });
+const fresh = (k) => (byCard.get(k) ?? []).some((l) => String(l.updated_day) >= since);
+const none = cards.filter((r) => !fresh(String(r.id)) && Number(r.scry) !== 1);
+let never = 0;
+const lastDay = {}, lastSrc = {}, neverSets = {}, stoppedSets = {};
+for (const r of none) {
+  const ls = byCard.get(String(r.id)) ?? [];
+  if (!ls.length) { never++; neverSets[r.st] = (neverSets[r.st] ?? 0) + 1; continue; }
+  const last = ls.reduce((a, b) => (String(b.updated_day) > String(a.updated_day) ? b : a));
+  lastDay[last.updated_day] = (lastDay[last.updated_day] ?? 0) + 1;
+  lastSrc[last.source] = (lastSrc[last.source] ?? 0) + 1;
+  stoppedSets[r.st] = (stoppedSets[r.st] ?? 0) + 1;
 }
-console.log(`\nstopped lines: ${rows.length} (groups fetched ${groups.size})`);
-for (const [k, v] of Object.entries(out)) {
-  console.log(`${k}: ${v.length} (${v.filter((x) => x.last >= 100).length} at $100+)`);
-  for (const x of v.sort((a, b) => b.last - a.last).slice(0, 8)) console.log(`   ${x.id} ${x.variant} last $${x.last} (${x.upd})${x.low != null ? ` low ${x.low} mid ${x.mid}` : ""}${x.market ? ` market ${x.market}` : ""}`);
-}
+const top = (o, n = 12) => Object.entries(o).sort((a, b) => b[1] - a[1]).slice(0, n).map(([k, v]) => `${k} ${v}`).join("; ");
+console.log(`${game}: ${cards.length} cards; no fresh line${game === "mtg" ? " + no mirror price" : ""}: ${none.length}; never had a line: ${never}; had one that stopped: ${none.length - never}`);
+console.log("  never-priced sets:", top(neverSets));
+console.log("  stopped: last day:", Object.entries(lastDay).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([k, v]) => `${k} ${v}`).join("; "));
+console.log("  stopped: last source:", top(lastSrc));
+console.log("  stopped sets:", top(stoppedSets));
+// Lines (all cards, not just blank ones) whose last day is 10-12 or 10-13, by source: did a whole source stop that day?
+const end = {};
+for (const l of lines) if (["2026-10-12", "2026-10-13", "2026-10-14"].includes(String(l.updated_day))) end[`${l.updated_day} ${l.source}`] = (end[`${l.updated_day} ${l.source}`] ?? 0) + 1;
+console.log("  all lines ending 10-12..10-14 by source:", top(end));
+const live = {};
+for (const l of lines) if (String(l.updated_day) >= since) live[l.source] = (live[l.source] ?? 0) + 1;
+console.log("  fresh lines by source:", top(live));
+// Who sees the blank cards: users' inventory rows, wishlists, and page views in the last 30 days (path ends "--<id>").
+const blankIds = new Set(none.map((r) => String(r.id)));
+const inv = (await q("SELECT catalog_card_id AS id, user_id FROM cards WHERE game = ? AND catalog_card_id IS NOT NULL", [game])).filter((r) => blankIds.has(String(r.id)));
+const wish = (await q("SELECT card_id AS id FROM wishlist_items WHERE game = ? AND card_id IS NOT NULL", [game])).filter((r) => blankIds.has(String(r.id)));
+const prefix = (await q("SELECT path FROM page_views WHERE path LIKE '/cards/%' AND path LIKE ? LIMIT 1", [`%${[...blankIds][0]}%`]))[0]?.path;
+const month = Date.now() - 30 * 86_400_000;
+const slugToId = new Map(none.map((r) => [String(r.slug ?? r.id).toLowerCase(), String(r.id)]));
+const views = (await q("SELECT path FROM page_views WHERE at >= ? AND path LIKE '/cards/%--%'", [month])).map((r) => slugToId.get(String(r.path).split("--").pop().toLowerCase())).filter(Boolean);
+const label = new Map(none.map((r) => [String(r.id), r.label]));
+console.log(`  seen: inventory rows ${inv.length} (users ${new Set(inv.map((r) => r.user_id)).size}); wishlist ${wish.length}; page views 30d ${views.length} on ${new Set(views).size} cards`);
+if (inv.length) console.log("  inventory e.g.:", [...new Set(inv.map((r) => label.get(String(r.id))))].slice(0, 8).join(" ; "));
+if (views.length) console.log("  viewed e.g.:", [...new Set(views)].slice(0, 8).map((id) => label.get(id)).join(" ; "));
+console.log("  sample page path for a blank id:", prefix ?? "(none viewed)");
