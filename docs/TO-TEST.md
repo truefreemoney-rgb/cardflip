@@ -1,5 +1,9 @@
 # To test later
 
+## 10-21 ~12am ET: Sunday mail young-game picks skip "Few recent sales" prices, COMMIT ONLY, not visible (which card a mail row names)
+- Tested: test:campaigns (+1 source check), test:digest green; tsc + eslint clean. Prod measure before the fix (scripts/_mail-jumpy-measure.mjs yugioh/lorcana/onepiece, read only): Yu-Gi-Oh! #1 = Amazoness Chain Master Retro Pack $104.29 -> $199.99 FEW (now skipped; next = Official Judge Token TKN4-EN021 $21.74 -> $36.99, a clean step); Lorcana #1 Donald Duck Archazia's 209 foil +15.5% ok; One Piece #1 DON!! PRB-02 +7.8% ok.
+- After push: Sunday 10-25 ~2pm ET open /admin/emails Sunday preview; no row with a "Few recent sales" card; hand-check every card against eBay (dated task).
+
 ## 10-20 ~11:55pm ET: headlinePrice, a brand-new flagged printing no longer blanks an established one (Rocket's Mewtwo ex case), COMMIT ONLY, not visible today
 - Rule: a doubted printing ranked above another still blocks it (Skyridge, 10-06/10-07) UNLESS the doubted line has under 14 priced days and the other has 14+.
 - Tested: test:cardpages 308 pass (3 new: Skyridge with history still null, Mewtwo 2-day $1,150 Normal vs 30-day $579.90 Holofoil -> Holofoil, a new guard-flagged line vs an established one -> established); tsc + eslint clean. Prod measure (scripts/_headline-young-measure.mjs, read only): Pokemon/Magic/Lorcana = 0 pages change today (the 8 ex-era cards were fixed by price checks).
@@ -135,7 +139,7 @@
 - [x] #24 PASS: Production smoke green 10-18 23:45 UTC, 10-19 02:07 + 07:42 UTC (the 21:51 failure was our own country gate, fixed d9118805).
 - [x] #25 PASS (sane): heat 10-18 = 28 views / 6 tabs vs page_views 75 / 24 visitors (page_views also counts /home/tap + /home/stay10 events and /app; heat drops owner/admin + started mid-day); 58 taps, latest 7:22am ET.
 - [~] #33 HALF: 10-19 push 204.7 s (was 446-549 s): mtg_cards 47,053 of 99,080 (real: 5 price columns move daily), tcg_cards 11,667 of 69,045; BUT mtg_sets 1,000 of 1,000 every night = Scryfall's daily ?epoch on icon_svg_uri -> fixed e00e8100 (sync-mtg strips it; runs from the working copy tonight, no push needed). 10-20 morning: mtg_sets line shows ~0 changed (one last full set push tonight as the links change once).
-- [ ] New set on the site: Mystery Booster Commander Edition (mbc, released 10-19, 77 cards) is in prod mtg_cards + the set list but has 0 priced cards, so /cards/mtg/mystery-booster-commander-edition 404s by design (thin page). Recheck 10-21: page live once TCGplayer prices it.
+- [ ] New set on the site: Mystery Booster Commander Edition (mbc, released 10-19, 77 cards) is in prod mtg_cards + the set list but has 0 priced cards, so /cards/mtg/mystery-booster-commander-edition 404s by design (thin page). Recheck 10-21: page live once TCGplayer prices it. CHECKED 10-20 ~11:50pm ET: /cards/magic/mystery-booster-commander-edition (slug is magic, not mtg) = 200, noindex, "No card in this set has a current price right now"; prod mtg_cards: 0 of 77 have a Scryfall USD/foil/EUR price, TCGplayer none = no source prices it yet. Recheck ~10-23.
 
 ## 10-19 ~12:45am ET: 84732733 Pokémon moves pause (cap 10-16/10-17) + 709c36a5 stage cards carry their id (UNPUSHED until Chris says)
 - [ ] After push: re-render 7am (social-post.yml tiktok=1 tiktok_day=2026-10-19 tiktok_slots=morning tiktok_force=1); new social_tiktok:morning:2026-10-19 row is NOT Pokémon dips; every card on it sane vs its own 30-day series.

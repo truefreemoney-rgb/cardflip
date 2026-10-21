@@ -333,7 +333,10 @@ async function youngGameMovers(game: GameId, day: string, { direction = "up" as 
   for (const m of moves) {
     if (seen.has(m.cardId)) continue;
     const d = data.get(m.cardId);
-    if (d && judgeFull(d, { variant: m.variant, day }).flag) continue;
+    // A "Few recent sales" price is no market move either (10-18 mail: Cyber Dragon CRV 1st UTR 499.96 -> 406.67 -> 799.51
+    // as "+97%"; 10-21 measure: Amazoness Chain Master Retro Pack $104.29 -> $199.99 was the Yu-Gi-Oh! pick). social.ts skips them already.
+    const v = d ? judgeFull(d, { variant: m.variant, day }) : null;
+    if (v && (v.flag || v.stale?.few)) continue;
     seen.add(m.cardId);
     out.push(m);
     if (out.length >= limit) break;

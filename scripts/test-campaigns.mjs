@@ -11,7 +11,7 @@
  * Sunday's mail renders from an empty catalog without throwing; test sends
  * are logged as tests and never count toward caps.
  */
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -158,6 +158,9 @@ check("week subject names the top and bottom game", [week.subject, week.text.inc
 check("week card row carries set, number, price and move", week.text.includes("· Charizard ex · Obsidian Flames 125 — $48.20 (was $34.10, +41%)"));
 // 10-18: the subject said "Lorcana down" while no line in the mail showed it.
 check("week body shows the averages its subject names", /HOW EACH GAME MOVED/i.test(week.text) && /Pokémon \+2(\.1)?%, Lorcana -0(\.3)?%/.test(week.text), true);
+// 10-21: a "Few recent sales" price was the Yu-Gi-Oh! week pick (Amazoness Chain Master Retro Pack $104.29 -> $199.99).
+const young = readFileSync(new URL("../src/lib/server/campaignData.ts", import.meta.url), "utf8").match(/async function youngGameMovers[\s\S]*?\n}\n/)?.[0] ?? "";
+check("young-game movers skip flagged and few-sales prices", /v\.flag \|\| v\.stale\?\.few/.test(young), true);
 
 console.log(failures ? `\n${failures} FAILED` : "\nall passed");
 process.exit(failures ? 1 : 0);
