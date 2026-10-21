@@ -10,8 +10,8 @@ af757e38 ships (LESSONS 10-21 ~4:10am). Live checks use the id lookup or page GE
 ## Done now: CURL (live, page GETs + id lookups)
 - PASS: Keldeo-EX bw7-142 $100 (248); Palkia col1-SL8 $289.99 + Lugia ex ex10-105 page $1,740 (249); Lugia GX sm8-227 $245 (262); Rayquaza me02.5-153 lists Friend Ball + Energy Symbol patterns (338); home: 0 "Worldwide English" (512), "Know the card? Look it up." (551), title "Pokémon & Yu-Gi-Oh! Card Scanner and Prices | CardFlip" (823), hero "...adds up what your whole binder is worth. Selling? It writes the eBay listing. You tap Post." (1035); /cards/pokemon links all 4 other games (552); tiles on /cards/one-piece, pokemon, lorcana and / = all cardflip.io/pics, 0 outside hosts (585-586, 615-616, 622); Charizard base1-4 page 45 /pics refs, 0 blob, Buy on eBay + commission line (605, 1027); /cards/lorcana 0 "lorcast" (609); share card 200 image/png, 2nd call x-vercel-cache HIT (611, 318); Ancient Mew miscp-001 $116 (1034, ~$122 expected = in band); Base Set 2 Mewtwo base4-10 $68.09 + Skyridge Piloswine ecard3-H22 $388.45 (1037).
 - FOUND: Dark Charizard 1st base5-4-1st page BLANK with a $700 eBay check (271) -> 72c4fad2 (the guard now trusts a binding check's own price). Blaze of Glory lea-6 page $579.99 (Cardmarket backup; TCGplayer line stopped 10-13 at the checked $637) = inside the 25% band, stands.
-- FAIL/NOTE: /pokemon/mewtwo-card-value shows 0 "Buy on eBay" (1027 expected Buy under each card) -> look next (label may differ).
-- Shivan Dragon Beta leb 175 nonfoil $2,087.89 (1033 expected ~1.45x its cheapest listing, not $1,998.97) -> look next.
+- PASS on a second look: /pokemon/mewtwo-card-value has 60 "Buy" buttons with eBay links + the commission line (1027; the label is "Buy", not "Buy on eBay").
+- OK as is: Shivan Dragon Beta leb 175 shows $2,087.89 = the Cardmarket backup (x1.12), because its TCGplayer line stopped 10-13 at $1,998.97; cheapest listing $1,899 (1.10x), admin keep on record. 1033 was about TCGplayer's number, which no longer prints.
 - Skipped on purpose: 1028 (Pokémon name search = a prod write until af757e38).
 
 ## Done now: SELECT (prod, read only; scripts/_triage-selects.mjs)
