@@ -1,5 +1,9 @@
 # To test later
 
+## 10-20 ~10:25pm ET: Mark as Sold waits for Verify Match (Chris: "this shouldnt be able to mark as sold if unverified"), COMMIT ONLY, VISIBLE, shots docs/shots/verify-first-desktop.png + verify-first-phone.jpg
+- Tested locally (dev, list view): 20 unverified rows = Verify Match + dashed "Verify first" (wide) / nothing (375px) + X; the verified Charizard = Build Listing + Mark as Sold; an unverified card's popup = "Yes, This Is My Card" + Delete, no Mark as Sold; PATCH {status:"sold"} on an unverified row = 409 "Verify the match first, then mark it sold.", row stays ready. tsc + eslint clean.
+- After push, phone + desktop: Inventory list view, a card still showing Verify Match has no Mark as Sold (row or popup); verify it ("Yes, This Is My Card") -> Mark as Sold appears; a sealed product still shows Mark as Sold without verifying.
+
 ## 10-20 ~10:55pm ET: scan result chip = layout A (Chris picked it from samples A-D) + green price to the cent + landing pop, PUSHED 74775ac2 9:29pm ET (Chris: "you can push that"), VISIBLE, shots docs/shots/chip-A-1-price.png + chip-A-2-pricing.png
 - Tested locally (pane SHOWN, phone width, faked Virizion 095/86 read): row 1 art + MATCH FOUND/name/set + Clear; green band $28.00 + MARKET PRICE left, condition pill right; count-up lands with .reveal-price-pop; faked Charizard tie with a 15 s tiebreak: band says PRICING..., Verify 2 Scans $28.00 leaves it out. tsc + eslint clean. (A hidden pane freezes rAF: the count-up sits at $0.00 - show the pane before testing it.)
 - After push, phone: scan any card -> price in the green band under the name, always two decimals, pops once when it lands; Clear sits top-right beside the name; a long printing ("Near Mint · Poké Ball Pattern") truncates in the pill, never pushes the price.

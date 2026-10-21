@@ -4,6 +4,12 @@ Chris (10-14): every support ticket and every social comment is a learning
 experience while the site is new and not fully tested. One entry each: what
 they said, what it taught, what changed, what is still open. Newest first.
 
+## 10-20 · Inventory row: "this shouldnt be able to mark as sold if unverified" (Chris, his own Virizion White Flare row)
+- What: an unverified draft (amber Verify Match) still offered Mark as Sold, on the list row and in the card popup; the PATCH route took it too. A sale off a match nobody checked lands in Sold (the permanent record) with a possibly wrong card and price.
+- Changed: Mark as Sold only after Verify Match (same test as the button: draft, not sealed, no verifiedAt). Row: a dashed "Verify first" placeholder on wide screens keeps the columns lined up, nothing on phones; popup: Delete only. Server: PATCH status "sold" on an unverified draft = 409 "Verify the match first, then mark it sold." (a PATCH that verifies in the same request passes). Sealed rows, ended listings and eBay's own sales are unchanged.
+- Taught: a gate shown in the UI (Build Listing waits for verify) has to cover every action that ends in the same record, and the server has to hold it too.
+- Still open: nothing.
+
 ## 10-20 · First Booster buyer's scans hand-checked (Chris: "make sure our first paying customer is getting a good experience")
 - What: Jenny (737f4a74, bought 100 scans 8:13pm ET) scanned 26 cards 8:14-8:37pm. Read only (prod rows, heat taps, scan_usage, public /api/price-history), nothing written to her account. 25 of 26 rows are priced right for their card (today's market x condition through the cheap-card formula), none blank; the one bad scan (no card) was given back.
 - Found 1 (Umbreon 8:36pm): she tapped "Not this card?" inside the second the ledger row was still being created. swapCard had no serverId, and the post-create catch-up (review #6) synced condition, printing, verify and the doubt line but NOT the card, so the row kept 30th Celebration #091 while the pick's price landed later ($3.95 on a $0.28 card). Fixed: the catch-up sends the picked card + its quote. Tested locally: pick 87 ms into a 6 s delayed POST -> PATCH Obsidian Flames #130 $1.66.

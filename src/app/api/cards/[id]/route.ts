@@ -32,6 +32,17 @@ export async function PATCH(req: Request, { params }: RouteParams) {
       if (existing?.status === "listed" && existing.ebayListingId && !existing.ebayEndedAt) {
         return NextResponse.json({ error: "This card is live on eBay — end the listing first." }, { status: 409 });
       }
+      // No sale off an unverified match (Chris 10-20): the Sold record would carry a card nobody checked.
+      // Same test as the Verify Match button; a PATCH that verifies in the same breath passes.
+      if (
+        status === "sold" &&
+        existing?.status === "ready" &&
+        existing.kind !== "sealed" &&
+        !existing.verifiedAt &&
+        typeof body?.verifiedAt !== "number"
+      ) {
+        return NextResponse.json({ error: "Verify the match first, then mark it sold." }, { status: 409 });
+      }
     }
     // Never under the fee floor (lib/fees.ts) — the server is the truth here.
     if (body?.price !== undefined) {

@@ -745,6 +745,8 @@ export default function CollectionPage() {
     // Sold rows are the record: never deleted, never relisted, always
     // viewable (Chris, 09-08). Live rows end first; ended/drafts delete.
     const canDelete = (card.status !== "listed" || ended) && !sold;
+    // A card still waiting on Verify Match can't be marked sold (Chris 10-20): a wrong match would land in Sold with the wrong price.
+    const unverified = draft && card.kind !== "sealed" && !card.verifiedAt;
     // Status chips ride in the price box's corner, not a row of their own (Chris, 10-07: "a waste of a lot of space").
     const chips = (
       <>
@@ -1163,7 +1165,7 @@ export default function CollectionPage() {
                   View the Sale on eBay ↗
                 </a>
               )}
-              {canDelete && (
+              {canDelete && !unverified && (
                 <button
                   type="button"
                   onClick={() => {
@@ -3439,13 +3441,20 @@ export default function CollectionPage() {
                   )}
                   {(card.status !== "listed" || ended) && !sold && (
                     <>
-                      <button
-                        type="button"
-                        onClick={() => setSoldSheet(card.id)}
-                        className={`${soldBtn} sm:col-start-3 ${draft && card.kind === "sealed" ? "flex-1 sm:flex-none" : ""}`}
-                      >
-                        Mark as Sold
-                      </button>
+                      {/* No sale off an unverified match (Chris 10-20): Verify Match comes first. */}
+                      {draft && card.kind !== "sealed" && !card.verifiedAt ? (
+                        <span aria-hidden className={`${ghostSlot} sm:col-start-3`}>
+                          Verify first
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setSoldSheet(card.id)}
+                          className={`${soldBtn} sm:col-start-3 ${draft && card.kind === "sealed" ? "flex-1 sm:flex-none" : ""}`}
+                        >
+                          Mark as Sold
+                        </button>
+                      )}
                       <button
                         onClick={() => remove(card)}
                         aria-label={`Delete ${card.cardName}`}
