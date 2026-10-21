@@ -44,6 +44,19 @@ await sleep(300);
 check("build ran in the background", builds, 1);
 check("background build stored the memo", await cachedList("t:catalog", TTL, async () => ({ n: -1 })), { n: 42 });
 
+// Review 10-19 pricing #23: cold requests at the same moment share one walk.
+{
+  let walks = 0;
+  const walk = async () => { walks++; await sleep(80); return [1, 2, 3]; };
+  const answers = await Promise.all([1, 2, 3, 4, 5].map(() => cachedList("t:cold-burst", TTL, walk)));
+  check("five cold requests at once → one walk", walks, 1);
+  check("five cold requests at once → all get the list", answers.every((a) => JSON.stringify(a) === "[1,2,3]"));
+  walks = 0;
+  const first = await Promise.all([1, 2, 3].map(() => cachedStaleOk("t:cold-staleok", TTL, walk, Date.now(), { later: () => {} })));
+  check("stale-ok first build: three at once → one walk", walks, 1);
+  check("stale-ok first build: all get the list", first.every((a) => JSON.stringify(a) === "[1,2,3]"));
+}
+
 // Fresh memo: the value, not stale, no build.
 const fresh = await cachedListSwr("t:catalog", TTL, slowBuild, { n: 0 }, Date.now());
 check("fresh memo → cached value", fresh, { value: { n: 42 }, stale: false });

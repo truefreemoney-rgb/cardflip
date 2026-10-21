@@ -516,6 +516,8 @@ condition issue.`;
  * second look is skipped when the first read already used the budget.
  */
 export const TIEBREAK_TIMEOUT_MS = 40_000;
+/** The tiebreak's whole time on the server, pictures included: the route stops at 60 s (maxDuration) and needs a few to answer. */
+const TIEBREAK_BUDGET_MS = 52_000;
 
 import { SCAN_BUDGET_MS, SECOND_LOOK_MIN_MS, remainingMs, withinBudget, type BudgetClock } from "@/lib/visionBudget";
 
@@ -1280,6 +1282,7 @@ export async function tiebreakByPicture(
   model: string = tiebreakModel(game),
 ): Promise<TiebreakResult> {
   const zero: VisionUsage = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
+  const started = Date.now();
   ids = ids.slice(0, LETTERS.length);
   // A candidate with no catalog picture drops out; the rest are still compared
   // (10-01: one pictureless promo among four cancelled the whole check and
@@ -1314,7 +1317,13 @@ export async function tiebreakByPicture(
         ],
       },
     ],
-  }, { timeout: TIEBREAK_TIMEOUT_MS, maxRetries: 1 });
+  }, {
+    timeout: Math.min(TIEBREAK_TIMEOUT_MS, Math.max(5_000, TIEBREAK_BUDGET_MS - (Date.now() - started))),
+    maxRetries: 1,
+    // The whole call, retry included, ends inside the route's 60 s (review 10-19 pricing #27: two picture fetches at
+    // 12 s plus 40 s x 2 attempts outran maxDuration, and the phone got no JSON at all).
+    signal: AbortSignal.timeout(Math.max(5_000, TIEBREAK_BUDGET_MS - (Date.now() - started))),
+  });
   const text = response.content.find((block) => block.type === "text");
   if (!text || text.type !== "text") throw new Error(`tiebreak: no readable result (stop_reason ${response.stop_reason})`);
   const parsed = JSON.parse(text.text) as { pick: TiebreakResult["pick"]; confidence: number; reason: string };

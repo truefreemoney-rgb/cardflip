@@ -4,7 +4,7 @@ import { AuthError, requireAdminOwner } from "@/lib/server/auth";
 import { socialDrafts } from "@/lib/server/social";
 import { siteStatus, socialGames } from "@/lib/server/socialPublish";
 import { SOCIAL_SITES } from "@/lib/server/socialSites";
-import { todayUtc } from "@/lib/priceSeries";
+import { etDay } from "@/lib/time";
 
 /**
  * Today's drafts as JSON (docs/SOCIAL-AUTOPILOT.md §1) plus which sites are
@@ -24,7 +24,8 @@ export async function GET(req: NextRequest) {
     }
   }
   const raw = req.nextUrl.searchParams.get("day");
-  const day = raw && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : todayUtc();
+  // The Eastern day: from 8pm ET the UTC date is already tomorrow (review 10-19 pricing #28).
+  const day = raw && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : etDay();
   const [drafts, sites] = await Promise.all([
     socialGames().then((games) => Promise.all(games.map((g) => socialDrafts(g, day)))).then((d) => d.flat()),
     siteStatus(SOCIAL_SITES),

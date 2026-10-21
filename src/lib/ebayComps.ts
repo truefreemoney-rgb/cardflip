@@ -147,7 +147,8 @@ export function isComparable(
   // PSA 10 averaged $629 — the Celebrations "4/102" reprint slabs outnumbered
   // the real $10k+ ones and the outlier fence then trimmed the real ones).
   if (card.game !== "mtg") {
-    const ownSet = card.setName.toLowerCase();
+    // A card body without a set name (a hand-rolled request) must not throw the whole comps lookup (review 10-19 pricing #31).
+    const ownSet = (card.setName ?? "").toLowerCase();
     for (const [word, re] of OTHER_PRINTINGS) {
       if (re.test(title) && !ownSet.includes(word)) return false;
     }
@@ -177,7 +178,7 @@ export function isComparable(
     if (/\b(deck|precon|commander|secret lair|prerelease|starter kit)\b/i.test(title)) return false;
     const code = card.setCode?.toLowerCase();
     const codeMatches = code ? new RegExp(`\\b${escapeRegex(code)}\\b`, "i").test(title) : false;
-    const setWords = card.setName.toLowerCase().split(/\s+/).filter((w) => w.length > 3);
+    const setWords = (card.setName ?? "").toLowerCase().split(/\s+/).filter((w) => w.length > 3);
     const setMatches = setWords.length > 0 && setWords.every((w) => lower.includes(w));
     return (num ? numberMatches : false) || codeMatches || setMatches;
   }

@@ -1,5 +1,5 @@
-import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
+import { presentedKey, secretEqual } from "@/lib/server/secretEqual";
 import { isBoardImageUrl } from "@/lib/server/board";
 
 export const dynamic = "force-dynamic";
@@ -18,10 +18,7 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   const expected = process.env.RUNNER_TOKEN;
   if (!expected) return NextResponse.json({ error: "RUNNER_TOKEN is not set" }, { status: 503 });
-  const given = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
-  const a = Buffer.from(given);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length || !timingSafeEqual(a, b)) {
+  if (!secretEqual(presentedKey(req), expected)) {
     return NextResponse.json({ error: "Not allowed" }, { status: 401 });
   }
   const u = new URL(req.url).searchParams.get("u") ?? "";

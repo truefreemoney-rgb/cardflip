@@ -130,7 +130,10 @@ export async function ebayFetch(
 
   if (!res.ok) {
     const errors = ((json as { errors?: EbayApiError[] } | null)?.errors ?? []).slice(0, 5);
-    console.error(`eBay ${method} ${path} → ${res.status}:`, text.slice(0, 500));
+    // Error ids and messages only: the raw body can echo the seller's own listing and account details into the logs
+    // (review 10-19 pricing #40).
+    const why = errors.map((e) => `${e.errorId ?? "?"} ${(e.message ?? "").slice(0, 120)}`).join(" | ") || "no error list";
+    console.error(`eBay ${method} ${path} → ${res.status}: ${why}`);
     throw new EbaySellError(
       res.status === 401
         ? "eBay no longer accepts this connection — reconnect your eBay account"

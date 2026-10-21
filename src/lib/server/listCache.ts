@@ -11,6 +11,19 @@ import { db } from "@/lib/db";
  * Failures on either side fall through to the builder: a cache that is down
  * must never take the feature with it.
  */
+/**
+ * One build per key at a time on this instance (review 10-19 pricing #23): N requests that all find the memo cold or
+ * stale share the first one's walk instead of each walking 20-94k rows (the 09-06 outage shape). Cleared when it settles.
+ */
+const building = new Map<string, Promise<unknown>>();
+function buildOnce<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  const have = building.get(key);
+  if (have) return have as Promise<T>;
+  const p = fn().finally(() => building.delete(key));
+  building.set(key, p);
+  return p;
+}
+
 export async function cachedList<T>(key: string, ttlMs: number, build: () => Promise<T>, now = Date.now()): Promise<T> {
   try {
     const row = (await db.prepare("SELECT payload, cached_at FROM card_cache WHERE key = ?").get(key)) as
@@ -20,17 +33,19 @@ export async function cachedList<T>(key: string, ttlMs: number, build: () => Pro
   } catch {
     // Cache miss is fine.
   }
-  const value = await build();
-  // Never memo an empty list: an unsynced mirror would pin "no sets" for a TTL.
-  if (Array.isArray(value) && value.length === 0) return value;
-  await db
-    .prepare(
-      `INSERT INTO card_cache (key, payload, cached_at) VALUES (?, ?, ?)
-       ON CONFLICT(key) DO UPDATE SET payload = excluded.payload, cached_at = excluded.cached_at`,
-    )
-    .run(key, JSON.stringify(value), now)
-    .catch(() => {});
-  return value;
+  return buildOnce(key, async () => {
+    const value = await build();
+    // Never memo an empty list: an unsynced mirror would pin "no sets" for a TTL.
+    if (Array.isArray(value) && value.length === 0) return value;
+    await db
+      .prepare(
+        `INSERT INTO card_cache (key, payload, cached_at) VALUES (?, ?, ?)
+         ON CONFLICT(key) DO UPDATE SET payload = excluded.payload, cached_at = excluded.cached_at`,
+      )
+      .run(key, JSON.stringify(value), now)
+      .catch(() => {});
+    return value;
+  });
 }
 
 /**
@@ -55,19 +70,20 @@ export async function cachedListSwr<T>(
     // Cache miss is fine.
   }
   if (row && now - row.cached_at < ttlMs) return { value: JSON.parse(row.payload) as T, stale: false };
-  const refresh = async () => {
-    try {
-      const value = await build();
-      await db
-        .prepare(
-          `INSERT INTO card_cache (key, payload, cached_at) VALUES (?, ?, ?)
-           ON CONFLICT(key) DO UPDATE SET payload = excluded.payload, cached_at = excluded.cached_at`,
-        )
-        .run(key, JSON.stringify(value), Date.now());
-    } catch {
-      // Next visit tries again.
-    }
-  };
+  const refresh = () =>
+    buildOnce(`${key}\u0000refresh`, async () => {
+      try {
+        const value = await build();
+        await db
+          .prepare(
+            `INSERT INTO card_cache (key, payload, cached_at) VALUES (?, ?, ?)
+             ON CONFLICT(key) DO UPDATE SET payload = excluded.payload, cached_at = excluded.cached_at`,
+          )
+          .run(key, JSON.stringify(value), Date.now());
+      } catch {
+        // Next visit tries again.
+      }
+    });
   try {
     const { after } = await import("next/server");
     after(refresh);
@@ -121,17 +137,21 @@ export async function cachedStaleOk<T>(
   }
   if (old !== undefined && row && now - row.cached_at < ttlMs) return old;
   if (old === undefined) {
-    const value = await build();
-    await store(value, now);
-    return value;
+    return buildOnce(key, async () => {
+      const value = await build();
+      await store(value, now);
+      return value;
+    });
   }
-  const refresh = async () => {
-    try {
-      await store(await build(), Date.now());
-    } catch {
-      // The next ask tries again; the old copy keeps serving.
-    }
-  };
+  // Its own entry: a refresh answers nothing, the first build above answers the list.
+  const refresh = () =>
+    buildOnce(`${key}\u0000refresh`, async () => {
+      try {
+        await store(await build(), Date.now());
+      } catch {
+        // The next ask tries again; the old copy keeps serving.
+      }
+    });
   if (deps.later) deps.later(refresh);
   else {
     try {

@@ -20,11 +20,21 @@ export async function GET(req: NextRequest) {
   if (denied) return denied;
   const t0 = Date.now();
   const result = await runPokemonSteps();
-  await recordCronResult({ ...result, ms: Date.now() - t0 }, false);
+  // Each bookkeeping step on its own: one that throws must not skip the ones after it, the social posts included
+  // (review 10-19 pricing #34).
+  const step = async <T,>(name: string, fn: () => Promise<T>): Promise<T | undefined> => {
+    try {
+      return await fn();
+    } catch (err) {
+      console.error(`pokemon-prices cron: ${name} failed:`, err instanceof Error ? err.message : err);
+      return undefined;
+    }
+  };
+  await step("run log", () => recordCronResult({ ...result, ms: Date.now() - t0 }, false));
   // Stale backup / price run lands on the Errors page (once a day) before the digest counts errors.
-  await reportStaleOnceADay();
+  await step("stale report", () => reportStaleOnceADay());
   // Last step of the day: tell the owner if prod has been throwing.
-  const errorDigest = await sendErrorDigestIfNeeded();
+  const errorDigest = await step("error digest", () => sendErrorDigestIfNeeded());
   // Then the social autopilot (docs/SOCIAL-AUTOPILOT.md): posts on Tue/Thu/
   // Sat to every connected site, once; rides this cron because Hobby
   // allows two. Never lets a social failure fail the price run.

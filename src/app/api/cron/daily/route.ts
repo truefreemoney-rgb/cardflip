@@ -6,11 +6,11 @@ import { sendErrorDigestIfNeeded } from "@/lib/server/errorDigest";
 /**
  * External trigger for the once-a-day price refresh — for the days nobody
  * opens the app (scale-to-zero means no in-process timer fires either).
- * Any pinger works (cron-job.org, a Claude scheduled task, a GitHub Action):
- *   GET /api/cron/daily?key=<CRON_SECRET>          → runs if due
- *   GET /api/cron/daily?key=<CRON_SECRET>&force=1  → runs now
- * Fly's proxy wakes the machine for the request; the job continues after
- * the response. Without CRON_SECRET set the route is off (503).
+ * Any pinger works (Vercel cron, cron-job.org, a GitHub Action), with the
+ * secret as a Bearer header (the ?key= query was dropped 10-14, secretEqual.ts):
+ *   GET /api/cron/daily            Authorization: Bearer <CRON_SECRET>  → runs if due
+ *   GET /api/cron/daily?force=1    Authorization: Bearer <CRON_SECRET>  → runs now
+ * Without CRON_SECRET set the route is off (503).
  */
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
