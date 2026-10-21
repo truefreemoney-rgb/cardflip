@@ -4,7 +4,7 @@
 export default function GlobalError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
     <html lang="en">
-      <body style={{ margin: 0, background: "#0a0a0f", color: "#fff", fontFamily: "system-ui, sans-serif" }}>
+      <body style={{ margin: 0, background: "#0a0b11", color: "#fff", fontFamily: "system-ui, sans-serif" }}>
         <main style={{ minHeight: "100dvh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, padding: 24, textAlign: "center" }}>
           <h1 style={{ fontSize: 24, margin: 0 }}>Something went wrong</h1>
           <p style={{ color: "#a1a1aa", fontSize: 14, margin: 0, maxWidth: 300 }}>That didn&apos;t load. Try again, and if it keeps happening, come back in a minute.</p>
