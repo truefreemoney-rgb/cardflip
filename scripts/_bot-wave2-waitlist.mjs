@@ -1,0 +1,12 @@
+import fs from "node:fs";
+import { createClient } from "@libsql/client";
+const cfg = JSON.parse(fs.readFileSync(".env.migration.json", "utf8").replace(/^\uFEFF/, ""));
+const c = createClient({ url: cfg.dbUrl, authToken: cfg.dbToken });
+const cols = (await c.execute("PRAGMA table_info(waitlist)")).rows.map((r) => r.name);
+console.log("waitlist cols:", cols.join(","));
+const at = cols.find((x) => /^(at|created_at|joined_at)$/.test(x));
+const r = await c.execute({ sql: `SELECT * FROM waitlist WHERE ${at} > ? ORDER BY ${at}`, args: [Date.parse("2026-10-21T02:30:00Z")] });
+for (const x of r.rows) console.log(new Date(Number(x[at])).toLocaleTimeString("en-US", { timeZone: "America/New_York" }), JSON.stringify(x.email), x.country ?? "", x.source ?? "");
+console.log("rows since 10:30pm ET 10-20:", r.rows.length);
+const s = await c.execute({ sql: "SELECT COUNT(*) AS n FROM sessions s JOIN users u ON u.id = s.user_id WHERE u.email_pending = 1 AND s.created_at > ?", args: [Date.parse("2026-10-21T02:30:00Z")] }).catch((e) => ({ rows: [{ n: "n/a " + e.message.slice(0, 80) }] }));
+console.log("sessions on pending accounts since:", s.rows[0].n);
