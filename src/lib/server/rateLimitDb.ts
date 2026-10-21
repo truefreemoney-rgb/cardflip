@@ -230,6 +230,32 @@ export async function noteSpike(kind: SpikeKind, now = Date.now()): Promise<void
 }
 
 /**
+ * Unconfirmed sign-ups (10-21, Chris: "3 unconfirmed accounts in an hour makes sense", after a bot made 3 accounts on
+ * made-up Gmail addresses in two minutes from two networks and no alarm fired). Counted across every network, not per
+ * IP: the bot moved address every account or two. An account counts only once it has waited UNCONFIRMED_GRACE_MS for its
+ * code (a person types it within minutes), so real sign-ups that confirm never count. The 15-minute uptime cron calls
+ * this; one mail an hour at most, inside securityAlert's daily cap. Never throws.
+ */
+export const UNCONFIRMED_PER_HOUR = 3;
+export const UNCONFIRMED_GRACE_MS = 10 * 60 * 1000;
+
+export async function checkUnconfirmedSignups(now = Date.now()): Promise<{ waiting: number; mailed: boolean }> {
+  try {
+    const rows = await db
+      .prepare("SELECT name, email FROM users WHERE email_pending = 1 AND created_at >= ? AND created_at <= ? ORDER BY created_at")
+      .all<{ name: string; email: string }>(now - HOUR.windowMs, now - UNCONFIRMED_GRACE_MS);
+    if (rows.length < UNCONFIRMED_PER_HOUR) return { waiting: rows.length, mailed: false };
+    if ((await hit("spike:unconfirmed", HOUR, now)).count !== 1) return { waiting: rows.length, mailed: false };
+    const who = rows.slice(0, 5).map((r) => `${r.name} <${r.email}>`).join(", ") + (rows.length > 5 ? ", ..." : "");
+    const { securityAlertLater } = await import("@/lib/server/securityAlert");
+    await securityAlertLater({ ip: "many networks", reason: `${rows.length} new accounts made within the hour are still waiting for their email code (${who})`, at: now, spike: true });
+    return { waiting: rows.length, mailed: true };
+  } catch {
+    return { waiting: 0, mailed: false };
+  }
+}
+
+/**
  * A sign-in for an address with no account. The GHOST_LOGINS_PER_HOUR-th different one from an IP in an hour
  * shuts it out (the 10-20 bot tried admin@, info@, support@ and made-up addresses). Best effort.
  */

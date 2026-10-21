@@ -80,6 +80,35 @@ const before3 = await mails();
 for (let i = 1; i < SPIKE_PER_HOUR.refusedSignup; i++) await noteSpike("refusedSignup");
 check("refused sign-ups under the threshold: no mail", (await mails()) - before3, 0);
 
+// 10-21 (Chris: "3 unconfirmed accounts in an hour makes sense"): sign-ups still waiting for their code 10 minutes on,
+// across all networks. The uptime cron calls checkUnconfirmedSignups every 15 minutes.
+{
+  const { checkUnconfirmedSignups, UNCONFIRMED_PER_HOUR } = await import(at("lib/server/rateLimitDb.ts"));
+  const { db } = await import(at("lib/db.ts"));
+  const T = Date.parse("2026-10-21T08:00:00Z");
+  const MIN = 60_000;
+  let n = 0;
+  const add = (agoMin, pending) =>
+    db.prepare(`INSERT INTO users (id, name, email, password_hash, role, ebay_connected, created_at, email_pending) VALUES (?, ?, ?, 'x', 'user', 0, ?, ?)`)
+      .run(`u-unconf-${++n}`, `Read Probe ${n}`, `rca17925615${n}@gmail.com`, T - agoMin * MIN, pending ? 1 : 0);
+  await add(20, true);
+  await add(15, true);
+  await add(25, false); // confirmed: a real person
+  await add(4, true); // still inside the 10-minute grace
+  await add(75, true); // older than the hour
+  const before4 = await mails();
+  const first = await checkUnconfirmedSignups(T);
+  check("unconfirmed: 2 waiting past 10 min (confirmed, too new and too old left out): no mail", [first.waiting, first.mailed, (await mails()) - before4], [UNCONFIRMED_PER_HOUR - 1, false, 0]);
+  await add(12, true);
+  const second = await checkUnconfirmedSignups(T);
+  await new Promise((r) => setTimeout(r, 50));
+  check(`unconfirmed: the ${UNCONFIRMED_PER_HOUR}rd, from any network: one mail`, [second.waiting, second.mailed, (await mails()) - before4], [UNCONFIRMED_PER_HOUR, true, 1]);
+  const again = await checkUnconfirmedSignups(T + 15 * MIN);
+  await new Promise((r) => setTimeout(r, 50));
+  check("unconfirmed: the next cron run that hour: no second mail", [again.mailed, (await mails()) - before4], [false, 1]);
+  check("unconfirmed: two hours on, those accounts no longer count", (await checkUnconfirmedSignups(T + 120 * MIN)).waiting, 0);
+}
+
 console.error = quiet;
 if (failures > 0) {
   console.error(`\n${failures} failure(s)`);

@@ -1,5 +1,10 @@
 # To test later
 
+## 10-21 ~2:05am ET: alarm mail on 3 unconfirmed sign-ups in an hour (any network), COMMIT ONLY, not visible (Chris: "3 unconfirmed accounts in an hour makes sense")
+- What: rateLimitDb.checkUnconfirmedSignups, run by the 15-min uptime cron: 3+ accounts made in the last hour still waiting for their email code 10 minutes on -> one "CardFlip: Unusual Sign-up Traffic" mail to support@ naming them (once an hour, inside the 5/day security mail cap). Site-wide, not per IP (the bot moved address every account or two).
+- Tested: test:torspike +4 (confirmed / too new / too old left out; the 3rd mails once; no second mail that hour; gone two hours on); test:uptime green; tsc + eslint clean.
+- After push: the uptime cron JSON (Vercel log, scripts/_vercel-uptime-logs.mjs) shows unconfirmed {waiting, mailed}; the next real burst mails support@ (do not fake one on prod).
+
 ## 10-21 ~1:46am ET: firewall "Scrapers: Rackdog hosting network (deny)" LIVE (Chris: "i dont want users on vpns anyway", "i mean just rackdog")
 - What: whole site denied to Rackdog's 5 ASNs (1006, 9087, 142617, 154395, 398465; RIPEstat), firewall v27, scripts/_fw-block-asn.mjs. Was ~2.8K allowed a day under a stale fake Firefox/151 name.
 - Tested: right after: / , /api/geo, /cards/pokemon/holon-phantoms 200 from a normal network.

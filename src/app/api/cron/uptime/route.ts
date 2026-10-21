@@ -4,13 +4,14 @@ import { cronAuthError } from "@/lib/server/cronAuth";
 import { opsAlert } from "@/lib/server/opsAlert";
 import { runUptime, uptimeMessage, type UptimeProbe } from "@/lib/server/uptime";
 import { refreshTorExitsIfDue } from "@/lib/server/torExits";
+import { checkUnconfirmedSignups } from "@/lib/server/rateLimitDb";
 import { SITE_URL } from "@/lib/siteUrl";
 
 /**
  * 15-minute uptime ping (#57, lib/server/uptime.ts). Vercel Cron, every 15 minutes (vercel.json). Three probes:
  * a one-row database read, the home page through the public address, and an indexed card search; any that fails
- * twice mails Chris (opsAlert, at most once an hour). Nothing is written except the alert's own timestamp and, once a
- * day, the Tor exit list.
+ * twice mails Chris (opsAlert, at most once an hour). Nothing is written except the alert's own timestamp, once a
+ * day the Tor exit list, and the unconfirmed-sign-up alarm's hourly marker.
  *   GET /api/cron/uptime → Bearer CRON_SECRET (Vercel)
  */
 export const dynamic = "force-dynamic";
@@ -61,5 +62,7 @@ export async function GET(req: NextRequest) {
   }
   // The Tor exit list (lib/server/torExits.ts, 10-21): fetched once a day; a failed day retries on the next ping.
   const tor = await refreshTorExitsIfDue();
-  return NextResponse.json({ ...result, alert, tor, ms: Date.now() - started });
+  // 3+ sign-ups still waiting for their email code 10 minutes on, across all networks, within the hour (rateLimitDb).
+  const unconfirmed = await checkUnconfirmedSignups();
+  return NextResponse.json({ ...result, alert, tor, unconfirmed, ms: Date.now() - started });
 }
