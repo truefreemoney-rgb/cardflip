@@ -345,6 +345,14 @@ check("login: other IPs unaffected", (await login.POST(post({ email: "sam@exampl
   check("shut-out: sign-up from that IP refused too", (await signup.POST(post({ name: "S", email: "shut-signup@example.com", password: "12345678" }, ghostIp))).status, 429);
   check("shut-out: forgot from that IP refused too", (await forgot.POST(post({ email: "sam@example.com" }, ghostIp))).status, 429);
   check("shut-out: other IPs unaffected", (await login.POST(post({ email: "sam@example.com", password: "hunter22" }, "198.51.100.60"))).status, 200);
+  // Chris is emailed per shut-out ("im not always going to be around refreshing the admin page"), 5 a day at most.
+  const { securityAlert, SECURITY_ALERTS_PER_DAY } = await import(at("lib/server/securityAlert.ts"));
+  let bumps = 0;
+  const mailed = [];
+  const alertDeps = { bump: async () => ++bumps, send: async (a) => void mailed.push(a.ip) };
+  const outcomes = [];
+  for (let i = 0; i < 7; i++) outcomes.push(await securityAlert({ ip: `203.0.113.${100 + i}`, reason: "test", at: Date.now() }, alertDeps));
+  check("security alert: 5 mails a day, then quiet", [SECURITY_ALERTS_PER_DAY, mailed.length, outcomes.slice(4)], [5, 5, ["sent", "quiet", "quiet"]]);
   await shutOutIp("127.0.0.1", "test");
   await shutOutIp("unknown", "test");
   check("shut-out: loopback and unknown are never shut out", [await shutOutLeft("127.0.0.1"), await shutOutLeft("unknown")], [0, 0]);

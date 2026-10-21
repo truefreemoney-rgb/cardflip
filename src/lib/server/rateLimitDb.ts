@@ -165,7 +165,11 @@ export async function shutOutIp(ip: string, reason: string, now = Date.now()): P
     console.warn(`ip shut out for 24 h: ${ip} (${reason})`);
   } catch (err) {
     console.error("shut-out could not be written:", err);
+    return;
   }
+  // Chris is emailed, so nobody has to watch /admin (10-20). Capped per day; after the response.
+  const { securityAlertLater } = await import("@/lib/server/securityAlert");
+  await securityAlertLater({ ip, reason, at: now });
 }
 
 /** Seconds left on `ip`'s shut-out, or 0. Fails open, like the limiter. */

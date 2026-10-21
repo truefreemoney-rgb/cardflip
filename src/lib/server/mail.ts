@@ -609,6 +609,24 @@ export async function sendOpsAlertEmail(
   await transport().sendMail({ from: fromAddress(), to, subject: `CardFlip: ${a.workflow} Failed`, text, html });
 }
 
+/** A network was shut out for probing sign-in / sign-up (lib/server/securityAlert.ts, 10-20). The block already happened. */
+export async function sendSecurityAlertEmail(to: string, a: { ip: string; reason: string; at: number }): Promise<void> {
+  if (!isMailConfigured()) throw new Error("Mail isn't configured on this server");
+  const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
+  const { etDateTime } = await import("@/lib/time");
+  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://cardflip.io";
+  const lines = [
+    `CardFlip blocked a network that was probing sign-in and sign-up (${a.reason}).`,
+    `IP ${a.ip}, ${etDateTime(a.at)}.`,
+    "It can't sign in, sign up or change an account for 24 hours. This happened on its own; nothing needs you.",
+    "Claude reviews these and blocks repeat offenders for good.",
+  ];
+  const html = `
+    ${lines.map((l, i) => `<p${i === 0 ? "" : ' style="color:#444"'}>${i === 0 ? `<strong>${esc(l)}</strong>` : esc(l)}</p>`).join("")}
+    <p><a href="${site}/admin/errors" style="display:inline-block;padding:10px 18px;border-radius:999px;background:#6d5dfc;color:#fff;text-decoration:none;font-weight:600">Open Errors</a></p>`;
+  await transport().sendMail({ from: fromAddress(), to, subject: "CardFlip Blocked a Bot", text: lines.join("\n"), html });
+}
+
 /* ---------------------------------------------------------------------------
  * Support tickets (supportTickets.ts, 09-26). Three mails: the working copy
  * to the support inbox, a receipt to the seller, and "closed" to the seller.
