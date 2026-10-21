@@ -741,6 +741,19 @@ console.log("\nThe chart's current-day point rebases the quote:");
   check("guard: ... a normal card is priced as before", currentPrice(item(normal)), costCoveredPrice(500, "tracked"));
 }
 
+// The chart's point re-prices only the printing the quote stands on (10-20, the first Booster buyer's Obsidian
+// Flames Umbreon: the point came from the longest series, the reverse holo, and a $0.36 normal card saved at ~$4).
+{
+  const today = new Date().toISOString().slice(0, 10);
+  const pt = (price, variant) => ({ price, day: today, variant, source: "tcgplayer", currency: "USD" });
+  const umbreon = { name: "Umbreon", setName: "Obsidian Flames", prices: [usd(0.36, "normal"), usd(2.75, "reverseHolofoil")] };
+  const base = (q) => q?.base ?? null;
+  check("point: another printing's point leaves the default quote alone", base(quotePrice(umbreon, "Near Mint", "market", undefined, pt(2.75, "reverseHolofoil"))), 0.36);
+  check("point: ... the default printing's own point still refreshes it", base(quotePrice(umbreon, "Near Mint", "market", undefined, pt(0.4, "normal"))), 0.4);
+  check("point: ... a picked printing takes its own point", base(quotePrice(umbreon, "Near Mint", "market", "reverseHolofoil", pt(2.9, "reverseHolofoil"))), 2.9);
+  check("point: ... a card with no dollar row still takes the point", base(quotePrice({ name: "T", setName: "T", prices: [] }, "Near Mint", "market", undefined, pt(3, "holofoil"))), 3);
+}
+
 console.log(
   failures === 0
     ? "\nAll pricing checks passed.\n"

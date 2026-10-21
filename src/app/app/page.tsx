@@ -902,8 +902,23 @@ export default function AppPage() {
               const cur = itemsRef.current.find((i) => i.id === next.id);
               const lateCondition = cur && cur.condition !== condition ? describeItemCondition(cur) : null;
               const lateVariant = cur && (cur.variant ?? null) !== (input.variant ?? null) ? (cur.variant ?? null) : undefined;
-              if (cur && (cur.verifiedAt || cur.matchDoubt || cur.firstEdition || lateCondition || lateVariant !== undefined)) {
+              // A "Not this card?" pick in that window too (10-20, the first Booster buyer's Umbreon): swapCard had
+              // no row to rename, so the row kept the scan's card while the pick's price landed on it later.
+              const lateCard = cur?.card && cur.card.id !== card.id ? cur.card : null;
+              if (cur && (lateCard || cur.verifiedAt || cur.matchDoubt || cur.firstEdition || lateCondition || lateVariant !== undefined)) {
                 void updateServerCard(server.id, {
+                  ...(lateCard
+                    ? {
+                        cardName: lateCard.englishName || lateCard.name,
+                        setName: lateCard.setName,
+                        cardNumber: lateCard.number,
+                        imageUrl: lateCard.imageSmall,
+                        catalogCardId: lateCard.id || null,
+                        rarity: lateCard.rarity ?? null,
+                        firstEdition: isFirstEditionCard(lateCard),
+                        ...ledgerPriceForNewCard(cur),
+                      }
+                    : {}),
                   ...(cur.verifiedAt ? { verifiedAt: cur.verifiedAt } : {}),
                   ...(cur.matchDoubt ? { matchDoubt: cur.matchDoubt } : {}),
                   ...(cur.firstEdition ? { firstEdition: true } : {}),

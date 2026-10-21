@@ -464,7 +464,8 @@ export const CURRENT_POINT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
  * showed today's real market). Rules: the point must be fresh USD; real eBay
  * SALES still outrank it; and an explicit Printing pick (or the 1st Edition
  * toggle, which routes through variantOverride) is only refreshed by a point
- * from that same series — never silently swapped to a different printing.
+ * from that same series — never silently swapped to a different printing; the
+ * default printing (no pick) likewise.
  */
 function pointCanRebase(
   point: CurrentSeriesPoint | null | undefined,
@@ -476,7 +477,12 @@ function pointCanRebase(
   if (point.untrusted) return false;
   if (Date.now() - Date.parse(`${point.day}T00:00:00Z`) > CURRENT_POINT_MAX_AGE_MS) return false;
   if (explicit) return explicit.source === point.source && explicit.variant === point.variant;
-  return resolved?.variant !== EBAY_SOLD_VARIANT;
+  if (resolved?.variant === EBAY_SOLD_VARIANT) return false;
+  // No printing picked: the point only refreshes the catalog printing the quote already stands on (10-20, the
+  // first Booster buyer's Obsidian Flames Umbreon: the chart's point is its LONGEST series, the reverse holo, so
+  // a $0.36 normal card re-saved at the reverse's $2.75). An eBay asking row, or no row at all, it still replaces.
+  if (resolved && resolved.source !== "ebay") return resolved.source === point.source && resolved.variant === point.variant;
+  return true;
 }
 
 /**
