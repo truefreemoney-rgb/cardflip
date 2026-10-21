@@ -24,7 +24,9 @@ export async function POST(req: Request) {
     const card = body?.card as PokemonCard | undefined;
     const language: ScanLanguage =
       body?.language === "ja" || body?.language === "zh" ? body.language : "en";
-    const price = typeof body?.price === "number" && Number.isFinite(body.price) ? body.price : null;
+    // A card price, not any number: negative or absurd values save as "no price" (review 10-19 app #38).
+    const price =
+      typeof body?.price === "number" && Number.isFinite(body.price) && body.price >= 0 && body.price < 1e6 ? body.price : null;
     const variant = typeof body?.variant === "string" && body.variant ? body.variant.slice(0, 40) : null;
 
     if (typeof card?.name !== "string" || !card.name) {
