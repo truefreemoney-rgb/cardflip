@@ -1,5 +1,7 @@
 # To test later
 
+**A.4 triage of every open check dated 10-18 and earlier: docs/TO-TEST-TRIAGE-2026-10-21.md** (63 stale, curl + select checks done 10-21 ~4:30am ET, the rest sorted into pane / phone / wait). Old lines below are left as written; that file is the status.
+
 ## 10-21 ~4:10am ET: lookups + the held-card sweep stop writing over the nightly TCGplayer line (af757e38), COMMIT ONLY, not visible (keeps the 10-16 listing cap + keeps binding all day)
 - Why: putCachedCards (every priced name search) and sweepPriceHistory (daily, runs AFTER the tcgcsv refresh) called recordPrices with pokemontcg.io's raw market. Prod 10-21 3:59am ET (scripts/_uncapped-lines.mjs, read only): 33 of 1,452 lines with a fresh listing low end on a point over the cap, 27 written since 8pm ET (bw7-145 543.75 x3 -> 900.96, swshp-SWSH066 $621 vs cap $138, Kyogre ex4-3 290 -> 542.60 = written by MY live Playwright name search at ~3:55am, so its keep stops binding until the refresh).
 - Data: no manual write. The 5:45am ET pokemon-prices run rewrites today's points capped (heals all 27 today-points; the 6 from 10-20 drop behind a capped 10-21 point). Until af757e38 ships, any name search in the day can re-pollute.
