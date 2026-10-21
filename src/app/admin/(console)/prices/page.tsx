@@ -55,7 +55,7 @@ function PostCards({ slots }: { slots: PostSlot[] }) {
       </h2>
       <p className="mb-2 text-xs text-zinc-500">
         Open eBay sold for each card. Near the price: Looks right. Off by more than about a quarter: type what it sold for and Fix. The price is fixed
-        everywhere, the card sits out of posts for 30 days, and the video is remade.
+        everywhere, posts show the card at that price with no % change (price-change posts skip it for 30 days), and the video is remade.
       </p>
       {open.length === 0 ? (
         <p className="rounded-2xl border border-edge bg-surface-1 px-4 py-3 text-sm text-zinc-500">No videos waiting to post.</p>

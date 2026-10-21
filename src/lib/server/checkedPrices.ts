@@ -236,7 +236,10 @@ export async function fixSeriesNow(c: CheckedPrice, day: string): Promise<number
   return fixed.prices.filter((v, i) => v !== before[i]).length;
 }
 
-/** Cards of a game with a check that still binds: posts leave them out (a fixed price is not a "move"). */
+/**
+ * Cards of a game with a check that is still on: the change posts (movers, jumps, head to head) leave them out (a fixed
+ * price is not a "move"); set spotlight and most valuable use them at the checked price with no % (social.ts postChecks).
+ */
 export async function checkedCardIds(game: GameId): Promise<Set<string>> {
   const out = new Set<string>();
   for (const c of (await activeChecks()).values()) if (c.game === game) out.add(c.cardId);

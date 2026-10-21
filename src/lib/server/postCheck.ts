@@ -13,8 +13,9 @@ import type { GameId } from "@/lib/types";
  * right post price from a wrong one (docs/research/post-price-catch-2026-10-18.md:
  * eBay asks, jumps and frozen prices all fail), so every card of the day's
  * three videos is checked by hand against eBay SOLD. "Looks right" marks it;
- * "Fix" records the sold price (checkedPrices.ts: fixed everywhere, the card
- * sits out of posts) and remakes that video if it has not gone out yet.
+ * "Fix" records the sold price (checkedPrices.ts: fixed everywhere; set spotlight
+ * and most valuable show it with no %, the change posts skip it) and remakes that
+ * video if it has not gone out yet.
  */
 
 export interface PostCard {

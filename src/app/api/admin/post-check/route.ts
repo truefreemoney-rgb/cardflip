@@ -16,7 +16,8 @@ import type { GameId } from "@/lib/types";
  *  - "ok": the eBay sold check agrees with the price (a mark for the day).
  *  - "fix": eBay sold says `usd` (from `n` sales): the price is fixed everywhere
  *    (checkedPrices.ts), its card page rebuilt, and the slot's video remade
- *    when it has not posted yet (the card now sits out of posts).
+ *    when it has not posted yet (it now shows the checked price with no %, or
+ *    sits out of a change post).
  *  - "undo": drop the mark, or retire a fix made by mistake.
  */
 export const dynamic = "force-dynamic";
@@ -88,7 +89,7 @@ export async function POST(req: Request) {
     await putCheck(check);
     const fixed = await fixSeriesNow(check, todayUtc());
     await rebuildPage(game, cardId);
-    // The card now sits out of the pick.
+    // The remade video prints the checked price (no %), or picks another card for a change post.
     return NextResponse.json({ ok: true, fixed, ...(await remake()) });
   } catch (err) {
     if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 403 });

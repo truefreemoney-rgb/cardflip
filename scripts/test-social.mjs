@@ -451,6 +451,22 @@ const J9 = addDays(J, 42);
 for (const [n, v] of [[1, wk(124.5, 119.5)], [2, wk(92, 90)], [3, flat(70)], [4, flat(60)], [5, flat(50)]]) await real(`js3-${n}`, `Down ${n}`, String(n), "js3", "Down Set", v, { end: J9 });
 const spotD = await setSpotlight("pokemon", J9);
 check("nothing in the set rose: today's order, even though the leader fell (no gain is invented)", [spotD.setId, spotD.leadId ?? null, spotD.cards.map((c) => c.cardId)], ["js3", null, ["js3-1", "js3-2", "js3-3", "js3-4", "js3-5"]]);
+// 10-21 (Chris: a fixed card is used, no % shown): a binding eBay sold check keeps the card in its set at the checked
+// price, unsettled, and it never leads; the set does not change (Typhlosion's fix moved the 7pm off Sandstorm).
+const J10 = addDays(J, 49);
+// jk1-1 the way a fix leaves it: $100 for weeks, the wrong stretch rewritten to the checked $75 (a fake -25% "this week").
+for (const [n, v] of [[1, [...liquid(100, 44), 75, 75, 75, 75]], [2, wk(80, 88)], [3, flat(70)], [4, flat(60)], [5, flat(50)]]) await real(`jk1-${n}`, `Checked ${n}`, String(n), "jk1", "Checked Set", v, { end: J10 });
+const spotK0 = await setSpotlight("pokemon", J10);
+check("without the check the same card prints its -25% (the fake move this fix hides)", Math.round(spotK0?.cards.find((c) => c.cardId === "jk1-1")?.pct ?? 0), -25);
+await db.prepare("INSERT OR REPLACE INTO price_checked (game, card_id, variant, usd, n, day, note) VALUES ('pokemon', 'jk1-1', 'holofoil', 75, 12, ?, 'test')").run(J10);
+(await import("../src/lib/server/checkedPrices.ts")).clearCheckedMemo();
+const spotK = await setSpotlight("pokemon", J10);
+const k1 = spotK?.cards.find((c) => c.cardId === "jk1-1");
+check("a fixed card stays in its set at the checked $75 (ranked there), with no % and no lead; the real riser leads", [spotK?.setId, [k1?.to, k1?.from, k1?.pct, k1?.unsettled], spotK?.leadId, spotK?.cards.map((c) => c.cardId)], ["jk1", [75, 75, 0, true], "jk1-2", ["jk1-2", "jk1-1", "jk1-3", "jk1-4", "jk1-5"]]);
+const kPost = (await SOC.socialDrafts("pokemon", J10)).find((d) => d.kind === "set");
+check("its caption line prints the checked price and no week claim", kPost?.caption.split("\n").find((l) => l.startsWith("Checked 1 ")), "Checked 1 #1 Holo: $75.00");
+await db.prepare("DELETE FROM price_checked WHERE card_id = 'jk1-1'").run();
+(await import("../src/lib/server/checkedPrices.ts")).clearCheckedMemo();
 
 console.log("one question per post, rotating by day");
 const kinds = ["movers", "dips", "set", "games"];

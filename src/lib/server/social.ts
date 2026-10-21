@@ -8,7 +8,7 @@ import { GATED_GAMES, gamePublic, getSetting, setSetting, type GatedGame } from 
 import { tiktokKey } from "@/lib/socialTiktok";
 import type { VideoCard } from "@/lib/socialVideo";
 import type { GameId } from "@/lib/types";
-import { checkedCardIds } from "@/lib/server/checkedPrices";
+import { activeChecks, checkBinds, checkedCardIds } from "@/lib/server/checkedPrices";
 import { ANGLE_KINDS, GENERAL_TAGS, MAX_TAGS, JUMP_MIN_PCT, MIXED_GAMES, MIXED_PER_GAME, PLAN_TAGS, POST_GAME_NAMES, POST_GAME_ORDER, angleGameOrder, countWord, dayPlan, freshJumpsOn, gamesTags, jumpsOn, listNames, otherGameNames, questionFor, riserSetsOn, type AngleKind } from "@/lib/socialPlan";
 
 /**
@@ -467,18 +467,46 @@ export function postArtUrl(game: GameId, imageUrl: string): string {
 /**
  * Cards kept out of every movers/jumps and set spotlight post by hand, "game:cardId" (an emergency only: a code change).
  * The usual way is a hand eBay sold check on /admin/prices ("Post cards"): it fixes the price everywhere
- * (checkedPrices.ts) and the card sits out of posts while the check binds (postHolds). The 10-18 four (Snorlax xy0-26,
+ * (checkedPrices.ts); while the check binds the card sits out of the change posts (postHolds) and set spotlight and most
+ * valuable show it at the checked price with no % (postChecks, Chris 10-21). The 10-18 four (Snorlax xy0-26,
  * Brock's Ninetales gym2-3-1st, Minun hgssp-HGSS17, Rare Candy bw10-105) moved from here to price_checked.
  * 10-19: Pot of Greed DB1-EN134 ($42.97) was held here by mistake and taken back the same morning: its one $12 "NM"
  * listing came from a 0%-feedback seller, TCGplayer's own cheapest listing was $44.17, played copies $25-31.
  */
 const SOCIAL_PRICE_HOLD = new Set<string>([]);
 
-/** Card ids of a game that sit out of posts: the hand list plus every card with a binding eBay sold check. */
-async function postHolds(game: GameId): Promise<Set<string>> {
-  const ids = await checkedCardIds(game).catch(() => new Set<string>());
+/** Card ids of a game held out of every post by hand (SOCIAL_PRICE_HOLD). */
+function handHolds(game: GameId): Set<string> {
+  const ids = new Set<string>();
   for (const k of SOCIAL_PRICE_HOLD) if (k.startsWith(`${game}:`)) ids.add(k.slice(game.length + 1));
   return ids;
+}
+
+/**
+ * Card ids of a game that sit out of the posts built on a change or on the stage pool (movers, jumps, dips, head to head,
+ * the all-games leads): the hand list plus every card with a binding eBay sold check. A fixed price is not a "move", and
+ * the stage pool prints the mirror's raw number, not the checked one.
+ */
+async function postHolds(game: GameId): Promise<Set<string>> {
+  const ids = await checkedCardIds(game).catch(() => new Set<string>());
+  for (const id of handHolds(game)) ids.add(id);
+  return ids;
+}
+
+/**
+ * The binding eBay sold checks of a game, by "cardId|variant" (Chris 10-21: a fixed card is USED in posts at its checked
+ * price with no "% this week"). Set spotlight and most valuable rank and print it at the checked number, unsettled, so a
+ * fix no longer swaps the day's set (10-21: Typhlosion's fix moved the 7pm from Sandstorm to Ruby & Sapphire, whose four
+ * dearest cards were wrong too). Advisory: a failed read is no checks.
+ */
+async function postChecks(game: GameId, day: string): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  try {
+    for (const c of (await activeChecks()).values()) if (c.game === game && checkBinds(c, day)) out.set(`${c.cardId}|${c.variant}`, c.usd);
+  } catch {
+    // no checks
+  }
+  return out;
 }
 
 /**
@@ -827,14 +855,21 @@ export async function topByPrice(game: GameId, day = todayUtc(), limit = 5): Pro
   const out: Mover[] = [];
   if (!TOP_GAMES.includes(game)) return out;
   const seen = new Set<string>();
-  const { cards: series } = await freshSeries(game, day, MOVER_DAYS);
-  const ranked = [...series.entries()].filter(([, s]) => s.held >= HELD_DAYS).sort((a, b) => b[1].to - a[1].to || a[0].localeCompare(b[0])).slice(0, limit * 4);
+  const [{ cards: series }, checks] = await Promise.all([freshSeries(game, day, MOVER_DAYS), postChecks(game, day)]);
+  // A card fixed from eBay ranks and prints at its checked price, with no week claimed (10-21).
+  const checkedTo = (id: string, s: FreshCard) => checks.get(`${id}|${s.variant}`);
+  const price = (id: string, s: FreshCard) => checkedTo(id, s) ?? s.to;
+  const ranked = [...series.entries()]
+    .filter(([id, s]) => s.held >= HELD_DAYS || checkedTo(id, s) != null)
+    .sort((a, b) => price(b[0], b[1]) - price(a[0], a[1]) || a[0].localeCompare(b[0]))
+    .slice(0, limit * 4);
   const cat = await catalogRows(game, ranked.map(([id]) => id));
   for (const [id, s] of ranked) {
     const c = cat.get(id);
     if (!c || !c.image_url || seen.has(baseName(c.name))) continue;
     seen.add(baseName(c.name));
-    out.push(moverOf(game, id, c, s));
+    const ck = checkedTo(id, s);
+    out.push(ck != null ? { ...moverOf(game, id, c, s), from: ck, to: ck, pct: 0, unsettled: true } : moverOf(game, id, c, s));
     if (out.length >= limit) break;
   }
   if (game === "mtg") return eurOnlyTop(out, limit, seen);
@@ -1151,17 +1186,21 @@ export interface SetSpotlight {
  */
 export async function setSpotlight(game: GameId, day = todayUtc(), { minCards = SET_MIN_CARDS, minPrice = SET_MIN_PRICE, leadFirst = jumpsOn(day) } = {}): Promise<SetSpotlight | null> {
   if (game !== "pokemon") return null;
-  const [{ cards: series, unverified }, held] = await Promise.all([freshSeries(game, day, MOVER_DAYS), postHolds(game)]);
-  // Rank on the settled price: today's point when it has held HELD_DAYS days, else the week's median.
+  const [{ cards: series, unverified }, checks] = await Promise.all([freshSeries(game, day, MOVER_DAYS), postChecks(game, day)]);
+  const held = handHolds(game);
+  // A card fixed from eBay stays in its set at the checked price, with no week claimed and never the lead (10-21).
+  const checkedTo = (id: string) => checks.get(`${id}|${series.get(id)!.variant}`);
+  // Rank on the settled price: the checked one, else today's point when it has held HELD_DAYS days, else the week's median.
   const settled = (id: string) => {
     const s = series.get(id)!;
-    return s.held >= HELD_DAYS ? s.to : s.median;
+    return checkedTo(id) ?? (s.held >= HELD_DAYS ? s.to : s.median);
   };
   const setOf = (id: string) => id.slice(0, id.lastIndexOf("-"));
   const bySet = new Map<string, string[]>();
   for (const [id, s] of series) {
-    // An unsettled card prints the week's median, which has to be a price the guard believes too.
-    if (s.to < minPrice || (s.held < HELD_DAYS && !s.medianOk)) continue;
+    // An unsettled card prints the week's median, which has to be a price the guard believes too (a checked card prints its check).
+    const ck = checkedTo(id);
+    if (ck != null ? ck < minPrice : s.to < minPrice || (s.held < HELD_DAYS && !s.medianOk)) continue;
     if (held.has(id)) continue;
     const dash = id.lastIndexOf("-");
     if (dash <= 0) continue;
@@ -1185,7 +1224,7 @@ export async function setSpotlight(game: GameId, day = todayUtc(), { minCards = 
   // set that day, every qualifying set is in the pool as before.
   const rises = (id: string) => {
     const s = series.get(id)!;
-    if (s.held < HELD_DAYS || !s.fromOk || !s.fromSettled || s.stepJump) return false;
+    if (checkedTo(id) != null || s.held < HELD_DAYS || !s.fromOk || !s.fromSettled || s.stepJump) return false;
     const from = s.from ?? s.to;
     return from > 0 && Math.min(from, s.to) >= MOVER_MIN_PRICE && ((s.to - from) / from) * 100 >= JUMP_MIN_PCT;
   };
@@ -1201,11 +1240,13 @@ export async function setSpotlight(game: GameId, day = todayUtc(), { minCards = 
     const c = cat.get(id);
     if (!c) continue;
     const s = series.get(id)!;
-    // No week claim when today's point has not held (`to` is then the median) or the price a week ago is not one the guard believes.
-    const median = s.held < HELD_DAYS;
-    const unsettled = median || !s.fromOk;
-    const to = median ? s.median : s.to;
-    const from = s.fromOk ? (s.from ?? to) : to;
+    // No week claim when today's point has not held (`to` is then the median), the price a week ago is not one the guard
+    // believes, or the price is an eBay sold check (its "move" is the fix, not the market).
+    const ck = checkedTo(id);
+    const median = ck == null && s.held < HELD_DAYS;
+    const unsettled = ck != null || median || !s.fromOk;
+    const to = ck ?? (median ? s.median : s.to);
+    const from = ck == null && s.fromOk ? (s.from ?? to) : to;
     cards.push({
       cardId: id,
       name: displayName(c.name),

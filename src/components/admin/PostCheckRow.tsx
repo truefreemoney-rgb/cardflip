@@ -22,8 +22,9 @@ const usd = (v: number) => `$${v.toLocaleString("en-US", { minimumFractionDigits
 
 /**
  * One card of a post on /admin/prices: open eBay sold, then "Looks right", or
- * type what it sold for and "Fix" (the price is fixed everywhere, the card
- * sits out of posts, the video is remade if it has not gone out).
+ * type what it sold for and "Fix" (the price is fixed everywhere, posts show
+ * the card at that price with no % change, the video is remade if it has not
+ * gone out; 10-21, social.ts postChecks).
  */
 export default function PostCheckRow(p: Props) {
   const router = useRouter();
@@ -64,7 +65,7 @@ export default function PostCheckRow(p: Props) {
         <a href={p.soldUrl} target="_blank" rel="noreferrer" className="text-xs font-medium text-sky-300 hover:underline">
           eBay sold
         </a>
-        {p.status === "fixed" && <span className="rounded-full bg-amber-400/10 px-2 py-0.5 text-xs text-amber-300">Fixed to {usd(p.fixedUsd ?? 0)}, out of posts</span>}
+        {p.status === "fixed" && <span className="rounded-full bg-amber-400/10 px-2 py-0.5 text-xs text-amber-300">Fixed to {usd(p.fixedUsd ?? 0)}, posts use this price</span>}
         {p.status === "ok" && <span className="rounded-full bg-emerald-400/10 px-2 py-0.5 text-xs text-emerald-300">Checked, looks right</span>}
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
