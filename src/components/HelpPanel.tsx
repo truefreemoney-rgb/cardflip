@@ -235,6 +235,13 @@ export default function HelpPanel({ mode, active, onClose, onBusy }: Props) {
       setBusy(true);
       const mine: Msg = { id: `local-${Date.now()}`, role: "user", content: text };
       setMessages((m) => [...(m ?? []), mine]);
+      // A failed send gives the question back in the box (unless they already typed a new one)
+      // and takes its bubble out, so "Try again" is one tap instead of retyping.
+      const giveBack = (message: string) => {
+        setError(message);
+        setMessages((m) => (m ?? []).filter((x) => x.id !== mine.id));
+        setDraft((d) => d || text);
+      };
       try {
         const res = await fetch(apiPath("/api/help/chat"), {
           method: "POST",
@@ -243,7 +250,7 @@ export default function HelpPanel({ mode, active, onClose, onBusy }: Props) {
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-          setError(data.error || "The robot didn't answer. Try again.");
+          giveBack(data.error || "The robot didn't answer. Try again.");
           return;
         }
         const reply = data.reply as Msg;
@@ -252,7 +259,7 @@ export default function HelpPanel({ mode, active, onClose, onBusy }: Props) {
         // Support Tickets tab and its badge show it.
         if (reply.actions?.some((a) => a.type === "opened")) setTickets(null);
       } catch {
-        setError("No connection. Try again in a moment.");
+        giveBack("No connection. Try again in a moment.");
       } finally {
         setBusy(false);
       }

@@ -319,22 +319,30 @@ export async function askHelp(user: User, text: string): Promise<HelpMessage> {
     ...rawHistory.reverse().map((m) => ({ role: (m.role === "user" ? "user" : "assistant") as "user" | "assistant", content: m.content })),
     { role: "user" as const, content: message },
   ];
-  await save(user.id, "user", message);
+  const asked = await save(user.id, "user", message);
 
-  const response = await getClient().messages.create({
-    model: HELP_MODEL,
-    // Thinking tokens count against max_tokens on Sonnet 5.5; low effort keeps a 70-word reply quick.
-    max_tokens: 1500,
-    output_config: { effort: "low" },
-    system: [
-      { type: "text", text: VOICE },
-      // The articles and the objections sheet are the big stable block — cached across every seller.
-      { type: "text", text: `# Help articles\n\n${articlesText(magic)}` },
-      { type: "text", text: OBJECTIONS, cache_control: { type: "ephemeral" } },
-      { type: "text", text: `# This seller's account\n${accountFacts(user, tickets)}\n${cardLines.join("\n")}` },
-    ],
-    messages,
-  });
+  let response: Anthropic.Message;
+  try {
+    response = await getClient().messages.create({
+      model: HELP_MODEL,
+      // Thinking tokens count against max_tokens on Sonnet 5.5; low effort keeps a 70-word reply quick.
+      max_tokens: 1500,
+      output_config: { effort: "low" },
+      system: [
+        { type: "text", text: VOICE },
+        // The articles and the objections sheet are the big stable block — cached across every seller.
+        { type: "text", text: `# Help articles\n\n${articlesText(magic)}` },
+        { type: "text", text: OBJECTIONS, cache_control: { type: "ephemeral" } },
+        { type: "text", text: `# This seller's account\n${accountFacts(user, tickets)}\n${cardLines.join("\n")}` },
+      ],
+      messages,
+    });
+  } catch (err) {
+    // No answer, no question on file: the panel hands the text back to retry, and a kept row would
+    // show a question with no reply on reload and go into the history twice on the retry.
+    await db.prepare("DELETE FROM help_messages WHERE id = ?").run(asked.id).catch(() => undefined);
+    throw err;
+  }
 
   const reply = response.content
     .filter((b): b is Anthropic.TextBlock => b.type === "text")
