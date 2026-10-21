@@ -314,8 +314,9 @@ rig.rotation_euler = (0, 0, math.radians(4)); rig.keyframe_insert("rotation_eule
 _cz = -0.72  # camera keys below are written in world terms; the rig sits at the card's height
 # 10-21 (Chris 10-20: "content is to high"): CAM_BACK pulls the camera back (everything smaller), CAM_UP raises it
 # (everything sits lower in the frame). At the last frame the swaying card's top sat ~9% from the top, under TikTok's
-# Following / For You bar; CAM_BACK=0.3 CAM_UP=0.12 puts the column at ~14%-78% of the height.
-_back = float(os.environ.get("CAM_BACK", "0")); _up = float(os.environ.get("CAM_UP", "0"))
+# Following / For You bar. Chris picked C (10-21): CAM_BACK=0.45 CAM_UP=0.05 = the column at ~13%-76% of the height.
+# CAM_BACK=0 CAM_UP=0 gives the old (too high) framing back.
+_back = float(os.environ.get("CAM_BACK", "0.45")); _up = float(os.environ.get("CAM_UP", "0.05"))
 cam.dof.focus_object = pivot
 co.rotation_euler = (math.radians(90), 0, 0)
 co.location = (0, -6.8 - _back, -0.2 + _cz + _up); co.keyframe_insert("location", frame=1)
