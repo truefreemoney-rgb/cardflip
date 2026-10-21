@@ -315,6 +315,65 @@ async function tcgdexReferee(day: string, tcg: Map<string, SeriesKeyed>, max = 6
   return out;
 }
 
+/**
+ * Where a product's price is written: a pattern product's price is the pattern variant whatever subtype
+ * TCGplayer files it under ("Holofoil"); 1st Edition variants go to the "-1st" twin. Null = not this card's.
+ */
+function productSeries(
+  productId: number, subTypeName: string | null | undefined, mapped: string,
+  patternOf: Map<number, PatternVariant>, twins: Set<string>,
+): { cardId: string; variant: string } | null {
+  const variant = patternOf.get(productId) ?? tcgplayerVariantKey(subTypeName);
+  const stamped = variant.startsWith("1stEdition");
+  if (mapped.endsWith("-1st") && !stamped) return null;
+  return { cardId: stamped && twins.has(`${mapped}-1st`) ? `${mapped}-1st` : mapped, variant };
+}
+
+/**
+ * Pure: one pattern group's day for the cleanup after the loop. `seen` = the variants each card with two
+ * products came back under, a product with no market today included (no recent TCGplayer sale is not a
+ * wrong key); `unsure` = cards with a product missing from the day's file, whose variants nobody can vouch
+ * for. 10-21: the cleanup deleted the stopped lines of the dearest pattern cards.
+ */
+export function patternVariantsSeen(
+  results: { productId: number; subTypeName?: string | null }[],
+  groupProducts: number[],
+  patternOf: Map<number, PatternVariant>,
+  productToCard: Map<number, string>,
+  cardProducts: Map<string, number>,
+  twins: Set<string>,
+): { seen: Map<string, Set<string>>; unsure: Set<string> } {
+  const seen = new Map<string, Set<string>>();
+  for (const r of results) {
+    const mapped = productToCard.get(r.productId);
+    const s = mapped ? productSeries(r.productId, r.subTypeName, mapped, patternOf, twins) : null;
+    if (!s || (cardProducts.get(s.cardId) ?? 0) <= 1) continue;
+    seen.set(s.cardId, (seen.get(s.cardId) ?? new Set()).add(s.variant));
+  }
+  const listed = new Set(results.map((r) => r.productId));
+  const unsure = new Set<string>();
+  for (const pid of groupProducts) {
+    const mapped = productToCard.get(pid);
+    if (mapped && !listed.has(pid)) unsure.add(mapped).add(`${mapped}-1st`);
+  }
+  return { seen, unsure };
+}
+
+/** Pure: the pattern cards' stored variants no product named today (the old mislabelled "holofoil" rows). */
+export function patternCleanupDeletes(
+  seen: Map<string, Set<string>>, unsure: Set<string>, existingKeys: Iterable<string>,
+): { cardId: string; variant: string }[] {
+  const out: { cardId: string; variant: string }[] = [];
+  for (const key of existingKeys) {
+    const bar = key.indexOf("|");
+    const cardId = key.slice(0, bar);
+    const variant = key.slice(bar + 1);
+    const named = seen.get(cardId);
+    if (named && !unsure.has(cardId) && !named.has(variant)) out.push({ cardId, variant });
+  }
+  return out;
+}
+
 export async function refreshPokemonPricesFromTcgcsv(day = todayUtc()): Promise<PokemonRefreshResult> {
   await loadPokemonHandMap(); // best-effort, never throws
   try {
@@ -330,10 +389,14 @@ export async function refreshPokemonPricesFromTcgcsv(day = todayUtc()): Promise<
   // list fetched (names carry the pattern) — the map itself has no names.
   const cardProducts = new Map<string, number>();
   const patternGroups = new Set<number>();
+  const groupProducts = new Map<number, number[]>();
   // The sync driver streamed this with .iterate(); the map is ~30k small rows,
   // well within memory as one read.
   for (const r of (await db.prepare("SELECT product_id, group_id, card_id FROM tcgplayer_products WHERE game = 'pokemon'").all()) as { product_id: number; group_id: number; card_id: string }[]) {
     productToCard.set(r.product_id, r.card_id);
+    const inGroup = groupProducts.get(r.group_id);
+    if (inGroup) inGroup.push(r.product_id);
+    else groupProducts.set(r.group_id, [r.product_id]);
     const n = (cardProducts.get(r.card_id) ?? 0) + 1;
     cardProducts.set(r.card_id, n);
     if (n > 1) patternGroups.add(r.group_id);
@@ -375,6 +438,7 @@ export async function refreshPokemonPricesFromTcgcsv(day = todayUtc()): Promise<
   // Cards with a pattern product: every variant seen for them this run, so
   // the mislabelled "holofoil" rows earlier runs wrote can be dropped.
   const patternCardVariants = new Map<string, Set<string>>();
+  const patternCardsUnsure = new Set<string>();
   for (const gid of groups) {
     let results: { productId: number; marketPrice?: number | null; lowPrice?: number | null; subTypeName?: string | null }[];
     const patternOf = new Map<number, PatternVariant>();
@@ -397,6 +461,15 @@ export async function refreshPokemonPricesFromTcgcsv(day = todayUtc()): Promise<
       console.warn(`tcgcsv group ${gid}:`, err instanceof Error ? err.message : err);
       continue;
     }
+    if (patternOf.size > 0) {
+      const today = patternVariantsSeen(results, groupProducts.get(gid) ?? [], patternOf, productToCard, cardProducts, twins);
+      for (const [cardId, variants] of today.seen) {
+        const all = patternCardVariants.get(cardId) ?? new Set<string>();
+        for (const v of variants) all.add(v);
+        patternCardVariants.set(cardId, all);
+      }
+      for (const cardId of today.unsure) patternCardsUnsure.add(cardId);
+    }
     for (const r of results) {
       const mapped = productToCard.get(r.productId);
       // Sealed products keep TCGplayer's market as is; cards take the listing cap (pokemonListingCap).
@@ -406,17 +479,9 @@ export async function refreshPokemonPricesFromTcgcsv(day = todayUtc()): Promise<
         continue;
       }
       if (!mapped || price == null || !(price > 0)) continue;
-      // A pattern product's price is the pattern variant whatever subtype
-      // TCGplayer files it under ("Holofoil").
-      const variant = patternOf.get(r.productId) ?? tcgplayerVariantKey(r.subTypeName);
-      const stamped = variant.startsWith("1stEdition");
-      if (mapped.endsWith("-1st") && !stamped) continue;
-      const cardId = stamped && twins.has(`${mapped}-1st`) ? `${mapped}-1st` : mapped;
-      if ((cardProducts.get(cardId) ?? 0) > 1 && patternOf.size > 0) {
-        let seen = patternCardVariants.get(cardId);
-        if (!seen) patternCardVariants.set(cardId, (seen = new Set()));
-        seen.add(variant);
-      }
+      const series = productSeries(r.productId, r.subTypeName, mapped, patternOf, twins);
+      if (!series) continue;
+      const { cardId, variant } = series;
       // The card and any catalog twin that no product reaches (TCGdex lists the SWSH Trainer
       // Galleries twice, swsh10tg-TG04 and swsh10.5tg-TG04: 99 copies sat priceless, 10-05).
       for (const id of [cardId, ...(twinsOf.get(cardId) ?? []).filter((t) => !cardProducts.has(t))]) {
@@ -465,15 +530,10 @@ export async function refreshPokemonPricesFromTcgcsv(day = todayUtc()): Promise<
   }
   // Drop the series a pattern product wrote under the wrong key before the
   // pattern was understood (the "holofoil" row on an uncommon trainer).
-  for (const [cardId, seen] of patternCardVariants) {
-    for (const key of existingSeries.keys()) {
-      if (!key.startsWith(`${cardId}|`)) continue;
-      const variant = key.slice(cardId.length + 1);
-      if (seen.has(variant)) continue;
-      await db
-        .prepare("DELETE FROM price_series WHERE card_id = ? AND source = 'tcgplayer' AND variant = ?")
-        .run(cardId, variant);
-    }
+  for (const { cardId, variant } of patternCleanupDeletes(patternCardVariants, patternCardsUnsure, existingSeries.keys())) {
+    await db
+      .prepare("DELETE FROM price_series WHERE card_id = ? AND source = 'tcgplayer' AND variant = ?")
+      .run(cardId, variant);
   }
   return { groups: groups.length, groupsFailed, seriesTouched: upserts.length + tcgdexSeries, sealedSeries: sealedUpserts.length, day, ...(backup ? { backup } : {}) };
 }
