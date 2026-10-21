@@ -580,7 +580,8 @@ export function quotePrice(
   // Quick sale only exists at $5+ (Chris, 09-03: "cards under $5 shouldn't
   // have a quick-sale option") — undercutting a $2 card by 12% just hands
   // eBay the margin. Below the line the quote IS the market quote.
-  const conditioned = price.market * CONDITION_MULTIPLIER[condition];
+  // A stored condition outside the list (older rows, a hand-typed one) prices as Near Mint, never NaN (review 10-19 pricing #14).
+  const conditioned = price.market * (CONDITION_MULTIPLIER[condition] ?? 1);
   const effective: PriceStrategy =
     strategy === "quick" && !quickSaleEligible(conditioned) ? "market" : strategy;
   const adjusted = conditioned * STRATEGY_MULTIPLIER[effective];

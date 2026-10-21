@@ -644,7 +644,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
       ? gradedMarket / quote.base
       : null
     : item.condition !== "Near Mint"
-      ? CONDITION_MULTIPLIER[item.condition]
+      ? (CONDITION_MULTIPLIER[item.condition] ?? null)
       : null;
   const historyScaleLabel = item.grading
     ? `${gradeLabel(item.grading)} est.`

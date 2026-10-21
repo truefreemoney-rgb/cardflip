@@ -60,8 +60,8 @@ export async function PATCH(req: Request, { params }: RouteParams) {
       }
     }
     const str = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : undefined);
-    // Nullable numeric columns: a finite number lands, anything else clears.
-    const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+    // Nullable numeric columns (dates, a sale price): a finite number >= 0 lands, anything else clears (review 10-19 pricing #14).
+    const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : null);
     const card = await updateCard(id, user.id, {
       cardName: str(body?.cardName, 200),
       setName: str(body?.setName, 200),

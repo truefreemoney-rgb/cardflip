@@ -231,8 +231,9 @@ export async function runPokemonSteps(
   // Mail campaigns (campaigns.ts) and the old Sunday digest no longer run here (10-08):
   // /api/cron/emails sends Tue/Thu 10am + Sun 6:30pm ET so mail lands when people read it.
   try {
-    // Stop re-pricing held cards ~200s after the step started so the eBay
-    // sync and the result write still fit inside the 300s function limit.
+    // Stop re-pricing held cards ~200s after the RUN started (not this step: the steps
+    // before it count too) so the eBay sync and the result write still fit inside the
+    // 300s function limit.
     const recorded = await sweepPriceHistory(now, now + 200_000);
     result.pokemon = { recorded };
   } catch (err) {

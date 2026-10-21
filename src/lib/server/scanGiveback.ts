@@ -114,6 +114,13 @@ export async function giveBackNoMatchScan(user: User, scanId: string): Promise<{
   // Claim the row first: two give-backs for one scan must not both pay out.
   const claimed = await db.prepare("UPDATE scan_usage SET refunded_at = ? WHERE id = ? AND refunded_at IS NULL").run(Date.now(), scanId);
   if (Number(claimed.changes ?? 0) < 1) return { refunded: false, reason: "already", usage };
-  const after = await giveBackScans(user, { taken: 1, draw, usage }, 1);
+  let after: Awaited<ReturnType<typeof giveBackScans>>;
+  try {
+    after = await giveBackScans(user, { taken: 1, draw, usage }, 1);
+  } catch (err) {
+    // The credit failed after the claim: release it, or the scan could never be given back (review 10-19 pricing #15).
+    await db.prepare("UPDATE scan_usage SET refunded_at = NULL WHERE id = ?").run(scanId).catch(() => undefined);
+    throw err;
+  }
   return { refunded: true, reason: "refunded", usage: after };
 }
