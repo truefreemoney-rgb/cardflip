@@ -69,6 +69,8 @@ const CHECKS = [
   // 10-20 ~11pm ET hidden list (s209), eBay sold in the pane, raw only.
   { game: "pokemon", cardId: "bw7-142", variant: "holofoil", usd: 100, n: 15, day: "2026-10-20", note: "Keldeo-EX full art 142/149: 15 raw sold 09-09..10-18 at 60-155 (median 99.99; damaged/HP/MP/Brazilian left out); TCGplayer 140.65 (hidden)" },
   { game: "pokemon", cardId: "col1-91", variant: "holofoil", usd: 50, n: 13, day: "2026-10-20", note: "Lightning Energy Call of Legends 91/95 (Ampharos): 13 NM/unlabelled raw sold 08-25..10-18 at 39.92-66.44 (median 50), LP 42-54.93; TCGplayer 116 (hidden)" },
+  { game: "yugioh", cardId: "ygo-58739-1st", variant: "normal", usd: 35, n: 6, day: "2026-10-20", note: "Ancient Gear Beast TLM-EN007 Ultimate Rare 1st (NA): sold 20/29.99 NM/30 HP/35.43/69.45/95.80 VLP 09-20..10-12 (EURO 1st 149.99 left out; unlimited UTR 25-39.49); TCGplayer 179.99 (hidden)" },
+  { game: "yugioh", cardId: "ygo-58774", variant: "normal", usd: 70, n: 1, day: "2026-10-20", note: "King Dragun FET-EN036 Ultimate Rare unlimited: sold 69.99 VLP (08-12); 1st Ed raw sells 82-90 NM, 36-53 MP, so unlimited can't be above that; the 13-30 asks are FET-JP036 Japanese; TCGplayer 153 (hidden)" },
 ];
 // --only id,id: write just these checks (the others are already on prod).
 const onlyArg = process.argv.indexOf("--only");
