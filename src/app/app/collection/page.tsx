@@ -1352,8 +1352,7 @@ export default function CollectionPage() {
   async function setAskingPrice(card: ServerCard, price: number) {
     if (Math.abs(price - card.price) < 0.005) return;
     if (!card.ebayOfferId) {
-      await applyPatch(card, { price, priceLocked: true });
-      toast(`${card.cardName} is now ${formatMoney(price)}`);
+      if (await applyPatch(card, { price, priceLocked: true })) toast(`${card.cardName} is now ${formatMoney(price)}`);
       return;
     }
     setRepricing(card.id);
@@ -1369,7 +1368,9 @@ export default function CollectionPage() {
       return;
     }
     patchCard(card.id, { price });
-    toast(`${card.cardName} repriced to ${formatMoney(price)}${result.ebayUpdated ? " — eBay listing updated" : ""}`);
+    // A live listing eBay refused is not a success: the red toast points at the note below (review 10-19 app #14).
+    if (card.ebayListingUrl && !result.ebayUpdated) toast(`${card.cardName} is ${formatMoney(price)} here, but eBay didn't take it`, "err");
+    else toast(`${card.cardName} repriced to ${formatMoney(price)}${result.ebayUpdated ? " — eBay listing updated" : ""}`);
     setNudges((prev) => {
       const next = { ...prev };
       delete next[card.id];
@@ -1391,7 +1392,8 @@ export default function CollectionPage() {
   // Optimistic status changes, rolled back if the server didn't take them —
   // otherwise the page can claim "sold" for a card the ledger still has as a
   // draft, and the seller only finds out on the next refresh.
-  async function applyPatch(card: ServerCard, patch: Partial<ServerCard>) {
+  /** Optimistic save; false when the server refused it (the row is rolled back and the error already shown). */
+  async function applyPatch(card: ServerCard, patch: Partial<ServerCard>): Promise<boolean> {
     const before: Partial<ServerCard> = {};
     for (const key of Object.keys(patch) as (keyof ServerCard)[]) {
       (before as Record<string, unknown>)[key] = card[key];
@@ -1406,7 +1408,9 @@ export default function CollectionPage() {
       setSyncError(`Couldn't save the change to ${card.cardName} — ${why}`);
       // The banner lives at the top of a long page — repeat it where the eye is.
       toast(`Couldn't save the change to ${card.cardName}${result.status ? ` (${result.status})` : ""}`, "err");
+      return false;
     }
+    return true;
   }
 
   /** Condition from the card popup (10-04): saved, then the live prices re-read so the suggested eBay price follows it. */
@@ -2598,9 +2602,11 @@ export default function CollectionPage() {
             const deletable = selCards.filter((c) => !isLive(c) && c.status !== "sold");
             const bulkBtn = `${TAP_8} rounded-full border border-edge px-3.5 py-1.5 text-xs font-medium text-zinc-200 transition hover:border-edge-strong hover:bg-surface-2 disabled:opacity-50`;
             async function applyToAll(targets: ServerCard[], patch: (c: ServerCard) => Partial<ServerCard>, note: string) {
-              await Promise.all(targets.map((c) => applyPatch(c, patch(c))));
+              // The note only when every row saved; a failed row has already said so in red (review 10-19 app #6).
+              const saved = (await Promise.all(targets.map((c) => applyPatch(c, patch(c))))).filter(Boolean).length;
               setSelected(new Set());
-              toast(note);
+              if (saved === targets.length) toast(note);
+              else if (saved > 0) toast(`${saved} of ${targets.length} saved`, "err");
             }
             // Set condition / Set price: only not-listed rows (live listings
             // and sold records stay as they are). One write at a time, so a big
@@ -3528,9 +3534,9 @@ export default function CollectionPage() {
             const target = cards.find((c) => c.id === categoryTarget.id) ?? categoryTarget;
             if (target.category !== next) {
               setMoving(true);
-              await applyPatch(target, { category: next });
+              const ok = await applyPatch(target, { category: next });
               setMoving(false);
-              toast(next ? `${target.cardName} → ${next}` : `${target.cardName} uncategorized`);
+              if (ok) toast(next ? `${target.cardName} → ${next}` : `${target.cardName} uncategorized`);
             }
             setCategoryTarget(null);
           }}
@@ -3551,11 +3557,11 @@ export default function CollectionPage() {
           onPick={async (next) => {
             const targets = cards.filter((c) => selected.has(c.id) && c.category !== next);
             setMoving(true);
-            await Promise.all(targets.map((c) => applyPatch(c, { category: next })));
+            const moved = (await Promise.all(targets.map((c) => applyPatch(c, { category: next })))).filter(Boolean).length;
             setMoving(false);
             setMoveSheet(false);
             setSelected(new Set());
-            toast(next ? `${targets.length} moved to ${next}` : `${targets.length} uncategorized`);
+            if (moved > 0) toast(next ? `${moved} moved to ${next}` : `${moved} uncategorized`, moved === targets.length ? undefined : "err");
           }}
         />
       )}
@@ -3616,8 +3622,7 @@ export default function CollectionPage() {
                         row = res.card;
                         setCards((prev) => prev.map((x) => (x.id === c.id ? res.card : x)));
                       }
-                      await applyPatch(row, soldNowPatch(c.price));
-                      done++;
+                      if (await applyPatch(row, soldNowPatch(c.price))) done++;
                     }
                     setSelected(new Set());
                     if (done > 0) toast(`${done} marked sold at asking price`);

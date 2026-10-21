@@ -1202,7 +1202,7 @@ export default function AppPage() {
         .filter((r): r is ServerCard => Boolean(r) && r!.kind !== "sealed" && r!.status !== "sold");
       if (wanted.length === 0) {
         setResuming(false);
-        toast(resumeIds.length === 1 ? "Couldn't reopen that card here — scan it again" : "Couldn't reopen those cards here");
+        toast(resumeIds.length === 1 ? "Couldn't reopen that card here — scan it again" : "Couldn't reopen those cards here", "err");
         return;
       }
       // The eager result is only trusted when the hint matches the row (a
@@ -1233,11 +1233,11 @@ export default function AppPage() {
       const items = built.filter((i): i is ScanItem => Boolean(i));
       if (items.length === 0) {
         setResuming(false);
-        toast("Couldn't look those cards up again — scan them to rebuild the listings");
+        toast("Couldn't look those cards up again — scan them to rebuild the listings", "err");
         return;
       }
       if (items.length < wanted.length) {
-        toast(`${wanted.length - items.length} card${wanted.length - items.length === 1 ? "" : "s"} couldn't be looked up again`);
+        toast(`${wanted.length - items.length} card${wanted.length - items.length === 1 ? "" : "s"} couldn't be looked up again`, "err");
       }
       commit([...itemsRef.current, ...items]);
       setSelectedId(items[0].id);
