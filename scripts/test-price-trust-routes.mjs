@@ -109,6 +109,33 @@ console.log("/api/search-card (a name with no letter or digit never waits on pok
   }
 }
 
+console.log("/api/search-card quotes the card page's TCGplayer line over pokemontcg.io's (10-21, Kyogre ex4-3: $542.60 upstream, $290 line)");
+{
+  await seed.run("pk-up", "Kyogrex", "7");
+  await recordSeries(recordPoint, addDays, TODAY, "pk-up", "pokemon", "holofoil", liquidPrices(290));
+  await seed.run("pk-up-old", "Kyogrex", "8");
+  await recordSeries(recordPoint, addDays, addDays(TODAY, -5), "pk-up-old", "pokemon", "holofoil", liquidPrices(110));
+  clearTrustMemo();
+  const realFetch = globalThis.fetch;
+  const upstream = (number, prices) => ({ id: `up-${number}`, name: "Kyogrex", number, set: { name: "Test Pokemon Set", releaseDate: "2019/05/01" }, tcgplayer: { prices } });
+  globalThis.fetch = async (url, init) => {
+    if (String(url).includes("pokemontcg.io")) {
+      return Response.json({ data: [upstream("7", { holofoil: { market: 542.6, low: 200, high: 699.98 }, reverseHolofoil: { market: 70, low: 50, high: 90 } }), upstream("8", { holofoil: { market: 130, low: 100, high: 160 } })] });
+    }
+    return realFetch(url, init);
+  };
+  try {
+    const row = (body, variant) => body.cards[0].prices.find((p) => p.variant === variant && p.source === "tcgplayer");
+    const up = (await get(searchCard, "/api/search-card?id=pk-up")).body;
+    check("a fresh stored line replaces the upstream market for its printing, no flag", [row(up, "holofoil").market, row(up, "holofoil").untrusted], [290, undefined]);
+    check("... a printing with no line of its own keeps the upstream number", row(up, "reverseHolofoil").market, 70);
+    const old = (await get(searchCard, "/api/search-card?id=pk-up-old")).body;
+    check("... a line last written 5 days ago does not (upstream is today's number)", row(old, "holofoil").market, 130);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+}
+
 console.log("set lists follow the card page's chain (10-21: Black Lotus Unlimited missing, Will-o'-the-Wisp 'looks off' vs $66.41)");
 {
   const { loadSetCards } = await import(at("lib/server/cardPages.ts"));

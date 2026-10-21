@@ -11,7 +11,7 @@ import {
   type PrintedNumber,
 } from "@/lib/cardNumber";
 import type { ArtStyle, CardPrice, PokemonCard } from "@/lib/types";
-import { decodePrices } from "@/lib/priceSeries";
+import { addDays, decodePrices, todayUtc } from "@/lib/priceSeries";
 import { formatVariantLabel } from "@/lib/listing";
 import { toPics } from "@/lib/pics";
 import { artVersionPenalty, printedName } from "@/lib/artVersions";
@@ -617,6 +617,54 @@ async function ownSeriesPrices(cardIds: string[], like: string): Promise<Map<str
     return out;
   }
 }
+
+/** A stored TCGplayer line older than this is not today's number: the upstream row keeps its own. */
+const OWN_LINE_MAX_AGE_DAYS = 3;
+
+/**
+ * The app quotes the card page's number (10-21). pokemontcg.io's TCGplayer row (when it answers inside the search budget)
+ * is the raw market; our own stored TCGplayer line for the same printing carries the listing cap and the eBay sold
+ * checks, and is what the card page, set lists and Inventory show. Kyogre ex4-3: upstream $542.60 = flagged, so the app
+ * showed "looks off", while its page showed the eBay-checked $290. Sampled 10-21: 6 of 22 upstream answers were over 10%
+ * off the line, and the same card read one or the other depending on how fast pokemontcg.io answered. A fresh line
+ * (updated within OWN_LINE_MAX_AGE_DAYS) replaces the upstream market for its variant; everything else is untouched.
+ * Pokémon only (the other games' mirrors are our own data already). Fails open.
+ */
+export async function withOwnTcgplayerLines(cards: PokemonCard[], day = todayUtc()): Promise<PokemonCard[]> {
+  const ids = [...new Set(cards.filter((c) => (c.game ?? "pokemon") === "pokemon" && c.prices.some(isUpstreamTcg)).map((c) => c.id))];
+  if (ids.length === 0) return cards;
+  try {
+    const own = new Map<string, number>();
+    for (let i = 0; i < ids.length; i += 400) {
+      const chunk = ids.slice(i, i + 400);
+      const rows = (await db
+        .prepare(
+          `SELECT card_id, variant, prices FROM price_series
+            WHERE source = 'tcgplayer' AND currency = 'USD' AND updated_day >= ? AND card_id IN (${chunk.map(() => "?").join(",")})`,
+        )
+        .all(addDays(day, -OWN_LINE_MAX_AGE_DAYS), ...chunk)) as unknown as { card_id: string; variant: string; prices: string }[];
+      for (const r of rows) {
+        const points = decodePrices(r.prices);
+        for (let j = points.length - 1; j >= 0; j--) {
+          const v = points[j];
+          if (v != null) {
+            if (v > 0) own.set(`${r.card_id}|${r.variant}`, v);
+            break;
+          }
+        }
+      }
+    }
+    if (own.size === 0) return cards;
+    return cards.map((c) => {
+      if (!c.prices.some((p) => isUpstreamTcg(p) && own.has(`${c.id}|${p.variant}`) && own.get(`${c.id}|${p.variant}`) !== p.market)) return c;
+      return { ...c, prices: c.prices.map((p) => (isUpstreamTcg(p) && own.has(`${c.id}|${p.variant}`) ? { ...p, market: own.get(`${c.id}|${p.variant}`) as number } : p)) };
+    });
+  } catch {
+    return cards;
+  }
+}
+
+const isUpstreamTcg = (p: CardPrice) => p.source === "tcgplayer" && p.currency === "USD" && p.market != null && p.market > 0;
 
 /**
  * Every card in one English set, in printed order (numeric collector

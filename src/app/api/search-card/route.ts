@@ -11,6 +11,7 @@ import {
 import {
   englishCardById,
   enrichWithPricing,
+  withOwnTcgplayerLines,
   hasEnglishMirror,
   searchEnglishCardsLocal,
   splitFirstEditionPrices,
@@ -55,7 +56,8 @@ async function flagged(cards: PokemonCard[]): Promise<PokemonCard[]> {
   try {
     // A cached answer written before a card's picture was filled still says
     // "No image" (10-02, lib/server/cardPictures.ts): pictures first, then flags.
-    return await withPriceFlags(await fillMissingPictures(cards));
+    // The card page's own TCGplayer number before the guard judges it (10-21, enCards.withOwnTcgplayerLines).
+    return await withPriceFlags(await withOwnTcgplayerLines(await fillMissingPictures(cards)));
   } catch (err) {
     console.warn("search-card: price guard unavailable", err);
     return cards;
