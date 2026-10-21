@@ -4,6 +4,13 @@ Chris (10-14): every support ticket and every social comment is a learning
 experience while the site is new and not fully tested. One entry each: what
 they said, what it taught, what changed, what is still open. Newest first.
 
+## 10-20 ~11:10pm ET · admin Users: "somebody is doing something weird" / "looks like some sort of obvious bot" (Chris, screenshots of "probe" accounts)
+- What: one IP, 35.183.7.202 (Google Cloud, Toronto), 11:05-11:14pm ET: sign-in tries as admin@/info@/support@cardflip.com and support@cardflip.io, 7 sign-ups (support@, admin@, hello@cardflip.io, example.invalid/.org, vprobe@maxxspace.com), 4 code guesses, then account edit, password, 2-step setup, delete, billing, Google/X finish, Change Email. Fresh device id each time, no landing page or referrer, no earlier visits: an automated account-surface scanner, not one of our routines or sessions.
+- Got: nothing. All 7 stayed unconfirmed, 0 scans (the repeat-signup guard marked the later ones' trial spent), 0 cards; owner rights are tied to Chris's Gmail only; rate limits stopped the code guessing.
+- Changed: firewall rule "Abuse: account-probing bots by IP (deny)" (v9, Chris: "Block it + delete its accounts"; scripts/_fw-block-ip.mjs adds more IPs); the 7 accounts deleted with deleteUser; 56310239 refuses @cardflip.io on signup, Google, X, Change Email and waitlist (Chris: "block users from making an account with @cardflip.io"), COMMIT ONLY.
+- Taught: our own domain needs the same refusal as a throwaway inbox; a bot can mail our support inbox codes through sign-up.
+- Still open: 56310239 ships with the next push (TO-TEST).
+
 ## 10-21 · Rocket's Mewtwo ex (ex7-99) card page shows no price (found by me while sampling the listing-cap pages)
 - What: the headline reads "This price looks off, check sold listings" with no number; the printings table shows Normal (looks off) and Holofoil $579.90.
 - Cause: TCGplayer opened a NEW "normal" line for this holo-only ex card on 10-17 ($1,150). Two days old, the guard flags it; headlinePrice's 10-06 rule (a doubted printing ranked above stops a three-figure sibling from headlining, built for Skyridge Charizard) then blocks the 156-day holofoil line. 8 Pokemon cards have the same pattern (all ex era + one Nintendo promo).
