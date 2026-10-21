@@ -1,5 +1,9 @@
 # To test later
 
+## 10-20 ~8:45pm ET: printing switch re-prices the ledger row (Angel #25 kept the D23 promo's $73.16), COMMIT ONLY, not visible
+- Tested locally (faked read of Angel #25, /api/ebay/comps delayed 6 s): camera "Not this card?" and the editor's list, D23 (or #191) then back to #25 inside the delay -> PATCH price 1.75 at once, the #25 lookup restarts when the old one lands, last PATCH 1.75. Before: last PATCH stayed on the other printing's price. tsc, eslint, test:pricing, test:liveprices green.
+- After push, phone: scan a cheap card, tap "Not this card?", pick an expensive printing, go straight back to the scanned one, Verify -> Inventory shows the cheap card's price, not the expensive one.
+
 ## 10-20 ~4:45pm ET: wrong-game scan keeps the photo + "Switch to <game>" (Chris 10-20), COMMIT ONLY, VISIBLE, shot docs/shots/wrong-game-chip-phone.jpg (the "camera blocked" text and the top-left box in it are the browser pane's / dev-only, not the app)
 - Tested locally (faked AI read, dev photo input): Pokémon switch + Lorcana card -> chip "That looks like a Lorcana card" + amber "Switch to Lorcana"; tap -> the same photo is read as Lorcana, MATCH FOUND Angel - Siren Singer, the game switch flips to Lorcana, ledger price $1.75. The card view (no match) shows the same button first and "Scan again" second.
 - After push, phone: scan a Magic/Lorcana card with the switch on Pokémon -> the chip offers the switch, one tap gives the right card; the Scans counter drops by ONE for that card (the wrong-game read is given back).

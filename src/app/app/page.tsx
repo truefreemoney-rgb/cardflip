@@ -180,6 +180,18 @@ function buildResumed(row: ServerCard, game: GameId, results: PokemonCard[], car
     return item;
 }
 
+/**
+ * The ledger fields for an item whose card just changed (a "Not your card?" pick, a printing swap):
+ * the new card's own quote, before its chart point or eBay comps land (those re-save it). Review
+ * 10-20: TheJoseph's Angel #25 kept the D23 promo's $73.16 because nothing re-priced the row when he
+ * switched back. A typed price stays; listed/sold rows keep the price they went out at.
+ */
+function ledgerPriceForNewCard(item: ScanItem): { price?: number; priceLocked: false } | null {
+  if (item.priceOverride != null || item.language !== "en" || item.status === "listed" || item.status === "sold") return null;
+  const quote = quoteForItem({ ...item, currentPoint: undefined });
+  return { ...(quote ? { price: quote.suggested } : {}), priceLocked: false };
+}
+
 /** Concurrent scans per tab — see pumpingRef. */
 const SCAN_WORKERS = 2;
 /** Art Series cards are refused at the scan (Chris 09-10), like tokens. */
@@ -421,6 +433,7 @@ export default function AppPage() {
         ebaySold: null,
         ebaySoldStatus: "unavailable",
       });
+      const next = itemsRef.current.find((i) => i.id === id);
       if (cur.serverId) {
         void updateServerCard(cur.serverId, {
           cardName: card.englishName || card.name,
@@ -430,6 +443,7 @@ export default function AppPage() {
           catalogCardId: card.id || null,
           rarity: card.rarity ?? null,
           firstEdition: isFirstEditionCard(card),
+          ...(next ? ledgerPriceForNewCard(next) : null),
         });
       }
     },
@@ -1043,6 +1057,11 @@ export default function AppPage() {
         }
       } finally {
         compsInFlight.current.delete(id);
+        // The card changed while this lookup was out: the effect below skipped the new card because this
+        // one was in flight, and nothing re-ran it after (Angel #25 kept the D23 promo's price, 10-20).
+        // A no-op patch re-renders, so the effect picks the new card up now.
+        const now = itemsRef.current.find((i) => i.id === id);
+        if (now?.card && now.card.id !== card.id && now.ebayStatus === "idle") patchItem(id, { ebayStatus: "idle" });
       }
     },
     [patchItem, loadCurrentPoint],
@@ -1881,20 +1900,26 @@ export default function AppPage() {
                     onChange={(patch) => {
                       // Re-queue (Scan again) or a picked card revives a row the watchdog gave up on.
                       if (patch.status === "queued" || patch.card) abandoned.current.delete(selected.id);
-                      patchItem(selected.id, patch);
+                      const newCard = patch.card && patch.card.id !== selected.card?.id ? patch.card : null;
+                      // A chart point carries no card id, so the old card's point would price the new one
+                      // (10-20: the D23 promo's point on Angel #25). It goes with the card; the editor's
+                      // hook stores the new card's point when it loads.
+                      patchItem(selected.id, newCard && !("currentPoint" in patch) ? { ...patch, currentPoint: undefined } : patch);
                       // A different catalog card (candidate pick, name
                       // search, 1st Edition ↔ unlimited swap) is a different
                       // product: the ledger row follows it, so Inventory
-                      // shows the right name, set, image and 1st Edition pill.
-                      if (patch.card && patch.card.id !== selected.card?.id && selected.serverId) {
+                      // shows the right name, set, image, 1st Edition pill and price.
+                      if (newCard && selected.serverId) {
+                        const next = itemsRef.current.find((i) => i.id === selected.id);
                         void updateServerCard(selected.serverId, {
-                          cardName: patch.card.englishName || patch.card.name,
-                          setName: patch.card.setName,
-                          cardNumber: patch.card.number,
-                          imageUrl: patch.card.imageSmall,
-                          catalogCardId: patch.card.id || null,
-                          rarity: patch.card.rarity ?? null,
-                          firstEdition: isFirstEditionCard(patch.card),
+                          cardName: newCard.englishName || newCard.name,
+                          setName: newCard.setName,
+                          cardNumber: newCard.number,
+                          imageUrl: newCard.imageSmall,
+                          catalogCardId: newCard.id || null,
+                          rarity: newCard.rarity ?? null,
+                          firstEdition: isFirstEditionCard(newCard),
+                          ...(next ? ledgerPriceForNewCard(next) : null),
                         });
                       }
                     }}

@@ -4,6 +4,13 @@ Chris (10-14): every support ticket and every social comment is a learning
 experience while the site is new and not fully tested. One entry each: what
 they said, what it taught, what changed, what is still open. Newest first.
 
+## 10-20 · Angel - Siren Singer #25 saved at $73.16: "i thought all the price fixes were in, why did it pick the wrong price"
+- What: TheJoseph's Winterspell #25 (TCGplayer $0.43) sat in his Inventory at $73.16, the D23 Collection promo's price.
+- Found (prod heat taps, read only; reproduced locally): he scanned #25, tapped the D23 candidate under "Not your card?", went back to #25 and verified. The D23 eBay lookup was still out when he switched back, so the page skipped #25's lookup, the D23 answer was dropped as "wrong card", and nothing started #25's again; the ledger kept the D23 price. A chart point carries no card id either, so the old card's point could price the new one.
+- Changed (commit only): a card switch (camera "Not this card?", editor list, search, printing swap) re-prices the ledger row at once from the new card and unlocks it; the old card's point is dropped; a lookup that lands for a card the seller left restarts the new card's lookup. Tested locally with a 6 s eBay delay: D23 then back to #25 inside the window ends at $1.75 on both paths.
+- Taught: the price fixes guard the numbers; this was a different path, a race when switching printings. Fire-and-forget lookups need a "did the card change while I was out" check on the way back.
+- Still open: his row self-corrects on his next Inventory visit (live refresh rewrites unlocked rows) or a one-row prod UPDATE by Chris.
+
 ## 10-20 · admin Cards list: "looks like the guy was scanning lorcana on pokemon"
 - What: Chris saw TheJoseph's Baymax - Amped Up (Hyperia City 237, $118.11) and Angel - Siren Singer (Winterspell 25, $73.16) listed as Game "Pokémon" on /admin/cards.
 - Found (prod, read only): both rows are saved game=lorcana and both scan reads said lorcana; the switch was on Lorcana. The admin table printed `game === "mtg" ? "Magic" : "Pokémon"`, a two-game label from before Lorcana / One Piece / Yu-Gi-Oh! joined.
