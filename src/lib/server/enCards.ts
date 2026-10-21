@@ -582,7 +582,9 @@ export async function splitFirstEditionPrices(cards: PokemonCard[]): Promise<Pok
   return out;
 }
 
-/** Latest USD point of each card's own series whose variant matches `like`, as price rows per card. */
+/** Latest USD point of each card's own series whose variant matches `like`, as price rows per card. Never a graded slab
+ *  line (the eBay comps' "graded-psa-10" points): these are raw printings (no-slabs rule; review 10-19 pricing #20,
+ *  Charizard-GX sm3-150 carried PSA 10 $2,079.39 / PSA 9 $780.38 rows). */
 async function ownSeriesPrices(cardIds: string[], like: string): Promise<Map<string, CardPrice[]>> {
   const out = new Map<string, CardPrice[]>();
   if (cardIds.length === 0) return out;
@@ -590,7 +592,8 @@ async function ownSeriesPrices(cardIds: string[], like: string): Promise<Map<str
     const rows = (await db
       .prepare(
         `SELECT card_id, variant, source, prices FROM price_series
-          WHERE card_id IN (${cardIds.map(() => "?").join(",")}) AND currency = 'USD' AND source <> 'pricecharting' AND variant LIKE ?`,
+          WHERE card_id IN (${cardIds.map(() => "?").join(",")}) AND currency = 'USD' AND source <> 'pricecharting' AND variant LIKE ?
+            AND variant NOT LIKE 'graded-%'`,
       )
       .all(...cardIds, like)) as unknown as { card_id: string; variant: string; source: string; prices: string }[];
     for (const r of rows) {

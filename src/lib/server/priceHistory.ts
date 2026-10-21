@@ -8,6 +8,7 @@ import { decodePrices, encodePrices, setDay, todayUtc } from "@/lib/priceSeries"
 import { cleanSeriesPoints, fromSeriesBreak } from "@/lib/priceOutliers";
 import { correctPoint } from "@/lib/server/checkedPrices";
 import { DEFAULT_VARIANT_ORDER, variantRank } from "@/lib/variantOrder";
+import { formatVariantLabel } from "@/lib/listing";
 
 export { summarize, todayUtc };
 export type { HistoryPoint, HistorySeries, HistoryStats } from "@/lib/priceHistoryStats";
@@ -144,8 +145,9 @@ export async function getPriceHistory(cardId: string): Promise<HistorySeries[]> 
 const VARIANT_ORDER: readonly string[] = DEFAULT_VARIANT_ORDER;
 export { variantRank };
 export async function latestUsdPrice(cardId: string): Promise<number | null> {
+  // A raw price: never a graded slab line ("graded-psa-10", the eBay comps' points; no-slabs rule, review 10-19 pricing #20).
   const series = (await getPriceHistory(cardId)).filter(
-    (s) => s.currency === "USD" && s.points.length > 0,
+    (s) => s.currency === "USD" && s.points.length > 0 && !s.variant.startsWith("graded-"),
   );
   if (series.length === 0) return null;
   series.sort(
@@ -162,7 +164,8 @@ export function heldPriceEntry(p: { price: number; variant: string }): CardPrice
   return {
     source: "tcgplayer",
     variant: p.variant,
-    label: p.variant === "normal" ? "Normal" : p.variant === "holofoil" ? "Holofoil" : p.variant === "reverseHolofoil" ? "Reverse Holofoil" : p.variant,
+    // The shared labels: a pattern printing read "pokeBallPattern" here (review 10-19 pricing #19).
+    label: formatVariantLabel(p.variant),
     currency: "USD",
     market: p.price,
     low: null,
@@ -176,7 +179,7 @@ export async function latestUsdByVariant(cardIds: string[]): Promise<Map<string,
   for (let i = 0; i < cardIds.length; i += 400) {
     const chunk = cardIds.slice(i, i + 400);
     const rows = (await db
-      .prepare(`SELECT card_id, variant, prices FROM price_series WHERE currency = 'USD' AND source <> 'pricecharting' AND card_id IN (${chunk.map(() => "?").join(",")})`)
+      .prepare(`SELECT card_id, variant, prices FROM price_series WHERE currency = 'USD' AND source <> 'pricecharting' AND variant NOT LIKE 'graded-%' AND card_id IN (${chunk.map(() => "?").join(",")})`)
       .all(...chunk)) as unknown as { card_id: string; variant: string; prices: string }[];
     for (const r of rows) {
       const prices = decodePrices(r.prices);
@@ -206,7 +209,7 @@ export async function latestUsdPrices(
     const rows = (await db
       .prepare(
         `SELECT card_id, variant, prices FROM price_series
-          WHERE currency = 'USD' AND source <> 'pricecharting' AND card_id IN (${chunk.map(() => "?").join(",")})`,
+          WHERE currency = 'USD' AND source <> 'pricecharting' AND variant NOT LIKE 'graded-%' AND card_id IN (${chunk.map(() => "?").join(",")})`,
       )
       .all(...chunk)) as unknown as { card_id: string; variant: string; prices: string }[];
     for (const r of rows) {
@@ -313,17 +316,21 @@ export async function sweepDue(now = Date.now()): Promise<boolean> {
 export async function sweepPriceHistory(now = Date.now(), deadline = Infinity): Promise<number> {
   if (sweeping || !(await hasEnglishMirror())) return 0;
   sweeping = true;
-  await metaSet(SWEEP_KEY, String(now));
   try {
+    // Inside the try: a failed stamp used to leave `sweeping` set, so this instance never swept again (review 10-19 pricing #16).
+    await metaSet(SWEEP_KEY, String(now));
+    // Shuffled: with no order the cap took the same 150 every day and the rest were never reached (review 10-19 pricing #17).
     const rows = (await db
       .prepare(
-        `SELECT card_name AS name, card_number AS number FROM cards WHERE game = 'pokemon'
-         UNION
-         SELECT COALESCE(english_name, card_name) AS name, card_number AS number FROM wishlist_items WHERE language = 'en'
-         UNION
-         SELECT card_name AS name, card_number AS number FROM price_checks
-          WHERE language = 'en' AND checked_at > ?
-         LIMIT ${SWEEP_CAP}`,
+        `SELECT name, number FROM (
+           SELECT card_name AS name, card_number AS number FROM cards WHERE game = 'pokemon'
+           UNION
+           SELECT COALESCE(english_name, card_name) AS name, card_number AS number FROM wishlist_items
+            WHERE language = 'en' AND COALESCE(game, 'pokemon') = 'pokemon'
+           UNION
+           SELECT card_name AS name, card_number AS number FROM price_checks
+            WHERE language = 'en' AND COALESCE(game, 'pokemon') = 'pokemon' AND checked_at > ?
+         ) ORDER BY RANDOM() LIMIT ${SWEEP_CAP}`,
       )
       .all(now - 30 * 86_400_000)) as unknown as { name: string; number: string }[];
     let recorded = 0;
