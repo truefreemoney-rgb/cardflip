@@ -2,6 +2,13 @@
 
 **A.4 triage of every open check dated 10-18 and earlier: docs/TO-TEST-TRIAGE-2026-10-21.md** (63 stale, curl + select checks done 10-21 ~4:30am ET, the rest sorted into pane / phone / wait). Old lines below are left as written; that file is the status.
 
+## 10-21 ~8:40am ET: fixed cards are USED in posts at the checked price, no % (39d7a02d) + auto-reply stays vague (11de6087), COMMIT ONLY
+- Chris picked "Use it, no % shown". social.ts postChecks: set spotlight + most valuable rank/print a binding check's price, unsettled, never the lead or a riser set; movers/jumps/dips/head to head/all-games leads still skip it (postHolds). /admin/prices: "Fixed to $X, posts use this price" + intro line (VISIBLE admin wording: show Chris the two strings before the push). test:social +3, test:postcheck, tsc, eslint green.
+- socialInbox DRAFT_SYSTEM: no data sources, vendor names, price method, AI/model names or system details. test:socialinbox green.
+- [ ] After push: the next fix of a set-spotlight card keeps the same set in the remade video (its caption line shows the checked price with no "this week"); /admin/prices chip reads "posts use this price".
+- [ ] After push: the next auto-reply sent names no source (social_comments reply_text, scripts/_comments-peek.mjs).
+- Comment checks (Chris 10-21 rule, memory feedback-social-comment-replies): 8:05am read = 0 comments on all 7am posts; 13 old "Needs You" left alone on his word.
+
 ## 10-21 ~8:10am ET: 6 post cards fixed on prod from eBay sold (Chris OK'd 2 + 4 extra searches; 10-21 = 26 of 20), /admin/prices Post cards Fix
 - bog-8 Rocket's Mewtwo rev $2,400 -> $1,000 (19 sold); ex2-99 Typhlosion ex $259.63 -> $200 (32); ex1-101 Mewtwo ex $746.79 -> $250 (37; its 10-14 hide sat at $554.98 and no longer bound = TASKS B.8, 387e78ef unpushed); ex1-3 Blaziken holo $101.02 -> $40.64 (36); ex1-102 Scyther ex $180.86 -> $115 (36); ex1-98 Hitmonchan ex $125.32 -> $70 (37). All raw English, lots/foreign/graded/"choose your card" left out, 30-day window.
 - LIVE 8:20am ET: app id lookups show all 6 fixed numbers. 1pm remake: Mewtwo out (fell below the top 5 by price), 1st Ed Charizard base1-4-1st $4,000 in (its own 10-21 check, n=3). 7pm remade twice: Sandstorm -> Ruby & Sapphire -> (third pick pending, run 39597318240).
