@@ -3,6 +3,7 @@
 // apart: "vision read none" vs "vision read master, line not priced". Pure
 // helper, no db, no API. Run: npm run test:scanlogread
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 const { scanLogRead } = await import(new URL("../src/lib/server/scanLogRead.ts", import.meta.url).href);
 
@@ -64,5 +65,11 @@ assert.equal(read.from, "pokemon");
 assert.equal(read.second, "bottom");
 read = scanLogRead({ ...base }, "pokemon", timing);
 assert.ok(!("slab" in read) && !("seen" in read) && !("from" in read) && !("second" in read), "optional keys absent");
+
+// 10-21: the free /scan read logs through it too (trial rows had name/number/conf only, no pattern or ball).
+for (const route of ["app/api/vision/scan/route.ts", "app/api/vision/trial/route.ts"]) {
+  const src = readFileSync(new URL(`../src/${route}`, import.meta.url), "utf8");
+  assert.ok(/recordScanUsage\([^;]*scanLogRead\(card,/.test(src), `${route} logs the scanLogRead shape`);
+}
 
 console.log("scan log read: ok");

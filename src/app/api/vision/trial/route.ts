@@ -6,6 +6,7 @@ import {
   isVisionConfigured,
 } from "@/lib/server/vision";
 import { recordScanUsage } from "@/lib/server/scanUsage";
+import { scanLogRead } from "@/lib/server/scanLogRead";
 import { isBudgetError } from "@/lib/visionBudget";
 import { parseGame } from "@/lib/games";
 import { gameFeaturesFor } from "@/lib/server/settings";
@@ -32,6 +33,7 @@ const TRIAL_USER = "trial-scan";
 export const maxDuration = 60;
 
 export async function POST(req: Request) {
+  const startedAt = Date.now();
   const fresh = deviceIdFrom(req) === null;
   const deviceId = deviceIdFrom(req) ?? newDeviceId();
   const send = (body: unknown, status = 200) => {
@@ -80,13 +82,9 @@ export async function POST(req: Request) {
       throw err;
     }
     const { read: card, usage: tokens } = scanned;
-    await recordScanUsage(TRIAL_USER, VISION_MODEL, tokens, {
-      game: card.game ?? game,
-      name: card.name,
-      number: card.cardNumber,
-      conf: card.confidence,
-      ms: Date.now() - visionAt,
-    }).catch((err) => console.error("trial scan_usage write failed:", err instanceof Error ? err.message : err));
+    // The same compact read as the app's scans (lib/server/scanLogRead.ts): a missed free scan replays with its set code,
+    // art and, for Pokémon, the pattern + ball read (10-21: trial rows had name/number/conf only).
+    await recordScanUsage(TRIAL_USER, VISION_MODEL, tokens, scanLogRead(card, card.game ?? game, { pre: visionAt - startedAt, ms: Date.now() - visionAt })).catch((err) => console.error("trial scan_usage write failed:", err instanceof Error ? err.message : err));
     return send({ status: "done", card });
   } catch (err) {
     if (err instanceof VisionNotConfiguredError) return send({ status: "unconfigured", card: null });
