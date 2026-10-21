@@ -1,5 +1,12 @@
 # To test later
 
+## 10-21 ~1:05am ET: second probe wave (Tor) - firewall LIVE + email check (b1110d0e) + 16 junk accounts deleted (Chris yes)
+- Tested: test:authroutes (+6), test:auth/emailverify/google/xauth/waitlist/emailtypo/emailconfirmui/attribution green; tsc + eslint clean. Firewall: /api/geo%2f, /api/auth/forgot%2F, /api/auth/logout%5C, /api/auth/login%2F, /api/auth/me%2f%2f -> 403 (x-vercel-mitigated: deny); /api/auth/me, /api/geo, / -> 200. 16 accounts deleted (scripts/_delete-probes-1021.mjs, 0 left). No sign-ups after 12:55am ET.
+- After push: POST /api/auth/signup with admin@cardflip.io. and with a@example.org -> 400 "Please use your real email address." (or the invalid-address message); a gmail address still reaches the code step (do NOT finish it). prod-smoke green (it signs in with @example.com, sign-in is untouched). Tomorrow: /admin/errors has no "Cannot find module ...%2f" lines; /admin Users has no new probe rows. Weekly: refresh the Tor list (scripts/_fw-tor-api.mjs).
+
+## 10-21 ~12:55am ET: nightly Pokémon refresh keeps a pattern card's no-sale / missing printings (3e25968f), not visible
+- Tested: test:patterncleanup 8 pass; tsc + eslint clean.
+- After the first nightly run after push: the stopped pattern lines (scripts/_stopped-lines-measure.mjs) are still in price_series; the Pokémon refresh result in /admin shows no error.
 ## 10-21 ~12:50am ET: blank Pokémon card pages print the last recorded price (dated, noted), COMMIT ONLY, VISIBLE, Chris YES 10-21 ~1am ET (ships with the next push)
 - Tested: test:cardpages 316 pass (+8: dated with the stale weeks, flagged out, >180 days out, one-day four figures out, usual printing first, Pokémon only, loader wiring); tsc + eslint clean. Local render at 375px: Pikachu Star $1,899.99 "As of Oct 6, 2026 · Old price · check eBay sold · Market hasn't updated this in 2 weeks"; 1st Ed Blastoise $1,300.00 as of Oct 8 (local db). Prod measure: 31 Pokémon pages priced again (25 at $100+), Yu-Gi-Oh!/Magic 0.
 - After push: curl /cards/pokemon/holon-phantoms/pikachu-star--ex13-104, /cards/pokemon/base-set-1st-edition/blastoise--base1-2-1st, /cards/pokemon/neo-destiny-1st-edition/shining-tyranitar--neo4-113-1st (ISR: may need the page's revalidate): price + "As of" an October/September day + "hasn't updated"; Rayquaza star ex8-107 stays "No current market price" (single point, by design).
