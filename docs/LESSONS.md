@@ -16,7 +16,8 @@ they said, what it taught, what changed, what is still open. Newest first.
 - What: the headline reads "This price looks off, check sold listings" with no number; the printings table shows Normal (looks off) and Holofoil $579.90.
 - Cause: TCGplayer opened a NEW "normal" line for this holo-only ex card on 10-17 ($1,150). Two days old, the guard flags it; headlinePrice's 10-06 rule (a doubted printing ranked above stops a three-figure sibling from headlining, built for Skyridge Charizard) then blocks the 156-day holofoil line. 8 Pokemon cards have the same pattern (all ex era + one Nintendo promo).
 - Taught: a brand-new TCGplayer line can take a page's headline hostage; the doubted-sibling rule assumed the higher-ranked printing is the established one.
-- Still open (fix 10-21): eBay sold for the 8 cards (which number is right: the capped holofoil or the new normal), then fix the prices and the rule, with a test beside the Skyridge case.
+- Fixed: eBay sold for all 8, prices written to prod (0ab5f27b, live with e1f8e3c8); rule fixed in headlinePrice (10-20 ~11:55pm ET, COMMIT ONLY): a doubted printing under 14 priced days no longer blocks a sibling with 14+; Skyridge still holds when both have history (3 new tests). Prod measure (scripts/_headline-young-measure.mjs): 0 pages change today, so it guards the next new line.
+- Still open: nothing (ships with the next push).
 
 ## 10-20 · Inventory row: "this shouldnt be able to mark as sold if unverified" (Chris, his own Virizion White Flare row)
 - What: an unverified draft (amber Verify Match) still offered Mark as Sold, on the list row and in the card popup; the PATCH route took it too. A sale off a match nobody checked lands in Sold (the permanent record) with a possibly wrong card and price.

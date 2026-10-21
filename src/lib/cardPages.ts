@@ -301,8 +301,12 @@ export function headlinePrice(prices: VariantPrice[]): VariantPrice | null {
   // Holofoil $2,999.99 headlined beside "looks off", 10-06) makes the card's other figures suspect too. From $100 the ratio
   // does not matter (10-07: the doubted Holofoil sat at a $10,000 sticker, so $2,999.99 passed the half test; both were
   // single listings, Cardmarket said EUR 627): a doubted usual printing never hands the headline to a three-figure other one.
+  // Unless the doubted line is brand new and this one is not (10-21, Rocket's Mewtwo ex: TCGplayer opened a $1,150 Normal line
+  // on 10-17 beside a 156-day Holofoil; two days of doubt said nothing about the established line and blanked the page).
   const doubted = prices.filter((p) => p.flag && p.price > 0);
-  return prices.find((p) => !p.flag && !doubted.some((d) => variantRank(d.variant) < variantRank(p.variant) && (p.price >= d.price * 0.5 || p.price >= 100))) ?? null;
+  const established = (p: VariantPrice) => p.days >= MATURE_PRICED_DAYS;
+  const blocks = (d: VariantPrice, p: VariantPrice) => variantRank(d.variant) < variantRank(p.variant) && (p.price >= d.price * 0.5 || p.price >= 100) && !(established(p) && !established(d));
+  return prices.find((p) => !p.flag && !doubted.some((d) => blocks(d, p))) ?? null;
 }
 
 export interface IndexDecision {

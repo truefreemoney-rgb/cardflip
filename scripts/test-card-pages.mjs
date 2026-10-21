@@ -166,6 +166,13 @@ const mixed = cp.variantPrices("pokemon", [fresh(900, "holofoil", { hard: false,
 check("the headline skips the flagged printing", cp.headlinePrice(mixed)?.variant, "reverseHolofoil");
 const skyridge = cp.variantPrices("pokemon", [fresh(10000, "holofoil", { hard: false, reason: "flat" }), fresh(2999.99, "reverseHolofoil")], today);
 check("Skyridge Charizard 10-07: a doubted $10,000 Holofoil never hands the headline to a $2,999.99 Reverse Holofoil", cp.headlinePrice(skyridge), null);
+const longLine = (p, variant, flag = null) => mk(variant, "2026-09-01", Array.from({ length: 30 }, () => p), flag);
+const skyridgeOld = cp.variantPrices("pokemon", [longLine(10000, "holofoil", { hard: false, reason: "flat" }), longLine(2999.99, "reverseHolofoil")], today);
+check("the Skyridge rule holds when both lines have history", cp.headlinePrice(skyridgeOld), null);
+const mewtwo = cp.variantPrices("pokemon", [mk("normal", "2026-09-29", [1150, 1150]), longLine(579.9, "holofoil")], today);
+check("Rocket's Mewtwo ex 10-21: a 2-day $1,150 Normal line never blanks the 30-day $579.90 Holofoil", [mewtwo[0].flag?.reason, cp.headlinePrice(mewtwo)?.variant], ["unverified 2d", "holofoil"]);
+const newGuarded = cp.variantPrices("pokemon", [mk("normal", "2026-09-29", [400, 400], { hard: true, reason: "cardmarket 20x" }), longLine(250, "holofoil")], today);
+check("a brand-new guard-flagged line does not block an established one either", cp.headlinePrice(newGuarded)?.variant, "holofoil");
 check("a flagged $900 does not make a page indexable on its own", cp.indexDecision(cp.variantPrices("pokemon", [fresh(900, "holofoil", { hard: true, reason: "x" }), fresh(0.5, "reverseHolofoil")], today)).index, false);
 check("printings sort usual-first", cp.variantPrices("pokemon", [fresh(3, "reverseHolofoil"), fresh(9, "holofoil"), fresh(1, "normal")], today).map((p) => p.variant), ["normal", "holofoil", "reverseHolofoil"]);
 check("one price line for Yu-Gi-Oh! and One Piece", [cp.variantLabel("yugioh", "normal"), cp.variantLabel("onepiece", "normal")], ["Market price", "Market price"]);

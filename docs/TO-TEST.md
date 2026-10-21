@@ -1,5 +1,10 @@
 # To test later
 
+## 10-20 ~11:55pm ET: headlinePrice, a brand-new flagged printing no longer blanks an established one (Rocket's Mewtwo ex case), COMMIT ONLY, not visible today
+- Rule: a doubted printing ranked above another still blocks it (Skyridge, 10-06/10-07) UNLESS the doubted line has under 14 priced days and the other has 14+.
+- Tested: test:cardpages 308 pass (3 new: Skyridge with history still null, Mewtwo 2-day $1,150 Normal vs 30-day $579.90 Holofoil -> Holofoil, a new guard-flagged line vs an established one -> established); tsc + eslint clean. Prod measure (scripts/_headline-young-measure.mjs, read only): Pokemon/Magic/Lorcana = 0 pages change today (the 8 ex-era cards were fixed by price checks).
+- After push: run `scripts/_new-normal-lines.mjs` weekly; any new normal line beside an old holofoil one must show the holofoil price on its page (curl), not "looks off".
+
 ## 10-20 ~11:55pm ET: bot protections (Chris picked all four: "3 sign-ups per IP a day", "Auto-block probing IPs", "Code emails 30 -> 5 a day", "No sign-ups from servers"), COMMIT ONLY, not visible (refusal messages)
 - LIVE NOW (no deploy needed): firewall v11 rule "Abuse: sign-up/sign-in from cloud servers (deny)" = /api/auth/* from AWS, Google, DigitalOcean, OVH, Hetzner, Linode, Vultr, Oracle, Alibaba, Contabo; Microsoft (AS8075) NOT yet, because prod-smoke runs there. Header x-cf-smoke = GitHub secret SMOKE_PASS (also .env.migration.json smokePass) lets the smoke through. Home connection checked: /api/auth/me 200.
 - Tested locally: test:authroutes new checks (5th different made-up email at sign-in shuts the IP out 24 h: login/sign-up/forgot 429 "Try again tomorrow"; 3 sign-ups a network a day, 4th = 429 + no account, 3rd refused try shuts out; loopback never capped/shut out); tsc + eslint clean; full npm test (see commit).
