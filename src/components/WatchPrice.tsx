@@ -24,6 +24,8 @@ import type { GameId } from "@/lib/types";
 const KEY = "cardflip.pendingWatch";
 /** Fired on window once a pending watch is on the watchlist; the watchlist page reloads its list on it (10-08). */
 export const WATCH_ADDED_EVENT = "cardflip:watch-added";
+/** Fired on window with "game:id" when a Watch button on the page added that card (both copies on a card page follow it). */
+const CARD_WATCHED_EVENT = "cardflip:card-watched";
 const MAX_AGE_MS = 7 * 86_400_000;
 
 async function addById(game: GameId, id: string): Promise<boolean> {
@@ -37,6 +39,16 @@ async function addById(game: GameId, id: string): Promise<boolean> {
 export default function WatchPrice({ game, id, className = "", compact = false }: { game: GameId; id: string; className?: string; compact?: boolean }) {
   const router = useRouter();
   const [state, setState] = useState<"idle" | "busy" | "done" | "error">("idle");
+  // The card page mounts this twice (the price row and the phone's sticky bar): a watch from either one turns
+  // both to "Watching" (review 10-19 public #10: the other kept offering "Watch this price").
+  const watchKey = `${game}:${id}`;
+  useEffect(() => {
+    const onWatched = (e: Event) => {
+      if ((e as CustomEvent<string>).detail === watchKey) setState("done");
+    };
+    window.addEventListener(CARD_WATCHED_EVENT, onWatched);
+    return () => window.removeEventListener(CARD_WATCHED_EVENT, onWatched);
+  }, [watchKey]);
 
   const click = async () => {
     setState("busy");
@@ -51,7 +63,10 @@ export default function WatchPrice({ game, id, className = "", compact = false }
         router.push(`/signup?watch=${encodeURIComponent(`${game}:${id}`)}`);
         return;
       }
-      setState((await addById(game, id)) ? "done" : "error");
+      if (await addById(game, id)) {
+        setState("done");
+        window.dispatchEvent(new CustomEvent<string>(CARD_WATCHED_EVENT, { detail: watchKey }));
+      } else setState("error");
     } catch {
       setState("error");
     }
