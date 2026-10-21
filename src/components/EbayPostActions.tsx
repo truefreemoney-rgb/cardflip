@@ -15,7 +15,7 @@ import Price from "@/components/Price";
 import { fetchLocalAsk, useLocalMarket, type ServerLocalAsk } from "@/lib/client/localMarket";
 import { formatMoney, itemFirstEdition, mtgFinishOf, quoteForItem } from "@/lib/listing";
 import { PRICE } from "@/lib/pricing";
-import { formatLocalAmount, marketplaceLabel, US_MARKETPLACE } from "@/lib/marketplaces";
+import { marketplaceLabel, US_MARKETPLACE } from "@/lib/marketplaces";
 import type { ListingDraft, ScanItem } from "@/lib/types";
 import { shipConfirmLine } from "@/lib/shipping";
 
