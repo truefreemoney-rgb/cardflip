@@ -35,6 +35,11 @@ af757e38 ships (LESSONS 10-21 ~4:10am). Live checks use the id lookup or page GE
 - PASS 1004 (now 1038): Legendary Collection Pikachu sheet table: Reverse Holofoil Low "—" beside Market $1,574.99, Normal Low $2.15 real.
 - PASS 587 (now 621, Watchlist half): 6 of 6 Watchlist pictures from cardflip.io/pics, all loaded.
 - FOUND + FIXED (commit only): the same Pikachu tile read $6.70 ▼100% vs saved $1,574.99 (printing switched under the row) -> TO-TEST top block "Watchlist rows keep their printing".
+- PASS 520 (now 554): Search idle at 375px: "Want to wander by set? Browse the Card Prices pages." one line (x16-359) -> /cards/pokemon; Watchlist row reads /api/search-card?id= (by id). Search's card sheet = the same CardDetailModal whose "Full price page →" passed in Inventory + Watchlist.
+- PASS 618 (now 658): set logos show on Search "Open a whole set": 12 of 12 pictures loaded (4 set logos assets.tcgdex.net, 8 /pics). Set Completion has no logos by design (cards only in the open set).
+- PASS 839 (now 873): fetch blocked in the page (no server change): Inventory "Couldn't load your cards ... Retry", Set Completion "Couldn't load your sets ... Retry", Sales Report "Couldn't load your sales ... Retry".
+- PASS 557-558 (now 597): logged out, 375px, headless (scripts/_navrows-check.mjs, ?heat=off): /, /features, /cards/pokemon all row 1 = Search | How It Works | Features | Card Prices, row 2 = Pricing | Log In | Get Started, nothing clipped, scrollWidth 375.
+- WAIT 349 (now 383): no card in Chris's Inventory shows the few-sales note today (Pokémon 42 + Magic 15 read); recheck when one does.
 - Note: the Watchlist page reprices by NAME search (searchCards per row), so opening it is a Pokémon name search until af757e38 ships; _uncapped-lines after: 5 over-cap lines, none of the 6 watched cards (base1-4, dp7-103, swshp-SWSH066, base4-4, gym2-3-1st).
 
 ## PANE (37): needs Chris's signed-in browser, reads only
