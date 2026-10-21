@@ -16,6 +16,8 @@ export interface SiteView {
   connectPath: string | null;
   lastDay: string | null;
   uris: string[];
+  /** Posted by hand (Pinterest): the robot does not post it, so no "post" link; its last post comes from the posts read. */
+  byHand?: boolean;
 }
 
 interface Report {
@@ -86,14 +88,17 @@ export default function SocialSites({ sites, day, slotNow, notice, morningLabel 
             ) : (
               "connected, nothing posted yet"
             )}
-            {s.connected && (
-              <>
-                {" · "}
-                <button type="button" onClick={() => postNow(s)} disabled={busy} className="text-brand-300 hover:underline disabled:opacity-40">
-                  post
-                </button>
-              </>
-            )}
+            {s.connected &&
+              (s.byHand ? (
+                " · by hand"
+              ) : (
+                <>
+                  {" · "}
+                  <button type="button" onClick={() => postNow(s)} disabled={busy} className="text-brand-300 hover:underline disabled:opacity-40">
+                    post
+                  </button>
+                </>
+              ))}
           </span>
         </span>
       ))}

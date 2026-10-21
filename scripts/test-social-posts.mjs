@@ -9,7 +9,7 @@
  * log first, else from its words and Eastern hour (the optimization loop).
  */
 import assert from "node:assert/strict";
-import { count, easternOf, groupByPost, kindOfCaption, oneLine, postKey, sameLogged, SITE_ORDER, siteLabel, slotOfHour, tagPost, tally, whenET } from "../src/lib/socialPosts.ts";
+import { count, easternOf, groupByPost, kindOfCaption, latestPostDay, oneLine, postKey, sameLogged, SITE_ORDER, siteLabel, slotOfHour, tagPost, tally, whenET } from "../src/lib/socialPosts.ts";
 
 // tally
 assert.deepEqual(tally([]), { posts: 0, likes: 0, comments: 0, shares: 0, views: null });
@@ -92,6 +92,19 @@ assert.deepEqual(easternOf("2026-10-02T03:30:00.000Z"), { day: "2026-10-01", hou
 assert.deepEqual(easternOf("2026-01-02T05:00:00Z"), { day: "2026-01-02", hour: 0 });
 assert.equal(easternOf("nonsense"), null);
 assert.equal(easternOf(""), null);
+
+// Hand-posted Pinterest (10-21): the newest Eastern day and its pins, oldest first; 00:14 UTC is still the day before in ET.
+assert.deepEqual(
+  latestPostDay([
+    { url: "pin/c", at: "2026-10-21T23:05:00.000Z" },
+    { url: "pin/b", at: "2026-10-21T11:45:12.000Z" },
+    { url: "pin/a", at: "2026-10-21T00:14:56.000Z" },
+    { url: "pin/x", at: "" },
+  ]),
+  { day: "2026-10-21", uris: ["pin/b", "pin/c"] },
+);
+assert.equal(latestPostDay([{ url: "pin/x", at: "" }]), null);
+assert.equal(latestPostDay([]), null);
 assert.deepEqual([7, 10, 11, 14, 16, 17, 19, 23].map(slotOfHour), ["morning", "morning", "midday", "midday", "midday", "evening", "evening", "evening"]);
 
 // the publisher's link against the link the platform lists (real pairs, 10-02)

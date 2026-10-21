@@ -14,6 +14,7 @@
 import { metaReadCreds } from "./sites/meta.ts";
 import { xSignedGet } from "./sites/x.ts";
 import { tiktokAccessToken } from "./sites/tiktok.ts";
+import { pinterestAccessToken } from "./sites/pinterest.ts";
 
 export interface PulsePost {
   /** The platform's own id for the post (Bluesky: the at:// uri) — what social_comments.post_id carries. */
@@ -399,8 +400,42 @@ async function tiktok(): Promise<SitePulse> {
   }
 }
 
+/* ---------- Pinterest ---------- */
+
+type PinMetrics = { impression?: number; save?: number; reaction?: number; comment?: number };
+
+/** Pins are made by hand in the browser (trial access refuses the API pin), so this read is how they reach the posts page (10-21). */
+async function pinterest(): Promise<SitePulse> {
+  const token = await pinterestAccessToken().catch(() => null);
+  if (!token) return notConnected("pinterest", "Pinterest");
+  try {
+    const base = process.env.PINTEREST_API_BASE ?? "https://api.pinterest.com";
+    const body = await getJson<{
+      items?: Array<{ id: string; title?: string | null; description?: string | null; created_at?: string; pin_metrics?: { lifetime_metrics?: PinMetrics; "90d"?: PinMetrics } | null }>;
+    }>(`${base}/v5/pins?page_size=${LIMIT}&pin_metrics=true`, { headers: { authorization: `Bearer ${token}` } }, "pinterest pins");
+    const posts: PulsePost[] = (body.items ?? []).map((p) => {
+      const m = p.pin_metrics?.lifetime_metrics ?? p.pin_metrics?.["90d"] ?? {};
+      // created_at comes as UTC with no zone ("2026-10-21T11:45:12").
+      const ms = p.created_at ? Date.parse(/(Z|[+-]\d\d:?\d\d)$/i.test(p.created_at) ? p.created_at : `${p.created_at}Z`) : NaN;
+      return {
+        id: p.id,
+        url: `https://www.pinterest.com/pin/${p.id}/`,
+        text: [p.title, p.description].filter(Boolean).join("\n"),
+        at: Number.isFinite(ms) ? new Date(ms).toISOString() : "",
+        likes: num(m.reaction),
+        comments: num(m.comment),
+        shares: num(m.save),
+        views: num(m.impression),
+      };
+    });
+    return finish("pinterest", "Pinterest", posts);
+  } catch (err) {
+    return failed("pinterest", "Pinterest", err);
+  }
+}
+
 /** Every site's recent posts with their counts. Never throws. */
 export async function socialPulse(): Promise<SitePulse[]> {
   const meta = await metaReadCreds().catch(() => ({ facebook: null, instagram: null, threads: null }));
-  return Promise.all([bluesky(), x(), facebook(meta.facebook), instagram(meta.instagram), threads(meta.threads), tiktok()]);
+  return Promise.all([bluesky(), x(), facebook(meta.facebook), instagram(meta.instagram), threads(meta.threads), tiktok(), pinterest()]);
 }

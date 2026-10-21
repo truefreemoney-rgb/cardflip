@@ -5,8 +5,9 @@ import { autoReplyOn, commentsForPosts, orphanComments, countNew, type SocialCom
 import { likeOwnPosts, type SelfLikeReport } from "./socialSelfLike.ts";
 import { getSetting, setSetting } from "@/lib/server/settings";
 import { tiktokKey, tiktokPostedKey } from "@/lib/socialTiktok";
-import type { Slot } from "@/lib/server/socialPublish";
-import { easternOf, postKey, SITE_ORDER, tagPost, tally, type PostKindTag, type PostLogRow, type PostTotals, type SlotTag, type StoredPost } from "@/lib/socialPosts";
+import { LAST_POST_PREFIX, type Slot } from "@/lib/server/socialPublish";
+import { SOCIAL_SITES } from "@/lib/server/socialSites";
+import { easternOf, latestPostDay, postKey, SITE_ORDER, tagPost, tally, type PostKindTag, type PostLogRow, type PostTotals, type SlotTag, type StoredPost } from "@/lib/socialPosts";
 
 /**
  * Social posts (Chris 09-28: "upgrade the pulse section for general post
@@ -76,9 +77,29 @@ export async function refreshSocialPosts(now = Date.now()): Promise<RefreshRepor
   });
   // Kind + slot on whatever is new (the optimization loop reads them). Never throws: an untagged row is retried next read.
   await tagSocialPosts().catch((err) => console.warn("social: tagging posts failed", err instanceof Error ? err.message : err));
+  await markHandPosts(pulse).catch((err) => console.warn("social: hand-post marking failed", err instanceof Error ? err.message : err));
   // Like whatever of ours is not liked yet (backfill + retries). Never throws.
   const likes = await likeOwnPosts(now).catch((err) => [{ site: "all", liked: 0, error: err instanceof Error ? err.message : String(err) }]);
   return { at: now, sites, stored, likes };
+}
+
+/**
+ * A hand-posted site (Pinterest) never goes through the publisher, so its
+ * "last post" day is whatever the read found (Chris 10-21: the console said
+ * "never posted" after a week of pins). Never moves the day backwards.
+ */
+async function markHandPosts(pulse: SitePulse[]): Promise<void> {
+  const hand = new Set(SOCIAL_SITES.filter((s) => s.byHand).map((s) => s.id));
+  for (const s of pulse) {
+    if (!hand.has(s.site)) continue;
+    const last = latestPostDay(s.posts);
+    if (!last) continue;
+    const key = `${LAST_POST_PREFIX}${s.site}`;
+    const was = await getSetting(key);
+    if (was && was > last.day) continue;
+    await setSetting(key, last.day);
+    await setSetting(`${key}:uris`, JSON.stringify(last.uris));
+  }
 }
 
 const TAG_SLOTS: SlotTag[] = ["morning", "midday", "evening"];

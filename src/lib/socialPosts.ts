@@ -163,6 +163,17 @@ export function easternOf(iso: string | number): { day: string; hour: number } |
   return { day: `${get("year")}-${get("month")}-${get("day")}`, hour: Number(get("hour")) % 24 };
 }
 
+/** The newest Eastern day among a site's posts and that day's links, oldest first: a hand-posted site's "last post" (Pinterest, 10-21). Null when no post has a date. */
+export function latestPostDay(posts: Array<{ url: string; at: string }>): { day: string; uris: string[] } | null {
+  const dated = posts.flatMap((p) => {
+    const day = easternOf(p.at)?.day;
+    return day ? [{ url: p.url, at: p.at, day }] : [];
+  });
+  if (dated.length === 0) return null;
+  const day = dated.reduce((d, p) => (p.day > d ? p.day : d), "");
+  return { day, uris: dated.filter((p) => p.day === day).sort((a, b) => (a.at < b.at ? -1 : 1)).map((p) => p.url) };
+}
+
 /** The slot an Eastern hour falls in: before 11am morning, before 5pm midday, else evening. */
 export function slotOfHour(hour: number): SlotTag {
   return hour < 11 ? "morning" : hour < 17 ? "midday" : "evening";

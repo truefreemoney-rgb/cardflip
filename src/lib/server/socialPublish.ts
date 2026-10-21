@@ -243,6 +243,8 @@ export interface SocialSite {
   authorized?(): Promise<boolean>;
   /** OAuth sites: where /admin/social sends the owner to connect the account. */
   connectPath?: string;
+  /** Posted by hand in the browser (Pinterest: trial access refuses the API pin). The publisher skips it; the posts read marks its day (socialPosts.ts). */
+  byHand?: boolean;
   post(p: SitePost): Promise<{ uri: string }>;
 }
 
@@ -519,7 +521,7 @@ export function applyGameLeads(d: SocialPost, leads: LeadCard[]): SocialPost {
 export async function connectedSites(sites: SocialSite[]): Promise<SocialSite[]> {
   const out: SocialSite[] = [];
   for (const s of sites) {
-    if (!s.connected()) continue;
+    if (!s.connected() || s.byHand) continue;
     if (s.authorized && !(await s.authorized().catch(() => false))) continue;
     out.push(s);
   }
@@ -866,7 +868,7 @@ export async function addCompletedLine(line: string, now = Date.now()): Promise<
 }
 
 /** For /admin/social: which sites are connected and when each last posted. */
-export async function siteStatus(sites: SocialSite[]): Promise<Array<{ site: string; label: string; connected: boolean; connectPath: string | null; lastDay: string | null; uris: string[] }>> {
+export async function siteStatus(sites: SocialSite[]): Promise<Array<{ site: string; label: string; connected: boolean; connectPath: string | null; lastDay: string | null; uris: string[]; byHand: boolean }>> {
   return Promise.all(
     sites.map(async (s) => {
       const lastDay = await getSetting(`${LAST_POST_PREFIX}${s.id}`);
@@ -879,7 +881,7 @@ export async function siteStatus(sites: SocialSite[]): Promise<Array<{ site: str
       const connected = s.connected() && (!s.authorized || (await s.authorized().catch(() => false)));
       // The connect link shows once the app keys are on Vercel and the account is not yet connected.
       const connectPath = s.connectPath && s.connected() && !connected ? s.connectPath : null;
-      return { site: s.id, label: s.label, connected, connectPath, lastDay, uris };
+      return { site: s.id, label: s.label, connected, connectPath, lastDay, uris, byHand: Boolean(s.byHand) };
     }),
   );
 }

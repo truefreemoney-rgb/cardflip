@@ -236,6 +236,8 @@ export const pinterest: SocialSite = {
   connectPath: "/api/social/pinterest/connect",
   connected: () => creds() !== null,
   authorized: async () => (await stored()) !== null,
+  // The API pin keeps failing on trial access while Chris pins the video by hand (10-21); the token stays for the posts read.
+  byHand: true,
   async post(p: SitePost) {
     const token = await pinterestAccessToken();
     if (!token) throw new Error("pinterest: not connected, open /admin/social and connect");
