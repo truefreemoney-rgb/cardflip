@@ -312,13 +312,17 @@ rig.rotation_euler = (math.radians(-10), 0, math.radians(-38)); rig.keyframe_ins
 rig.rotation_euler = (0, 0, 0); rig.keyframe_insert("rotation_euler", frame=62)
 rig.rotation_euler = (0, 0, math.radians(4)); rig.keyframe_insert("rotation_euler", frame=FRAMES)
 _cz = -0.72  # camera keys below are written in world terms; the rig sits at the card's height
+# 10-21 (Chris 10-20: "content is to high"): CAM_BACK pulls the camera back (everything smaller), CAM_UP raises it
+# (everything sits lower in the frame). At the last frame the swaying card's top sat ~9% from the top, under TikTok's
+# Following / For You bar; CAM_BACK=0.3 CAM_UP=0.12 puts the column at ~14%-78% of the height.
+_back = float(os.environ.get("CAM_BACK", "0")); _up = float(os.environ.get("CAM_UP", "0"))
 cam.dof.focus_object = pivot
 co.rotation_euler = (math.radians(90), 0, 0)
-co.location = (0, -6.8, -0.2 + _cz); co.keyframe_insert("location", frame=1)
-co.location = (0, -6.2, -0.22 + _cz); co.keyframe_insert("location", frame=100)
+co.location = (0, -6.8 - _back, -0.2 + _cz + _up); co.keyframe_insert("location", frame=1)
+co.location = (0, -6.2 - _back, -0.22 + _cz + _up); co.keyframe_insert("location", frame=100)
 for f, dx, dz in ((101, 0.03, -0.02), (103, -0.025, 0.02), (105, 0.015, -0.01), (107, 0, 0)):
-    co.location = (dx, -6.2, -0.22 + dz + _cz); co.keyframe_insert("location", frame=f)
-co.location = (0, -5.9, -0.22 + _cz); co.keyframe_insert("location", frame=FRAMES)
+    co.location = (dx, -6.2 - _back, -0.22 + dz + _cz + _up); co.keyframe_insert("location", frame=f)
+co.location = (0, -5.9 - _back, -0.22 + _cz + _up); co.keyframe_insert("location", frame=FRAMES)
 
 
 # ---------------- glow (compositor bloom), Blender 5 API first, 4.x fallback ----------------
