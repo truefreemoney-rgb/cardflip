@@ -93,6 +93,9 @@ const CHECKS = [
   { game: "pokemon", cardId: "base1-15", variant: "holofoil", usd: 75, n: 39, day: "2026-10-21", note: "Venusaur Base Set 15/102 unlimited holo: 39 single raw English sold 10-17..10-20 at 10-265 (median 75, middle half 40-96; MP/HP/DMG/played, lots, pick-your-card, TAG, Spanish, 1st/shadowless, reprints left out); NM-labelled 124.95/210/217.55; TCGplayer 136.30 (user report: too high)" },
   // 10-21 cap-math check (TASKS C12): the listing cap took this foil to a junk $5 listing (non-foil $32, Cardmarket foil EUR 23).
   { game: "mtg", cardId: "2c093ce0-2561-4847-ab58-f6f1650d743e", variant: "foil", usd: 20, n: 18, day: "2026-10-21", note: "Ichormoon Gauntlet ONE 56 foil (regular, not Oil Slick 348): 18 NM-LP raw sold 09-09..10-19 at 10.99-34.99 (median ~20); TCGplayer foil capped to a $5 listing" },
+  // 10-21 hidden-by-eBay list (C2): LEGEND halves sell separately; only the top half was flagged, the bottom was as far off.
+  { game: "pokemon", cardId: "hgss2-94", variant: "holofoil", usd: 125, n: 12, day: "2026-10-21", note: "Suicune & Entei LEGEND top 94/95 Unleashed: 12 single-half raw sold 10-03..10-18 at 75-159.99 (median ~125; HP/MP/DMG, both-halves sets left out); TCGplayer 305.95 (340 -> 217 -> 204 -> 306)" },
+  { game: "pokemon", cardId: "hgss2-95", variant: "holofoil", usd: 90, n: 13, day: "2026-10-21", note: "Suicune & Entei LEGEND bottom 95/95 Unleashed: 13 single-half raw sold 10-02..10-20 at 26.25-249.95 (median 89.99; NM 162.32/249.95; HP/MP left out); TCGplayer 210.25, asks median 199.99" },
 ];
 // --only id,id: write just these checks (the others are already on prod).
 const onlyArg = process.argv.indexOf("--only");
