@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { useSession } from "@/components/SessionProvider";
 import { PRICE, PRICE_SHORT, PRICING, SCANS } from "@/lib/pricing";
 import PageSkeleton from "@/components/PageSkeleton";
+import { toast } from "@/components/Toaster";
 import { fetchInvite, startCheckout, type InviteInfo } from "@/lib/client/accountApi";
 
 /**
@@ -65,6 +66,7 @@ function RewardsInner() {
       setTimeout(() => setCopied(false), 2000);
     } catch {
       // The link is printed below to long-press.
+      toast("Couldn't copy. Press and hold the link below to copy it.", "err");
     }
   }
   async function share() {
@@ -79,8 +81,9 @@ function RewardsInner() {
     setBusy(true);
     try {
       window.location.href = await startCheckout("standard");
-    } catch {
+    } catch (err) {
       setBusy(false);
+      toast(err instanceof Error && err.message ? err.message : "Couldn't open Checkout. Try again.", "err");
     }
   }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type HTMLAttributes, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Spinner from "@/components/Spinner";
 import SetBrowser from "@/components/SetBrowser";
 import MissingCardReport from "@/components/MissingCardReport";
@@ -255,9 +255,6 @@ const SearchIcon = ({ className = "" }: { className?: string }) => (
  */
 export function CardSearchBox({
   search,
-  disabled = false,
-  extra,
-  rowProps,
   hint,
   sticky = false,
   gameCounts,
@@ -265,12 +262,6 @@ export function CardSearchBox({
   search: CardSearch;
   /** Cards per game beside each game name (the Watchlist: its list is split by the picked game). */
   gameCounts?: Partial<Record<GameId, number>>;
-  /** The page is busy with something of its own (the Watchlist reading a photo). */
-  disabled?: boolean;
-  /** Buttons under the box (the Watchlist's "From a photo"). */
-  extra?: ReactNode;
-  /** Handlers for the input row (the Watchlist's photo drop target). */
-  rowProps?: HTMLAttributes<HTMLDivElement>;
   /** The line under the box. */
   hint?: ReactNode;
   /** Pin the box under the app header (Search, where it is the page's top row). */
@@ -283,7 +274,7 @@ export function CardSearchBox({
   return (
     <>
       <div className={sticky ? "sticky top-12 z-30 -mx-4 bg-background/90 px-4 pb-3 pt-2 backdrop-blur-md sm:top-[4.25rem] sm:-mx-6 sm:px-6" : ""}>
-        <div {...rowProps} className="flex gap-2">
+        <div className="flex gap-2">
           <GamePicker game={game} onChange={search.setGame} counts={gameCounts} />
           {mode === "search" ? (
             <div className="flex h-12 min-w-0 flex-1 items-center rounded-2xl border border-edge-strong bg-black/40 transition focus-within:border-brand-400 focus-within:ring-4 focus-within:ring-brand-500/15">
@@ -293,7 +284,7 @@ export function CardSearchBox({
                 enterKeyHint="search"
                 value={search.query}
                 onChange={(e) => search.setQuery(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && !disabled && void search.search()}
+                onKeyDown={(e) => e.key === "Enter" && void search.search()}
                 placeholder="Name or number"
                 aria-label={`Search ${GAMES[game].label} cards by name or number`}
                 // The field's border carries focus (focus-within); the global :focus-visible ring would draw a second box inside it.
@@ -306,8 +297,7 @@ export function CardSearchBox({
                 <button
                   type="button"
                   onClick={() => void search.search()}
-                  disabled={disabled}
-                  className="mr-1.5 h-9 shrink-0 rounded-xl bg-brand-500 px-3.5 text-sm font-semibold text-white transition hover:bg-brand-400 disabled:opacity-60"
+                  className="mr-1.5 h-9 shrink-0 rounded-xl bg-brand-500 px-3.5 text-sm font-semibold text-white transition hover:bg-brand-400"
                 >
                   Search
                 </button>
@@ -349,7 +339,6 @@ export function CardSearchBox({
             </div>
           )}
         </div>
-        {extra && <div className="mt-2 flex gap-2">{extra}</div>}
       </div>
       {hint && <p className="text-xs text-zinc-500">{hint}</p>}
       {search.error && <p className="text-sm text-red-400">{search.error}</p>}

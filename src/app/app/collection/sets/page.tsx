@@ -179,8 +179,10 @@ export default function SetCompletionPage() {
   }
   if (status !== "ready") return <PageSkeleton />;
 
-  const Card = ({ set, card }: { set: SetProgress; card: MissingCard }) => (
-    <li className="flex items-center gap-3 py-2">
+  // A render helper, not a component: a component declared in here is a new type every render, so
+  // React would remount every row (and reload its picture) on each state change (review 10-19 app #29).
+  const cardRow = (set: SetProgress, card: MissingCard) => (
+    <li key={card.id} className="flex items-center gap-3 py-2">
       {card.imageUrl ? (
         <ArtImg src={card.imageUrl} alt="" width={36} height={48} className="h-12 w-9 shrink-0 rounded object-cover" loading="lazy" />
       ) : (
@@ -261,9 +263,7 @@ export default function SetCompletionPage() {
                       {all && all !== "loading" ? `All ${set.missing} missing, in set order` : `Cheapest ${Math.min(set.cheapest.length, 10)} to finish`}
                     </div>
                     <ul className="divide-y divide-edge">
-                      {list.map((card) => (
-                        <Card key={card.id} set={set} card={card} />
-                      ))}
+                      {list.map((card) => cardRow(set, card))}
                     </ul>
                     {set.cheapest.length === 0 && !all && <p className="py-2 text-sm text-zinc-500">No prices yet for the missing cards.</p>}
                     {!all && set.missing > set.cheapest.length && (

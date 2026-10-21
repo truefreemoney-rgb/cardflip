@@ -1201,10 +1201,9 @@ export default function CollectionPage() {
   /** Relist: back to a draft FIRST (so the scanner resumes a draft, not a
    *  listed row), then straight into the editor to start the flow over. */
   async function relist(card: ServerCard) {
-    await applyPatch(card, { status: "ready", listedAt: null, soldPrice: null, soldAt: null });
-    router.push(
-      `/app?resume=${card.id}&rn=${encodeURIComponent(card.cardName)}&rnum=${encodeURIComponent(card.cardNumber || "")}&rg=${parseGame(card.game)}&ri=${encodeURIComponent(card.imageUrl || "")}${card.photoAt ? `&rp=${card.photoAt}` : ""}`,
-    );
+    // A refused move stays here with its red note; the editor would open a row that never became a draft.
+    if (!(await applyPatch(card, { status: "ready", listedAt: null, soldPrice: null, soldAt: null }))) return;
+    router.push(resumeHrefFor(card));
   }
   const [syncError, setSyncError] = useState<string | null>(null);
   // Listed cards the market has moved away from (keyed by card id).
@@ -1613,6 +1612,13 @@ export default function CollectionPage() {
     () => cards.filter((c) => (c.game ?? "pokemon") === gameView),
     [cards, gameView],
   );
+  // Rows per category for the filter chips, one pass instead of one filter per chip per render
+  // (review 10-19 app #34). Key "" = uncategorized.
+  const categoryCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const c of gameCards) counts.set(c.category ?? "", (counts.get(c.category ?? "") ?? 0) + 1);
+    return counts;
+  }, [gameCards]);
   // What the value chart refetches on: a sale, a reprice, a quantity change or an edit, not just the count
   // (review 10-19 #14). 0 only for an empty pile: the chart skips its fetch at 0.
   const valueVersion = useMemo(() => {
@@ -2386,9 +2392,7 @@ export default function CollectionPage() {
                 const n =
                   c.value === "all"
                     ? gameCards.length
-                    : c.value === "none"
-                      ? gameCards.filter((x) => x.category === null).length
-                      : gameCards.filter((x) => x.category === c.value).length;
+                    : (categoryCounts.get(c.value === "none" ? "" : c.value) ?? 0);
                 return (
                   <button
                     key={c.value}
@@ -2872,7 +2876,7 @@ export default function CollectionPage() {
             const draft = card.status === "ready";
             const isSelected = selected.has(card.id);
             const img = card.photoAt ? apiPath(`/api/card-image/${card.id}?v=${card.photoAt}&w=400`) : card.imageUrl;
-            const resumeHref = `/app?resume=${card.id}&rn=${encodeURIComponent(card.cardName)}&rnum=${encodeURIComponent(card.cardNumber || "")}&rg=${parseGame(card.game)}&ri=${encodeURIComponent(card.imageUrl || "")}${card.photoAt ? `&rp=${card.photoAt}` : ""}`;
+            const resumeHref = resumeHrefFor(card);
             const glow = live
               ? "ring-emerald-400/40 shadow-emerald-500/15"
               : ended
