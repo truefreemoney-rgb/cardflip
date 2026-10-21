@@ -125,13 +125,20 @@ console.log("set lists follow the card page's chain (10-21: Black Lotus Unlimite
   await mtg.run("sl-none", "Unpriced Thing", "3", null, null, null, null);
   await mtg.run("sl-ok", "Plain Bolt", "4", 2, null, 1.5, null);
   await recordSeries(recordPoint, addDays, TODAY, "sl-ok", "mtg", "nonfoil", liquidPrices(2));
+  // A tie inside one backup source (10-21, Enlightened Confidant pfra 5p: Card Kingdom foil $8.86 stored before nonfoil $7.65).
+  await mtg.run("sl-tie", "Tied Confidant", "5", null, null, null, null);
+  await recordPoint("sl-tie", "mtg", "foil", "cardkingdom", "USD", 8.86, TODAY);
+  await recordPoint("sl-tie", "mtg", "nonfoil", "cardkingdom", "USD", 7.65, TODAY);
   clearTrustMemo();
   const list = await loadSetCards("mtg", { key: "tsl", name: "Test List Set" }, TODAY);
   const by = Object.fromEntries(list.map((c) => [c.key, c]));
+  const { loadCardRecord, loadCardPage } = await import(at("lib/server/cardPages.ts"));
+  const tiePage = await loadCardPage(await loadCardRecord("mtg", "tsl-5"), TODAY);
+  check("one backup source, two printings: the nonfoil, on the list and the page", [by["tsl-5"]?.price, tiePage.headline?.price], [7.65, 7.65]);
   check("flagged, no stored backup: Cardmarket's euro figure, as on its page (12 x 1.25 x 1.12)", [by["tsl-1"]?.price, by["tsl-1"]?.flagged], [16.8, false]);
   check("no TCGplayer row, a stored backup: listed at the backup (was left off)", [by["tsl-2"]?.price, by["tsl-2"]?.flagged], [17560.09, false]);
   check("nothing at all: still off the list", by["tsl-3"] === undefined);
-  check("a normal card unchanged; most valuable first", [by["tsl-4"]?.price, list.map((c) => c.key)], [2, ["tsl-2", "tsl-1", "tsl-4"]]);
+  check("a normal card unchanged; most valuable first", [by["tsl-4"]?.price, list.map((c) => c.key)], [2, ["tsl-2", "tsl-1", "tsl-5", "tsl-4"]]);
 
   // Pokémon, a stopped market: its page tries the stored backup before the last recorded price, so the list does too.
   const pk = db.prepare(`INSERT INTO en_cards (id, name, set_id, set_name, local_id, set_release_date, image_url, synced_at) VALUES (?, ?, 'tsp', 'Test Stopped Set', ?, '2019-05-01', 'https://img/p.webp', 0)`);

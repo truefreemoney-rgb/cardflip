@@ -1,5 +1,11 @@
 # To test later
 
+## 10-21 ~4:25am ET: a tie inside one backup source takes the usual printing (normal/nonfoil first), card page + set lists, COMMIT ONLY, VISIBLE (headline of up to ~246 backup-priced cards), shots NOT taken yet
+- Why: Enlightened Confidant pfra 5p page = $8.86 foil (Card Kingdom) over the $7.65 nonfoil: loadCardPage and backupRows kept whichever backup row the table returned first. Up to 246 cards have 2+ printings in one fresh backup source (YGO 140, Magic 58 cardmarket + 28 CK, Lorcana 20); only those whose page falls to a backup change.
+- Tested: test:sitetrustroutes tie case (FAILS on the old code with [8.86, 8.86], passes with [7.65, 7.65]), cardpages 318, sitetrust, pricechain, publiccollection, pricing green; tsc + eslint clean.
+- Before push: phone shot of /cards/magic/reality-fracture-promos/enlightened-confidant--pfra-5p live ($8.86) vs local ($7.65) + Chris's yes.
+- After push: that page headlines $7.65 (Nonfoil); its set list tile $7.65.
+
 ## 10-21 ~3:40am ET: an eBay sold check retires only after TWO days back inside the band (checkedPrices.noteRaw), COMMIT ONLY, not visible; + Base Set Charizard check back on prod
 - Why: base1-4's $600 check retired 10-19 on one $724.99 read; TCGplayer $954.65 next day -> 10-14 hand hide -> page blank "looks off" (LESSONS 10-21 ~3:30am).
 - Done on prod 3:35am ET (scripts/_put-check.mjs, --dry first): price_checked base1-4 holofoil $600, n 29, day 10-21 (pane eBay sold re-check, 1 of today's budget), off_day NULL; series tail 954.65 x2 -> 600.
@@ -176,6 +182,7 @@
 - PHONE-CHECKS step 4 now reads Market price only.
 
 ## 10-19 ~9:20pm ET: THE PRICE CHAIN built (priceChain.ts; Chris "yes build it"), COMMIT ONLY, no push yet
+- LIVE 10-21 4:20am ET (prod read only): cardkingdom 79 Magic rows (last 10-20), none $1,000+; The Mind Stone msh 385 has no series at all (not $36,290); Enlightened Confidant pfra 5p CK nonfoil 7.65 / foil 8.86; Black Lotus lea 232 cardmarket-converted stepped 37,999.74 -> 42,453.65 on 10-20 (= x1.12 lift). FOUND: its page headlines $8.86 (foil) not $7.65: a tie inside one backup source took the first row -> fixed (10-21 ~4:25am block, commit only, VISIBLE). Not checked: the run-log line, the 30-day median label in /admin/prices.
 - After push, nightly Magic refresh (next run after the deploy): the run log shows cardmarketFilled, cardkingdomFilled (expect ~50 on day 1, dry run 51 of 1,256 blank released printings) and cardtraderFilled LAST; `SELECT source, COUNT(*) FROM price_series WHERE game='mtg' AND source='cardkingdom'` > 0; no $1,000+ cardkingdom row (out-of-stock placeholders skipped: The Mind Stone msh 385 foil must NOT be $36,290).
 - After push, a Card Kingdom-filled page e.g. /cards/mtg/... Enlightened Confidant (pfra 5p, ~$7.65 / $8.86 foil) shows "Card Kingdom (adjusted)" as the price label and on the chart's source line.
 - After push, Magic euro fills are lifted: a Cardmarket-only printing (Black Lotus lea 232 shows Cardmarket x1.12, i.e. ~12% above the 10-19 figure); Pokémon Cardmarket-converted pages unchanged (no lift).
@@ -1020,7 +1027,7 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 
 ## 10-19 s199 (unpushed; test on prod after the push)
 - [ ] a34a418f Scanner: scan a card with several printings, open the big card sheet, tap Change: one Printing pill is highlighted; tap Done: still inside the scanner (no category / editor jump). Scan an orange Vivillon 17/146: no yellow note under it in the queue, still under "Check these first". (Passed on the tunnel 10-19 ~7:30pm.)
-- [ ] 9bb74143 Price pick TCGplayer first: on a card with live eBay comps, the row's market price and "List it at" come from TCGplayer, not the eBay sold/asking average; a card whose TCGplayer row is flagged still quotes eBay sold.
+- [x] (10-21 4:15am ET: covered by test:pricing, pure quotePrice: "TCGplayer's chart point outranks eBay sold" + "an eBay sold row outranks the flagged TCGplayer row" PASS; the live pop-up rides on Chris's phone, not opened on his account to keep his lookup history clean) 9bb74143 Price pick TCGplayer first: on a card with live eBay comps, the row's market price and "List it at" come from TCGplayer, not the eBay sold/asking average; a card whose TCGplayer row is flagged still quotes eBay sold.
 - [ ] FAILED 10-21 3:25am ET (page blank "looks off": the check retired on one in-band read) -> fixed on prod + code, see the 10-21 ~3:40am block. 10-20 morning: cardflip.io/cards/pokemon/base-set/charizard--base1-4 shows ~$600 + "Checked against recent eBay sales" and the "Price looks wrong?" link under the price (2-day cache).
 - [ ] 0728f605 B1 scan log: after the push, scan a Pokemon card (any) on prod, then run 
 pm run replay:scans (or SELECT read FROM scan_usage ORDER BY at DESC LIMIT 1): the stored read has pattern + all keys (null when no symbol). Then Chris's Eevee 074 Master Ball photo under a lamp: pattern should say ball / master.

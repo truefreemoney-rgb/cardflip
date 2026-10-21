@@ -39,6 +39,7 @@ import { historyRange, type HistoryRange, type SetStanding } from "@/lib/cardSto
 import type { Series } from "@/lib/client/priceHistoryData";
 import type { PokemonCard, GameId } from "@/lib/types";
 import { BACKUP_ORDER, backupRank, backupSourceLabel, cardmarketLift } from "@/lib/priceChain";
+import { variantRank } from "@/lib/variantOrder";
 import { toPics } from "@/lib/pics";
 
 /**
@@ -414,18 +415,23 @@ export async function loadCardPage(rec: CardRecord, today = todayUtc()): Promise
   let convertedUsd: number | null = null;
   let convertedLabel = backupSourceLabel("cardmarket-converted");
   let convertedRank = Number.POSITIVE_INFINITY;
+  let convertedPrint = Number.POSITIVE_INFINITY;
   for (const r of rows) {
     const prices = decodePrices(r.prices);
     if (backupRank(facts.game, r.source) < BACKUP_ORDER[facts.game].length) {
       // A stored backup (Cardmarket converted, Card Kingdom adjusted, CardTrader): the chain's order per game (lib/priceChain.ts)
-      // picks between fresh ones. Magic: Cardmarket > Card Kingdom > CardTrader; the others: CardTrader > Cardmarket.
+      // picks between fresh ones. Magic: Cardmarket > Card Kingdom > CardTrader; the others: CardTrader > Cardmarket. Within one
+      // source the usual printing wins (lib/variantOrder.ts; 10-21: Enlightened Confidant pfra 5p headlined its $8.86 foil
+      // over the $7.65 nonfoil, whichever row the table returned first).
       const rank = backupRank(facts.game, r.source);
-      if (r.updated_day >= cmSince && rank < convertedRank) {
+      const print = variantRank(r.variant);
+      if (r.updated_day >= cmSince && (rank < convertedRank || (rank === convertedRank && print < convertedPrint))) {
         const v = lastPriced(prices);
         if (v != null && v > 0) {
           convertedUsd = v;
           convertedLabel = backupSourceLabel(r.source);
           convertedRank = rank;
+          convertedPrint = print;
         }
       }
     } else if (r.source === "cardmarket" && r.variant === "average") {

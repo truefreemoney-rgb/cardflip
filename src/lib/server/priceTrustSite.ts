@@ -536,8 +536,9 @@ export async function backupRows(cards: PokemonCard[], day = todayUtc()): Promis
       if (rank >= BACKUP_ORDER[game as GameId].length) continue;
       const market = lastPriced(decodePrices(r.prices));
       if (market == null || !(market > 0)) continue;
+      // Within one source the usual printing wins (lib/variantOrder.ts), as on the card page (10-21, Enlightened Confidant).
       const have = best.get(r.card_id);
-      if (have && have.rank <= rank) continue;
+      if (have && (have.rank < rank || (have.rank === rank && variantRank(have.row.variant) <= variantRank(r.variant)))) continue;
       best.set(r.card_id, { rank, row: { source: r.source as PriceSource, currency: "USD", variant: r.variant, label: backupSourceLabel(r.source), market, low: null, high: null } });
     }
   }
