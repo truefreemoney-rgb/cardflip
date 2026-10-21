@@ -323,6 +323,20 @@ console.log("eBay referee (10-13): the nightly ask reading, re-judged against th
   check("... and the call binds on the site", (await siteTrust([{ cardId: "mtg-ebay", game: "mtg", variant: "nonfoil" }])).get(trustKey("mtg-ebay", "nonfoil"))?.reason, "checked against ebay sold: too high");
   check("... a second call updates that row", await setManualCall("mtg", "mtg-ebay", "nonfoil", "keep"), true);
   check("... keep shows it again", (await siteTrust([{ cardId: "mtg-ebay", game: "mtg", variant: "nonfoil" }])).size, 0);
+
+  // 10-21 (TASKS B.8): a call binds to today's stored price, not the referee's older read (Mewtwo Star: keep at the $9,200
+  // read, page judged $6,887.50, keep never bound, page blank).
+  const manualPrice = async (id) => (await db.prepare("SELECT manual_price FROM ebay_asks WHERE card_id = ?").get(id))?.manual_price;
+  await db.prepare("UPDATE ebay_asks SET price_usd = 300, verdict = 'high', day = ?, manual = NULL, manual_price = NULL WHERE card_id = 'mtg-ebay'").run(TODAY);
+  await setManualCall("mtg", "mtg-ebay", "nonfoil", "keep");
+  check("a keep binds to today's stored price, not the referee's older read", await manualPrice("mtg-ebay"), 150);
+  clearTrustMemo();
+  check("... so it binds on the site at today's price", (await siteTrust([{ cardId: "mtg-ebay", game: "mtg", variant: "nonfoil" }])).size, 0);
+  await db.prepare("INSERT INTO ebay_asks (card_id, game, variant, price_usd, n, n_nm, verdict, reason, day) VALUES ('mtg-noline', 'mtg', 'nonfoil', 120, 3, 3, 'high', '', ?)").run(TODAY);
+  await setManualCall("mtg", "mtg-noline", "nonfoil", "hide");
+  check("... a printing with no stored line binds to the read", await manualPrice("mtg-noline"), 120);
+  await setManualCall("mtg", "mtg-noline2", "nonfoil", "keep", TODAY, { price: 90, label: "mtg-noline2 | X" });
+  check("... a hand row with no stored line binds to the checked price", await manualPrice("mtg-noline2"), 90);
 }
 
 console.log(failures === 0 ? "\nAll site price-guard checks passed." : `\n${failures} site price-guard check(s) FAILED.`);

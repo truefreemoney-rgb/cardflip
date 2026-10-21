@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { addDays, decodePrices, todayUtc } from "@/lib/priceSeries";
 import { EBAY_REFEREE, refereeable, refereeMatcher, refereeQueries, refereeVerdict, summarizeAsks, type RefereeCard, type RefereeVerdict } from "@/lib/ebayReferee";
 import { isEbayConfigured, searchEbayAsks } from "@/lib/server/ebay";
+import { storedRaw } from "@/lib/server/checkedPrices";
 import { withDbRetry } from "@/lib/server/priceBulkWrite";
 import { lastPriced } from "@/lib/server/priceTrust";
 import { clearTrustMemo } from "@/lib/server/priceTrustSite";
@@ -306,6 +307,23 @@ export interface AskListRow {
   day: string;
   manual: "hide" | "keep" | null;
   manualPrice: number | null;
+  /** Today's stored TCGplayer USD price (10-21, TASKS B.8): `price` is the referee's last read and can be days old. */
+  today: number | null;
+}
+
+/** The last stored TCGplayer USD price of each row's printing, one query (10-21, TASKS B.8). */
+async function todayPrices(rows: readonly { game: string; card_id: string; variant: string }[]): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  const ids = [...new Set(rows.map((r) => r.card_id))];
+  if (ids.length === 0) return out;
+  const series = (await db
+    .prepare(`SELECT game, card_id, variant, prices FROM price_series WHERE source = 'tcgplayer' AND currency = 'USD' AND card_id IN (${ids.map(() => "?").join(",")})`)
+    .all(...ids)) as unknown as { game: string; card_id: string; variant: string; prices: string }[];
+  for (const s of series) {
+    const p = lastPriced(decodePrices(s.prices));
+    if (p != null) out.set(`${s.game}|${s.card_id}|${s.variant}`, p);
+  }
+  return out;
 }
 
 /** The admin lists: rows of a verdict, priciest first (fresh readings only; manual calls of any age under "manual"). */
@@ -322,10 +340,12 @@ export async function listAsks(kind: "high" | "check" | "manual", limit = 150, t
     card_id: string; game: GameId; variant: string; label: string; query: string; price_usd: number; n: number; n_nm: number; median_usd: number | null;
     q75_usd: number | null; verdict: RefereeVerdict; reason: string; day: string; manual: "hide" | "keep" | null; manual_price: number | null;
   }[];
+  const now = await todayPrices(rows);
   return rows.map((r) => ({
     cardId: r.card_id, game: r.game, variant: r.variant, label: r.label, query: r.query, price: Number(r.price_usd), n: Number(r.n), nNm: Number(r.n_nm),
     median: r.median_usd == null ? null : Number(r.median_usd), q75: r.q75_usd == null ? null : Number(r.q75_usd), verdict: r.verdict, reason: r.reason,
     day: r.day, manual: r.manual, manualPrice: r.manual_price == null ? null : Number(r.manual_price),
+    today: now.get(`${r.game}|${r.card_id}|${r.variant}`) ?? null,
   }));
 }
 
@@ -343,6 +363,9 @@ export async function askCounts(today = todayUtc()): Promise<Record<RefereeVerdi
  * An admin's call after an eBay sold check: hide / keep binds at the price it was made on; clear hands the card back to the nightly rule.
  * `fresh` (10-14): a card the referee never read (a "looks off" flag from the site's own price rule) has no row to update, so a
  * hide / keep with the price it was checked at writes one: no reading (day 2000-01-01 counts as none), just the call.
+ * 10-21 (TASKS B.8): the call binds to today's stored TCGplayer price, the number the pages judge, not the referee's last
+ * read (days old: Mewtwo Star's keep sat at the $9,200 read while the page judged $6,887.50, so it never bound and the
+ * page went blank). The read is the fallback when the printing has no stored line.
  */
 export async function setManualCall(
   game: GameId,
@@ -352,12 +375,13 @@ export async function setManualCall(
   today = todayUtc(),
   fresh?: { price: number; label: string },
 ): Promise<boolean> {
+  const now = call === "clear" ? null : await storedRaw(game, cardId, variant);
   const res =
     call === "clear"
       ? await db.prepare("UPDATE ebay_asks SET manual = NULL, manual_price = NULL, manual_day = NULL WHERE game = ? AND card_id = ? AND variant = ?").run(game, cardId, variant)
       : await db
-          .prepare("UPDATE ebay_asks SET manual = ?, manual_price = price_usd, manual_day = ? WHERE game = ? AND card_id = ? AND variant = ?")
-          .run(call, today, game, cardId, variant);
+          .prepare("UPDATE ebay_asks SET manual = ?, manual_price = COALESCE(?, price_usd), manual_day = ? WHERE game = ? AND card_id = ? AND variant = ?")
+          .run(call, now, today, game, cardId, variant);
   let changed = Number((res as { changes?: number }).changes ?? 0) > 0;
   if (!changed && call !== "clear" && fresh && fresh.price > 0) {
     await db
@@ -365,7 +389,7 @@ export async function setManualCall(
         `INSERT INTO ebay_asks (card_id, game, variant, price_usd, n, n_nm, median_usd, q75_usd, vintage, verdict, reason, label, query, day, manual, manual_price, manual_day)
          VALUES (?, ?, ?, ?, 0, 0, NULL, NULL, 0, 'none', 'hand check', ?, '', '2000-01-01', ?, ?, ?)`,
       )
-      .run(cardId, game, variant, fresh.price, fresh.label.slice(0, 200), call, fresh.price, today);
+      .run(cardId, game, variant, fresh.price, fresh.label.slice(0, 200), call, now ?? fresh.price, today);
     changed = true;
   }
   clearTrustMemo();

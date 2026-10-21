@@ -6,6 +6,7 @@ import { requireOwnerPage } from "@/lib/server/adminPage";
 import { askCounts, lastRefereeRun, listAsks, type AskListRow } from "@/lib/server/ebayReferee";
 import { db } from "@/lib/db";
 import { listPriceReports, reportLabel, type PriceReportRow } from "@/lib/server/priceReports";
+import { MANUAL_BAND } from "@/lib/server/priceTrustSite";
 import { RAW_ONLY_TERMS } from "@/lib/listing";
 
 export const dynamic = "force-dynamic";
@@ -109,6 +110,17 @@ function ReaderTable({ rows }: { rows: PriceReportRow[] }) {
   );
 }
 
+/**
+ * Today's stored price, the one the pages judge and a call binds to (10-21, TASKS B.8); the referee's read (days old) goes
+ * under it when it differs. A call stops binding once today's price is more than 10% off the price it was made at.
+ */
+function priceNow(r: AskListRow): { shown: number; read: number | null; lapsed: boolean } {
+  const shown = r.today ?? r.price;
+  const read = r.today != null && Math.abs(r.today - r.price) > 0.005 * r.price ? r.price : null;
+  const lapsed = !!r.manual && r.manualPrice != null && r.manualPrice > 0 && Math.abs(shown - r.manualPrice) > MANUAL_BAND * r.manualPrice;
+  return { shown, read, lapsed };
+}
+
 function Table({ rows, empty }: { rows: AskListRow[]; empty: string }) {
   if (rows.length === 0) return <p className="rounded-2xl border border-edge bg-surface-1 px-4 py-3 text-sm text-zinc-500">{empty}</p>;
   return (
@@ -124,46 +136,56 @@ function Table({ rows, empty }: { rows: AskListRow[]; empty: string }) {
           </tr>
         </thead>
         <tbody>
-          {rows.map((r) => (
-            <tr key={`${r.game}|${r.cardId}|${r.variant}`} className="border-b border-white/5 align-top last:border-0">
-              <td className="px-4 py-3">
-                <span className="font-medium text-white">{r.label}</span>
-                <span className="block text-xs text-zinc-500">
-                  {GAME_LABEL[r.game] ?? r.game}
-                  {r.reason ? ` · ${r.reason}` : ""}
-                  {r.manual ? ` · you said ${r.manual === "hide" ? "wrong" : "right"} at ${money(r.manualPrice ?? r.price)}` : ""}
-                </span>
-                {/* Phone: the other columns fold in under the name. */}
-                <span className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 sm:hidden">
-                  <span className="font-medium tabular-nums text-white">{money(r.price)}</span>
-                  <span className="text-xs text-zinc-400">{r.median != null ? `eBay ${money(r.median)} mid · ${money(r.q75 ?? r.median)} upper` : "none listed on eBay"}</span>
-                  <a href={soldUrl(r)} target="_blank" rel="noreferrer" className="text-xs font-medium text-sky-300 hover:underline">eBay sold</a>
-                  <PriceCallButtons game={r.game} cardId={r.cardId} variant={r.variant} manual={r.manual} />
-                </span>
-              </td>
-              <td className="hidden px-4 py-3 text-right font-medium tabular-nums text-white sm:table-cell">{money(r.price)}</td>
-              <td className="hidden px-4 py-3 text-right tabular-nums text-zinc-400 sm:table-cell">
-                {r.median != null ? (
-                  <>
-                    {money(r.median)} <span className="text-zinc-600">mid</span>
-                    <span className="block text-xs">
-                      {money(r.q75 ?? r.median)} upper · {num(r.nNm)} listed
+          {rows.map((r) => {
+            const p = priceNow(r);
+            return (
+              <tr key={`${r.game}|${r.cardId}|${r.variant}`} className="border-b border-white/5 align-top last:border-0">
+                <td className="px-4 py-3">
+                  <span className="font-medium text-white">{r.label}</span>
+                  <span className="block text-xs text-zinc-500">
+                    {GAME_LABEL[r.game] ?? r.game}
+                    {r.reason ? ` · ${r.reason}` : ""}
+                    {r.manual ? ` · you said ${r.manual === "hide" ? "wrong" : "right"} at ${money(r.manualPrice ?? r.price)}` : ""}
+                    {p.lapsed ? <span className="text-amber-300"> · no longer binds, today&apos;s price moved over 10%</span> : null}
+                  </span>
+                  {/* Phone: the other columns fold in under the name. */}
+                  <span className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 sm:hidden">
+                    <span className="font-medium tabular-nums text-white">
+                      {money(p.shown)}
+                      {p.read != null ? <span className="ml-1 text-xs font-normal text-zinc-500">eBay read {money(p.read)}</span> : null}
                     </span>
-                  </>
-                ) : (
-                  <span className="text-zinc-600">none listed</span>
-                )}
-              </td>
-              <td className="hidden px-4 py-3 sm:table-cell">
-                <a href={soldUrl(r)} target="_blank" rel="noreferrer" className="text-xs font-medium text-sky-300 hover:underline">
-                  eBay sold
-                </a>
-              </td>
-              <td className="hidden px-4 py-3 sm:table-cell">
-                <PriceCallButtons game={r.game} cardId={r.cardId} variant={r.variant} manual={r.manual} />
-              </td>
-            </tr>
-          ))}
+                    <span className="text-xs text-zinc-400">{r.median != null ? `eBay ${money(r.median)} mid · ${money(r.q75 ?? r.median)} upper` : "none listed on eBay"}</span>
+                    <a href={soldUrl(r)} target="_blank" rel="noreferrer" className="text-xs font-medium text-sky-300 hover:underline">eBay sold</a>
+                    <PriceCallButtons game={r.game} cardId={r.cardId} variant={r.variant} manual={r.manual} />
+                  </span>
+                </td>
+                <td className="hidden px-4 py-3 text-right font-medium tabular-nums text-white sm:table-cell">
+                  {money(p.shown)}
+                  {p.read != null ? <span className="block text-xs font-normal text-zinc-500">eBay read {money(p.read)}</span> : null}
+                </td>
+                <td className="hidden px-4 py-3 text-right tabular-nums text-zinc-400 sm:table-cell">
+                  {r.median != null ? (
+                    <>
+                      {money(r.median)} <span className="text-zinc-600">mid</span>
+                      <span className="block text-xs">
+                        {money(r.q75 ?? r.median)} upper · {num(r.nNm)} listed
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-zinc-600">none listed</span>
+                  )}
+                </td>
+                <td className="hidden px-4 py-3 sm:table-cell">
+                  <a href={soldUrl(r)} target="_blank" rel="noreferrer" className="text-xs font-medium text-sky-300 hover:underline">
+                    eBay sold
+                  </a>
+                </td>
+                <td className="hidden px-4 py-3 sm:table-cell">
+                  <PriceCallButtons game={r.game} cardId={r.cardId} variant={r.variant} manual={r.manual} />
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

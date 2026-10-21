@@ -230,7 +230,7 @@ const NONE: { flag: null; stale: null } = { flag: null, stale: null };
 export const isThinOnly = (reason: string): boolean => reason.split(", ").every((r) => /^(thin|round|\d+ priced days)$/.test(r));
 
 /** A manual call binds while the price stays within this of the price that was checked. */
-const MANUAL_BAND = 0.1;
+export const MANUAL_BAND = 0.1;
 
 /** The eBay referee's say on `to`: the verdict is recomputed against the price being judged (it may have moved since the nightly read). Pure. */
 export function ebayCall(row: EbayAsksRow | undefined, to: number): { high: boolean; reason: string; manual: "hide" | "keep" | null; medianAsk: number | null; nNm: number } | null {
