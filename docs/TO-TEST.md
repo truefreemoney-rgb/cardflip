@@ -1,5 +1,9 @@
 # To test later
 
+## 10-20 ~10:55pm ET: scan result chip = layout A (Chris picked it from samples A-D) + green price to the cent + landing pop, COMMIT ONLY, VISIBLE, shots docs/shots/chip-A-1-price.png + chip-A-2-pricing.png WAITING for Chris's yes
+- Tested locally (pane SHOWN, phone width, faked Virizion 095/86 read): row 1 art + MATCH FOUND/name/set + Clear; green band $28.00 + MARKET PRICE left, condition pill right; count-up lands with .reveal-price-pop; faked Charizard tie with a 15 s tiebreak: band says PRICING..., Verify 2 Scans $28.00 leaves it out. tsc + eslint clean. (A hidden pane freezes rAF: the count-up sits at $0.00 - show the pane before testing it.)
+- After push, phone: scan any card -> price in the green band under the name, always two decimals, pops once when it lands; Clear sits top-right beside the name; a long printing ("Near Mint · Poké Ball Pattern") truncates in the pill, never pushes the price.
+
 ## 10-20 ~10:05pm ET: TASKS B00 (d) the camera holds the price + big-pull moment while the picture tiebreak is out, COMMIT ONLY d3a7c4fb, VISIBLE, shots docs/shots/printing-check-1-during.jpg + printing-check-2-after.jpg APPROVED by Chris 10-20 ~10:25pm ("looks fine"), not pushed
 - Tested locally (pane, phone width, faked "Charizard, no number" read = 4-way tie, faked tiebreak 8-10 s): keep path PRICING... 0.5-9 s, then $144 once; swap path PRICING... until the answer, then Pokémon GO #010 counted up once to $3.84; tally "1 card" and "Verify 1 Scan" with no figure while pending, $3.84 after; the swap's PATCH stored scan_market 3.84 (also proves bec236b7 end to end). tsc + eslint clean.
 - NOT seen in the pane (camera blocked = no guide): the stamp stays "Found!" while pending and a big/grail card's "Nice pull!"/"Big one!" plays once when the check settles.

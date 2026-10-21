@@ -1538,91 +1538,83 @@ function RevealChip({ item, onOpen, onRemove, onSwap, onEdit, onExpand, verify }
     <div
       className={`animate-fade-up flex w-full flex-col gap-2 rounded-2xl border bg-black/80 px-3 py-2.5 backdrop-blur-md ${style.border}`}
     >
-      {/* Row 1: art, then label + name + set + price. The set line may wrap to two
-          lines: a truncated "Lost Origin Trainer Gallery · #…" was the first
-          thing Chris flagged (10-15), and the number is what a seller checks.
-          The price sits on its own line under the set (Chris 10-20: up in the
-          top-right corner it looked "jacked in the corner"). */}
-      <button type="button" onClick={onExpand} disabled={!onExpand} aria-label={`Open ${card.name} big`} className="flex w-full items-start gap-3 text-left">
-        <div className="reveal-art relative h-16 w-[46px] shrink-0 overflow-hidden rounded-md shadow-lg shadow-black/60 ring-1 ring-white/15">
-          {card.imageSmall ? (
-            <CardImage src={card.imageSmall} alt="" className="h-full w-full" />
-          ) : (
-            <span className="flex h-full w-full items-center justify-center bg-gradient-to-br from-holo-violet/40 to-holo-pink/40 text-white">
-              ✓
-            </span>
-          )}
-        </div>
-        <div className="min-w-0 flex-1">
-          {/* No "75% sure" beside the label (Chris 10-15: "I want the users to
-              have confidence in the scanner"); a doubtful read still says
-              CHECK MATCH. */}
-          <p className={`text-[10px] font-semibold tracking-[0.2em] ${style.label}`}>
-            {style.labelText}
-          </p>
-          {/* The name may take two lines too ("Team Rocket's Spidops"): nothing on this card is cut. */}
-          <p className="line-clamp-2 font-display text-base font-semibold leading-tight text-white">
-            {card.name}
-          </p>
-          <p className="line-clamp-2 text-xs leading-snug text-zinc-400">
-            {card.setName}
-            {card.rarity ? ` · ${card.rarity}` : ""}
-            {card.number ? ` · #${card.number}` : ""}
-          </p>
-          {/* Fixed height: "pricing…" and the price take the same room, so the chip doesn't jump when it lands.
-              Always to the cent (Chris 10-20: "$28 should be $28.00"). */}
-          <div className="reveal-price mt-1 flex h-7 items-baseline gap-2">
-            {counted != null ? (
-              // The pop scales the figure AND its label from the left, so the grown number never runs into the label.
-              <div
-                className={`flex origin-left items-baseline gap-2 ${landed ? "reveal-price-pop" : ""}`}
-                style={{ "--pop-glow": style.glow } as React.CSSProperties}
-              >
-                <p className={`font-display text-2xl font-bold leading-7 tabular-nums ${style.price}`}>{formatMoney(counted, "USD")}</p>
-                <p className="text-[10px] uppercase tracking-[0.15em] text-zinc-500">market price</p>
-              </div>
+      {/* Layout A (Chris 10-20 picked it from four samples, docs/shots/chip-samples-*.jpg; the old corner price
+          looked "jacked in the corner"). Row 1: art, label + name + set, Clear. The set line may wrap to two
+          lines: a truncated "Lost Origin Trainer Gallery · #…" was the first thing Chris flagged (10-15), and
+          the number is what a seller checks. Clear takes the scan off the list on the spot (Chris 10-02); a
+          word, not an X (10-14): the card stays in Inventory. */}
+      <div className="flex w-full items-start gap-2">
+        <button type="button" onClick={onExpand} disabled={!onExpand} aria-label={`Open ${card.name} big`} className="flex min-w-0 flex-1 items-start gap-3 text-left">
+          <div className="reveal-art relative h-16 w-[46px] shrink-0 overflow-hidden rounded-md shadow-lg shadow-black/60 ring-1 ring-white/15">
+            {card.imageSmall ? (
+              <CardImage src={card.imageSmall} alt="" className="h-full w-full" />
             ) : (
-              <p className={`text-[10px] uppercase leading-7 tracking-[0.15em] ${flagged ? "text-amber-300" : "text-zinc-500"} ${settled ? "" : "animate-pulse"}`}>
-                {flagged ? "price looks off" : settled ? "no price yet" : "pricing…"}
-              </p>
+              <span className="flex h-full w-full items-center justify-center bg-gradient-to-br from-holo-violet/40 to-holo-pink/40 text-white">
+                ✓
+              </span>
             )}
           </div>
-        </div>
-      </button>
-      {/* Row 2: this copy's details on the left, Clear on the right. Clear
-          takes the scan off the list on the spot (Chris 10-02); a word, not
-          an X (10-14): the card stays in Inventory. It had floated between
-          the name and the price (Chris 10-15: "in a weird place"). */}
-      {(onOpen || onRemove) && (
-        <div className="flex w-full items-center justify-between gap-2">
-          {onEdit || onOpen ? (
-            <button
-              type="button"
-              onClick={() => (onEdit ? onEdit() : onOpen!(item.id))}
-              aria-label={`Change condition or printing: ${copyBits.join(", ")}`}
-              // py-1.5 + an 8px before: layer each way = a 46px tap, kept inside the rows' gap-2 (review 10-19 #24).
-              className="relative flex min-w-0 items-center gap-2 rounded-full border border-white/15 bg-white/5 py-1.5 pl-2.5 pr-2 text-xs font-medium text-zinc-200 transition before:absolute before:inset-x-0 before:-inset-y-2 before:content-[''] hover:border-white/30 hover:bg-white/10"
-            >
-              <span className={`h-2 w-2 shrink-0 rounded-full ${CONDITION_DOT[item.condition] ?? "bg-zinc-400"}`} aria-hidden />
-              <span className="truncate">{copyBits.join(" · ")}</span>
-              <span className="shrink-0 text-zinc-500" aria-hidden>✎</span>
-            </button>
+          <div className="min-w-0 flex-1">
+            {/* No "75% sure" beside the label (Chris 10-15: "I want the users to
+                have confidence in the scanner"); a doubtful read still says
+                CHECK MATCH. */}
+            <p className={`text-[10px] font-semibold tracking-[0.2em] ${style.label}`}>
+              {style.labelText}
+            </p>
+            {/* The name may take two lines too ("Team Rocket's Spidops"): nothing on this card is cut. */}
+            <p className="line-clamp-2 font-display text-base font-semibold leading-tight text-white">
+              {card.name}
+            </p>
+            <p className="line-clamp-2 text-xs leading-snug text-zinc-400">
+              {card.setName}
+              {card.rarity ? ` · ${card.rarity}` : ""}
+              {card.number ? ` · #${card.number}` : ""}
+            </p>
+          </div>
+        </button>
+        {onRemove && (
+          <button
+            type="button"
+            onClick={() => onRemove(item.id)}
+            aria-label={`Clear ${card.name} from the list (it stays in your Inventory)`}
+            title="Clear from this list. The card stays in your Inventory."
+            className="relative flex h-7 shrink-0 items-center rounded-full border border-white/15 px-2.5 text-xs font-medium text-zinc-400 transition before:absolute before:inset-x-0 before:-inset-y-2 before:content-[''] hover:bg-white/10 hover:text-white"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+      {/* Row 2, the price band: the market price big and green on the left (always to the cent, Chris 10-20:
+          "$28 should be $28.00"), this copy's details on the right. Fixed height: "pricing…" and the price take
+          the same room, so the chip doesn't jump when the figure lands. */}
+      <div className="flex w-full items-center justify-between gap-2 rounded-xl bg-emerald-400/[0.07] px-3 py-1.5">
+        <div className="reveal-price flex h-[46px] shrink-0 flex-col justify-center">
+          {counted != null ? (
+            // The pop scales the figure AND its label from the left, so the grown number never runs past them.
+            <div className={`origin-left ${landed ? "reveal-price-pop" : ""}`} style={{ "--pop-glow": style.glow } as React.CSSProperties}>
+              <p className={`font-display text-3xl font-bold leading-8 tabular-nums ${style.price}`}>{formatMoney(counted, "USD")}</p>
+              <p className="text-[10px] uppercase tracking-[0.15em] text-zinc-500">market price</p>
+            </div>
           ) : (
-            <span />
-          )}
-          {onRemove && (
-            <button
-              type="button"
-              onClick={() => onRemove(item.id)}
-              aria-label={`Clear ${card.name} from the list (it stays in your Inventory)`}
-              title="Clear from this list. The card stays in your Inventory."
-              className="relative flex h-7 shrink-0 items-center rounded-full border border-white/15 px-2.5 text-xs font-medium text-zinc-400 transition before:absolute before:inset-x-0 before:-inset-y-2 before:content-[''] hover:bg-white/10 hover:text-white"
-            >
-              Clear
-            </button>
+            <p className={`text-[10px] uppercase tracking-[0.15em] ${flagged ? "text-amber-300" : "text-zinc-500"} ${settled ? "" : "animate-pulse"}`}>
+              {flagged ? "price looks off" : settled ? "no price yet" : "pricing…"}
+            </p>
           )}
         </div>
-      )}
+        {onEdit || onOpen ? (
+          <button
+            type="button"
+            onClick={() => (onEdit ? onEdit() : onOpen!(item.id))}
+            aria-label={`Change condition or printing: ${copyBits.join(", ")}`}
+            // py-1.5 + an 8px before: layer each way = a 46px tap, kept inside the rows' gap-2 (review 10-19 #24).
+            className="relative flex min-w-0 items-center gap-2 rounded-full border border-white/15 bg-white/5 py-1.5 pl-2.5 pr-2 text-xs font-medium text-zinc-200 transition before:absolute before:inset-x-0 before:-inset-y-2 before:content-[''] hover:border-white/30 hover:bg-white/10"
+          >
+            <span className={`h-2 w-2 shrink-0 rounded-full ${CONDITION_DOT[item.condition] ?? "bg-zinc-400"}`} aria-hidden />
+            <span className="truncate">{copyBits.join(" · ")}</span>
+            <span className="shrink-0 text-zinc-500" aria-hidden>✎</span>
+          </button>
+        ) : null}
+      </div>
       {/* Row 3: the next step lives on the result (Chris, 09-04): one button,
           names the outcome. Keeps scanning if ignored. 10-02: it counts the
           scans waiting and carries their total ("5 Scans Waiting To Verify ·
