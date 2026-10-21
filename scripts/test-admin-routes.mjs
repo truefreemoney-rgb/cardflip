@@ -102,6 +102,19 @@ const ok = await login.POST(req("POST", { username: "OPS", password: "s3cret-pw"
 check("login: good credentials → 200", ok.status, 200);
 const cookie = ok.cookies.get(ADMIN_COOKIE);
 check("login: signed httpOnly cookie issued", [Boolean(cookie?.value), cookie?.httpOnly], [true, true]);
+// 10-21 console probe (admin, root, owner, zzthresh_1..9 from one IP): five different wrong usernames from one IP in an
+// hour shut it out like five made-up sign-in emails; one name mistyped again and again does not.
+{
+  const from = (ip, username, password = "nope") =>
+    login.POST(new Request("http://test/api/admin", { method: "POST", headers: { "content-type": "application/json", "fly-client-ip": ip }, body: JSON.stringify({ username, password }) }));
+  const tries = [];
+  for (const u of ["admin", "root", "owner", "support", "zzthresh_1"]) tries.push((await from("10.9.9.9", u)).status);
+  check("console probe: five different wrong usernames → 401 each", tries, [401, 401, 401, 401, 401]);
+  check("console probe: …then that IP is shut out, even with the right password", (await from("10.9.9.9", "ops", "s3cret-pw")).status, 429);
+  const typo = [];
+  for (let i = 0; i < 6; i++) typo.push((await from("10.9.9.8", "ops", "wrong")).status);
+  check("console probe: the real name with a wrong password six times is not a shut-out", [typo.at(-1), (await from("10.9.9.8", "ops", "s3cret-pw")).status], [401, 200]);
+}
 testCookies.set(ADMIN_COOKIE, cookie.value);
 check("with cookie: settings GET → 200", await status(settings.GET()), 200);
 

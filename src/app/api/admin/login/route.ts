@@ -1,15 +1,16 @@
 import { NextResponse } from "next/server";
 import { adminSessionsAvailable, adminUsingDefaults, verifyAdminLogin } from "@/lib/adminAuth";
 import { ADMIN_COOKIE, adminCookieOptions, issueAdminSession } from "@/lib/server/adminGate";
-import { LIMITS, clientIp } from "@/lib/server/rateLimit";
-import { accountLockout, limitOrRespondAsync } from "@/lib/server/rateLimitDb";
+import { clientIp } from "@/lib/server/rateLimit";
+import { accountLockout, ipGate, noteGhostLogin } from "@/lib/server/rateLimitDb";
 import { consoleCodeRequired, sendConsoleCode, spendConsoleCode } from "@/lib/server/loginCode";
 import { maskEmail } from "@/lib/server/emailVerify";
 import { OWNER_EMAIL } from "@/lib/server/users";
 
 /** Admin panel sign-in: username + password → signed cookie, 5 min idle (kept alive by /api/admin/touch). */
 export async function POST(req: Request) {
-  const limited = await limitOrRespondAsync(`auth:admin:${clientIp(req)}`, LIMITS.authAttempt);
+  // The shut-out and Tor refusal every sign-in route has, then the same per-IP limit (auth:admin:<ip>).
+  const limited = await ipGate(req, "auth:admin");
   if (limited) return limited;
   // No owner password set (there is no built-in one, 10-16): say so instead of a bare "incorrect".
   if (adminUsingDefaults() && !process.env.ADMIN_HELPER_PASSWORD) {
@@ -29,6 +30,9 @@ export async function POST(req: Request) {
   }
   const role = verifyAdminLogin(user, password);
   if (!role) {
+    // 10-21: one IP tried admin, root, owner, support, zzthresh_1..9 here over 25 minutes and never added up to a
+    // shut-out. Each different username refused counts like a made-up sign-in email (GHOST_LOGINS_PER_HOUR).
+    if (user) await noteGhostLogin(clientIp(req), `console:${user}`);
     return NextResponse.json({ error: "Incorrect username or password." }, { status: 401 });
   }
   // The owner's password alone is not a console session on the live site (Chris,
