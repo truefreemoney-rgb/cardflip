@@ -109,6 +109,7 @@
 
 ## 10-19 ~10:30am ET: sign-up takeover closed (94efdbb4) + cap-break history (99159765), COMMIT ONLY
 - After push, takeover: sign up a throwaway test account in one browser (pane, local-dev values only, never a real inbox of Chris's), open its confirm link in another (curl POST /api/auth/confirm-email): that browser is signed in, the first browser's session is gone, the typed password no longer logs in, Forgot Password still works. Same browser: password + session stay.
+- [x] PASS 10-21 ~12:10am ET (curl, live): no "Down" line, no 313.01, badge "Solid price · 154 days of data", "got more accurate on Oct 16, 2026" present, Market $109.16.
 - After push, cap break: /cards/pokemon/hidden-legends/groudon-ex--ex5-93 has no "Down 62.6%", no $313.01 high sentence, badge still "Solid price · 153 days of data", line "CardFlip's price for this card got more accurate on Oct 16, 2026". Card pages are ISR-cached 48 h: recheck a cached one on ~10-21.
 - After push: next Sunday mail / card alerts / Insights list no Pokémon (10-16/10-18) or Magic (10-13) cap cut as a move.
 
