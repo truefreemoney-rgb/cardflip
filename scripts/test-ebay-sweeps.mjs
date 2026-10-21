@@ -108,10 +108,11 @@ await completeEbayConnect(uid, "code");
 // --- watcher offer: the send ------------------------------------------------
 let r = await sendWatcherOffer(uid, live, 12.4, "  Thanks for watching!  ");
 check("offer: ok", r.ok, true);
-check("offer: exact Negotiation body (rounded percent, quantity, trimmed message, no counters)", posts[0], {
+// A card row holding 2 still offers 1: the listing went up at 1 (one card per listing, listingQuantity).
+check("offer: exact Negotiation body (rounded percent, quantity 1 for a card, trimmed message, no counters)", posts[0], {
   allowCounterOffer: false,
   message: "Thanks for watching!",
-  offeredItems: [{ listingId: "L-1", quantity: "2", discountPercentage: "12" }],
+  offeredItems: [{ listingId: "L-1", quantity: "1", discountPercentage: "12" }],
 });
 check("offer: watcher_offer_at stamped", Boolean((await getCardForUser(live.id, uid)).watcherOfferAt), true);
 

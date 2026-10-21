@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { canSell, findUserById } from "@/lib/server/users";
 import { getCardForUser, setWatcherOfferSent, type CardRecord } from "@/lib/server/cards";
 import { EbaySellError, ebayFetch } from "@/lib/server/ebaySell";
+import { listingQuantity } from "@/lib/ebayInventory";
 import { US_MARKETPLACE, marketplaceByEbayId, type Marketplace } from "@/lib/marketplaces";
 
 /**
@@ -101,7 +102,8 @@ export async function sendWatcherOffer(
       offeredItems: [
         {
           listingId: card.ebayListingId,
-          quantity: String(card.quantity || 1),
+          // Same count the listing went up with: 1 for a card (one card per listing), sealed keeps its clamped count.
+          quantity: String(listingQuantity({ quantity: card.quantity, kind: card.kind })),
           discountPercentage: String(percent),
         },
       ],
