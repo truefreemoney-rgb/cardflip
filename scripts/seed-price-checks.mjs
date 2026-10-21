@@ -66,6 +66,8 @@ const CHECKS = [
   // 10-20 ~3pm ET: tonight's 7pm Blender set spotlight (30th Classic Collection), eBay sold read in the pane, raw only.
   { game: "pokemon", cardId: "30th-c-001", variant: "holofoil", usd: 178, n: 11, day: "2026-10-20", note: "Charizard 30th Classic Collection 4/102: 11 raw sold 10-20 at 140-200 (median ~178), ACE 10 at 319 excluded; TCGplayer 143.88" },
   { game: "pokemon", cardId: "30th-c-029", variant: "holofoil", usd: 210, n: 10, day: "2026-10-20", note: "Crystal Lugia 30th Classic Collection 149/147: 10 English raw sold 10-19/20 at 175-300 (median ~210); TCGplayer 189" },
+  // 10-20 ~11pm ET hidden list (s209), eBay sold in the pane, raw only.
+  { game: "pokemon", cardId: "bw7-142", variant: "holofoil", usd: 100, n: 15, day: "2026-10-20", note: "Keldeo-EX full art 142/149: 15 raw sold 09-09..10-18 at 60-155 (median 99.99; damaged/HP/MP/Brazilian left out); TCGplayer 140.65 (hidden)" },
 ];
 // --only id,id: write just these checks (the others are already on prod).
 const onlyArg = process.argv.indexOf("--only");
