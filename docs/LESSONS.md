@@ -4,6 +4,12 @@ Chris (10-14): every support ticket and every social comment is a learning
 experience while the site is new and not fully tested. One entry each: what
 they said, what it taught, what changed, what is still open. Newest first.
 
+## 10-21 · Rocket's Mewtwo ex (ex7-99) card page shows no price (found by me while sampling the listing-cap pages)
+- What: the headline reads "This price looks off, check sold listings" with no number; the printings table shows Normal (looks off) and Holofoil $579.90.
+- Cause: TCGplayer opened a NEW "normal" line for this holo-only ex card on 10-17 ($1,150). Two days old, the guard flags it; headlinePrice's 10-06 rule (a doubted printing ranked above stops a three-figure sibling from headlining, built for Skyridge Charizard) then blocks the 156-day holofoil line. 8 Pokemon cards have the same pattern (all ex era + one Nintendo promo).
+- Taught: a brand-new TCGplayer line can take a page's headline hostage; the doubted-sibling rule assumed the higher-ranked printing is the established one.
+- Still open (fix 10-21): eBay sold for the 8 cards (which number is right: the capped holofoil or the new normal), then fix the prices and the rule, with a test beside the Skyridge case.
+
 ## 10-20 · Inventory row: "this shouldnt be able to mark as sold if unverified" (Chris, his own Virizion White Flare row)
 - What: an unverified draft (amber Verify Match) still offered Mark as Sold, on the list row and in the card popup; the PATCH route took it too. A sale off a match nobody checked lands in Sold (the permanent record) with a possibly wrong card and price.
 - Changed: Mark as Sold only after Verify Match (same test as the button: draft, not sealed, no verifiedAt). Row: a dashed "Verify first" placeholder on wide screens keeps the columns lined up, nothing on phones; popup: Delete only. Server: PATCH status "sold" on an unverified draft = 409 "Verify the match first, then mark it sold." (a PATCH that verifies in the same request passes). Sealed rows, ended listings and eBay's own sales are unchanged.
