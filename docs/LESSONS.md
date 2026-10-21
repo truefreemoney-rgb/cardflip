@@ -4,6 +4,13 @@ Chris (10-14): every support ticket and every social comment is a learning
 experience while the site is new and not fully tested. One entry each: what
 they said, what it taught, what changed, what is still open. Newest first.
 
+## 10-21 3:35am ET (real clock) · Mewtwo Star HP 103 page blank ("This price looks off") after an eBay-checked keep (found by me, TO-TEST price-chain median line)
+- What: /cards/pokemon/holon-phantoms/mewtwo-star--ex13-103 printed no price. The 10-18 eBay sold check called TCGplayer's $6,887.50 right ("keep").
+- Cause: /admin/prices keeps bind to ebay_asks.price_usd, the referee's last READ ($9,200, days old), not the price the check confirmed; $6,887.50 is 25% off $9,200, past the 10% band, so the keep never bound and the eBay-asks rule hid the price (TASKS B.8, noted 10-21 for Codie/Palkia, not yet fixed in code).
+- Changed: (1) prod: 3 keeps re-pointed at their checked prices (Mewtwo Star 6887.50, Team Aqua's Kyogre 290, Jirachi HL rev 118.21; scripts/_keep-price-1021b.mjs, dry first). (2) code 387e78ef COMMIT ONLY: a call binds to today's stored price; /admin/prices shows today's price + the read + "no longer binds". (3) scripts/_keeps-unbound.mjs: 99 of 426 calls did not bind; 5 of them blanked a page (3 fixed, 2 = real moves -> 10-22 eBay).
+- Still open: Celebi ex UF 117 ($999.99 vs keep $370) + Typhlosion N1 1st ($231.99 vs keep $699.99) on 10-22 eBay; pages cached up to 2 days.
+- Taught: same as the Charizard entry above: a binding call that lapses silently fails OPEN (blank). The admin page must show when a call no longer binds.
+
 ## 10-21 ~3:30am ET · Base Set Charizard page blank again ("This price looks off") (found by me, TO-TEST A3 s199 line)
 - What: /cards/pokemon/base-set/charizard--base1-4 printed no price. TCGplayer $954.65 (10-19/10-20) hit the 10-14 hand "hide" (made at $968.91); no fresh backup (Cardmarket line stopped 08-25), so nothing stood in.
 - Cause: the 10-18 eBay sold check ($600, 8 sold) RETIRED on 10-19 after ONE TCGplayer read inside the 25% band ($724.99); the next day TCGplayer jumped back out and the check was gone.
