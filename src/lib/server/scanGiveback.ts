@@ -124,3 +124,65 @@ export async function giveBackNoMatchScan(user: User, scanId: string): Promise<{
   }
   return { refunded: true, reason: "refunded", usage: after };
 }
+
+/**
+ * A deleted card the scanner itself doubted gives its scan back (Chris 10-21, after a Kindle Fire buyer paid for 41
+ * scans she deleted: 40% reads, wrong printings, the same Pikachu 8 times). Only cards the scanner flagged
+ * (match_doubt below), never verified, deleted within DOUBT_GIVEBACK_WINDOW_MS of being saved; same per-day cap as
+ * the no-match give-back, so scan-read-delete cannot become free price checks. The card has no scan id, so the scan
+ * is the account's latest charged, unrefunded scan_usage row from the 3 minutes before the card was saved.
+ */
+export const DOUBT_GIVEBACK_WINDOW_MS = 60 * 60 * 1000;
+const DOUBTED = /low-confidence read|printing swap|corrected from|looks more like this printing/i;
+const SCAN_TO_SAVE_MS = 3 * 60 * 1000;
+
+export interface DoubtedCard {
+  id: string;
+  createdAt: number;
+}
+
+/** Read BEFORE the delete: which of these rows qualify. Never throws (a failed check only skips the give-back). */
+export async function doubtedCardsAmong(userId: string, ids: string[], now = Date.now()): Promise<DoubtedCard[]> {
+  if (ids.length === 0) return [];
+  try {
+    const marks = ids.map(() => "?").join(", ");
+    const rows = (await db
+      .prepare(`SELECT id, created_at, match_doubt FROM cards WHERE user_id = ? AND status != 'sold' AND verified_at IS NULL AND match_doubt IS NOT NULL AND id IN (${marks})`)
+      .all(userId, ...ids)) as { id: string; created_at: number; match_doubt: string }[];
+    return rows
+      .filter((r) => DOUBTED.test(r.match_doubt) && now - Number(r.created_at) <= DOUBT_GIVEBACK_WINDOW_MS)
+      .map((r) => ({ id: r.id, createdAt: Number(r.created_at) }));
+  } catch (err) {
+    console.warn("doubt give-back: check failed", err instanceof Error ? err.message : err);
+    return [];
+  }
+}
+
+/** After the delete: give back one scan per doubted card. Returns how many came back. Never throws. */
+export async function giveBackDoubtedDeletes(user: User, cards: DoubtedCard[]): Promise<number> {
+  let refunded = 0;
+  for (const card of [...cards].sort((a, b) => a.createdAt - b.createdAt)) {
+    try {
+      const row = (await db
+        .prepare(
+          "SELECT id, draw FROM scan_usage WHERE user_id = ? AND draw IS NOT NULL AND refunded_at IS NULL AND at <= ? AND at >= ? ORDER BY at DESC LIMIT 1",
+        )
+        .get(user.id, card.createdAt + 5_000, card.createdAt - SCAN_TO_SAVE_MS)) as { id: string; draw: string } | undefined;
+      if (!row) continue;
+      const draw = JSON.parse(row.draw) as ScanDraw;
+      if (await dayBudgetSpent(`giveback_${user.id}`, GIVEBACK_DAILY_CAP)) break;
+      const claimed = await db.prepare("UPDATE scan_usage SET refunded_at = ? WHERE id = ? AND refunded_at IS NULL").run(Date.now(), row.id);
+      if (Number(claimed.changes ?? 0) < 1) continue;
+      try {
+        await giveBackScans(user, { taken: 1, draw, usage: scanQuota(user) }, 1);
+        refunded++;
+      } catch (err) {
+        await db.prepare("UPDATE scan_usage SET refunded_at = NULL WHERE id = ?").run(row.id).catch(() => undefined);
+        throw err;
+      }
+    } catch (err) {
+      console.warn("doubt give-back: refund failed", err instanceof Error ? err.message : err);
+    }
+  }
+  return refunded;
+}

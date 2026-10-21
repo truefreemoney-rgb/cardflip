@@ -533,6 +533,38 @@ delete process.env.CRON_SECRET;
   check("scan route: an empty read earns no tiebreak allowance", /readIsEmpty\(\{[^}]*\}\)\s*\?\s*Promise\.resolve\(0\)\s*:\s*dayBump\(readsKey/.test(scanRoute), true);
 }
 
+// 10-21 (Chris, a Kindle Fire buyer paid for 41 scans she deleted): deleting a card the scanner itself doubted, never
+// verified, within the window gives its scan back; a confident or verified card, a late delete, or another account's
+// row does not; each scan pays once.
+{
+  const { doubtedCardsAmong, giveBackDoubtedDeletes, DOUBT_GIVEBACK_WINDOW_MS } = await import(at("lib/server/scanGiveback.ts"));
+  const { createCard, deleteCard } = await import(at("lib/server/cards.ts"));
+  const { recordScanUsage } = await import(at("lib/server/scanUsage.ts"));
+  const zero = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
+  const uid = await mkSub({ plan_scans: 5 });
+  const scanThenCard = async (doubt, extra = {}) => {
+    const r = await reserveScan(await get(uid));
+    await recordScanUsage(uid, "claude-sonnet-5", zero, { game: "pokemon", name: "Pikachu", conf: 0.4 }, r.draw);
+    const card = await createCard(uid, { cardName: "Pikachu", setName: "Base Set", cardNumber: "58", imageUrl: "", condition: "Near Mint", price: 1 });
+    await db.prepare("UPDATE cards SET match_doubt = ?, verified_at = ? WHERE id = ?").run(doubt, extra.verified ? Date.now() : null, card.id);
+    if (extra.age) await db.prepare("UPDATE cards SET created_at = created_at - ? WHERE id = ?").run(extra.age, card.id);
+    return card.id;
+  };
+  const doubted = await scanThenCard("low-confidence read (40%)");
+  const sure = await scanThenCard(null);
+  const verified = await scanThenCard("printing swap: the photo looks more like this printing", { verified: true });
+  const old = await scanThenCard("corrected from Pikachu (30th Celebration)", { age: DOUBT_GIVEBACK_WINDOW_MS + 1000 });
+  check("doubt give-back: 4 scans taken", (await get(uid)).planScans, 1);
+  const picks = await doubtedCardsAmong(uid, [doubted, sure, verified, old]);
+  check("doubt give-back: only the doubted, unverified, fresh card qualifies", picks.map((p) => p.id), [doubted]);
+  check("doubt give-back: another account's ids never qualify", (await doubtedCardsAmong(await mkSub({ plan_scans: 1 }), [doubted])).length, 0);
+  await deleteCard(doubted, uid);
+  check("doubt give-back: one scan comes back", [await giveBackDoubtedDeletes(await get(uid), picks), (await get(uid)).planScans], [1, 2]);
+  check("doubt give-back: a deleted card cannot qualify again (its row is gone)", (await doubtedCardsAmong(uid, [doubted])).length, 0);
+  check("doubt give-back: a confident card's delete gives nothing back",
+    [await giveBackDoubtedDeletes(await get(uid), await doubtedCardsAmong(uid, [sure])), (await get(uid)).planScans], [0, 2]);
+}
+
 console.log(failures === 0 ? "\nAll quota checks passed" : `\n${failures} quota check(s) failed`);
 // No process.exit(): it would skip the beforeExit hook that closes the libsql
 // client, and on Windows that open handle asserts at exit (see lib/db.ts).

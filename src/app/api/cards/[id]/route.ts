@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { doubtedCardsAmong, giveBackDoubtedDeletes } from "@/lib/server/scanGiveback";
 import { requireUser, AuthError } from "@/lib/server/auth";
 import { deleteCard, getCardForUser, updateCard, type CardStatus } from "@/lib/server/cards";
 import { deleteCardPhoto } from "@/lib/server/cardPhotos";
@@ -161,8 +162,11 @@ export async function DELETE(_req: Request, { params }: RouteParams) {
       return NextResponse.json({ error: "This card is live on eBay — end the listing first." }, { status: 409 });
     }
     if (existing) await deleteCardPhoto(id);
+    // A card the scanner itself doubted gives its scan back (10-21); read before the row goes.
+    const doubted = await doubtedCardsAmong(user.id, [id]);
     await deleteCard(id, user.id);
-    return NextResponse.json({ ok: true });
+    const scansBack = await giveBackDoubtedDeletes(user, doubted);
+    return NextResponse.json({ ok: true, scansBack });
   } catch (err) {
     if (err instanceof AuthError) {
       return NextResponse.json({ error: err.message }, { status: 401 });
