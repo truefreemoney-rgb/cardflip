@@ -84,11 +84,11 @@ export async function POST(req: Request) {
   const password = typeof body?.password === "string" ? body.password : "";
 
   if (!name) {
-    return NextResponse.json({ error: "Name is required." }, { status: 400 });
+    return NextResponse.json({ error: "Username is required." }, { status: 400 });
   }
   // Same cap as admin create and account PATCH.
   if (name.length > 80) {
-    return NextResponse.json({ error: "Name must be 80 characters or fewer." }, { status: 400 });
+    return NextResponse.json({ error: "Username must be 80 characters or fewer." }, { status: 400 });
   }
   // Refused addresses count toward the site-wide alarm (10-21: the Tor bot's example.org and "admin@cardflip.io." tries).
   const refused = async () => {

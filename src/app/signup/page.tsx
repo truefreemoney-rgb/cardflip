@@ -312,6 +312,7 @@ export default function SignupPage() {
                 name="name"
                 type="text"
                 autoComplete="nickname"
+                maxLength={80}
                 autoFocus
                 enterKeyHint="next"
                 value={name}

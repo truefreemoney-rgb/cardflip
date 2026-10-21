@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Logo from "@/components/Logo";
 import Spinner from "@/components/Spinner";
@@ -21,6 +21,11 @@ export default function ForgotPasswordPage() {
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The error takes focus, as on Log In and Sign Up: a screen reader reads it and a phone scrolls to it (review 10-19 marketing #18).
+  const alertRef = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    if (error) alertRef.current?.focus();
+  }, [error]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -38,7 +43,7 @@ export default function ForgotPasswordPage() {
       const res = await fetch(apiPath("/api/auth/forgot"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: email.trim() }),
       });
       const data = await res.json().catch(() => ({}));
       // The rate limiter answers with `error` ("Too many tries, wait N s"), the route itself with `message`.
@@ -99,7 +104,7 @@ export default function ForgotPasswordPage() {
                 />
               </div>
 
-              <p role="alert" aria-live="polite" className="min-h-0">
+              <p ref={alertRef} tabIndex={-1} role="alert" aria-live="polite" className="min-h-0 outline-none">
                 {error && (
                   <span className="block rounded-lg bg-red-500/10 px-3 py-2 text-xs font-medium text-red-400">
                     {error}
