@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { AuthError } from "@/lib/server/auth";
 import { requireAdminPanel } from "@/lib/server/adminGate";
-import { helperSectionTitle, loadBoard, saveBoard } from "@/lib/server/board";
+import { BoardConflictError, helperSectionTitle, loadBoard, saveBoard } from "@/lib/server/board";
 
 const REPO = "truefreemoney-rgb/cardflip";
 const LABEL = "board-run";
@@ -75,9 +75,19 @@ export async function POST(req: Request) {
       console.error("board run: GitHub issue failed", gh.status, data.message);
       return NextResponse.json({ error: `GitHub said no (${gh.status}${data.message ? `: ${data.message}` : ""})` }, { status: 502 });
     }
-    item.text = `▶ RUNNING #${data.number} — ${text}`;
-    const updatedAt = await saveBoard(sections);
-    return NextResponse.json({ sections, updatedAt, issue: data.number, url: data.html_url });
+    // The GitHub calls took seconds: mark the task on a FRESH copy of the board, saved against its own stamp, so an
+    // edit made meanwhile in another tab is kept, not overwritten by the copy read at the start (review 10-19 admin #10).
+    for (let attempt = 0; ; attempt++) {
+      const live = await loadBoard();
+      const target = live.sections.flatMap((s) => s.items).find((i) => i.id === id);
+      if (target) target.text = `▶ RUNNING #${data.number} — ${text}`;
+      try {
+        const updatedAt = await saveBoard(live.sections, live.updatedAt);
+        return NextResponse.json({ sections: live.sections, updatedAt, issue: data.number, url: data.html_url });
+      } catch (err) {
+        if (!(err instanceof BoardConflictError) || attempt >= 2) throw err;
+      }
+    }
   } catch (err) {
     if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 403 });
     console.error("board run failed:", err);

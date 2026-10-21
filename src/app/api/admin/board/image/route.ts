@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { del, put } from "@vercel/blob";
-import { requireAdmin, AuthError } from "@/lib/server/auth";
+import { requireAdmin, requireAdminOwner, AuthError } from "@/lib/server/auth";
 import { isBoardImageUrl } from "@/lib/server/board";
 
 /**
@@ -34,7 +34,9 @@ export async function POST(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
-    await requireAdmin();
+    // Owner only: a helper could otherwise remove any board photo by its URL (review 10-19 admin #9). The board's own
+    // remove call is fire-and-forget, so a helper's removal just leaves the file in the store.
+    await requireAdminOwner();
     const body = await req.json().catch(() => null);
     const url = typeof body?.url === "string" ? body.url : "";
     if (!isBoardImageUrl(url)) return NextResponse.json({ error: "Bad image URL" }, { status: 400 });

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { after } from "next/server";
 import type { ReactNode } from "react";
 import ActivityBars from "@/components/admin/ActivityBars";
 import NeedsYouList, { type NeedsYouItem } from "@/components/admin/NeedsYouList";
@@ -27,7 +28,8 @@ export default async function AdminOverviewPage() {
   await requireOwnerPage();
   const [o, p, { last24h: spend24h, last30d: spend30d }, ebayLimits, stale] = await Promise.all([getAdminOverview(), getOverviewPulse(), scanSpendSummary(), ebayRateLimits(), staleChecks()]);
   // A visit also files the once-a-day Errors-page line if the backup or price run is stale.
-  if (stale.length) void reportStaleOnceADay();
+  // after(): a bare promise in a serverless render can be cut off when the response ends (review 10-19 admin #5).
+  if (stale.length) after(() => reportStaleOnceADay());
   const s = o.stats;
   const now = p.now;
 
