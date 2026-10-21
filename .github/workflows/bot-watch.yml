@@ -1,0 +1,42 @@
+# Hourly bot watch (Chris 10-21: "implement something right now so this dosnt happen anymore"). Runs
+# scripts/bot-watch.mjs: reads the last 4 hours of allowed traffic from the Vercel Firewall metrics and denies any
+# proxy-pool crawler (one network + TLS fingerprint, 1,000+ requests, 25+ addresses, mostly card pages) before it
+# runs up ISR writes. Every block mails Chris through /api/ops/alert. Search engines, link previews, iCloud Private
+# Relay and the eBay/Stripe webhooks are never auto-blocked (alert only).
+name: Bot watch
+
+on:
+  schedule:
+    - cron: "25 * * * *" # every hour at :25 (ET = UTC-4)
+  workflow_dispatch:
+    inputs:
+      dry:
+        description: "1 = report only, change nothing"
+        required: false
+        default: ""
+
+concurrency:
+  group: bot-watch
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts/bot-watch.mjs
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Watch
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          OPS_KEY: ${{ secrets.OPS_KEY }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: node scripts/bot-watch.mjs ${{ inputs.dry == '1' && '--dry' || '' }}
