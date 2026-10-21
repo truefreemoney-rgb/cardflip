@@ -94,6 +94,13 @@ export async function PATCH(req: Request, { params }: RouteParams) {
             : null
           : undefined,
       priceLocked: typeof body?.priceLocked === "boolean" ? body.priceLocked : undefined,
+      // The market the scanner shows for a swapped card / printing (packs sum it): a finite number > 0 lands, anything else clears it.
+      scanMarket:
+        "scanMarket" in (body ?? {})
+          ? typeof body.scanMarket === "number" && Number.isFinite(body.scanMarket) && body.scanMarket > 0
+            ? body.scanMarket
+            : null
+          : undefined,
       // Shipping pick (10-08): "envelope" | "tracked" lands, anything else clears it.
       shippingMethod:
         "shippingMethod" in (body ?? {})

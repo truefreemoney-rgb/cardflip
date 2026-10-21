@@ -395,7 +395,7 @@ export default function AppPage() {
       // The variant picker (Magic foil / etched, Pokémon holo) changes what
       // the card IS on eBay and which series prices it — sync it at once.
       if ("variant" in patch) {
-        void updateServerCard(item.serverId, { variant: patch.variant ?? null });
+        void updateServerCard(item.serverId, { variant: patch.variant ?? null, scanMarket: headlinePrice(item) || null });
       }
       if ("shipping" in patch) {
         void updateServerCard(item.serverId, { shippingMethod: patch.shipping ?? null });
@@ -444,6 +444,8 @@ export default function AppPage() {
           rarity: card.rarity ?? null,
           firstEdition: isFirstEditionCard(card),
           ...(next ? ledgerPriceForNewCard(next) : null),
+          // Packs count the market the scanner shows for the NEW card (10-20: a Charizard pull kept $122.30 after the $2.77 swap).
+          scanMarket: next ? headlinePrice(next) || null : null,
         });
       }
     },
@@ -924,6 +926,8 @@ export default function AppPage() {
                   ...(cur.firstEdition ? { firstEdition: true } : {}),
                   ...(lateCondition ? { condition: lateCondition } : {}),
                   ...(lateVariant !== undefined ? { variant: lateVariant } : {}),
+                  // The row was created with the scan's card / printing market; packs count the one on screen now.
+                  ...(lateCard || lateVariant !== undefined ? { scanMarket: headlinePrice(cur) || null } : {}),
                 });
               }
               // The picture tiebreak, off the critical path (10-11): the row exists, so a late pick renames it
@@ -1935,6 +1939,7 @@ export default function AppPage() {
                           rarity: newCard.rarity ?? null,
                           firstEdition: isFirstEditionCard(newCard),
                           ...(next ? ledgerPriceForNewCard(next) : null),
+                          scanMarket: next ? headlinePrice(next) || null : null,
                         });
                       }
                     }}

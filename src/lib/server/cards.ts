@@ -133,6 +133,7 @@ interface CardRow {
   watcher_offer_at: number | null;
   price_locked: number | null;
   scan_price: number | null;
+  scan_market?: number | null;
   verified_at: number | null;
   match_doubt: string | null;
   first_edition: number | null;
@@ -616,6 +617,8 @@ export interface CardUpdate {
   shippingMethod?: ShipMethod | null;
   /** Price alert target; null clears. Any change re-arms the alert. */
   alertPrice?: number | null;
+  /** The headline market the scanner shows for the row's new card or printing (packs sum it). */
+  scanMarket?: number | null;
 }
 
 /** Ownership is enforced here, not just at the route layer: the WHERE clause
@@ -677,17 +680,21 @@ export async function updateCard(
     // A different catalog card (printing / foil pick) is a different market: the old card's
     // scan price would read as a move the market never made. Null = the live refresh backfills it.
     // A finish / printing change (nonfoil → foil) is the same thing: another price series.
+    // scan_market too (10-20, the first Booster buyer: her Charizard pull kept the first read's $122.30
+    // after the swap to the $2.77 print): the new card's shown market when the client sends it, else
+    // nothing, so the pack counts the row's own price instead of the old card's market.
     ...((patch.catalogCardId !== undefined && patch.catalogCardId !== existingRow.catalog_card_id) ||
     (patch.variant !== undefined && (patch.variant ?? null) !== (existingRow.variant ?? null))
-      ? { scan_price: null }
+      ? { scan_price: null, scan_market: null }
       : {}),
+    ...(patch.scanMarket !== undefined ? { scan_market: patch.scanMarket != null && patch.scanMarket > 0 ? patch.scanMarket : null } : {}),
     updated_at: Date.now(),
   };
 
   await db
     .prepare(
       `UPDATE cards
-       SET card_name = ?, set_name = ?, card_number = ?, image_url = ?, catalog_card_id = ?, rarity = ?, category = ?, condition = ?, price = ?, quantity = ?, status = ?, listed_at = ?, sold_price = ?, sold_at = ?, verified_at = ?, match_doubt = ?, first_edition = ?, variant = ?, price_locked = ?, cost_basis = ?, shipping_method = ?, alert_price = ?, alerted_at = ?, sold_fees = ?, ebay_order_id = ?, ebay_line_item_id = ?, sold_price_local = ?, sold_currency = ?, ebay_ended_at = ?, scan_price = ?, sold_by_hand = ?, updated_at = ?
+       SET card_name = ?, set_name = ?, card_number = ?, image_url = ?, catalog_card_id = ?, rarity = ?, category = ?, condition = ?, price = ?, quantity = ?, status = ?, listed_at = ?, sold_price = ?, sold_at = ?, verified_at = ?, match_doubt = ?, first_edition = ?, variant = ?, price_locked = ?, cost_basis = ?, shipping_method = ?, alert_price = ?, alerted_at = ?, sold_fees = ?, ebay_order_id = ?, ebay_line_item_id = ?, sold_price_local = ?, sold_currency = ?, ebay_ended_at = ?, scan_price = ?, scan_market = ?, sold_by_hand = ?, updated_at = ?
        WHERE id = ? AND user_id = ?`,
     )
     .run(
@@ -721,6 +728,7 @@ export async function updateCard(
       merged.sold_currency ?? null,
       merged.ebay_ended_at,
       merged.scan_price ?? null,
+      merged.scan_market ?? null,
       merged.sold_by_hand ?? null,
       merged.updated_at,
       id,

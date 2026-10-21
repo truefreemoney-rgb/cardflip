@@ -94,6 +94,23 @@ check("the admin split: removed counts deletes only, saveFailed the rest",
   await db.prepare("SELECT SUM(how != 'save-failed') AS removed, SUM(how = 'save-failed') AS saveFailed FROM card_removals WHERE user_id = ?").get(alice.id),
   { removed: 1, saveFailed: 1 });
 
+// --- scan_market follows a card swap (10-20, the first Booster buyer: her Charizard pull kept $122.30 after the $2.77 swap) ---
+const pull = await createCard(alice.id, { ...CHARIZARD, price: 107.62, scanPrice: 122.3, scanMarket: 122.3 });
+const scanMarketOf = async (id) => (await db.prepare("SELECT scan_market FROM cards WHERE id = ?").get(id)).scan_market;
+check("createCard stores the shown market", await scanMarketOf(pull.id), 122.3);
+await updateCard(pull.id, alice.id, { price: 110 });
+check("a price-only patch leaves scan_market alone", await scanMarketOf(pull.id), 122.3);
+await updateCard(pull.id, alice.id, { catalogCardId: "mcd24-1", cardName: "Charizard", setName: "McDonald's 2024", price: 2.44, scanMarket: 2.77 });
+check("a card swap with the new card's market stores it", await scanMarketOf(pull.id), 2.77);
+await updateCard(pull.id, alice.id, { catalogCardId: "base1-4" });
+check("a card swap with no market sent drops the old card's market (and scan_price)",
+  [await scanMarketOf(pull.id), (await getCardForUser(pull.id, alice.id))?.scanPrice], [null, null]);
+await updateCard(pull.id, alice.id, { variant: "holofoil", scanMarket: 131.5 });
+check("a printing change carries the new printing's market", await scanMarketOf(pull.id), 131.5);
+await updateCard(pull.id, alice.id, { scanMarket: 0 });
+check("a market of 0 (price guard flag) clears it", await scanMarketOf(pull.id), null);
+check("wrong user cannot set scan_market", await updateCard(pull.id, mallory.id, { scanMarket: 9999 }), null);
+
 // --- updateCard's cleanup rules ------------------------------------------
 await setCardListingEnded(card.id, alice.id, 111);
 check("ended stamp lands", (await getCardForUser(card.id, alice.id))?.ebayEndedAt, 111);

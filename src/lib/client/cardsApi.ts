@@ -129,6 +129,8 @@ export interface UpdateCardInput {
   shippingMethod?: "envelope" | "tracked" | null;
   /** Price alert target; null clears it. */
   alertPrice?: number | null;
+  /** The headline market the scanner shows after a card / printing change (packs sum it); null clears it. */
+  scanMarket?: number | null;
 }
 
 export interface LivePrice {
