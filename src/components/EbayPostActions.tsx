@@ -388,7 +388,7 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
               inputMode={local ? "text" : "numeric"}
               autoComplete="postal-code"
               placeholder={local ? "Your postcode" : "e.g. 90210"}
-              className="rounded-md border border-edge bg-black/40 px-2.5 py-1.5 text-sm text-white outline-none focus:border-brand-400"
+              className="rounded-md border border-edge bg-black/40 px-2.5 py-1.5 text-base sm:text-sm text-white outline-none focus:border-brand-400"
             />
           </label>
           {needsCity && (
@@ -400,7 +400,7 @@ export default function EbayPostActions({ item, listing, price, ebayConnected, o
                 maxLength={64}
                 autoComplete="address-level2"
                 placeholder="Your town"
-                className="rounded-md border border-edge bg-black/40 px-2.5 py-1.5 text-sm text-white outline-none focus:border-brand-400"
+                className="rounded-md border border-edge bg-black/40 px-2.5 py-1.5 text-base sm:text-sm text-white outline-none focus:border-brand-400"
               />
             </label>
           )}

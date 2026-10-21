@@ -66,7 +66,8 @@ export default function PacksPage() {
             onChange={(e) => setName(e.target.value)}
             maxLength={PACK_NAME_MAX}
             placeholder={`Like "${game === "pokemon" ? "Surging Sparks booster" : `${GAMES[game].label} booster`}"`}
-            className="w-full rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-sm text-white outline-none transition focus:border-brand-400"
+            // 16px on phones: iPhone zooms the page into any smaller field on tap (review 10-19 app #17).
+            className="w-full rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-base text-white outline-none transition focus:border-brand-400 sm:text-sm"
           />
         </label>
         <label className="flex flex-col gap-1.5 text-sm font-medium text-zinc-300">
@@ -76,7 +77,7 @@ export default function PacksPage() {
             <PriceInput
               value={cost}
               onValue={setCost}
-              className="w-full rounded-lg border border-edge bg-black/40 py-2.5 pl-6 pr-3 text-sm text-white outline-none transition focus:border-brand-400"
+              className="w-full rounded-lg border border-edge bg-black/40 py-2.5 pl-6 pr-3 text-base text-white outline-none transition focus:border-brand-400 sm:text-sm"
             />
           </div>
         </label>
@@ -104,7 +105,20 @@ export default function PacksPage() {
       )}
 
       {data === null ? (
-        <p className="text-sm text-zinc-400">Couldn&apos;t load your packs. Refresh to try again.</p>
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm text-zinc-400">Couldn&apos;t load your packs.</p>
+          {/* A button, not "refresh the page" (review 10-19 app #21). */}
+          <button
+            type="button"
+            onClick={() => {
+              setData(undefined);
+              void fetchPacks().then(setData);
+            }}
+            className="min-h-11 shrink-0 rounded-full bg-brand-500 px-4 text-sm font-semibold text-white transition hover:bg-brand-400"
+          >
+            Retry
+          </button>
+        </div>
       ) : data.packs.length > 0 ? (
         <ul className="flex flex-col gap-2">
           {data.packs.map((p) => (

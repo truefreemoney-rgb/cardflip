@@ -746,14 +746,14 @@ export default function WishlistPage() {
                   value={listFilter}
                   onChange={(e) => setListFilter(e.target.value)}
                   placeholder="Filter your watchlist…"
-                  className="w-44 rounded-lg border border-edge bg-black/40 px-3 py-1.5 text-xs text-white outline-none transition placeholder:text-zinc-600 focus:border-brand-400"
+                  className="w-44 rounded-lg border border-edge bg-black/40 px-3 py-1.5 text-base sm:text-xs text-white outline-none transition placeholder:text-zinc-600 focus:border-brand-400"
                 />
                 <div className="relative">
                   <select
                     value={sort}
                     onChange={(e) => setSort(e.target.value as typeof sort)}
                     aria-label="Sort watchlist"
-                    className="appearance-none rounded-lg border border-edge bg-black/40 py-1.5 pl-3 pr-7 text-xs text-zinc-200 outline-none transition focus:border-brand-400"
+                    className="appearance-none rounded-lg border border-edge bg-black/40 py-1.5 pl-3 pr-7 text-base sm:text-xs text-zinc-200 outline-none transition focus:border-brand-400"
                   >
                     <option value="newest">Newest first</option>
                     <option value="name">Name A–Z</option>

@@ -2319,7 +2319,7 @@ export default function CollectionPage() {
             value={sort}
             onChange={(e) => setSort(e.target.value as SortKey)}
             aria-label="Sort cards"
-            className="h-10 w-[38%] shrink-0 rounded-full border border-edge bg-black/25 pl-3 pr-2 text-sm text-zinc-300 focus:border-brand-400 focus:outline-none sm:h-9 sm:w-auto"
+            className="h-10 w-[38%] shrink-0 rounded-full border border-edge bg-black/25 pl-3 pr-2 text-base sm:text-sm text-zinc-300 focus:border-brand-400 focus:outline-none sm:h-9 sm:w-auto"
           >
             {SORTS.filter((s) => !pricingOnly || s.value !== "listedAge").map((s) => (
               <option key={s.value} value={s.value}>
@@ -2477,7 +2477,7 @@ export default function CollectionPage() {
                       max={50}
                       value={offerPercent}
                       onChange={(e) => setOfferPercent(Number(e.target.value))}
-                      className="w-16 rounded-lg border border-edge bg-black/40 px-2 py-1.5 text-center text-sm text-white outline-none focus:border-brand-400"
+                      className="w-16 rounded-lg border border-edge bg-black/40 px-2 py-1.5 text-center text-base sm:text-sm text-white outline-none focus:border-brand-400"
                       aria-label="Discount percent"
                     />
                     % off the listed price
@@ -2527,7 +2527,7 @@ export default function CollectionPage() {
                   onChange={(e) => setOfferMessage(e.target.value)}
                   onBlur={() => { if (autoOfferOn) void saveAutoOfferSetting(true, autoOfferPercent); }}
                   placeholder="Thanks for watching — happy to make a deal."
-                  className="mt-1.5 w-full rounded-lg border border-edge bg-black/40 px-3 py-2 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-brand-400"
+                  className="mt-1.5 w-full rounded-lg border border-edge bg-black/40 px-3 py-2 text-base sm:text-sm text-white outline-none placeholder:text-zinc-600 focus:border-brand-400"
                 />
               </label>
 
@@ -2558,7 +2558,7 @@ export default function CollectionPage() {
                         disabled={autoOfferSaving}
                         onChange={(e) => setAutoOfferPercent(Number(e.target.value))}
                         onBlur={() => void saveAutoOfferSetting(true, autoOfferPercent)}
-                        className="w-16 rounded-lg border border-edge bg-black/40 px-2 py-1.5 text-center text-sm text-white outline-none focus:border-brand-400"
+                        className="w-16 rounded-lg border border-edge bg-black/40 px-2 py-1.5 text-center text-base sm:text-sm text-white outline-none focus:border-brand-400"
                         aria-label="Auto-offer discount percent"
                       />
                       % off
@@ -2750,7 +2750,7 @@ export default function CollectionPage() {
                         value={bulkForm.value}
                         onChange={(e) => setBulkForm({ kind: "condition", value: e.target.value })}
                         aria-label="Condition for the selected cards"
-                        className="h-9 rounded-full border border-edge bg-black/25 pl-3 pr-2 text-sm text-zinc-200 focus:border-brand-400 focus:outline-none"
+                        className="h-9 rounded-full border border-edge bg-black/25 pl-3 pr-2 text-base sm:text-sm text-zinc-200 focus:border-brand-400 focus:outline-none"
                       >
                         {CONDITIONS.map((c) => (
                           <option key={c} value={c}>
@@ -2773,7 +2773,7 @@ export default function CollectionPage() {
                           }}
                           placeholder="0.00"
                           aria-label="Asking price for the selected cards"
-                          className="h-9 w-28 rounded-lg border border-edge bg-black/40 px-3 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-brand-400"
+                          className="h-9 w-28 rounded-lg border border-edge bg-black/40 px-3 text-base sm:text-sm text-white outline-none placeholder:text-zinc-600 focus:border-brand-400"
                         />
                       </label>
                     )}

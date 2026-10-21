@@ -123,6 +123,8 @@ export default function InsightsPage() {
   // The result remembers which game it is for, so switching games shows the
   // skeleton until the new one lands without a synchronous reset.
   const [result, setResult] = useState<{ game: GameId; data: Insights | null } | null>(null);
+  // Retry after a failed load (review 10-19 app #21: the page said "Pull to refresh", which the web doesn't have).
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
     if (status !== "ready") return;
@@ -138,7 +140,7 @@ export default function InsightsPage() {
     return () => {
       live = false;
     };
-  }, [status, game]);
+  }, [status, game, tick]);
 
   if (status !== "ready" || !result || result.game !== game) return <PageSkeleton />;
   const data = result.data;
@@ -169,7 +171,19 @@ export default function InsightsPage() {
       </div>
 
       {failed || !data ? (
-        <p className="rounded-xl border border-edge bg-surface-1 px-4 py-3 text-sm text-zinc-400">Couldn&apos;t load insights. Pull to refresh or try again in a minute.</p>
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-edge bg-surface-1 px-4 py-3">
+          <p className="text-sm text-zinc-400">Couldn&apos;t load insights.</p>
+          <button
+            type="button"
+            onClick={() => {
+              setResult(null);
+              setTick((n) => n + 1);
+            }}
+            className="min-h-11 shrink-0 rounded-full bg-brand-500 px-4 text-sm font-semibold text-white transition hover:bg-brand-400"
+          >
+            Retry
+          </button>
+        </div>
       ) : empty ? (
         <div className={`${panel} px-4 py-8 text-center`}>
           <p className="text-sm font-medium text-zinc-200">Nothing to chart yet</p>

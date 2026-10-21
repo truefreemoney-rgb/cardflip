@@ -25,12 +25,14 @@ export default function PackPage({ params }: { params: Promise<{ id: string }> }
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  // Retry after a failed load (review 10-19 app #21: the page said "Refresh to try again").
+  const [tick, setTick] = useState(0);
   useEffect(() => {
     void fetchPack(id).then((r) => {
       setMissing(Boolean(r?.missing));
       setPack(r?.pack ?? null);
     });
-  }, [id]);
+  }, [id, tick]);
 
   function scanMore() {
     saveActivePackId(user?.id, id);
@@ -55,7 +57,19 @@ export default function PackPage({ params }: { params: Promise<{ id: string }> }
   if (!pack) {
     return (
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-3 px-4 py-6">
-        <p className="text-sm text-zinc-400">{missing ? "We can't find that pack." : "Couldn't load the pack. Refresh to try again."}</p>
+        <p className="text-sm text-zinc-400">{missing ? "We can't find that pack." : "Couldn't load the pack."}</p>
+        {!missing && (
+          <button
+            type="button"
+            onClick={() => {
+              setPack(undefined);
+              setTick((n) => n + 1);
+            }}
+            className="min-h-11 self-start rounded-full bg-brand-500 px-4 text-sm font-semibold text-white transition hover:bg-brand-400"
+          >
+            Retry
+          </button>
+        )}
         <Link href="/app/packs" className={`${TAP_LINK} text-sm font-medium text-brand-300 underline-offset-4 hover:underline`}>
           All Packs
         </Link>
