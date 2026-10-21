@@ -18,6 +18,7 @@ import { fetchCardById, fetchSets } from "@/lib/cards";
 import { displayCardNumber } from "@/lib/games";
 import { pickPrice, priceFlagOf, watchPriceOf } from "@/lib/listing";
 import { logPriceCheck } from "@/lib/client/priceChecksApi";
+import { etDay } from "@/lib/time";
 import { addToWishlist, fetchWishlist, removeFromWishlist, type WishlistItem } from "@/lib/client/wishlistApi";
 import type { SetInfo } from "@/lib/grading";
 import type { GameId, PokemonCard, ScanLanguage } from "@/lib/types";
@@ -429,7 +430,8 @@ function SetArt({ set, game }: { set: SetInfo; game: GameId }) {
  * catalogue carries no release dates (One Piece), the six whose top card is worth the most.
  */
 function pickSets(list: SetInfo[]): SetInfo[] {
-  const today = new Date().toISOString().slice(0, 10);
+  // Eastern day, not UTC: after 8pm ET the UTC date is already tomorrow and offered a set a day early.
+  const today = etDay();
   // A list served before covers existed (a cached copy) has no counts: every set qualifies then.
   const real = list.filter((s) => s.cards == null || s.cards >= 20);
   const dated = real.filter((s) => s.releaseDate && s.releaseDate <= today);

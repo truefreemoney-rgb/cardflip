@@ -155,7 +155,13 @@ export default function SalesReportPage() {
                 <li key={c.id} className="px-4 py-3">
                   <div className="flex items-baseline justify-between gap-3">
                     <p className="min-w-0 truncate text-sm text-zinc-100">
-                      {c.cardName} <span className="text-zinc-500">· {c.setName} #{c.cardNumber}</span>
+                      {c.cardName}
+                      {(c.setName || c.cardNumber) && (
+                        <span className="text-zinc-500">
+                          {" "}
+                          · {[c.setName, c.cardNumber && `#${c.cardNumber}`].filter(Boolean).join(" ")}
+                        </span>
+                      )}
                     </p>
                     <p className="shrink-0 font-display text-sm font-semibold tabular-nums">{signed(b.profit)}</p>
                   </div>

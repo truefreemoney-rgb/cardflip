@@ -98,7 +98,8 @@ export default function InventoryValueChart({ game, version = 0, status = "all",
     const ys = points.map((p) => p.value);
     const x0 = xs[0], x1 = xs[xs.length - 1];
     let lo = Math.min(...ys), hi = Math.max(...ys);
-    if (hi === lo) { lo *= 0.95; hi *= 1.05; }
+    // A flat line: give it room. An all-zero history would scale 0..0 and draw NaN, so it gets 0..1.
+    if (hi === lo) { if (hi === 0) hi = 1; else { lo *= 0.95; hi *= 1.05; } }
     const sx = (x: number) => PAD + ((x - x0) / Math.max(1, x1 - x0)) * (W - PAD * 2);
     const sy = (y: number) => PAD + (1 - (y - lo) / (hi - lo)) * (H - PAD * 2);
     const line = xs.map((x, i) => `${i === 0 ? "M" : "L"}${sx(x).toFixed(1)},${sy(ys[i]).toFixed(1)}`).join(" ");

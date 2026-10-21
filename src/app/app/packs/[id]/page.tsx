@@ -23,6 +23,7 @@ export default function PackPage({ params }: { params: Promise<{ id: string }> }
   const [pack, setPack] = useState<PackDetail | null | undefined>(undefined);
   const [missing, setMissing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     void fetchPack(id).then((r) => {
@@ -37,7 +38,11 @@ export default function PackPage({ params }: { params: Promise<{ id: string }> }
   }
 
   async function remove() {
+    // One delete at a time: a second tap while the first is out would send a second request.
+    if (deleting) return;
+    setDeleting(true);
     if (!(await deletePackRequest(id))) {
+      setDeleting(false);
       toast("Couldn't delete the pack. Try again.", "err");
       return;
     }
@@ -125,7 +130,7 @@ export default function PackPage({ params }: { params: Promise<{ id: string }> }
         {confirmDelete ? (
           <div className="flex items-center gap-3 text-xs">
             <span className="text-zinc-400">Delete this pack? Its cards stay in Inventory.</span>
-            <button type="button" onClick={() => void remove()} className={`${TAP_LINK} font-semibold text-red-400 hover:text-red-300`}>
+            <button type="button" disabled={deleting} onClick={() => void remove()} className={`${TAP_LINK} font-semibold text-red-400 hover:text-red-300`}>
               Delete
             </button>
             <button type="button" onClick={() => setConfirmDelete(false)} className={`${TAP_LINK} text-zinc-400 hover:text-white`}>

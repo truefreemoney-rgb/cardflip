@@ -54,7 +54,7 @@ function AlertControl({ item, onSaved }: { item: WishlistItem; onSaved: (item: W
     const saved = await setWishlistAlert(item.id, target);
     setBusy(false);
     if (!saved) {
-      toast("Couldn't save the alert — try again");
+      toast("Couldn't save the alert — try again", "err");
       return;
     }
     onSaved(saved);
@@ -509,14 +509,15 @@ export default function WishlistPage() {
         )
       : inGame;
     const sorted = [...filtered];
+    // Sorts by the price the tile shows (today's where the repricing pass answered, saved elsewhere);
+    // a row the price guard flags sorts as unpriced.
+    const shown = (i: WishlistItem) => (nowFlags[i.id] ? null : (nowPrices[i.id] ?? i.price));
     if (sort === "name") sorted.sort((a, b) => a.cardName.localeCompare(b.cardName));
-    // A row the price guard flags sorts as unpriced.
-    else if (sort === "price-high") sorted.sort((a, b) => (nowFlags[b.id] ? -1 : (b.price ?? -1)) - (nowFlags[a.id] ? -1 : (a.price ?? -1)));
-    else if (sort === "price-low")
-      sorted.sort((a, b) => (nowFlags[a.id] ? Infinity : (a.price ?? Infinity)) - (nowFlags[b.id] ? Infinity : (b.price ?? Infinity)));
+    else if (sort === "price-high") sorted.sort((a, b) => (shown(b) ?? -1) - (shown(a) ?? -1));
+    else if (sort === "price-low") sorted.sort((a, b) => (shown(a) ?? Infinity) - (shown(b) ?? Infinity));
     // "newest" keeps the server order (added desc, new saves prepended).
     return sorted;
-  }, [items, sort, listFilter, game, nowFlags]);
+  }, [items, sort, listFilter, game, nowFlags, nowPrices]);
 
   if (!user) return <PageSkeleton />;
 
