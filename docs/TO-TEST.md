@@ -2,6 +2,10 @@
 
 **A.4 triage of every open check dated 10-18 and earlier: docs/TO-TEST-TRIAGE-2026-10-21.md** (63 stale, curl + select checks done 10-21 ~4:30am ET, the rest sorted into pane / phone / wait). Old lines below are left as written; that file is the status.
 
+## 10-21 3:04pm ET: bot watch LIVE on main (ef9490fe, Vercel build skipped) + Wave Broadband hand rule (firewall v31)
+- DONE: dry dispatch run 39658385139 green (token works, flagged Wave AS11404 both JA4s 500+ IPs 100% card pages, saw them already denied). Hand rule: 3:00pm bucket Wave allow=1 deny=85 (was ~145 allowed per 5 min).
+- OPEN: first scheduled runs (:25 each hour) green in Actions; the first REAL block's mail arrives (subject "Bot Watch"); 10-22 Vercel ISR writes back under ~100K/day; no real-user complaints from Wave customers (Pacific NW).
+
 ## 10-21 9:35-10:05am ET (real clock): review 10-19 J polish, 20 commits ea7af0ad..fb017186, COMMIT ONLY
 - Each batch: tsc + eslint clean; npm test full suite exit 0 (10:00am; two earlier runs died with exit 5 / 255 at a test's process exit, every test passes alone = the Windows/libsql exit flake); test:auth +1 (?next= refuses /login, /signup, /api), test:countrygate +5 (Google/X routes open abroad), test:listcache +4 (cold bursts walk once), test:xauth, test:webhook green.
 - VISIBLE, shots SENT 10:03am (his yes pending): set strip "7-DAY CHANGE / 30-DAY CHANGE" (polish-1021-set-strip-before/after.jpg), /scan "Open CardFlip" (polish-1021-scan-open-after.jpg). Visible but edge-state, no shot: failure toasts red (Inventory bulk/category/sold, reprice eBay refused, resume lookups, Watchlist alert); Sales Report sealed rows drop "· #"; card page of a converted figure says "As of today." without "Recorded daily"; Top 100/movers set names tidied; admin Sign Out failure text; admin Send Now / Post now use the in-app dialog (same one as Users > Delete); "Log in to send a report."; eBay confirm "Publish it" greyed until the local price shows.
