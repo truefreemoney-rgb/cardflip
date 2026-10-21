@@ -217,17 +217,9 @@ async function fetchCurrentPrices(items: WishlistItem[]): Promise<Repriced> {
   await Promise.all(
     targets.map(async (item) => {
       try {
-        // MTG rows carry a game; older rows are Pokémon (the only game then).
-        // For MTG the "printed number" is the collector number, same field.
-        const cards = await searchCards(item.cardName, item.cardNumber || null, "en", undefined, item.game ?? "pokemon");
-        const match =
-          (item.cardId ? cards.find((c) => c.id === item.cardId) : null) ??
-          cards.find(
-            (c) =>
-              c.name === item.cardName &&
-              (!item.cardNumber ||
-                normalizeNumber(c.number) === normalizeNumber(item.cardNumber)),
-          ) ?? cards[0];
+        // The row's catalog id first (one exact read, same price step as the card page), the name walk only
+        // for rows saved without one (review 10-19 app #11: 15 name searches per page load).
+        const match = await resolveWishlistCard(item);
         if (!match) return;
         resolved[item.id] = match;
         if (!item.cardId && match.id) cardIds[item.id] = match.id;
