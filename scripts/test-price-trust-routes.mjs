@@ -202,6 +202,21 @@ console.log("set lists follow the card page's chain (10-21: Black Lotus Unlimite
   const pby = Object.fromEntries(plist.map((c) => [c.key, c]));
   check("stopped + fresh backup: the backup, not the old price", [pby["sp-backup"]?.price, pby["sp-backup"]?.stale], [55, undefined]);
   check("stopped alone: the last recorded price, marked stale (as before)", [pby["sp-last"]?.price, pby["sp-last"]?.stale], [30, true]);
+
+  // 10-21: an eBay-checked price the series jumped to (the nightly writer puts it there) prints on the page, the list and in
+  // search; it read as a spike (Dark Charizard 1st base5-4-1st: $122 -> checked $700, page blank, app "looks off" when slow).
+  const { clearCheckedMemo } = await import(at("lib/server/checkedPrices.ts"));
+  await pk.run("sp-chk", "Checked Jumper", "3");
+  await recordSeries(recordPoint, addDays, TODAY, "sp-chk", "pokemon", "holofoil", [...liquidPrices(121.94), 700, 700, 700]);
+  await db.prepare("INSERT INTO price_checked (game, card_id, variant, usd, n, day, note) VALUES ('pokemon', 'sp-chk', 'holofoil', 700, 16, ?, 'test')").run(TODAY);
+  clearCheckedMemo();
+  clearTrustMemo();
+  const chkPage = await loadCardPage(await loadCardRecord("pokemon", "sp-chk"), TODAY);
+  check("checked jump: the page prints the checked price with its note", [chkPage.headline?.price, chkPage.checked?.n], [700, 16]);
+  const chkList = Object.fromEntries((await loadSetCards("pokemon", { key: "tsp", name: "Test Stopped Set" }, TODAY)).map((c) => [c.key, c]));
+  check("... the set list prices it, unflagged", [chkList["sp-chk"]?.price, chkList["sp-chk"]?.flagged], [700, false]);
+  const chkSearch = (await get(searchCard, "/api/search-card?id=sp-chk")).body.cards[0].prices.find((p) => p.variant === "holofoil" && p.source === "tcgplayer");
+  check("... search (our own line, upstream silent) shows it, no flag", [chkSearch?.market, chkSearch?.untrusted], [700, undefined]);
 }
 
 console.log("/api/set-cards");

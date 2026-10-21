@@ -5,7 +5,7 @@ import { gamePublic, type GatedGame } from "@/lib/server/settings";
 import { MTG_REFEREE_SQL, PRICE_TRUST, REF_ALT_SOURCE, lastPriced } from "@/lib/server/priceTrust";
 import { backupRows, judgeFull, judgeSeries, loadTrustData, readEbayAsks, readListingLows, type TrustData, type TrustSeries } from "@/lib/server/priceTrustSite";
 import { largeImage } from "@/lib/server/mtgCards";
-import { activeChecks, checkKey, CHECKED_MAX_DAYS } from "@/lib/server/checkedPrices";
+import { activeChecks, checkBinds, checkKey, CHECKED_MAX_DAYS, type CheckedPrice } from "@/lib/server/checkedPrices";
 import { addDays, dayIndex, decodePrices, toPoints, todayUtc } from "@/lib/priceSeries";
 import { capBreakDay, cleanSeriesPoints, fromCapBreak } from "@/lib/priceOutliers";
 import {
@@ -395,15 +395,19 @@ export async function loadCardPage(rec: CardRecord, today = todayUtc()): Promise
   let rows: SeriesRow[];
   let lows: Record<string, number> | undefined;
   let asks: TrustData["asks"];
+  let checks: Map<string, CheckedPrice>;
   try {
-    const [seriesRows, lowsById, asksById] = await Promise.all([
+    // Checks read fresh: a page is cached for 48 h, so it must not be built from a memo older than the check (10-18).
+    const [seriesRows, lowsById, asksById, checksNow] = await Promise.all([
       db.prepare("SELECT variant, source, currency, start_day, prices, updated_day FROM price_series WHERE card_id = ?").all(facts.id) as unknown as Promise<SeriesRow[]>,
       readListingLows(facts.game, [facts.id], today),
       readEbayAsks(facts.game, [facts.id], today),
+      activeChecks({ fresh: true }),
     ]);
     rows = seriesRows;
     lows = lowsById.get(facts.id);
     asks = asksById.get(facts.id);
+    checks = checksNow;
   } catch (err) {
     console.warn(`card pages: could not read the price series of ${facts.id}`, err);
     return { facts, decision: indexDecision([]), ...NO_PRICE };
@@ -442,7 +446,15 @@ export async function loadCardPage(rec: CardRecord, today = todayUtc()): Promise
       series.push({ variant: r.variant, startDay: r.start_day, prices });
     }
   }
+  // A binding eBay sold check vouches for its price in the guard (10-21, priceTrustSite.judgeFull): Dark Charizard 1st's
+  // checked $700 read as a spike and the page printed no price.
+  let checkedUsd: Record<string, number> | undefined;
+  for (const s of series) {
+    const c = checks.get(checkKey(facts.game, facts.id, s.variant));
+    if (c && checkBinds(c, today)) checkedUsd = { ...checkedUsd, [s.variant]: c.usd };
+  }
   const data: TrustData = { game: facts.game, series, cmEur, cmEurAlt, eur: rec.eur, released: rec.released, lows, asks };
+  if (checkedUsd) data.checked = checkedUsd;
 
   let inputs: SeriesInput[];
   try {
@@ -508,8 +520,7 @@ export async function loadCardPage(rec: CardRecord, today = todayUtc()): Promise
       break;
     }
   }
-  // Read fresh: a page is cached for 48 h, so it must not be built from a memo older than the check (10-18).
-  const check = (await activeChecks({ fresh: true })).get(checkKey(facts.game, facts.id, headline.variant));
+  const check = checks.get(checkKey(facts.game, facts.id, headline.variant));
   const checked = check && Math.abs(headline.price - check.usd) < 0.005 ? { n: check.n, day: check.day } : null;
   // A checked price has no change words or range, and its chart starts where the fix does: the history before is
   // TCGplayer's number, the one found wrong (10-18, Rare Candy: "Down 33.6% over 90 days" and a chart drop from

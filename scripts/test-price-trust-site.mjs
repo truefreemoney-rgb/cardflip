@@ -81,6 +81,15 @@ check("... and an agreeing TCGdex reading never vouches: the $1,013 Rayquaza spi
   check("listing cap: a higher market never shows a lower price", rises, true);
 }
 check("Rayquaza with no second source: the spike never came back", verdict(data("pokemon", [ser("holofoil", RAYQUAZA)]))?.[1]?.startsWith("spike"), true);
+{
+  // 10-21: a binding eBay sold check vouches for its price (Dark Charizard 1st base5-4-1st: series $122 -> checked $700, page blank).
+  const jumped = ser("1stEditionHolofoil", [...liquid(121.94, 60), 700, 700, 700]);
+  const d = (checked) => data("pokemon", [jumped], checked ? { checked } : {});
+  check("a series that jumps to its eBay-checked price is not flagged", verdict(d({ "1stEditionHolofoil": 700 }), { variant: "1stEditionHolofoil", exact: true }), null);
+  check("... without the check the same jump is a spike", verdict(d(null), { variant: "1stEditionHolofoil", exact: true })?.[1]?.startsWith("spike"), true);
+  check("... a check at another price vouches for nothing", verdict(d({ "1stEditionHolofoil": 450 }), { variant: "1stEditionHolofoil", exact: true })?.[1]?.startsWith("spike"), true);
+  check("... nor the OLD side of a move", verdict(d({ "1stEditionHolofoil": 700 }), { variant: "1stEditionHolofoil", exact: true, old: { back: 0, value: 700 } }) !== null, true);
+}
 // 10-02: flat is a NOTE, not a hide. Deoxys shows $500 with "Market hasn't updated this in 3 months"; judgeSeries (the hide) says fine.
 check("Deoxys: a round $500 for 87 days is stale, not hidden", verdict(data("pokemon", [ser("holofoil", DEOXYS)])), null);
 check("... judgeStale carries the days", judgeStale(data("pokemon", [ser("holofoil", DEOXYS)])), { days: 87 });

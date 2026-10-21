@@ -7,7 +7,7 @@ import { variantRank } from "@/lib/server/priceHistory";
 import type { PriceFlag, PriceStale } from "@/lib/priceFlag";
 import { BACKUP_ORDER, backupRank, backupSourceLabel, recentMedian } from "@/lib/priceChain";
 import { EBAY_REFEREE, refereeVerdict, type AskReading } from "@/lib/ebayReferee";
-import { activeChecks, checkFor } from "@/lib/server/checkedPrices";
+import { activeChecks, checkBinds, checkFor, checkKey, type CheckedPrice } from "@/lib/server/checkedPrices";
 import type { CardPrice, GameId, PokemonCard, PriceSource } from "@/lib/types";
 
 /**
@@ -73,6 +73,8 @@ export interface TrustData {
   lows?: Record<string, number>;
   /** The nightly eBay referee per variant (ebay_asks): the ask reading when fresh, and an admin's binding call. */
   asks?: Record<string, EbayAsksRow>;
+  /** A binding hand eBay sold check per variant (price_checked, checkedPrices.ts): the checked USD price. */
+  checked?: Record<string, number>;
 }
 
 /** One ebay_asks row as the guard reads it. `reading` is null when older than EBAY_REFEREE.maxAgeDays (a manual call has no age limit). */
@@ -174,6 +176,11 @@ export function judgeFull(data: TrustData, opts: JudgeOpts = {}): { flag: PriceF
     const others = data.series.filter((o) => o !== def && o !== s).map(lastIn);
     if (others.every((v) => v == null || v <= to)) anchorFor = lastIn(def);
   }
+  // A binding eBay sold check vouches for its own price, as a 'keep' does (10-21): the nightly writer puts the checked number
+  // into the series and the jump it makes there read as a spike (Dark Charizard 1st base5-4-1st: check $700, 16 sold, series
+  // $122 -> $700, page blank "looks off").
+  const checkedUsd = data.checked?.[variant];
+  if (!opts.old && checkedUsd != null && Math.abs(to - checkedUsd) < 0.005) return NONE;
   const verdict = priceTrust({ to, prices, siblings, refEur, refAltEur, vintage: isVintage(data.game === "pokemon" ? variant : "", data.released), old: opts.old != null, listingLowUsd, listingReferee: data.game === "mtg", ebay: ebayCall(data.asks?.[variant], to), anchorFor });
   if (verdict.ok) return NONE;
   // Stale (10-02): the number stands, with a note; nothing is hidden or left out.
@@ -367,6 +374,10 @@ async function readChunk(game: GameId, chunk: string[], day: string): Promise<Ma
     const d = built.get(id);
     if (d) d.asks = a;
   }
+  for (const c of (await activeChecks().catch(() => new Map<string, CheckedPrice>())).values()) {
+    const d = c.game === game ? built.get(c.cardId) : undefined;
+    if (d && checkBinds(c, day)) d.checked = { ...d.checked, [c.variant]: c.usd };
+  }
   const at = Date.now();
   for (const [id, d] of built) {
     if (memo.size >= MEMO_CAP) memo.clear();
@@ -482,7 +493,16 @@ export async function withPriceFlags(cards: PokemonCard[], day = todayUtc()): Pr
   }
   const [{ flags, stale }, checks] = await Promise.all([siteTrustFull(queries, day), activeChecks()]);
   // A hand eBay sold check (checkedPrices.ts) fixes a wrong TCGplayer number outright: the row shows the checked price, no flag.
-  const fixOf = (c: PokemonCard, p: CardPrice) => (checks.size > 0 ? checkFor(checks, c.game ?? "pokemon", c.id, p, day) : undefined);
+  // A row already AT the check is the same check (10-21): the nightly writer puts the checked price into the series, and the
+  // jump it makes read as a spike (Dark Charizard 1st base5-4-1st: check $700, 16 sold; series $122 -> $700; app "looks off").
+  const fixOf = (c: PokemonCard, p: CardPrice) => {
+    if (checks.size === 0) return undefined;
+    const game = c.game ?? "pokemon";
+    const fix = checkFor(checks, game, c.id, p, day);
+    if (fix || !isTrustedRow(p)) return fix;
+    const held = checks.get(checkKey(game, c.id, p.variant));
+    return held && checkBinds(held, day) && Math.abs((p.market as number) - held.usd) < 0.005 ? held : undefined;
+  };
   if (flags.size === 0 && stale.size === 0 && !cards.some((c) => c.prices.some((p) => fixOf(c, p)))) return cards;
   const marked = (c: PokemonCard, p: CardPrice) => isTrustedRow(p) && (flags.has(trustKey(c.id, p.variant)) || stale.has(trustKey(c.id, p.variant)) || !!fixOf(c, p));
   // A card whose every TCGplayer row is flagged (and none hand-fixed) gets the chain's next reading as a row of its own
