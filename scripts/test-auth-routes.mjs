@@ -81,6 +81,8 @@ check("signup: duplicate email → 409", (await signup.POST(post({ name: "B", em
 // --- one account per IP / device, no throwaway inboxes (Chris 09-29) ------------
 check("signup: mailinator refused", (await signup.POST(post({ name: "P", email: "probex@mailinator.com", password: "12345678" }))).status, 400);
 check("signup: throwaway subdomain refused", (await signup.POST(post({ name: "P", email: "p@x.yopmail.com", password: "12345678" }))).status, 400);
+check("signup: our own domain refused", (await signup.POST(post({ name: "P", email: "support@cardflip.io", password: "12345678" }))).status, 400);
+check("signup: our own subdomain refused", (await signup.POST(post({ name: "P", email: "a@mail.CardFlip.io", password: "12345678" }))).status, 400);
 check("signup: gmail allowed", (await signup.POST(post({ name: "G", email: "someone@gmail.com", password: "12345678" }))).status, 201);
 const firstOnIp = await signup.POST(post({ name: "One", email: "one@example.com", password: "12345678" }, "203.0.113.7"));
 check("signup: first on an IP → 201", firstOnIp.status, 201);

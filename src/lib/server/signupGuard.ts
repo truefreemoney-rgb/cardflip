@@ -54,11 +54,20 @@ export function emailDomainTypo(email: string): string | null {
   return fixed ? `${email.slice(0, at)}@${fixed}` : null;
 }
 
+/**
+ * Our own domain is never a customer's address (Chris 10-20, after a bot signed up as support@, admin@ and
+ * hello@cardflip.io). Refused wherever a throwaway inbox is: signup, Google, X, Change Email, waitlist. Admin
+ * "Add account" does not ask, so a staff account can still be made by hand.
+ */
+export const OWN_DOMAINS = new Set(["cardflip.io"]);
+
+/** True for a throwaway inbox domain or our own domain, including their subdomains. */
 export function isDisposableEmail(email: string): boolean {
   const domain = email.trim().toLowerCase().split("@").pop() ?? "";
   const parts = domain.split(".");
   for (let i = 0; i < parts.length - 1; i++) {
-    if (DISPOSABLE_DOMAINS.has(parts.slice(i).join("."))) return true;
+    const d = parts.slice(i).join(".");
+    if (DISPOSABLE_DOMAINS.has(d) || OWN_DOMAINS.has(d)) return true;
   }
   return false;
 }
