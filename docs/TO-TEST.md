@@ -1,6 +1,6 @@
 # To test later
 
-## 10-20 ~10:05pm ET: TASKS B00 (d) the camera holds the price + big-pull moment while the picture tiebreak is out, COMMIT ONLY d3a7c4fb, VISIBLE, shots docs/shots/printing-check-1-during.jpg + printing-check-2-after.jpg WAITING for Chris's yes
+## 10-20 ~10:05pm ET: TASKS B00 (d) the camera holds the price + big-pull moment while the picture tiebreak is out, COMMIT ONLY d3a7c4fb, VISIBLE, shots docs/shots/printing-check-1-during.jpg + printing-check-2-after.jpg APPROVED by Chris 10-20 ~10:25pm ("looks fine"), not pushed
 - Tested locally (pane, phone width, faked "Charizard, no number" read = 4-way tie, faked tiebreak 8-10 s): keep path PRICING... 0.5-9 s, then $144 once; swap path PRICING... until the answer, then Pokémon GO #010 counted up once to $3.84; tally "1 card" and "Verify 1 Scan" with no figure while pending, $3.84 after; the swap's PATCH stored scan_market 3.84 (also proves bec236b7 end to end). tsc + eslint clean.
 - NOT seen in the pane (camera blocked = no guide): the stamp stays "Found!" while pending and a big/grail card's "Nice pull!"/"Big one!" plays once when the check settles.
 - After push, phone: scan a card with no number showing (thumb over it) that has several printings -> PRICING... for a few seconds, then ONE price, no big figure first; a pricey card still gets "Nice pull!" after the check.
@@ -14,9 +14,6 @@
 - After push, prod read only: a new scan row whose card has normal + reverse rows (most SV commons/uncommons) and no printing pick keeps the normal-based price after its chart point lands (cards.price stays at the first PATCH, not a 3-10x jump). Her 8:36pm Umbreon row (cards id for created 8:36:26 PM) is the known bad row from before the fix.
 
 
-## 10-20 ~8:18pm ET: printing switch re-prices the ledger row (Angel #25 kept the D23 promo's $73.16), PUSHED 2df03d3f (live 8:22pm), not visible
-- Tested locally (faked read of Angel #25, /api/ebay/comps delayed 6 s): camera "Not this card?" and the editor's list, D23 (or #191) then back to #25 inside the delay -> PATCH price 1.75 at once, the #25 lookup restarts when the old one lands, last PATCH 1.75. Before: last PATCH stayed on the other printing's price. tsc, eslint, test:pricing, test:liveprices green.
-- After push, phone: scan a cheap card, tap "Not this card?", pick an expensive printing, go straight back to the scanned one, Verify -> Inventory shows the cheap card's price, not the expensive one.
 
 ## 10-20 ~4:45pm ET: wrong-game scan keeps the photo + "Switch to <game>" (Chris 10-20), COMMIT ONLY, VISIBLE, shot docs/shots/wrong-game-chip-phone.jpg (the "camera blocked" text and the top-left box in it are the browser pane's / dev-only, not the app)
 - Tested locally (faked AI read, dev photo input): Pokémon switch + Lorcana card -> chip "That looks like a Lorcana card" + amber "Switch to Lorcana"; tap -> the same photo is read as Lorcana, MATCH FOUND Angel - Siren Singer, the game switch flips to Lorcana, ledger price $1.75. The card view (no match) shows the same button first and "Scan again" second.

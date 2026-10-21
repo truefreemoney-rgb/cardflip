@@ -1450,31 +1450,37 @@ function useCountUp(value: number | null, ms = 800): number | null {
 
 const TIER_STYLE: Record<
   RevealTier,
-  { border: string; label: string; labelText: string; price: string }
+  { border: string; label: string; labelText: string; price: string; glow: string }
 > = {
+  // Money is green, like the tally and the Verify button (Chris 10-20); a big one keeps its foil.
+  // glow = the flare when the count-up lands (.reveal-price-pop), same ladder as the strike.
   plain: {
     border: "border-emerald-400/30",
     label: "text-emerald-400",
     labelText: "MATCH FOUND",
-    price: "text-white",
+    price: "text-emerald-300 [text-shadow:0_0_14px_rgba(52,211,153,0.35)]",
+    glow: "#34d399",
   },
   nice: {
     border: "border-emerald-400/40",
     label: "text-emerald-400",
     labelText: "MATCH FOUND",
-    price: "text-white",
+    price: "text-emerald-300 [text-shadow:0_0_14px_rgba(52,211,153,0.35)]",
+    glow: "#34d399",
   },
   big: {
     border: "border-holo-gold/50",
     label: "text-holo-gold",
     labelText: "NICE PULL",
     price: "holo-text",
+    glow: "var(--color-holo-gold)",
   },
   grail: {
     border: "border-holo-pink/60",
     label: "holo-text",
     labelText: "BIG ONE",
     price: "holo-text",
+    glow: "var(--color-holo-pink)",
   },
 };
 
@@ -1516,6 +1522,8 @@ function RevealChip({ item, onOpen, onRemove, onSwap, onEdit, onExpand, verify }
   // A doubtful match is not a "match found" (Chris's phone 10-01: green MATCH FOUND at 40% sure on the wrong card).
   const style = item.matchDoubt ? { ...TIER_STYLE.plain, border: "border-amber-400/40", label: "text-amber-300", labelText: "CHECK MATCH" } : TIER_STYLE[tier];
   const counted = useCountUp(market);
+  // The count-up reached the figure: it lands with one kick + flare (Chris 10-20: "make scanning cards addictive").
+  const landed = counted != null && market != null && counted >= market;
   // The second row's pill: what this copy is (condition, printing, language
   // when not English), with a dot in the condition's colour. Tapping it opens
   // the card, where all three change (10-15, after TCGplayer's "NM, EN,
@@ -1530,9 +1538,11 @@ function RevealChip({ item, onOpen, onRemove, onSwap, onEdit, onExpand, verify }
     <div
       className={`animate-fade-up flex w-full flex-col gap-2 rounded-2xl border bg-black/80 px-3 py-2.5 backdrop-blur-md ${style.border}`}
     >
-      {/* Row 1: art, label + name + set, price. The set line may wrap to two
+      {/* Row 1: art, then label + name + set + price. The set line may wrap to two
           lines: a truncated "Lost Origin Trainer Gallery · #…" was the first
-          thing Chris flagged (10-15), and the number is what a seller checks. */}
+          thing Chris flagged (10-15), and the number is what a seller checks.
+          The price sits on its own line under the set (Chris 10-20: up in the
+          top-right corner it looked "jacked in the corner"). */}
       <button type="button" onClick={onExpand} disabled={!onExpand} aria-label={`Open ${card.name} big`} className="flex w-full items-start gap-3 text-left">
         <div className="reveal-art relative h-16 w-[46px] shrink-0 overflow-hidden rounded-md shadow-lg shadow-black/60 ring-1 ring-white/15">
           {card.imageSmall ? (
@@ -1559,22 +1569,24 @@ function RevealChip({ item, onOpen, onRemove, onSwap, onEdit, onExpand, verify }
             {card.rarity ? ` · ${card.rarity}` : ""}
             {card.number ? ` · #${card.number}` : ""}
           </p>
-        </div>
-        <div className="reveal-price shrink-0 text-right">
-          {counted != null ? (
-            <>
-              <p className={`font-display text-xl font-semibold leading-none tabular-nums ${style.price}`}>
-                {counted >= 10
-                  ? formatMoney(Math.round(counted), "USD").replace(/.00$/, "")
-                  : formatMoney(counted, "USD")}
+          {/* Fixed height: "pricing…" and the price take the same room, so the chip doesn't jump when it lands.
+              Always to the cent (Chris 10-20: "$28 should be $28.00"). */}
+          <div className="reveal-price mt-1 flex h-7 items-baseline gap-2">
+            {counted != null ? (
+              // The pop scales the figure AND its label from the left, so the grown number never runs into the label.
+              <div
+                className={`flex origin-left items-baseline gap-2 ${landed ? "reveal-price-pop" : ""}`}
+                style={{ "--pop-glow": style.glow } as React.CSSProperties}
+              >
+                <p className={`font-display text-2xl font-bold leading-7 tabular-nums ${style.price}`}>{formatMoney(counted, "USD")}</p>
+                <p className="text-[10px] uppercase tracking-[0.15em] text-zinc-500">market price</p>
+              </div>
+            ) : (
+              <p className={`text-[10px] uppercase leading-7 tracking-[0.15em] ${flagged ? "text-amber-300" : "text-zinc-500"} ${settled ? "" : "animate-pulse"}`}>
+                {flagged ? "price looks off" : settled ? "no price yet" : "pricing…"}
               </p>
-              <p className="mt-1 text-[10px] uppercase tracking-[0.15em] text-zinc-500">market price</p>
-            </>
-          ) : (
-            <p className={`text-[10px] uppercase tracking-[0.15em] ${flagged ? "text-amber-300" : "text-zinc-500"} ${settled ? "" : "animate-pulse"}`}>
-              {flagged ? "price looks off" : settled ? "no price yet" : "pricing…"}
-            </p>
-          )}
+            )}
+          </div>
         </div>
       </button>
       {/* Row 2: this copy's details on the left, Clear on the right. Clear
