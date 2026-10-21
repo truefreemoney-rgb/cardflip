@@ -1,6 +1,6 @@
 # To test later
 
-## 10-20 ~10:25pm ET: Mark as Sold waits for Verify Match (Chris: "this shouldnt be able to mark as sold if unverified"), COMMIT ONLY, VISIBLE, shots docs/shots/verify-first-desktop.png + verify-first-phone.jpg
+## 10-20 ~10:25pm ET: Mark as Sold waits for Verify Match (Chris: "this shouldnt be able to mark as sold if unverified"), COMMIT ONLY, VISIBLE, shots docs/shots/verify-first-desktop.png + verify-first-phone.jpg APPROVED by Chris 10-20 ~10:30pm
 - Tested locally (dev, list view): 20 unverified rows = Verify Match + dashed "Verify first" (wide) / nothing (375px) + X; the verified Charizard = Build Listing + Mark as Sold; an unverified card's popup = "Yes, This Is My Card" + Delete, no Mark as Sold; PATCH {status:"sold"} on an unverified row = 409 "Verify the match first, then mark it sold.", row stays ready. tsc + eslint clean.
 - After push, phone + desktop: Inventory list view, a card still showing Verify Match has no Mark as Sold (row or popup); verify it ("Yes, This Is My Card") -> Mark as Sold appears; a sealed product still shows Mark as Sold without verifying.
 
