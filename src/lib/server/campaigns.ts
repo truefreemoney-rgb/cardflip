@@ -337,6 +337,12 @@ async function claimDay(userId: string, now: number): Promise<string | null> {
   return Number(r.changes ?? 0) > 0 ? key : null;
 }
 
+/** True only for the first caller with this key: a mail that must go once even when two webhook deliveries race. */
+export async function claimEmailOnce(key: string, now = Date.now()): Promise<boolean> {
+  const r = await db.prepare("INSERT OR IGNORE INTO email_claims (key, claimed_at) VALUES (?, ?)").run(key, now);
+  return Number(r.changes ?? 0) > 0;
+}
+
 interface SendRow {
   user_id: string;
   campaign: string;

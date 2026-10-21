@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { markNoSeedOwed } from "@/lib/server/scanCredits";
 import { creditCheckoutInvoice, creditPaidInvoice, handleChargeRefunded, handleDisputeCreated } from "@/lib/server/billingCredits";
 import { isMailConfigured, sendWelcomeEmail } from "@/lib/server/mail";
+import { claimEmailOnce } from "@/lib/server/campaigns";
 import { rewardReferrerIfDue } from "@/lib/server/referrals";
 import { fetchSubscription, verifyWebhook, planForPrice, cancelAtFrom } from "@/lib/server/stripe";
 import { PRICING } from "@/lib/pricing";
@@ -116,7 +117,9 @@ export async function POST(req: NextRequest) {
           } catch (err) {
             console.error(`stripe: referral reward for ${user.email} failed:`, err);
           }
-          if (isMailConfigured()) {
+          // Two deliveries of this event at once both read "not subscribed" above: the claim lets one mail go
+          // (review 10-19 marketing #22).
+          if (isMailConfigured() && (await claimEmailOnce(`welcome:${subscriptionId}`))) {
             try {
               await sendWelcomeEmail(user.email, sub.plan);
             } catch (err) {

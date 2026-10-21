@@ -117,6 +117,9 @@ async function checkoutSession(params: Record<string, string>, currency: string 
   try {
     return await stripeRequest<{ url: string }>("checkout/sessions", { ...params, currency });
   } catch (err) {
+    // Only a refusal from Stripe is worth a USD try. A timeout or a dead connection would just wait out
+    // another 10 s on the same road (review 10-19 marketing #21).
+    if (err instanceof Error && /timed out|unreachable/.test(err.message)) throw err;
     console.error(`stripe: checkout in ${currency} refused, falling back to USD:`, err);
     return stripeRequest<{ url: string }>("checkout/sessions", params);
   }
