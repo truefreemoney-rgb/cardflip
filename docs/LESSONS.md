@@ -4,6 +4,12 @@ Chris (10-14): every support ticket and every social comment is a learning
 experience while the site is new and not fully tested. One entry each: what
 they said, what it taught, what changed, what is still open. Newest first.
 
+## 10-21 ~1:40pm ET · "check the ISR writes, looks a little high today" / "you should be catching these issues sooner when its obviously a bot crawling" (Chris, Vercel usage screenshots: 150.8K write units, $0.42 by 1:15pm ET)
+- What: one scraper via Wave Broadband AS11404 walked ~19K deep card pages 4am-1:30pm ET (~2.2K/hour, still going), from thousands of 154.199/154.211/154.222/45.204 proxy IPs at 1-19 requests each, fake Mac Edg/148 + Chrome/149 names, only two JA4 fingerprints. Every other network was under 2K for the day.
+- Cause of the late catch: nobody watched allowed traffic by network between the 10-19/10-20 blocks; Chris saw it on the bill first.
+- Changed: firewall rule "Scrapers: Wave Broadband proxy fingerprints (deny)" = AS11404 AND those two JA4s (config v31), so real Wave home customers still get in; new scripts/_fw-block-ja4.mjs for ASN+fingerprint blocks. Habit: the allowed-by-ASN query runs at every comment check and obvious bots get blocked the same session (memory cardflip-crawler-policy).
+- Open: an automatic alert (daily job, any one network over ~1K card pages/hour -> mail support@) after the 10pm ET usage reset; check 10-22 that the Wave fingerprints show as Denied and ISR writes drop.
+
 ## 10-21 ~4:10am ET · the app and the card page quoted two different TCGplayer numbers; name searches wrote the raw one into our line (found by me, checking the Kyogre keep fix)
 - What: Team Aqua's Kyogre page = $290 (eBay-checked keep), app search = $542.60 flagged "looks off". Then my own live Playwright name search for Kyogre wrote $542.60 into prod's line as today's point.
 - Cause: (1) /api/search-card took pokemontcg.io's TCGplayer market (raw, = TCGplayer's NM "market" on tcgplayer.com) over our stored line whenever it answered inside 1.2 s; the line carries the 1.45x listing cap and eBay checks. 6 of 22 upstream answers sampled were >10% off the line. (2) recordPrices (every priced name search + the daily held-card sweep, which runs after the tcgcsv refresh) wrote that raw number over the capped point: 33 lines over the cap on prod, 27 of them since 8pm ET.
