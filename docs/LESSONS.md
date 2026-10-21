@@ -4,6 +4,12 @@ Chris (10-14): every support ticket and every social comment is a learning
 experience while the site is new and not fully tested. One entry each: what
 they said, what it taught, what changed, what is still open. Newest first.
 
+## 10-21 ~4:10am ET · the app and the card page quoted two different TCGplayer numbers; name searches wrote the raw one into our line (found by me, checking the Kyogre keep fix)
+- What: Team Aqua's Kyogre page = $290 (eBay-checked keep), app search = $542.60 flagged "looks off". Then my own live Playwright name search for Kyogre wrote $542.60 into prod's line as today's point.
+- Cause: (1) /api/search-card took pokemontcg.io's TCGplayer market (raw, = TCGplayer's NM "market" on tcgplayer.com) over our stored line whenever it answered inside 1.2 s; the line carries the 1.45x listing cap and eBay checks. 6 of 22 upstream answers sampled were >10% off the line. (2) recordPrices (every priced name search + the daily held-card sweep, which runs after the tcgcsv refresh) wrote that raw number over the capped point: 33 lines over the cap on prod, 27 of them since 8pm ET.
+- Changed (COMMIT ONLY): d120e6d7 the app quotes a fresh stored line (VISIBLE, waits for Chris's yes: it decides which TCGplayer number wins); af757e38 lookups and the sweep leave a refresh-kept line alone. Prod heals at the 5:45am ET run.
+- Taught: a "read-only" check on the live site is not always read-only: a name search there writes prod price points until af757e38 ships. Live searches from scripts only after it ships; until then use the id lookup (no cache write) or SELECTs.
+
 ## 10-21 3:35am ET (real clock) · Mewtwo Star HP 103 page blank ("This price looks off") after an eBay-checked keep (found by me, TO-TEST price-chain median line)
 - What: /cards/pokemon/holon-phantoms/mewtwo-star--ex13-103 printed no price. The 10-18 eBay sold check called TCGplayer's $6,887.50 right ("keep").
 - Cause: /admin/prices keeps bind to ebay_asks.price_usd, the referee's last READ ($9,200, days old), not the price the check confirmed; $6,887.50 is 25% off $9,200, past the 10% band, so the keep never bound and the eBay-asks rule hid the price (TASKS B.8, noted 10-21 for Codie/Palkia, not yet fixed in code).
