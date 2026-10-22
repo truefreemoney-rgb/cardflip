@@ -29,7 +29,7 @@
 
 ## 10-22 1:55PM ET: set pager = one row + five-game share image (COMMIT ONLY c97fd5c1 + the pager redo, VISIBLE: share image PASSED by Chris 1:55pm; the one-row pager PASSED by Chris 2:00pm; every visible change in the held batch is approved)
 - SetPageView Pager: ONE row that never wraps: "‹ Previous" | "Page 10 of 18" | "Next ›" (44px buttons, the end buttons grey out on page 1 / last). Chris 1:50pm on the first/last/window pills: "looks like shit" (they wrapped to two rows on the phone) -> redone. opengraph-image: "Scan. Price. List your cards." + "Pokémon · Magic · Lorcana · Yu-Gi-Oh! · One Piece"; alt names the five games. Review 10-19 public #19, #20, #29.
-- [ ] After push: /cards/magic/the-list/page/10 on the phone shows one row "‹ Previous · Page 10 of 18 · Next ›"; page 1 has Previous greyed; the last page has Next greyed; a 1-page set shows no pager.
+- [x] 9:05pm ET pane at 375px: /cards/magic/the-list/page/10 pager is one 44px row '‹ Previous · Page 10 of 18 · Next ›', no sideways scroll (greyed ends + 1-page set still a phone look). After push: /cards/magic/the-list/page/10 on the phone shows one row "‹ Previous · Page 10 of 18 · Next ›"; page 1 has Previous greyed; the last page has Next greyed; a 1-page set shows no pager.
 - [x] 8:55pm ET: /opengraph-image 200, 39 KB, 'Pokémon · Magic · Lorcana · Yu-Gi-Oh! · One Piece' under the tagline (looked at the PNG). After push: https://cardflip.io/opengraph-image shows the five-game line; paste cardflip.io into iMessage or X -> the preview card shows it (X may cache the old one for a day).
 
 ## 10-22 12:15PM ET: landing tiles: whole dollars at $1,000+ drop ".00" (COMMIT ONLY, VISIBLE on /: phone shot owed before the push)
@@ -54,10 +54,10 @@
 - [ ] After push, phone: scan a card, open the "Near Mint · Holofoil" pill (This copy), tap Done -> back on the camera, NOT the category sheet or the listing page. Android Back from an open sheet closes the sheet only; a second Back closes the camera.
 - [ ] After push, phone with 0 scans left (trial account or Chris's gift set to 0): Capture goes to /pricing with no photo taken and no spinner left behind; Back from /pricing returns to the app, not a dead camera.
 - [x] 8:58pm ET pane (Chris signed in): cardflip.io/pricing made ONE /api/auth/me request. After push: /pricing network tab shows ONE /api/auth/me call (was up to 7).
-- [ ] After push: GET https://cardflip.io/api/catalog/games = JSON list of the public games; the nav search dropdown on / and /features lists the same games as /cards.
-- [ ] After push: /api/cards without a session -> JSON {"error":"Not signed in"} 401 (not HTML); a bad body on /api/wishlist -> JSON 400/500, never an HTML page.
+- [x] Done 2:50pm (five games, see that block). After push: GET https://cardflip.io/api/catalog/games = JSON list of the public games; the nav search dropdown on / and /features lists the same games as /cards.
+- [x] Done 2:50pm (JSON 401 for both). After push: /api/cards without a session -> JSON {"error":"Not signed in"} 401 (not HTML); a bad body on /api/wishlist -> JSON 400/500, never an HTML page.
 - [ ] After push, next scans: scan_usage read JSON has first + lookBall keys on rows where a pattern look ran (scripts/_scan-usage-peek.mjs); Chris's next Eevee 074 scan can then be measured.
-- [ ] After push: /cards/pokemon/base-set?page=2 is served from the set cache (second request fast; x-vercel-cache HIT on the page itself).
+- [x] Done 2:50pm (second request HIT, 0.22 s). After push: /cards/pokemon/base-set?page=2 is served from the set cache (second request fast; x-vercel-cache HIT on the page itself).
 
 ## 10-22 8:30AM ET: pane checks with Chris's sign-in (admin console + app account, reads only)
 - [x] /admin/prices: no "checks recorded" list exists on that page (the 10-22 6:59am line assumed one); the 28 checks show on their card pages as "Checked against recent sales" (Raikou SL9 + Copycat sit in the Hand check list as referee rows, which is right). Readers flagged = 1 (Venusaur base-set $136.30 "too high", read by me 10-21: stands). Last run line = last night's 2,026 read / 3,054 calls (the budget trap, see 7:50am).
