@@ -114,36 +114,12 @@ fs.writeFileSync(path.join(dir, "captions.txt"), "TikTok: post the \"TikTok (no 
 // three MP4s as video Pins; a Pin = title (first caption line, <=100) +
 // description (whole caption, <=500) + link + board. Hashtags stay in the
 // description; Pinterest reads them there.
+// The title + one-paragraph description come from scripts/lib/pin-text.mjs (10-21: every card stays in; the TikTok
+// opener and the question go first when the 500 run out).
+const { pinFromCaption } = await import("./lib/pin-text.mjs");
 let pins = "Board: Pokémon Card Prices\nLink: https://cardflip.io\n\n";
 for (const [label, cap0] of caps) {
-  // Pinterest flattens line breaks and links every "#103" (10-03 7am pin: "its a mess"), so its description is ONE
-  // flowing paragraph: the sign-off FIRST (Chris 10-03, no "(link in bio)": Pinterest has a link field), the lead
-  // sentence, the cards separated by " · " with "No. 103" instead of "#103", the question, then the hashtags.
-  const paras = cap0.trim().split(/\n{2,}/);
-  let signoff = "Scan a card, see what it's worth: cardflip.io";
-  if (/^Scan a card/i.test(paras[0])) signoff = paras.shift().replace(/\s*\(link in bio\)/i, "").trim();
-  const tags = paras.filter((x) => /^#/.test(x)).join(" ").replace(/\s+/g, " ").trim();
-  const body = paras.filter((x) => !/^#/.test(x));
-  const li = body.map((x, i) => [i, (x.match(/\$/g) || []).length]).sort((a, b) => b[1] - a[1])[0]?.[0] ?? -1;
-  const lead = body[0] ?? "";
-  const cards = li >= 0 ? body[li].split("\n").map((l) => l.replace(/#(\d+)/g, "No. $1").trim()).filter(Boolean) : [];
-  const rest = body.filter((_, i) => i !== 0 && i !== li).map((x) => x.replace(/\s+/g, " ").trim());
-  let title = lead.split("\n")[0].trim();
-  if (title.length > 100) {
-    const cut = title.slice(0, 99);
-    // First clause boundary past 40 chars, not the last: the last one left
-    // "..., and one card from Lorcana" dangling (10-03 7pm pin).
-    const comma = cut.indexOf(", ", 40);
-    const clause = comma > 40 ? comma : Math.max(cut.lastIndexOf(". "), cut.lastIndexOf(" and "));
-    const sp = cut.lastIndexOf(" ");
-    title = (clause > 40 ? cut.slice(0, clause) : sp > 40 ? cut.slice(0, sp) + "…" : cut + "…").trimEnd();
-  }
-  const dot = (s) => (s && !/[.!?]$/.test(s) ? s + "." : s);
-  const build = (n) => [dot(signoff), dot(lead.replace(/\s+/g, " ").trim()), dot(cards.slice(0, n).join(" · ")), ...rest.map(dot), tags].filter(Boolean).join(" ");
-  let n = cards.length;
-  let description = build(n);
-  while (description.length > 500 && n > 1) description = build(--n);
-  if (description.length > 500) description = description.slice(0, 499).trimEnd() + "…";
+  const { title, description } = pinFromCaption(cap0);
   pins += "===== " + label + " =====\nTitle: " + title + "\nDescription:\n" + description + "\n\n";
 }
 fs.writeFileSync(path.join(dir, "pinterest.txt"), pins, "utf8");
