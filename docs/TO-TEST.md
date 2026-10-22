@@ -1,5 +1,9 @@
 ﻿# To test later
 
+## 10-22 3:15PM ET: ExaSearchBot denied (firewall v37 LIVE now; robots.ts in the held batch)
+- [ ] 10-23: Vercel Observability > ISR writes on /cards/* for 10-22 vs 10-21 drop by ~1K/day; firewall rule "AI crawlers" shows ExaSearchBot denies.
+- [ ] After push: curl -s https://cardflip.io/robots.txt | grep -A1 ExaSearchBot -> Disallow: /
+
 ## 10-22 2:00PM ET: social failure mail waits for a later ping; GitHub backstop pings at :20 (COMMIT ONLY f93afc8c; nothing visible by design)
 - 10-22 1:03pm: the GitHub backstop ping timed out on all five sites and mailed "Social Post Failed", then the Vercel 1:05pm cron posted the slot. alertFailures now only NOTES a failure (settings key social_slot:pending-alert:<site>); the next publisher run 10+ min later mails it if that slot is still unposted on the site, drops it if a later ping landed the post. social-post.yml post pings moved from :05 to :20 (7:20am / 1:20pm / 7:20pm ET, both DST hours); the video job's 1pm list follows. test:socialpublish + test:socialvideo green.
 - [ ] After push, first slot (7pm or 7am): GitHub Actions social-post runs at :20 (ET), not :03-:05; its post job reports every site "already posted" (repeat), no mail.
