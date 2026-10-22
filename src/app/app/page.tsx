@@ -193,6 +193,12 @@ function ledgerPriceForNewCard(item: ScanItem): { price?: number; priceLocked: f
 
 /** Concurrent scans per tab — see pumpingRef. */
 const SCAN_WORKERS = 2;
+
+/** A checkpoint write (verify, list, sold...): one retry, then say so (10-22: a dropped PATCH left the card unverified in silence). */
+async function saveChange(id: string, patch: Parameters<typeof updateServerCard>[1]): Promise<void> {
+  if ((await updateServerCard(id, patch)) || (await updateServerCard(id, patch))) return;
+  toast("Couldn't save that change. Check your connection.", "err");
+}
 /** Art Series cards are refused at the scan (Chris 09-10), like tokens. */
 const ART_CARDS_LOCKED = true;
 /** Graded slabs refused at the scan while lib/grading GRADED_LOCKED is on (09-25). */
@@ -348,6 +354,13 @@ export default function AppPage() {
     (id: string, patch: Partial<ScanItem>) => {
       // An item the watchdog gave up on keeps its error: a late result must not revive "scanning" or flip it to ready.
       if (abandoned.current.has(id)) return;
+      // Taken off the list inside the Undo window: keep the snapshot current (a serverId or verify that lands now
+      // would otherwise be lost when Undo puts the old copy back, 10-22).
+      const removed = pendingRemovals.current.get(id);
+      if (removed) {
+        removed.item = { ...removed.item, ...patch };
+        return;
+      }
       commit(
         itemsRef.current.map((item) =>
           item.id === id ? { ...item, ...patch } : item,
@@ -361,7 +374,7 @@ export default function AppPage() {
       if (!item?.serverId) return;
 
       if (patch.status === "listed") {
-        void updateServerCard(item.serverId, {
+        void saveChange(item.serverId, {
           status: "listed",
           price: item.listedPrice ?? undefined,
           listedAt: item.listedAt,
@@ -376,19 +389,19 @@ export default function AppPage() {
           condition: describeItemCondition(item),
         });
       } else if (patch.status === "sold") {
-        void updateServerCard(item.serverId, {
+        void saveChange(item.serverId, {
           status: "sold",
           soldPrice: item.soldPrice,
           soldAt: item.soldAt,
           condition: describeItemCondition(item),
         });
       } else if (patch.status === "ready" && "listedAt" in patch) {
-        void updateServerCard(item.serverId, { status: "ready", listedAt: null });
+        void saveChange(item.serverId, { status: "ready", listedAt: null });
       }
       // Verification is its own checkpoint: it's what unlocks publishing,
       // and it has to outlive this tab (My Cards shows it).
       if ("verifiedAt" in patch || "matchDoubt" in patch) {
-        void updateServerCard(item.serverId, {
+        void saveChange(item.serverId, {
           ...("verifiedAt" in patch ? { verifiedAt: patch.verifiedAt ?? null } : {}),
           ...("matchDoubt" in patch ? { matchDoubt: patch.matchDoubt ?? null } : {}),
         });
@@ -396,10 +409,10 @@ export default function AppPage() {
       // The variant picker (Magic foil / etched, Pokémon holo) changes what
       // the card IS on eBay and which series prices it — sync it at once.
       if ("variant" in patch) {
-        void updateServerCard(item.serverId, { variant: patch.variant ?? null, scanMarket: headlinePrice(item) || null });
+        void saveChange(item.serverId, { variant: patch.variant ?? null, scanMarket: headlinePrice(item) || null });
       }
       if ("shipping" in patch) {
-        void updateServerCard(item.serverId, { shippingMethod: patch.shipping ?? null });
+        void saveChange(item.serverId, { shippingMethod: patch.shipping ?? null });
       }
     },
     [commit],
@@ -519,6 +532,17 @@ export default function AppPage() {
           // Vision only (no OCR fallback since 10-12): the read is the card, or the scan fails and says so.
           const vision = await scanCardWithVision(next.file, next.language, next.game);
           watchdogScanId = vision.scanId ?? null;
+          // The watchdog fired before the server answered, so it had no scan id to hand back: do it now (10-22).
+          if (freed) {
+            if (vision.scanId) {
+              void giveBackScan(vision.scanId).then((usage) => {
+                if (!usage) return;
+                setScanUsage(usage);
+                patchUser({ scans: usage });
+              });
+            }
+            return;
+          }
           // Same give-back for every empty outcome below (10-22: was pasted twice).
           const giveBackThisScan = () => {
             if (!vision.scanId) return;
@@ -890,6 +914,8 @@ export default function AppPage() {
               // item just above — a foil saved as the default finish would
               // list on eBay as Regular and refresh off the nonfoil series.
               variant: itemsRef.current.find((i) => i.id === next.id)?.variant ?? null,
+              // Same id on the retry below: a first POST that landed but timed out must not leave a twin row (10-22).
+              clientId: vision.scanId ?? next.id,
             };
             // Without a server row the card can't be published or appear in
             // the collection — one retry covers the usual flaky-network blip.

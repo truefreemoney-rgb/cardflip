@@ -156,7 +156,8 @@ export default function ScannerOptionsSheet({ game, onGameChange, torch, onToggl
 
       <Heading>Help</Heading>
       <Row label="Scanning help" hint="How to scan, what it reads, what to do when it misses">
-        <Link href="/app/help" className="shrink-0 rounded-full border border-edge bg-surface-2 px-4 py-2 text-sm font-semibold text-white transition hover:border-edge-strong">
+        {/* New tab (10-22): leaving the page dropped the scan queue. */}
+        <Link href="/app/help" target="_blank" rel="noopener" className="shrink-0 rounded-full border border-edge bg-surface-2 px-4 py-2 text-sm font-semibold text-white transition hover:border-edge-strong">
           Open
         </Link>
       </Row>

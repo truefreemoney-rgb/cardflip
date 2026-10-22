@@ -444,6 +444,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
       : null;
   // The sheet is open only while there is something in it (the last × closes it).
   const sheetOpen = trayOpen && verify !== null;
+  const covered = sheetOpen || expanded || editing || options || picking;
   // "unavailable" hides the button entirely — torches only exist on phone
   // back cameras, and a control that can't work is worse than none.
   const [torch, setTorch] = useState<"unavailable" | "off" | "on">(
@@ -663,7 +664,8 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
   // come from 123 real prod photos (scripts/calibrate-photo-quality.mjs).
   useEffect(() => {
     const video = (mirror ? mirrorRef.current : videoRef.current);
-    if (!video || !ready) return;
+    // Nothing is read while a sheet covers the camera (10-22): no 150 ms frame work behind it, it starts fresh on close.
+    if (!video || !ready || covered) return;
     const c = document.createElement("canvas");
     const ctx = c.getContext("2d", { willReadFrequently: true });
     if (!ctx) return;
@@ -794,7 +796,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
       window.clearInterval(id);
       outlineTarget.current = null;
     };
-  }, [ready, mirror, debugOutline]);
+  }, [ready, mirror, debugOutline, covered]);
 
   // Tap the picture to focus there (Android); the ring shows only when the camera took it.
   const tapToFocus = (e: React.PointerEvent<HTMLVideoElement>) => {

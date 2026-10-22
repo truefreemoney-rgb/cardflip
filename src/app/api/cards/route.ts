@@ -102,6 +102,7 @@ export async function POST(req: Request) {
       category: typeof body?.category === "string" && body.category.trim() ? body.category.trim().slice(0, 40) : null,
       packId,
       variant: typeof body?.variant === "string" && body.variant.trim() ? body.variant.trim().slice(0, 40) : null,
+      clientId: typeof body?.clientId === "string" && body.clientId.trim() ? body.clientId.trim().slice(0, 80) : null,
     });
     return NextResponse.json({ card }, { status: 201 });
   } catch (err) {

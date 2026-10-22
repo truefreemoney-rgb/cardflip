@@ -92,6 +92,8 @@ export interface CreateCardInput {
   scanPrice?: number | null;
   /** The headline market the scanner showed (packs sum it). */
   scanMarket?: number | null;
+  /** Stable id for this save: a retry of the same POST gets the first row back, not a twin (10-22). */
+  clientId?: string | null;
   catalogCardId?: string | null;
   rarity?: string | null;
   category?: string | null;
