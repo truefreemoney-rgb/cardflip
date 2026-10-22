@@ -79,7 +79,7 @@ export default function AdminLoginPage() {
           <h1 className="text-xl font-semibold text-white">Admin console</h1>
           <span className="rounded-full bg-brand-500/15 px-2 py-0.5 text-[11px] font-medium text-brand-300">operator</span>
         </div>
-        <p className="mt-1 text-sm text-zinc-400">Sign in with the operator credentials.</p>
+        <p className="mt-1 text-sm text-zinc-400">Log in with the operator credentials.</p>
         <form onSubmit={handleSubmit} noValidate className="mt-6 flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <label htmlFor="admin-user" className="text-sm font-medium text-zinc-300">Username</label>
@@ -154,7 +154,7 @@ export default function AdminLoginPage() {
             className="mt-1 flex items-center justify-center gap-2 rounded-full bg-brand-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-500/25 transition hover:bg-brand-400 disabled:opacity-60"
           >
             {submitting && <Spinner className="h-4 w-4" />}
-            {submitting ? "Signing in…" : "Sign In"}
+            {submitting ? "Logging in…" : "Log In"}
           </button>
         </form>
       </div>
