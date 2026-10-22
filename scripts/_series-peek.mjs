@@ -11,3 +11,5 @@ for (const row of r.rows) {
 }
 const k = await c.execute({ sql: "SELECT * FROM price_checked WHERE game = ? AND card_id = ?", args: [game, cardId] });
 console.log("checks", JSON.stringify(k.rows));
+const m = await c.execute({ sql: "SELECT * FROM tcgplayer_products WHERE game = ? AND card_id = ?", args: [game, cardId] });
+console.log("tcgplayer_products", JSON.stringify(m.rows));

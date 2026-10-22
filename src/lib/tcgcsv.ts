@@ -316,6 +316,18 @@ export function tcgplayerProductPattern(name: string | null | undefined): Patter
   return null;
 }
 
+/**
+ * A stamped copy of a promo that TCGplayer sells as its own product beside the plain one: "[Staff]" prerelease
+ * stamps, Worlds placement stamps ("[Champion]", "[Finalist]", "[Top 32]", "[Participation]"). Our catalog has the
+ * plain card only, and both products map to it, so whichever came first in the group priced the card: Entei SM219
+ * showed the Staff stamp's $205 instead of the plain promo's $22 for five months, 14 more SM/SWSH prerelease promos
+ * the same way (10-22). A stamped product never prices a plain card.
+ */
+export function tcgplayerProductStamp(name: string | null | undefined): boolean {
+  if (!name) return false;
+  return /\[\s*(staff|champion|finalist|semi[\s-]*finalist|quarter[\s-]*finalist|top[\s-]*(16|32|sixteen|thirty[\s-]*two)|participation)\s*\]|\(\s*staff\s*\)|\(prerelease\s*\[staff\]/i.test(name);
+}
+
 /** TCGplayer subTypeName → pokemontcg.io's price variant key ("Reverse Holofoil" → "reverseHolofoil"). */
 export function tcgplayerVariantKey(subType: string | null | undefined): string {
   if (!subType) return "normal";

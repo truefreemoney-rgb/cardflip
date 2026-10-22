@@ -19,7 +19,7 @@ import {
 } from "../src/lib/priceSeries.ts";
 import { summarize } from "../src/lib/priceHistoryStats.ts";
 import { countOutliers, dropOutliers } from "../src/lib/priceOutliers.ts";
-import { kitHalves, mapKitProducts, mapProductsToCards, matchGroupsToSets, normalizeSetName, productNumber, tcgplayerProductPattern, tcgplayerVariantKey } from "../src/lib/tcgcsv.ts";
+import { kitHalves, mapKitProducts, mapProductsToCards, matchGroupsToSets, normalizeSetName, productNumber, tcgplayerProductPattern, tcgplayerProductStamp, tcgplayerVariantKey } from "../src/lib/tcgcsv.ts";
 
 let failures = 0;
 function check(label, actual, expected) {
@@ -89,6 +89,9 @@ check("Ascended Heroes (Poke Ball), no 'Pattern'", tcgplayerProductPattern("Erik
 check("... (Friend Ball) / (Love Ball) / (Dusk Ball) / (Quick Ball)", ["Chikorita (Friend Ball)", "Wurmple (Love Ball)", "Galarian Zigzagoon (Dusk Ball)", "Bisharp (Quick Ball)"].map(tcgplayerProductPattern), ["friendBallPattern", "loveBallPattern", "duskBallPattern", "quickBallPattern"]);
 check("... (Team Rocket) and (Energy Symbol Pattern)", [tcgplayerProductPattern("Team Rocket's Mimikyu - 097/217 (Team Rocket)"), tcgplayerProductPattern("Team Rocket's Mimikyu - 097/217 (Energy Symbol Pattern)")], ["teamRocketPattern", "energySymbolPattern"]);
 check("the Poke Ball TRAINER card is not a pattern", [tcgplayerProductPattern("Poke Ball (CLV)"), tcgplayerProductPattern("Poke Ball - 185/198"), tcgplayerProductPattern("Team Rocket's Meowth")], [null, null, null]);
+// 10-22: stamped promo products never price the plain card (Entei SM219 took the [Staff] stamp's $205 for five months).
+check("stamped promo products", ["Entei - SM219 (Prerelease) [Staff]", "Champions Festival - BW95 (Worlds 13) [Champion]", "Tropical Beach - BW28 (Worlds 11) [Top 32]", "Tropical Tidal Wave - HGSS18 (Worlds 10) [Participation]", "Chesnaught - XY68 (Prerelease [Staff]", "Inteleon - 002 [Staff]"].map(tcgplayerProductStamp), [true, true, true, true, true, true]);
+check("plain promos and prereleases are not stamps", ["Entei - SM219", "Dragalge - XY10 (Prerelease)", "Champions Festival - BW95 (Worlds 13)", "Pikachu (1) (Misprint)", "Staff Clerk - 089/100"].map(tcgplayerProductStamp), [false, false, false, false, false]);
 check("null name", tcgplayerProductPattern(null), null);
 
 // 10-05: the 30th Celebration sets sat priceless. Subset shares the parent code + date; Classic Collection prints original numbers.

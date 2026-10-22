@@ -12,6 +12,7 @@ import {
   mapProductsToCards,
   matchGroupsToSets,
   tcgplayerProductPattern,
+  tcgplayerProductStamp,
   tcgplayerVariantKey,
   type MirrorCard,
   type MirrorSet,
@@ -442,6 +443,8 @@ export async function refreshPokemonPricesFromTcgcsv(day = todayUtc()): Promise<
   for (const gid of groups) {
     let results: { productId: number; marketPrice?: number | null; lowPrice?: number | null; subTypeName?: string | null }[];
     const patternOf = new Map<number, PatternVariant>();
+    // Stamped promo products ("[Staff]", Worlds placements) mapped beside the plain card: never price it (10-22).
+    const stamped = new Set<number>();
     try {
       if (patternGroups.has(gid)) {
         const pres = await tcgcsvFetch(`https://tcgcsv.com/tcgplayer/3/${gid}/products`);
@@ -450,6 +453,7 @@ export async function refreshPokemonPricesFromTcgcsv(day = todayUtc()): Promise<
         for (const p of products) {
           const pattern = tcgplayerProductPattern(p.name);
           if (pattern) patternOf.set(p.productId, pattern);
+          if (tcgplayerProductStamp(p.name)) stamped.add(p.productId);
         }
         await new Promise((r) => setTimeout(r, PAUSE_MS));
       }
@@ -471,6 +475,7 @@ export async function refreshPokemonPricesFromTcgcsv(day = todayUtc()): Promise<
       for (const cardId of today.unsure) patternCardsUnsure.add(cardId);
     }
     for (const r of results) {
+      if (stamped.has(r.productId)) continue;
       const mapped = productToCard.get(r.productId);
       // Sealed products keep TCGplayer's market as is; cards take the listing cap (pokemonListingCap).
       const price = mapped && r.marketPrice != null ? pokemonListingCap(r.marketPrice, r.lowPrice ?? null) : (r.marketPrice ?? null);
