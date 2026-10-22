@@ -1,4 +1,4 @@
-# Report card, Wed 10-21 night (after the 10pm reset)
+﻿# Report card, Wed 10-21 night (after the 10pm reset)
 
 Rules in force tonight: TCGplayer FIRST; eBay only as the fallback, and then Ungraded + plain Buy It Now only (no slabs, no auctions, no Best Offer), net of eBay's fee (13.25% + $0.40) and shipping. Hand eBay searches: none tonight (the 10-21 budget was already spent); they resume 10-22.
 
@@ -138,7 +138,7 @@ eBay sold read the new way: Graded: No, Buy It Now, and every listing counts as 
 
 | Card | Ours | TCGplayer market | eBay sold (NM-read) | Verdict |
 |---|---|---|---|---|
-| Rayquaza ex · EX Dragon 97/97 (7am) | $595.55 | $595.55, 0 listings (out of stock) | reliable sellers $429.99, $501.75, $1,250; two "Near Mint" sales at $2,800 / $3,399 from 0-80% feedback sellers (ignored) | **Stands** (TCGplayer's number, inside the band of the reliable sales) |
+| Rayquaza ex · EX Dragon 97/97 (7am) | $595.55 | $595.55, 0 listings (out of stock) | no usable sale: 7 of 12 were Best offer accepted (out), 2 listed or-Best-Offer (out), the 2 plain Buy It Now were a Moderately Played $500 and a $379 from a 0%-feedback seller | **Stands on TCGplayer alone** (eBay could neither confirm nor deny; first read counted Best Offer sales by mistake, caught by Chris) |
 | Rotting Regisaur · The List M20-111 (1pm) | $3.52 | $3.57 (121 listings) | not needed | Stands |
 | Uthros Research Craft · EOE Commander 7 (1pm) | $3.58 | $3.89 (46 listings) | not needed | Stands |
 | Hunter's Insight · Marvel Universe 35 borderless (1pm) | $2.77 | $2.67 (222 listings) | not needed | Stands |
