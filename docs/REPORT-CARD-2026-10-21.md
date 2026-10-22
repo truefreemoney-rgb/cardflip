@@ -131,3 +131,19 @@ The referee compares each $100+ printing's TCGplayer price to what the SAME prin
 | Magic | Raphael, the Muscle · Teenage Mutant Ninja Turtles Eternal 91 · foil | $227 | $2.59 (26) | — (0) | too high vs eBay asks → no eBay asks found |
 
 
+
+## 6. Tomorrow's post cards + the reader flag (checked by me, 11:30-11:50pm ET; TCGplayer first, eBay sold only as the fallback)
+
+eBay sold read the new way: Graded: No, Buy It Now, and every listing counts as Near Mint unless its title says LP/MP/HP/damaged (your 11:40pm rule). 2 eBay searches used, 60 s apart.
+
+| Card | Ours | TCGplayer market | eBay sold (NM-read) | Verdict |
+|---|---|---|---|---|
+| Rayquaza ex · EX Dragon 97/97 (7am) | $595.55 | $595.55, 0 listings (out of stock) | reliable sellers $429.99, $501.75, $1,250; two "Near Mint" sales at $2,800 / $3,399 from 0-80% feedback sellers (ignored) | **Stands** (TCGplayer's number, inside the band of the reliable sales) |
+| Rotting Regisaur · The List M20-111 (1pm) | $3.52 | $3.57 (121 listings) | not needed | Stands |
+| Uthros Research Craft · EOE Commander 7 (1pm) | $3.58 | $3.89 (46 listings) | not needed | Stands |
+| Hunter's Insight · Marvel Universe 35 borderless (1pm) | $2.77 | $2.67 (222 listings) | not needed | Stands |
+| Dragonite · Dragon Vault 5 (7pm) | $27.87 | $34.76 (53 listings) | not needed | Stands (20% under TCGplayer, inside the band) |
+| Latios · Dragon Vault 10 (7pm) | $18.71 | $19.07 (44 listings) | not needed | Stands |
+| Venusaur · Base Set 15/102 holo (reader: "too high", 10-19) | $136.30 | $167.66 (218 listings) | 8 untitled-condition sales in 2 days: $24.99-$105, median ~$57; the one marked LP went $100 | **Stands by the TCGplayer-first rule** (19% under TCGplayer). Flag for you: eBay NM-read says ~$57, a 2.4x gap; Pokémon vintage holos are where TCGplayer and eBay disagree most. Your call if you want eBay to win here. |
+
+All six post cards marked "Looks right" on prod (scripts/_post-check-mark.mjs, the same write as the button). The reader flag itself stays open on /admin/prices (resolving it needs the admin sign-in); nothing to fix.

@@ -1,4 +1,4 @@
-﻿# What is left, Wed 10-21 ~11:20pm ET
+﻿# What is left, Wed 10-21 ~11:55pm ET
 Only open items. "(new)" = not on the 3:15pm list. What got done since then is at the bottom. Tonight's findings: docs/REPORT-CARD-2026-10-21.md.
 
 - **A. After the push.** Pushed ~3:10pm (87 held changes + the bot watch). Checks: deploy live + CI + smoke green (running now); record Copycat's eBay check so its price shows (needs your /admin sign-in in the pane + your yes); live checks of this morning's ~70 polish fixes, Watchlist printings, Pinterest admin, Kyogre search price, "Unsold / Sold"; (new) the bot watch's first hourly runs come back green and its first real block reaches your email. Old test list: about 20 left that I check in the pane, 52 phone checks for you in small batches, 20 waiting on a date.
@@ -17,6 +17,7 @@ Only open items. "(new)" = not on the 3:15pm list. What got done since then is a
 - **L. Social.** Mine. Comment replies at every post time (Needs You + TikTok by hand), Blender reveals per slot (first full video with framing C checked in TikTok's preview before a batch), Meta follows, TikTok comment scope.
 
 ## Done since the 3:15pm list (tonight, after the 10pm reset)
+- (new) Tomorrow's 6 post cards + the Venusaur reader flag checked by me (TCGplayer first, 2 eBay searches): all stand, marked Looks right on prod (report card §6). New standing rule: I do every price check, never you.
 - (new) PUSHED 6ba0c921: every eBay read = Ungraded + plain Buy It Now (eBay's own condition filter; Best Offer and auctions dropped); hand-check links open with Graded: No + Buy It Now. CI + Production smoke green.
 - (new) Automatic referee re-read on prod with the clean reads (one run of 3,054 calls; the planned second run found no headroom; 1,000 kept for sellers): report card §5.
 - (new) Pinterest pin text keeps all 5 cards + 7 tags under 500 (committed 16aeecf0, scripts only).

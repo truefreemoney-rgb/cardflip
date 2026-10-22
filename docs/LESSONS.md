@@ -187,3 +187,8 @@ Robot chat before it: "Why can't I just have free scans" / "is it possible to ge
 - Cause: card pages are rendered on demand (revalidate 2 days, generateStaticParams empty), so a crawler walking the catalog pays an ISR write per page. robots.txt blocked the 10-05 list but not these three names.
 - Fix: robots.ts adds the three; Vercel Firewall deny rule (Chris clicked Deny, classifier blocked me) for meta-webindexer, widen to the other two.
 - Lesson: when the Vercel chart jumps, read Observability > ISR (writes by route) and Firewall > Traffic (top user agents) first; the runtime-logs API only streams live seconds. Build CPU (Oct 4-8) and Blob ops (Oct 12-13, picture uploads) explained the earlier spikes; never the Claude model.
+
+## 10-21 reader flag: Venusaur Base Set 15/102 holo "price looks wrong: too high" ($136.30)
+- Cause: our price is Near Mint (TCGplayer market $167.66); most copies people hold and most eBay sales are played ($25-$75). A reader with a played copy sees a number far above what theirs sells for. Not a wrong price by the TCGplayer-first rule; logged as the first "condition gap" flag.
+- Rule change from tonight: Chris does not click through price checks himself. Every post card / reader flag / hand-list check is mine, TCGplayer first, eBay sold as the fallback read as Near Mint unless the title says lower, then marked or fixed from a script.
+- Watch: if condition-gap flags keep coming, the card page's "price looks wrong?" could ask "what condition is yours?" first (feature freeze: parked).
