@@ -1,5 +1,16 @@
 ﻿# To test later
 
+## 10-22 2:50PM ET: PUSHED d3c5f350 (73 commits) on Chris "push it"; CI 39833559302 GREEN, Production smoke 39833757694 + 39834353848 GREEN; curl checks
+- [x] robots.txt lists ExaSearchBot in the turned-away group.
+- [x] /home -> 308 to / (Next permanent redirect; the 301 wording below means this).
+- [x] /api/catalog/games = {"games":["pokemon","mtg","lorcana","onepiece","yugioh"]}.
+- [x] /api/cards and a bad /api/wishlist body without a session -> JSON 401 {"error":"Not signed in"}, not HTML.
+- [x] Raikou col1-SL9 page prints $579.99 (24 places), no "looks off".
+- [x] /cards/magic/the-list/page/10: one row, "Page 10 of 18", Previous + Next present.
+- [x] /cards/pokemon/base-set?page=2 second request x-vercel-cache HIT, 0.22 s.
+- [x] /opengraph-image 200 image/png 39 KB (five-game line is a look check in the pane, below).
+- [ ] Phone sheet docs/PHONE-CHECKS-2026-10-22.md sent to Chris 2:52pm; his answer owed.
+
 ## 10-22 2:38PM ET (real clock): social posts read the eBay referee (PUSHED 2:35pm in d3c5f350; nothing visible by design)
 - lib/server/social.ts freshSeries: ebayCall(ebay_asks row) joins priceTrust for every pooled card (chunked reads of 400, advisory). Referee "high" (no Cardmarket agreement) = skipped from every post kind; manual keep = posts; manual hide = never. test:social +3 fixtures (col1-40/41/42).
 - [ ] After push, next 7am/1pm/7pm: Vercel log line "social: price guard skipped N <game> cards (... ebay asks: ...)" appears when the pool has referee-high cards; the posted cards are none of /admin/prices hidden ones.
