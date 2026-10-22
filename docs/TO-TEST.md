@@ -1,5 +1,14 @@
 # To test later
 
+## 10-21 ~10:35pm ET: admin can gift BOOSTER scans (TASKS B; COMMIT ONLY 18ef47f8, VISIBLE admin: shot SENT docs/shots/admin-booster-scans-after-phone.jpg)
+- Adjust Scans: Plan scans / Booster scans toggle (Booster default + amber note on a Booster-only account); POST /api/admin/users/[id]/scans { pack: true } -> adjustPackScans (users.extra_scans, ledger kind admin_pack, plan "pack", floors at 0). test:adminroutes +3, tsc + eslint clean.
+- [ ] After push: /admin/users, open Jenny's row (jporter1421): header shows "Booster N"; Add 1 with Booster scans -> "Added 1 Booster scans. Booster scans now N+1"; her app shows one more scan; ledger row kind admin_pack.
+## 10-21 ~10:20pm ET: eBay reads = Ungraded + plain Buy It Now only (PUSHED 6ba0c921, CI + Production smoke green 10:25pm)
+- Code: Browse filter buyingOptions:{FIXED_PRICE},conditionIds:{4000} on live comps + referee + sold comps (slab comps ask 2750); items whose buyingOptions include BEST_OFFER/AUCTION dropped (test:ebaybrowse, 8 checks). Hand links (card page sold link, /admin/prices, post-check) carry _sacat=183454&LH_Sold=1&LH_Complete=1&LH_BIN=1&Graded=No + the fuller no-slab words (test:pricing +1).
+- [x] 10:42pm curl: prod card page Ho-oh ecard3-149 "Buy on eBay" link already carries the new word list (-tag -ace -gem -proxy -japanese) = push live on fresh pages. The SOLD link (Graded=No&LH_BIN=1) lives in the signed-in app (Inventory flag/stale notes, Watchlist): check there with Chris's sign-in.
+- [ ] /admin/prices (Chris signed in): a row's "eBay sold" link opens with Graded: No + Buy It Now ticked in eBay's filter bar.
+- [ ] Nightly referee 10-22 8:15am ET: /admin/prices "last run" shows calls/read with the new filter; expected FEWER "high" verdicts (slabs pushed asks up).
+- One-off prod referee re-read started 10:20pm ET from local (scripts/_ref-rerun.mjs, 3,050 calls, backup .ebay-asks-backup-1792635332475.json): flips of the 426 keep/hide calls listed in STATE after the run.
 **A.4 triage of every open check dated 10-18 and earlier: docs/TO-TEST-TRIAGE-2026-10-21.md** (63 stale, curl + select checks done 10-21 ~4:30am ET, the rest sorted into pane / phone / wait). Old lines below are left as written; that file is the status.
 
 ## 10-21 3:04pm ET: bot watch LIVE on main (ef9490fe, Vercel build skipped) + Wave Broadband hand rule (firewall v31)

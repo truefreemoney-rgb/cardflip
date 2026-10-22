@@ -71,3 +71,5 @@ scripts/.*-tmp.*
 scripts/.*.cache.json
 scripts/.don-sheets/
 .outline-dumps/
+.cond-backup-*.json
+.ebay-asks-*.json
