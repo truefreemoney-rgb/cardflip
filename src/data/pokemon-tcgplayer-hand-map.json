@@ -9,5 +9,17 @@
   { "cardId": "dpp-DP25", "productId": 90055, "groupId": 1421, "productName": "Tropical Wind - DP25 (Worlds 08)", "note": "Base product; the [Staff] version is a separate product" },
   { "cardId": "dpp-DP48", "productId": 90056, "groupId": 1421, "productName": "Tropical Wind - DP48 (Worlds 09)", "note": "Base product; the [Staff] version is a separate product" },
   { "cardId": "miscp-001", "productId": 108589, "groupId": 2374, "productName": "Ancient Mew", "note": "English 2000 movie promo (Miscellaneous Cards & Products). 10-16: TCGplayer market $122.50 vs eBay sold raw NM/sealed ~$95-150, played $40-70. The Japanese Exclusive Print is product 482427, not this card" },
-  { "cardId": "np-27", "productId": 90050, "groupId": 1423, "productName": "Tropical Tidal Wave - 027 (2005 World Championships) [Participation]", "note": "Nintendo Promos Number 027; placement versions (Top 32, Finalist, Staff...) are separate products" }
+  { "cardId": "np-27", "productId": 90050, "groupId": 1423, "productName": "Tropical Tidal Wave - 027 (2005 World Championships) [Participation]", "note": "Nintendo Promos Number 027; placement versions (Top 32, Finalist, Staff...) are separate products" },
+  { "cardId": "sm4-63a", "productId": 155599, "groupId": 1938, "productName": "Guzzlord GX - 63a/111", "note": "Alternate Art Promos (Crimson Invasion 63a alternate); 10-22 TCGplayer market $19.53" },
+  { "cardId": "xy3-55a", "productId": 131695, "groupId": 1938, "productName": "M Lucario EX - 55a/111", "note": "Alternate Art Promos (Furious Fists 55a alternate); catalog twin xya-55a left unmapped (one product per card); 10-22 market $53.41" },
+  { "cardId": "g1-28a", "productId": 131697, "groupId": 1938, "productName": "Jolteon EX - 28a/83", "note": "Alternate Art Promos (Generations 28a alternate); catalog twin xya-28a left unmapped; 10-22 market $24.21" },
+  { "cardId": "xy4-24a", "productId": 131696, "groupId": 1938, "productName": "M Manectric EX - 24a/119", "note": "Alternate Art Promos (Phantom Forces 24a alternate); catalog twin xya-24a left unmapped; 10-22 market $12.74" },
+  { "cardId": "xya-54a", "productId": 131698, "groupId": 1938, "productName": "Zygarde EX - 54a/124", "note": "Alternate Art Promos, Number 054a/124; 10-22 market $30.54" },
+  { "cardId": "xya-107a", "productId": 133813, "groupId": 1938, "productName": "Professor Sycamore - 107a/122 (Holofoil)", "note": "Alternate Art Promos; the Non-Holo print is product 133814; 10-22 market $1.69" },
+  { "cardId": "xya-92a", "productId": 133816, "groupId": 1938, "productName": "Trainers' Mail - 92a/108 (Holo)", "note": "Alternate Art Promos; the Non-Holo print is product 133815; 10-22 market $2.32" },
+  { "cardId": "xyp-XY150a", "productId": 148352, "groupId": 1938, "productName": "Yveltal EX - XY150a", "note": "Alternate Art Promos (XY Promos XY150a); 10-22 market $231.01" },
+  { "cardId": "xyp-XY198a", "productId": 148345, "groupId": 1938, "productName": "M Camerupt EX - XY198a", "note": "Alternate Art Promos (XY Promos XY198a); 10-22 market $26.82" },
+  { "cardId": "xyp-XY200a", "productId": 148346, "groupId": 1938, "productName": "M Sharpedo EX - XY200a", "note": "Alternate Art Promos (XY Promos XY200a); 10-22 market $48.18" },
+  { "cardId": "bwp-BW04", "productId": 88705, "groupId": 1407, "productName": "Reshiram - BW004", "note": "Black and White Promos, Number BW004; 10-22 market $5.58" },
+  { "cardId": "bwp-BW05", "productId": 90733, "groupId": 1407, "productName": "Zekrom - BW005", "note": "Black and White Promos, Number BW005; 10-22 market $8.32" }
 ]
