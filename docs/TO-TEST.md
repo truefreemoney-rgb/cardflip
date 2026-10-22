@@ -1,7 +1,7 @@
 ﻿# To test later
 
 ## 10-22 ~6:59AM ET: 28 of the 106 cap-cut Pokémon prices FIXED on prod with TCGplayer NM-sales checks (report card §14; data write, no code)
-- [ ] Pages print the checked number + "Checked against recent sales (N sold)": Rayquaza C DP47 $999.99, Giratina EX DE 124 $611.98, Rayquaza C SV 8 $399.50 (invalidated by hand; the rest within 48 h).
+- [x] 3:55am curl: Rayquaza C DP47 $999.99, Giratina EX DE 124 $611.98, Rayquaza C SV 8 $399.50 all print with "Checked against recent sales" (invalidated by hand; the other 25 within 48 h).
 - [ ] 5:45am ET write keeps the 28 checked numbers (price_checked binds; tcg_usd notes TCGplayer's raw figure).
 - [ ] /admin/prices lists the 28 new checks (Chris's sign-in).
 
@@ -315,7 +315,7 @@
 # To test later
 
 ## 10-22 ~6:59AM ET: 28 of the 106 cap-cut Pokémon prices FIXED on prod with TCGplayer NM-sales checks (report card §14; data write, no code)
-- [ ] Pages print the checked number + "Checked against recent sales (N sold)": Rayquaza C DP47 $999.99, Giratina EX DE 124 $611.98, Rayquaza C SV 8 $399.50 (invalidated by hand; the rest within 48 h).
+- [x] 3:55am curl: Rayquaza C DP47 $999.99, Giratina EX DE 124 $611.98, Rayquaza C SV 8 $399.50 all print with "Checked against recent sales" (invalidated by hand; the other 25 within 48 h).
 - [ ] 5:45am ET write keeps the 28 checked numbers (price_checked binds; tcg_usd notes TCGplayer's raw figure).
 - [ ] /admin/prices lists the 28 new checks (Chris's sign-in).
 
