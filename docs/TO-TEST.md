@@ -1,7 +1,8 @@
-# To test later
+﻿# To test later
 
 ## 10-21 ~10:50pm ET: picture tiebreak on SONNET 5 (Chris: "Sonnet"; PUSHED 5573c19d with the Booster fix, Pinterest scripts, docs)
 - vision.ts TIEBREAK_MODEL = claude-sonnet-5 (One Piece stays Haiku 4.5). Basis: 8 of 8 same picks as Opus on Chris's own tiebreaks ($0.14 test, scripts/_tiebreak-ab-owner.mjs). tsc, test:visionbudget, test:vision-schema green.
+- [x] 11:15pm: CI run 39713226057 green (7m26s) + Production smoke 39713302347 green for 5573c19d.
 - [ ] After push: next scans in scan_usage show model claude-sonnet-5 on tiebreak rows (read LIKE '%tiebreak%'), cost_micros ~11,000 not ~20,000; /admin scan cost tile drops toward ~$0.021 a scan over the week.
 - [ ] Watch the first week's tiebreak picks (/admin, or SELECT read FROM scan_usage WHERE read LIKE '%tiebreak%'): any pick that a user then corrects with "Not this card?" on a pattern card (Poké Ball / Master Ball / reverse) = switch back to Opus and say so.
 

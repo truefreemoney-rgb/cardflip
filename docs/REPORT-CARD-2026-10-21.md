@@ -48,3 +48,86 @@ The "wrong" ones are the same for all three: two Sylveon calls where no candidat
 What it means for the bill: a scan today ≈ $0.013 (Sonnet read) + the tiebreak on ~77% of scans. Opus tiebreak → ~$0.028 a scan. Sonnet 5 tiebreak → ~$0.021. Haiku 5.5 tiebreak → ~$0.018. Your target was ~$0.012: the tiebreak alone can't reach it; the next step would be a smaller picture for the first read.
 
 **Your call (one word):** "Sonnet" or "Haiku" for the Pokémon / Magic / Lorcana / Yu-Gi-Oh! tiebreak (One Piece already runs on Haiku). It is a one-line change (TIEBREAK_MODEL in vision.ts); 8 pairs is a thin sample, so I'd watch the first week's picks in /admin after the switch. Honest lean: Sonnet 5 (half of Opus's cost, more margin on subtle pattern cards like Poké Ball / Master Ball, which these 8 pairs did not cover).
+
+## 5. Automatic eBay referee re-read (clean reads: Ungraded + plain Buy It Now)
+
+Calls spent: run 1 (10:15pm ET) **3,054 eBay Browse calls**, 2,026 of 3,990 rows re-read in 9 minutes. Run 2 (set for 11:01pm ET, after eBay's window reset) did not run: at 11:01pm and again at 11:15pm eBay still reported the day's 4,000 used with only 1,000 left, which is the floor kept for sellers, so the script stopped itself (0 calls). The remaining 1,964 rows get the normal nightly 900 a day (done by ~10-24).
+
+Caveat on the new "too high" calls: the referee's thresholds were calibrated on slab-mixed asks. Ungraded Buy It Now pools are smaller (n = 3-6, some n = 1-2, e.g. Armageddon Unlimited $195 vs 2 asks at $0.99 = junk listings). So the 30 new "too high" calls are **suspects for the TCGplayer-first hand check**, not price changes: nothing was retuned or moved tonight (measure first).
+The referee compares each $100+ printing's TCGplayer price to what the SAME printing is asked for on eBay. Until tonight it read every listing; now it reads only **Ungraded** cards listed at a **plain Buy It Now** price (no slabs, no auctions, no Best Offer).
+
+- Rows re-read tonight: **2026** of 4184 (Pokémon 746, Yu-Gi-Oh! 232, Magic 967, Lorcana 81).
+- Verdict changes: ok → none: 219; ok → check: 100; check → ok: 76; check → none: 49; high → ok: 32; high → none: 27; check → high: 21; high → check: 15; ok → high: 9; none → ok: 8; none → check: 2.
+- "Too high" calls **cleared**: 74 (slabs had pushed eBay's asks up). "Too high" calls **new**: 30. Still "too high": 34.
+- Of the 426 prices with a standing keep/hide call, 12 changed verdict (all were KEEP calls; no HIDE call flipped).
+
+### New "too high" calls (dearest first) — TCGplayer is checked FIRST before any of these move
+| Game | Card | Our price | eBay asks before (n) | eBay asks now, ungraded BIN only (n) | Referee's call |
+|---|---|---|---|---|---|
+| Pokémon | Heracross · Neo Genesis 6 · 1stEditionHolofoil | $281 | $140 (18) | $80.00 (4) | needs a hand check → too high vs eBay asks |
+| Yu-Gi-Oh! | Left Leg of the Forbidden One · The Legend of Blue Eyes White Dragon LOB-121 | $270 | $89.26 (13) | $76.00 (4) | needs a hand check → too high vs eBay asks |
+| Pokémon | Raikou & Suicune LEGEND · Unleashed 93 · holofoil | $256 | $130 (18) | $125 (4) | needs a hand check → too high vs eBay asks |
+| Pokémon | Umbreon · BW Black Star Promos BW93 · holofoil | $250 | $138 (8) | $16.00 (4) | needs a hand check → too high vs eBay asks |
+| Magic | Last March of the Ents · The Lord of the Rings: Tales of Middle-earth 739 · foil | $249 | $40.00 (13) | $31.39 (6) | needs a hand check → too high vs eBay asks |
+| Magic | Jeweled Lotus · Commander Legends 695 · foil | $236 | $80.99 (16) | $72.99 (9) | needs a hand check → too high vs eBay asks |
+| Yu-Gi-Oh! | Swords of Revealing Light · The Legend of Blue Eyes White Dragon LOB-101 | $222 | $173 (18) | $28.49 (4) | fine → too high vs eBay asks |
+| Magic | Marsh Flats · Zendikar Expeditions 21 · foil | $220 | $90.00 (8) | $90.00 (7) | needs a hand check → too high vs eBay asks |
+| Pokémon | Heatran-EX · Plasma Freeze 109 · holofoil | $205 | $135 (16) | $90.00 (3) | needs a hand check → too high vs eBay asks |
+| Magic | Witch-king of Angmar · The Lord of the Rings: Tales of Middle-earth 736 · nonfoil | $203 | $19.70 (13) | $13.84 (4) | needs a hand check → too high vs eBay asks |
+| Pokémon | Raichu · Expedition Base Set 25 · reverseHolofoil | $200 | $120 (18) | $63.19 (5) | needs a hand check → too high vs eBay asks |
+| Magic | Emrakul, the Aeons Torn · Rise of the Eldrazi 4 · foil | $196 | $250 (5) | $35.93 (3) | fine → too high vs eBay asks |
+| Magic | Armageddon · Unlimited Edition 2 · nonfoil | $195 | $24.66 (6) | $0.99 (2) | needs a hand check → too high vs eBay asks |
+| Magic | Ertai, the Corrupted · Planeshift 107★ · foil | $190 | $62.29 (6) | $53.08 (4) | needs a hand check → too high vs eBay asks |
+| Pokémon | Steelix ex · Unseen Forces 109 · holofoil | $181 | $157 (7) | $53.51 (3) | fine → too high vs eBay asks |
+| Yu-Gi-Oh! | Dragon Master Knight · Retro Pack 2 RP02-EN097 | $170 | $67.97 (38) | $29.42 (10) | needs a hand check → too high vs eBay asks |
+| Pokémon | Absol · Team Magma vs Team Aqua 96 · holofoil | $168 | $300 (11) | $16.00 (3) | fine → too high vs eBay asks |
+| Pokémon | Giratina · DP Black Star Promos DP38 · holofoil | $164 | $53.04 (15) | $49.99 (6) | needs a hand check → too high vs eBay asks |
+| Pokémon | Absol · Triumphant 91 · holofoil | $155 | $175 (12) | $16.00 (3) | fine → too high vs eBay asks |
+| Pokémon | Umbreon · XY Black Star Promos XY96 · holofoil | $149 | $150 (17) | $93.66 (6) | fine → too high vs eBay asks |
+| Pokémon | Exeggcute · Plasma Blast 102 · holofoil | $149 | $107 (14) | $93.84 (3) | fine → too high vs eBay asks |
+| Magic | Saruman of Many Colors · The Lord of the Rings: Tales of Middle-earth 743 · nonfoil | $149 | $8.99 (9) | $8.49 (6) | needs a hand check → too high vs eBay asks |
+| Magic | Berserk · Unlimited Edition 186 · nonfoil | $139 | $9.99 (23) | $5.99 (6) | needs a hand check → too high vs eBay asks |
+| Magic | Doctor Doom · Marvel Super Heroes 394 · foil | $138 | $39.99 (40) | $24.45 (24) | needs a hand check → too high vs eBay asks |
+| Magic | Plains · Asia Pacific Land Program 4 · nonfoil | $135 | $28.28 (2) | $32.78 (3) | needs a hand check → too high vs eBay asks |
+| Yu-Gi-Oh! | Compulsory Evacuation Device · Turbo Pack: Booster Four TU04-EN005 | $122 | $250 (1) | $1.15 (1) | fine → too high vs eBay asks |
+| Magic | Fabricate · Secret Lair Drop 7118 · nonfoil | $119 | $54.99 (9) | $49.50 (3) | needs a hand check → too high vs eBay asks |
+| Magic | Mana Confluence · Edge of Eternities: Stellar Sights 70 · foil | $116 | $69.99 (6) | $68.06 (3) | needs a hand check → too high vs eBay asks |
+| Pokémon | Umbreon · Undaunted 10 · holofoil | $115 | $67.43 (28) | $60.00 (6) | needs a hand check → too high vs eBay asks |
+| Magic | Ghyrson Starn, Kelermorph · Warhammer 40,000 Commander 124★ · foil | $111 | $176 (3) | $43.66 (3) | fine → too high vs eBay asks |
+
+### Keep/hide calls whose reading changed
+| Game | Card | Our price | eBay asks before (n) | eBay asks now, ungraded BIN only (n) | Referee's call |
+|---|---|---|---|---|---|
+| Yu-Gi-Oh! | Left Leg of the Forbidden One · The Legend of Blue Eyes White Dragon LOB-121 | $270 | $89.26 (13) | $76.00 (4) | needs a hand check → too high vs eBay asks |
+| Magic | Spectacular Spider-Man · Marvel's Spider-Man 240 · foil | $264 | $19.95 (36) | $350 (5) | needs a hand check → fine |
+| Pokémon | Pikachu & Zekrom GX · Team Up 184 · holofoil | $249 | $107 (57) | $234 (9) | needs a hand check → fine |
+| Pokémon | Rocket's Meowth · Team Rocket Returns 46 · reverseHolofoil | $250 | $30.00 (5) | — (0) | needs a hand check → no eBay asks found |
+| Magic | Llanowar Elves · Foundations 429 · foil | $218 | $2.79 (30) | $241 (8) | needs a hand check → fine |
+| Magic | Spectacular Spider-Man · Marvel's Spider-Man 237 · foil | $217 | $19.95 (36) | $350 (5) | needs a hand check → fine |
+| Pokémon | Palkia · Great Encounters 106 · holofoil | $174 | $14.99 (34) | $10.00 (2) | too high vs eBay asks → needs a hand check |
+| Magic | Spectacular Spider-Man · Marvel's Spider-Man 241 · foil | $199 | $19.95 (36) | $350 (5) | needs a hand check → fine |
+| Pokémon | Snorlax · Call of Legends 33 · reverseHolofoil | $190 | $74.99 (5) | $90.00 (2) | too high vs eBay asks → needs a hand check |
+| Magic | Xiahou Dun, the One-Eyed · Portal Three Kingdoms 92 · nonfoil | $185 | $7.99 (2) | $250 (1) | needs a hand check → fine |
+| Pokémon | Scizor ex · Unseen Forces 108 · holofoil | $190 | $20.00 (56) | $11.75 (2) | too high vs eBay asks → needs a hand check |
+| Lorcana | Ariel - Spectacular Singer · Curator's Collection: Heroines Edition 1 · foil | $137 | $25.34 (5) | $120 (3) | needs a hand check → fine |
+
+### "Too high" calls that cleared (dearest 15 of 74)
+| Game | Card | Our price | eBay asks before (n) | eBay asks now, ungraded BIN only (n) | Referee's call |
+|---|---|---|---|---|---|
+| Pokémon | Darkrai & Cresselia LEGEND · Triumphant 99 · holofoil | $276 | $45.99 (77) | $250 (5) | too high vs eBay asks → fine |
+| Magic | Sol Ring · Fallout 887 · foil | $273 | $49.22 (15) | $291 (2) | too high vs eBay asks → fine |
+| Magic | Exalted Sunborn · Edge of Eternities 384 · foil | $270 | $47.00 (43) | $509 (1) | too high vs eBay asks → fine |
+| Magic | Leonardo, the Balance · Teenage Mutant Ninja Turtles Eternal 83 · foil | $269 | $2.79 (25) | — (0) | too high vs eBay asks → no eBay asks found |
+| Magic | Nazgûl · The Lord of the Rings: Tales of Middle-earth 723 · foil | $269 | $46.18 (3) | — (0) | too high vs eBay asks → no eBay asks found |
+| Magic | Muldrotha, the Gravetide · Foundations 440 · foil | $268 | $4.49 (41) | — (0) | too high vs eBay asks → no eBay asks found |
+| Magic | Mountain · Arabian Nights 77 · nonfoil | $267 | $2.99 (3) | $3.28 (2) | too high vs eBay asks → needs a hand check |
+| Magic | Michelangelo, the Heart · Teenage Mutant Ninja Turtles Eternal 92 · foil | $251 | $2.99 (23) | $251 (1) | too high vs eBay asks → fine |
+| Magic | Tidus, Yuna's Guardian · Final Fantasy Commander 213 · foil | $247 | $79.16 (5) | $317 (1) | too high vs eBay asks → fine |
+| Magic | Aragorn, the Uniter · The Lord of the Rings: Tales of Middle-earth 741 · foil | $245 | $16.00 (6) | $79.95 (2) | too high vs eBay asks → needs a hand check |
+| Magic | Enduring Curiosity · Duskmourn: House of Horror 398 · foil | $242 | $11.99 (44) | $293 (1) | too high vs eBay asks → fine |
+| Magic | Enduring Courage · Duskmourn: House of Horror 402 · foil | $236 | $5.29 (40) | — (0) | too high vs eBay asks → no eBay asks found |
+| Magic | Nazgûl · The Lord of the Rings: Tales of Middle-earth 551 · foil | $227 | $46.46 (3) | — (0) | too high vs eBay asks → no eBay asks found |
+| Magic | Celes, Rune Knight · Final Fantasy Commander 209 · foil | $227 | $99.97 (7) | — (0) | too high vs eBay asks → no eBay asks found |
+| Magic | Raphael, the Muscle · Teenage Mutant Ninja Turtles Eternal 91 · foil | $227 | $2.59 (26) | — (0) | too high vs eBay asks → no eBay asks found |
+
+
