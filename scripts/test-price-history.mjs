@@ -181,6 +181,28 @@ check("null name", tcgplayerProductPattern(null), null);
   check("historyStart = first priced day otherwise", historyStart({ startDay: "2026-10-01", prices: [null, 5, 5] }, "pokemon"), "2026-10-02");
 }
 
+// ---- 10-22: the cap LIFT (cap off + hand checks): a cut series that comes back starts its history at the lift, not the cut ----
+{
+  const { capLiftDay, seriesBreakDay, cleanSeriesPoints, historyStart } = await import("../src/lib/priceOutliers.ts");
+  // Raikou SL9 (prod): 698.99 to 10-15, 217.50 from 10-16, 579.99 on 10-22 (within 35% of 698.99).
+  const raikou = { startDay: "2026-10-13", prices: [698.99, 698.99, 698.99, 217.5, 217.5, 217.5, 217.5, 217.5, 217.5, 579.99] };
+  check("the step back to 65%+ of the pre-cut level is the lift", capLiftDay(toPoints(raikou), "pokemon"), "2026-10-22");
+  check("a tcgplayer row breaks at the lift, not the cut", seriesBreakDay(toPoints(raikou), "tcgplayer", "pokemon"), "2026-10-22");
+  check("chart / change words start at the lift", cleanSeriesPoints(raikou, "pokemon").map((p) => p.day), ["2026-10-22"]);
+  check("historyStart = the lift", historyStart(raikou, "pokemon"), "2026-10-22");
+  // Still cut: the break stays the cut.
+  const cut = { startDay: "2026-10-13", prices: [698.99, 698.99, 698.99, 217.5, 217.5, 217.5, 217.5] };
+  check("no step back: the cut stays the break", seriesBreakDay(toPoints(cut), "tcgplayer", "pokemon"), "2026-10-16");
+  // A small step up (10%) or a step to a different level (half the old price) is a market move after the cut, not the lift.
+  check("a 10% step is no lift", capLiftDay(toPoints({ startDay: "2026-10-13", prices: [698.99, 698.99, 698.99, 217.5, 217.5, 239] }), "pokemon"), null);
+  check("a step to half the old level is no lift", capLiftDay(toPoints({ startDay: "2026-10-13", prices: [698.99, 698.99, 698.99, 217.5, 217.5, 350] }), "pokemon"), null);
+  // A hand check that overwrote the cut points (correctTail): the first point at the checked price is the lift.
+  const checked = { startDay: "2026-10-13", prices: [628.77, 628.77, 628.77, 217.5, 999.99, 999.99, 999.99] };
+  check("a series without a cut (checked over) has no break", seriesBreakDay(toPoints({ startDay: "2026-10-13", prices: [628.77, 628.77, 628.77, 999.99, 999.99] }), "tcgplayer", "pokemon"), null);
+  check("a cut then a check: the break is the check day", seriesBreakDay(toPoints(checked), "tcgplayer", "pokemon"), "2026-10-17");
+  check("no game: nothing", capLiftDay(toPoints(raikou), undefined), null);
+}
+
 // ---- 10-20: the Cardmarket lift (priceChain 1.12, first fill 10-20) is a break on cardmarket-converted rows, the way a cap cut is on TCGplayer rows ----
 {
   const { LIFT_BREAK_DAYS, liftBreakDay, seriesBreakDay, fromSeriesBreak, seriesCapBreak, historyStart } = await import("../src/lib/priceOutliers.ts");

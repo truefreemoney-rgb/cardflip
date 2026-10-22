@@ -63,9 +63,22 @@ export const POKEMON_CAP_OVER = 1.45;
  * closer on 11 of 13; the 2 misses were $12-$15 holos, hence the $20 floor. Pure.
  */
 export function pokemonListingCap(market: number, low: number | null): number {
+  if (!POKEMON_CAP_ON) return market;
   if (!(market >= POKEMON_CAP_MIN_USD) || low == null || !(low > 0) || market < POKEMON_CAP_OVER * low) return market;
   return Math.min(market, Math.round(low * SOFT_CAP_X * 100) / 100);
 }
+/**
+ * OFF since 10-22 (Chris "build the cap rule" after the 106-card incident, docs/REPORT-CARD-2026-10-21.md §14-15). The
+ * cheapest listing is a damaged copy on most older cards, so the cap priced them at a fraction of what Near Mint copies
+ * sell for: of the 106 cards it cut 2x+ on 10-16, 28 of the 30 with 3+ TCGplayer NM sales sat at 15-55% of the NM
+ * median. A fresh 48-card sample across every band on 10-22 (16 with 3+ NM sales, TCGplayer's own signed-in sales feed):
+ * TCGplayer's market was closer than the capped number on 15 of 16, in the 1.45-2x band 4 of 4, 2-3x 6 of 7, 3x+ 5 of 5;
+ * median error market 13-41% vs cap 30-72%. The 10-16/10-17 samples that okayed the cap were eBay sold reads mixing
+ * played copies and Best Offer sales, which read low. A damaged copy for sale says nothing about a Near Mint price.
+ * The function stays (tests, history) and answers the market while this is false; the 10-16/10-18 cut points stay in
+ * the stored series and lib/priceOutliers.ts starts charts at the cut and again at the lift.
+ */
+export const POKEMON_CAP_ON = false;
 export interface PokemonRefreshResult {
   groups: number;
   groupsFailed: number;

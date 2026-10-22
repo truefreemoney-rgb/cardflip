@@ -82,6 +82,31 @@ export function capBreakDay(points: readonly HistoryPoint[], game: string | unde
   return found;
 }
 
+/** A step back up after a cap cut counts as the lift once it reaches this share of the level before the cut. */
+export const CAP_LIFT_BACK = 0.65;
+
+/**
+ * The day a cut series came BACK (10-22): the Pokémon cap is off (pokemonPriceRefresh.ts POKEMON_CAP_ON), hand checks
+ * at TCGplayer's sales put 28 cut cards back, and the cut points sit between. The first point after the cap break that
+ * steps up 15%+ in one day to at least CAP_LIFT_BACK of the price just before the cut is the lift: the chart and its
+ * change words start there, not at the cut (Raikou SL9: $698.99 -> $217.50 on 10-16 -> $579.99 on 10-22 read as
+ * "Up 167%"). A step back to half the old level is a market move after the cut, not the lift. No date list: the lift
+ * lands whenever the code ships or a check is recorded. Null when nothing came back.
+ */
+export function capLiftDay(points: readonly HistoryPoint[], game: string | undefined): string | null {
+  const cut = capBreakDay(points, game);
+  if (!cut) return null;
+  const i = points.findIndex((p) => p.day >= cut);
+  if (i <= 0) return null;
+  const before = points[i - 1].price;
+  for (let j = i + 1; j < points.length; j++) {
+    const p = points[j].price;
+    if (p < points[j - 1].price / CAP_BREAK_DROP) continue;
+    if (p >= CAP_LIFT_BACK * before) return points[j].day;
+  }
+  return null;
+}
+
 /**
  * Days OUR pricing rule LIFTED a game's Cardmarket-converted numbers (lib/priceChain.ts CARDMARKET_LIFT, built 10-19,
  * first nightly fill 10-20): 618 of 708 Magic cardmarket-converted series stepped up 10-14% on 10-20 (Black Lotus Beta
@@ -108,7 +133,7 @@ export function liftBreakDay(points: readonly HistoryPoint[], game: string | und
 
 /** The break of a row by its source: TCGplayer rows break at a cap cut, Cardmarket-converted rows at the lift; other sources never. */
 export function seriesBreakDay(points: readonly HistoryPoint[], source: string | undefined, game: string | undefined): string | null {
-  if (!source || source === "tcgplayer") return game && CAP_BREAK_DAYS[game] ? capBreakDay(points, game) : null;
+  if (!source || source === "tcgplayer") return game && CAP_BREAK_DAYS[game] ? (capLiftDay(points, game) ?? capBreakDay(points, game)) : null;
   if (source === LIFT_SOURCE) return game && LIFT_BREAK_DAYS[game] ? liftBreakDay(points, game) : null;
   return null;
 }
@@ -139,9 +164,9 @@ export function historyStart(series: { startDay: string; prices: (number | null)
   return brk && brk > firstDay ? brk : firstDay;
 }
 
-/** The points from a series' cap break on (the whole series when it has none). */
+/** The points from a series' cap break on, or from its lift when the series came back (the whole series when it has neither). */
 export function fromCapBreak<T extends HistoryPoint>(points: T[], game: string | undefined): T[] {
-  const day = capBreakDay(points, game);
+  const day = capLiftDay(points, game) ?? capBreakDay(points, game);
   return day ? points.filter((p) => p.day >= day) : points;
 }
 
