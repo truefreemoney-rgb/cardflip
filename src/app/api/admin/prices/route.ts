@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { AuthError, requireAdminOwner } from "@/lib/server/auth";
 import { setManualCall } from "@/lib/server/ebayReferee";
-import { dropCardLists } from "@/lib/server/cardPages";
+import { revalidatePath } from "next/cache";
+import { dropCardLists, loadCardRecord } from "@/lib/server/cardPages";
+import { cardPath } from "@/lib/cardPages";
 import type { GameId } from "@/lib/types";
 import { adminAuthResponse } from "@/lib/server/adminGate";
 
@@ -28,7 +30,17 @@ export async function POST(req: Request) {
     const changed = await setManualCall(game as GameId, cardId.slice(0, 120), variant.slice(0, 40), call as "hide" | "keep" | "clear", undefined, fresh);
     // The cached strips that print this card (its set's top, its other printings, the game's top) are dropped so the
     // next page build shows the call, not the day-old number (10-14).
-    if (changed) await dropCardLists(game as GameId, cardId.slice(0, 120));
+    if (changed) {
+      await dropCardLists(game as GameId, cardId.slice(0, 120));
+      // The card page itself is cached for two days: a keep must show the real price now, not after the cache (10-22,
+      // 57 referee hides were cheaper-printing matches and the pages kept printing the $5 ask). Best effort, as post-check.
+      try {
+        const rec = await loadCardRecord(game as GameId, cardId.slice(0, 120));
+        if (rec) revalidatePath(cardPath(game as GameId, rec.facts.setSlug, rec.facts.name, rec.facts.key));
+      } catch (err) {
+        console.warn(`admin prices: could not rebuild the page of ${game} ${cardId}`, err);
+      }
+    }
     return changed ? NextResponse.json({ ok: true }) : NextResponse.json({ error: "No such row" }, { status: 404 });
   } catch (err) {
     if (err instanceof AuthError) return adminAuthResponse(err);
