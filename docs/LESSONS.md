@@ -216,3 +216,6 @@ Cause: the editor's per-card Condition dropdown also saved itself as the scan de
 
 ## 10-22 4:12PM ET: binder dividers read as graded slabs (Chris, phone check 2)
 Cause: slab was a bare boolean from the reader; rigid plastic near the card tripped it. Fix: slab counts only when the grading company's name was read off the label (slabGrader), prompt names dividers/boxes as not-slabs. Lesson: a refusal flag needs the evidence field beside it, not a yes/no.
+
+## 10-22 5:16PM ET: wrong-game switch read the photo twice (Chris, phone check)
+One scan charged, two reader calls and two waits. Measured: the first read under the wrong game's prompt already names the card (19/20 name+number, set code 20/20 on his Magic scans). Fix: the switch reuses the first read; the give-back moves from 'wrong game found' to 'cleared without switching'. Lesson: when a flow re-asks the model, check whether the first answer already had what the second asks for; and a refund-then-recharge pair is a smell.
