@@ -21,9 +21,15 @@ const LIST = [
   ["pokemon", "pop4-13", "holofoil"], ["pokemon", "ex1-3", "holofoil"], ["pokemon", "hgssp-HGSS17", "holofoil"],
   ["yugioh", "ygo-78160", "normal"], ["yugioh", "ygo-78073", "normal"], ["yugioh", "ygo-90812", "normal"],
 ];
-console.log(`${LIST.length} checks to retire${dry ? " (dry)" : ""}`);
+// Second pass 1:25am (the 7 whose product match missed, looked up by product id): 6 of 7 lose to TCGplayer's sales too.
+const LIST_B = [
+  ["yugioh", "ygo-90821", "normal"], ["yugioh", "ygo-90811", "normal"], ["yugioh", "ygo-90819", "normal"],
+  ["yugioh", "ygo-58774", "normal"], ["yugioh", "ygo-58739-1st", "normal"], ["pokemon", "dpp-DP28", "holofoil"],
+];
+const ACTIVE = process.argv.includes("--b") ? LIST_B : LIST;
+console.log(`${ACTIVE.length} checks to retire${dry ? " (dry)" : ""}`);
 let n = 0;
-for (const [game, cardId, variant] of LIST) {
+for (const [game, cardId, variant] of ACTIVE) {
   if (dry) { console.log(`would retire ${game} ${cardId} ${variant}`); continue; }
   const ok = await retireCheck(game, cardId, variant, todayUtc());
   if (ok) { n++; try { await dropCardLists(game, cardId); } catch {} }
