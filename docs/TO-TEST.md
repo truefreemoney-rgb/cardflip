@@ -1157,6 +1157,6 @@ pm run replay:scans (or SELECT read FROM scan_usage ORDER BY at DESC LIMIT 1): t
 - [ ] 10-23: the referee's next read does not flag them "too high" again (it compares to clean ungraded BIN asks now).
 - [x] 12:27am: the 7 looked up by product id: 6 more retired (Sengenjin LP $140 / MP $120 vs ours $7.06; Elemental HERO Heat LP $199.98 vs $3.99; Hecatrice NM $190-200 x6 vs $2.66; King Dragun Ultimate NM $153 vs $70; Ancient Gear Beast 1st LP $75-78 vs $35; Mewtwo LV.X DP28 LP $195-296, NM $445 vs $100). Pikachu Wizards promo 1 keeps $42 (TCGplayer $499.99 = junk). Total retired tonight: 33 of 47.
 
-## 10-22 ~1:20am ET: Entei SM219 promo fixed $205 -> $22.17 (TCGplayer market + 11 NM sales; prod write via scripts/_fix-price-tcg.mjs)
+## 10-22 ~12:20am ET: Entei SM219 promo fixed $205 -> $22.17 (TCGplayer market + 11 NM sales; prod write via scripts/_fix-price-tcg.mjs)
 - [ ] Card page for Entei SM219 (SM Black Star Promos) shows $22.17 with the checked-price badge; the nightly write does not push it back to ~$205 (the check holds while the raw feed is >band away).
 - [ ] Find why the raw TCGplayer feed carried ~$205 for smp-SM219 (product mapping in pokemonPriceRefresh / tcgcsv group for SM promos); if it is a mapping slip, other SM promos may share it: list SM promos whose TCGplayer price is >5x their Cardmarket EUR.

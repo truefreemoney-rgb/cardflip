@@ -208,7 +208,7 @@ Why the eBay numbers were low: those reads mixed in played copies and Best Offer
 
 Net: nothing on the hand list moves. The two cards the asks referee called "too high" (Mewtwo Star, Shining Tyranitar) were right all along; the asks it compared against were junk listings.
 
-## 9. The "round-number" Pokémon prices (1:00-1:20am ET 10-22; TCGplayer sales, your sign-in, 0 eBay)
+## 9. The "round-number" Pokémon prices (12:05-12:20am ET 10-22; TCGplayer sales, your sign-in, 0 eBay)
 
 366 Pokémon TCGplayer prices are whole dollars in multiples of 5 at $50+; 204 of them are real cards at $100+ (the rest are sealed products). Read all 204 against TCGplayer's last 25 sales. Result: a round number is TCGplayer's own market for that printing in all but one case, usually set by a single recent sale (Skyridge holos, Legendary Collection reverses, Star cards, 1st Editions: thin markets where one $300 sale is the market). Where the public market looked far off it was a different finish of the same product (TCGplayer's search shows the unlimited/normal line). Nothing systematic on our side.
 
