@@ -54,13 +54,13 @@ async function metric(filter, groupBy, limit) {
   return [...totals].sort((a, b) => b[1] - a[1]);
 }
 
-async function alert(message) {
+async function alert(message, outcome = "failed") {
   console.log("ALERT:", message);
   if (dry || !opsKey) return;
   const url = process.env.RUN_URL;
   const r = await fetch("https://cardflip.io/api/ops/alert", {
     method: "POST", headers: { Authorization: `Bearer ${opsKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ workflow: "Bot Watch", url, message: message.slice(0, 500) }),
+    body: JSON.stringify({ workflow: "Bot Watch", url, message: message.slice(0, 500), outcome }),
   });
   console.log("alert", r.status);
 }
@@ -125,5 +125,6 @@ const parts = [];
 if (toBlock.length) parts.push(`Blocked: ${toBlock.map(line).join("; ")}.`);
 if (held.length) parts.push(`NOT blocked (protected network, check by hand): ${held.map(line).join("; ")}.`);
 if (overflow.length) parts.push(`NOT blocked (per-run or rule cap): ${overflow.map(line).join("; ")}.`);
-if (parts.length) await alert(parts.join(" "));
+// A clean block is good news; anything left unblocked still reads as a failure that needs a hand.
+if (parts.length) await alert(parts.join(" "), held.length || overflow.length ? "failed" : "handled");
 else console.log("crawlers already blocked:", suspects.map((s) => `AS${s.asn}`).join(", "));

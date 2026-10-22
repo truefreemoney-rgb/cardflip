@@ -14,6 +14,8 @@ export interface OpsAlert {
   sha?: string;
   url?: string;
   message?: string;
+  /** 'handled': the workflow DID something (bot watch blocked a crawler); the mail says so instead of 'failed'. */
+  outcome?: "failed" | "handled";
 }
 
 export async function opsAlert(

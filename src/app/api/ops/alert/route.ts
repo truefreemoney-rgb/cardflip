@@ -20,6 +20,7 @@ export async function POST(req: NextRequest) {
   // phishing link inside a trusted "CardFlip: … Failed" alert).
   const rawUrl = str(body.url, 300);
   const url = rawUrl && RUN_URL.test(rawUrl) ? rawUrl : undefined;
-  const result = await opsAlert({ workflow, sha: str(body.sha, 40), url, message: str(body.message, 500) });
+  const outcome = body?.outcome === "handled" ? ("handled" as const) : undefined;
+  const result = await opsAlert({ workflow, sha: str(body.sha, 40), url, message: str(body.message, 500), outcome });
   return NextResponse.json({ result });
 }
