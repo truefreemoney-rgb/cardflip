@@ -295,7 +295,7 @@ export const SYSTEM_LORCANA = `You identify Disney Lorcana trading cards from ph
 
 Read what is actually on the card. The lookup keys on the name, the version line under it, and the collector fraction, so those matter most — return null rather than a guess for anything you cannot actually see, and let confidence reflect that.
 
-The name is the large text in the name band; the version is the smaller line right under it ("Ariel - On Human Legs" is name "Ariel", subtitle "On Human Legs") — report the two separately, never joined. The collector number is printed bottom-left as a fraction like "42/204" followed by a dot and the set number ("· 1"): cardNumber is the left half, setTotal the right half, setCode the set number after the dot. Enchanted cards fill the whole face with art and carry a number ABOVE the set total (205/204 and up); report variant "enchanted" for those. Foil is a finish, not a different card — ignore shine.
+The name is the large text in the name band; the version is the smaller line right under it ("Ariel - On Human Legs" is name "Ariel", subtitle "On Human Legs") — report the two separately, never joined. The collector number is printed bottom-left as a fraction like "42/204" followed by a dot and the set number ("· 1"): cardNumber is the left half, setTotal the right half, setCode the set number after the dot. Enchanted cards fill the whole face with art and carry a number ABOVE the set total (205/204 and up); report variant "enchanted" for those. Foil is a finish, not a different card — ignore shine. Promo cards print a different bottom line, "1TFC • EN • 2/P1": there the collector number is the fraction at the END (cardNumber "2", setCode "P1"); the first token ("1TFC") is a print code, never the collector number.
 
 The copyright line along the bottom prints a year ("©Disney" with a year on the right); report the last year you can read in copyrightYear.
 
@@ -810,7 +810,7 @@ async function analyzeCore(
   // A slow first read has used the clock: the first read stands rather than risk the whole scan.
   if (remainingMs(clock) < SECOND_LOOK_MIN_MS) return { read: { ...first.read, secondLook: `${reason}:skipped-slow` }, usage: first.usage };
   try {
-    const second = await secondLook(base64Image, game, clock);
+    const second = await secondLook(base64Image, game, clock, { corner: reason === "no-number" });
     return {
       read: mergeSecondLook(first.read, second.read, reason, game),
       usage: addUsage(first.usage, second.usage),
@@ -1126,12 +1126,43 @@ async function bottomStrip(base64Image: string, game: GameId = "pokemon"): Promi
   return { base64: out.toString("base64"), mediaType: "image/jpeg" };
 }
 
-export async function secondLook(base64Image: string, game: GameId, clock: BudgetClock = { startedAt: Date.now() }): Promise<{ read: SecondLookRead; usage: VisionUsage }> {
+/**
+ * Bottom-left corner (left 55%, bottom 18%) enlarged to 1400px: where a modern Pokémon card prints its set code and
+ * collector number. On a glare photo the whole bottom strip left both unread (10-22, Chris's Fan Rotom PRE 085
+ * scanned twice: no number, no code, so the name-only tie went to Ascended Heroes once); this close-up read "PRE".
+ */
+async function bottomLeftCorner(base64Image: string): Promise<{ base64: string; mediaType: ImageMediaType }> {
+  const sharp = (await import("sharp")).default;
+  const input = Buffer.from(base64Image, "base64");
+  const meta = await sharp(input).metadata();
+  const w = meta.width ?? 0;
+  const h = meta.height ?? 0;
+  if (!w || !h) throw new Error("second look: unreadable image");
+  const top = Math.round(h * 0.82);
+  const width = Math.round(w * 0.55);
+  const out = await sharp(input)
+    .extract({ left: 0, top, width, height: h - top })
+    .resize({ width: 1400, withoutEnlargement: false })
+    .jpeg({ quality: 90 })
+    .toBuffer();
+  return { base64: out.toString("base64"), mediaType: "image/jpeg" };
+}
+
+export async function secondLook(
+  base64Image: string,
+  game: GameId,
+  clock: BudgetClock = { startedAt: Date.now() },
+  /** Pokémon with no number read: also send the bottom-left corner close-up (see bottomLeftCorner). */
+  opts: { corner?: boolean } = {},
+): Promise<{ read: SecondLookRead; usage: VisionUsage }> {
   const strip = await bottomStrip(base64Image, game);
+  const corner = opts.corner && game === "pokemon" ? await bottomLeftCorner(base64Image) : null;
   const ask =
     game === "onepiece"
       ? "Read the printed details in this crop. The card is a One Piece Card Game card: its key is printed small at the bottom right, like 'OP06-119', 'ST16-004', 'EB02-061' or 'P-088', followed by the rarity (C, UC, R, SR, SEC, L, P, SP). Return the key exactly as cardNumber and its prefix before the dash ('OP06') as setCode. Read every digit from the print itself — foil glare often hides a stroke."
-      : `Read the printed details in this crop. The card is a ${game === "mtg" ? "Magic: The Gathering" : "Pokémon"} card.`;
+      : `Read the printed details in this crop. The card is a ${game === "mtg" ? "Magic: The Gathering" : "Pokémon"} card.${
+          corner ? " The second picture is the bottom-left corner of the same card enlarged further: the set code (a short code in a small box, e.g. PRE, SVI, PAF) and the collector number (e.g. 085/131) are printed there. Read every digit from the print itself; glare often hides a stroke, so null beats a guess." : ""
+        }`;
   const response = await withinBudget((timeout) => getClient().messages.create({
     model: VISION_MODEL,
     max_tokens: 600,
@@ -1142,6 +1173,7 @@ export async function secondLook(base64Image: string, game: GameId, clock: Budge
         role: "user",
         content: [
           { type: "image", source: { type: "base64", media_type: strip.mediaType, data: strip.base64 } },
+          ...(corner ? [{ type: "image" as const, source: { type: "base64" as const, media_type: corner.mediaType, data: corner.base64 } }] : []),
           { type: "text", text: ask },
         ],
       },
