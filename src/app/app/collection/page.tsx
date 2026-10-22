@@ -708,7 +708,8 @@ export default function CollectionPage() {
         : ended
           ? `Ended ${card.ebayEndedAt ? formatDate(card.ebayEndedAt) : ""} without a sale. Relist it, or delete the card.`
           : card.verifiedAt
-            ? pricingOnly ? "Verified." : "Verified, not listed yet."
+            // The ✓ Verified tick in the price box says "Verified." now (10-22); only the listing status is left to tell.
+            ? pricingOnly ? null : "Not listed yet."
             : pricingOnly ? "Check the match against your photo." : "Check the match against your photo before listing.";
     // Why a cheap draft sits above its market (value + fees + postage): only
     // while the price IS the suggested one, not a price the seller typed.
@@ -738,27 +739,92 @@ export default function CollectionPage() {
       <span className="rounded-full bg-amber-400/10 px-3 py-1 text-xs font-semibold text-amber-300">Auction ended</span>
     ) : sold ? (
       <span className="rounded-full bg-sky-400/10 px-3 py-1 text-xs font-semibold text-sky-300">Sold</span>
-    ) : card.verifiedAt ? null : ( // "Active" said what "Verified, not listed yet." already says (Chris 10-08)
-      <span className="rounded-full bg-amber-400/90 px-3 py-1 text-xs font-semibold text-black">Verify match</span>
-    );
+    ) : null; // Drafts: the Verify pill / "Verified" tick lives in the Market Price box (Chris 10-22), not a chip.
     // Sold rows are the record: never deleted, never relisted, always
     // viewable (Chris, 09-08). Live rows end first; ended/drafts delete.
     const canDelete = (card.status !== "listed" || ended) && !sold;
     // A card still waiting on Verify Match can't be marked sold (Chris 10-20): a wrong match would land in Sold with the wrong price.
     const unverified = draft && card.kind !== "sealed" && !card.verifiedAt;
     // Status chips ride in the price box's corner, not a row of their own (Chris, 10-07: "a waste of a lot of space").
+    // The scan-doubt line ("read #SVP085, closest printing is #085") is gone from the sheet (Chris 10-22: not needed
+    // here); the list row still carries its ⚠ and the Verify step is where the match gets checked.
     const chips = (
       <>
         {status}
         {(card.firstEdition || card.setName.endsWith(" (1st Edition)")) && (
           <span className="rounded-full border border-brand-400/40 bg-brand-500/10 px-2.5 py-1 text-xs font-semibold text-brand-300">1st Edition</span>
         )}
-        {shownDoubt(card.matchDoubt) && (
-          <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/30 px-2.5 py-1 text-xs text-amber-300/90">
-            <span aria-hidden>⚠</span> {shownDoubt(card.matchDoubt)}
-          </span>
-        )}
       </>
+    );
+    // Market Price pill makeover (Chris 10-22, from his phone: "looks terrible", Verify goes to the RIGHT of the
+    // price and is tappable, prices are green, the verified box had "way too much room"). The Verify pill runs the
+    // same action as "Yes, This Is My Card"; a game that asks which printing/foil first jumps to that picker.
+    const verifiedDraft = draft && card.kind !== "sealed" && Boolean(card.verifiedAt);
+    const choicesNow = verifyChoices[card.id];
+    const needsPick = asksPrinting(card) && (choicesNow === undefined || choicesNow === "failed" || choicesNow.length >= 2);
+    const verifyBusy = verifying === card.id;
+    const onVerifyTap = () => {
+      if (verifyBusy) return;
+      if (needsPick) {
+        document.getElementById(`verify-block-${card.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+        return;
+      }
+      void verifyMatch(card);
+    };
+    const marketText = market != null ? formatMoney(market) : !liveLoaded && card.catalogCardId ? "…" : "—";
+    // Picked by Chris 10-22 from four samples (D): label, then the price with a yellow Verify button to its right,
+    // a one-line hint under them; no tick on the button, the tick belongs to "Verified" only.
+    const verifiedTick = (
+      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-semibold text-emerald-300">
+        <span aria-hidden>✓</span> Verified
+      </span>
+    );
+    const verifyPill = (size: "sm" | "md") => (
+      <button
+        type="button"
+        onClick={onVerifyTap}
+        disabled={verifyBusy}
+        aria-label="Verify this is your card"
+        className={`inline-flex shrink-0 items-center gap-1.5 rounded-full bg-amber-400 font-semibold text-black shadow-sm transition hover:bg-amber-300 active:scale-[0.97] disabled:opacity-60 ${
+          size === "md" ? "px-4 py-2 text-sm" : "px-2.5 py-1 text-xs"
+        }`}
+      >
+        {verifyBusy && <Spinner className="h-3.5 w-3.5" />}
+        {verifyBusy ? "Saving…" : "Verify"}
+      </button>
+    );
+    const marketPriceCls = "font-display text-[28px] font-bold leading-none tracking-tight text-emerald-400 tabular-nums";
+    const labelCls = "text-[10px] font-medium uppercase tracking-wide text-zinc-500";
+    const draftControl = verifiedDraft ? verifiedTick : unverified ? verifyPill("md") : null;
+    const draftControlSm = verifiedDraft ? verifiedTick : unverified ? verifyPill("sm") : null;
+    // One box, two shapes: the full-width (Collector) box has room for the Verify button beside the price; the
+    // half-width cell (Seller, beside the eBay price) keeps the control on the label row where it fits.
+    const marketCell = (
+      <div className="min-w-0 bg-black/25 px-3 py-2.5">
+        {pricingOnly ? (
+          <>
+            <dt className={labelCls}>Market Price</dt>
+            <dd className="mt-1.5 flex items-center justify-between gap-3">
+              <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                <span className={marketPriceCls}>{marketText}</span>
+                {chips}
+              </span>
+              {draftControl}
+            </dd>
+            {unverified && <p className="mt-2 text-xs text-zinc-400">Same card as the one in your hand? Tap Verify.</p>}
+          </>
+        ) : (
+          <>
+            <div className="flex items-center justify-between gap-2">
+              {/* "MARKET PRICE" + the pill wrapped to two lines in the half-width cell: "MARKET" alone while a control is there. */}
+              <dt className={`${labelCls} whitespace-nowrap`}>{draftControlSm ? "Market" : "Market Price"}</dt>
+              {draftControlSm}
+            </div>
+            <dd className={`mt-1 ${marketPriceCls}`}>{marketText}</dd>
+            {chips && <div className="mt-1.5 flex flex-wrap items-center gap-1">{chips}</div>}
+          </>
+        )}
+      </div>
     );
     return (
       <div className="overflow-hidden rounded-2xl border border-edge bg-surface-1">
@@ -768,14 +834,7 @@ export default function CollectionPage() {
         <div className="px-4 pb-4 pt-4">
           {!sold && (
             <dl className={`mb-1 grid gap-px overflow-hidden rounded-xl border border-edge bg-edge ${pricingOnly ? "grid-cols-1" : "grid-cols-2"}`}>
-              {/* Chips under the price, not beside it (Chris 10-08: a $10,000.00 price ran under "Active" + "1st Edition"). */}
-              <div className="min-w-0 bg-black/25 px-3 py-2.5">
-                <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Market Price</dt>
-                <dd className="mt-0.5 font-display text-2xl font-bold tracking-tight text-white">
-                  {market != null ? formatMoney(market) : !liveLoaded && card.catalogCardId ? "…" : "—"}
-                </dd>
-                <div className="mt-1.5 flex flex-wrap items-center gap-1">{chips}</div>
-              </div>
+              {marketCell}
               {!pricingOnly && <div className="bg-black/25 px-3 py-2.5">
                 <dt className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">{priceLabel}</dt>
                 <dd className="mt-0.5 font-display text-2xl font-bold tracking-tight text-zinc-200">
@@ -1062,7 +1121,7 @@ export default function CollectionPage() {
             const busy = verifying === card.id;
             const onePiece = parseGame(card.game) === "onepiece";
             return (
-              <div className="flex flex-col gap-3 rounded-xl border border-amber-400/25 bg-amber-400/[0.06] p-4">
+              <div id={`verify-block-${card.id}`} className="flex flex-col gap-3 rounded-xl border border-amber-400/25 bg-amber-400/[0.06] p-4">
                 <div className="min-w-0">
                   <p className="font-display text-lg font-semibold text-white">Is This Your Card?</p>
                   <p className="mt-0.5 text-sm text-zinc-400">Same name, set and number as the one in your hand?</p>
