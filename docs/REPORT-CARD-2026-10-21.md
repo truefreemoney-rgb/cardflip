@@ -323,10 +323,10 @@ The 10-16/10-17 listing cap cut 106 Pokémon prices (data/crash-2026-10-19.json)
 
 | Evidence | Cards | Result |
 |---|---|---|
-| 3+ NM sales, cut price under 75% of the NM median | 29 | WRONG: ours sat at 15-55% of what NM copies sell for (Rayquaza C DP47 ours 217.50 vs NM 1,074 / 1,000 / 491; Shiny Raikou 217.50 vs 699; Rayquaza Dragons Exalted 124 210.25 vs 612; Charizard Platinum Arceus 8? no: pl3-8 101.49 vs 399.50 ...). 28 FIXED with a check at the NM median (scripts/_put-check.mjs --prod, 27 tonight + Raikou earlier); HGSS11 skipped (NM 81 / 68 / 250, no agreement). |
+| 3+ NM sales, cut price under 75% of the NM median | 29 | WRONG: ours sat at 15-55% of what NM copies sell for (Rayquaza C DP47 ours 217.50 vs NM 1,074 / 1,000 / 491; Shiny Raikou 217.50 vs 699; Giratina EX Dragons Exalted 124 210.25 vs 612; Rayquaza C Supreme Victors 8 101.49 vs 399.50 ...). 28 FIXED with a check at the NM median (scripts/_put-check.mjs --prod, 27 tonight + Raikou earlier); HGSS11 skipped (NM 81 / 68 / 250, no agreement). |
 | 3+ NM sales, inside the band | 1 | stands |
 | fewer than 3 NM sales | 76 | unsure, left at the cut number (mostly -60 cards; LP/MP sales only) |
 
-What it says: the listing cap took the LOWEST LISTING as the price for these cards, and on vintage cards the lowest listing is a damaged or heavily played copy. The checks hold 30 days; the nightly writer keeps the checked number while TCGplayer's own number stays more than 25% off it. Pages show "Checked against recent sales (N sold)". ISR-cached pages refresh within 48 h (three invalidated by hand: Rayquaza C, Rayquaza DE, pl3-8).
+What it says: the listing cap took the LOWEST LISTING as the price for these cards, and on vintage cards the lowest listing is a damaged or heavily played copy. The checks hold 30 days; the nightly writer keeps the checked number while TCGplayer's own number stays more than 25% off it. Pages show "Checked against recent sales (N sold)". ISR-cached pages refresh within 48 h (three invalidated by hand: Rayquaza C DP47, Giratina EX, Rayquaza C SV).
 
 Follow-up (your call): the 76 thin ones could be read against LP sales x 1/0.85 or left; and the cap itself (pokemonListingCap) should never take a lowest listing on a vintage card as the market. Noted in TASKS C.
