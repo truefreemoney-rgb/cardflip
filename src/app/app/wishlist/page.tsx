@@ -316,8 +316,7 @@ export default function WishlistPage() {
 
   // The add flow is search or a dropped image — deliberately no camera here:
   // a wishlisted card is one the user *doesn't* have in hand to scan.
-  // English-only for now — the ja/zh pipeline underneath still works;
-  // restoring <LanguageToggle> here re-enables it.
+  // English-only for now — the ja/zh pipeline underneath still works.
   const addLanguage: ScanLanguage = "en";
   // The same search as Search Cards (components/CardSearch): game, By Name /
   // By Set, filter and sort. The "From a Photo" way in (a file picker and a

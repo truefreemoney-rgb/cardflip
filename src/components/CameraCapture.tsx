@@ -166,6 +166,8 @@ interface Props {
   onSwitchGame?: (id: string, game: GameId) => void;
   /** The out-of-scans message while it applies (the page banner is hidden behind this modal). */
   quotaNote?: string | null;
+  /** Set only while the user is out of scans: Capture takes no photo and goes here (10-22: the burst ran, then the photo was thrown away). */
+  onGetMore?: () => void;
   onCapture: (file: File) => void;
   onClose: () => void;
   /** Tap on the result chip: leave the camera with this card open in the editor. */
@@ -337,7 +339,7 @@ const TIPS_MAX_OPENS = 3;
  * a real desk — keyboard, hand, monitor — each costing a paid scan. Chris:
  * "capture button is where it's at for speed". Don't rebuild without asking.
  */
-export default function CameraCapture({ game, onGameChange, lastScan, queue, onRemove, onSwitchGame, quotaNote, onCapture, onClose, onOpen, onSwap: onPick, onCamera, onEdit, onApplyConditionToAll }: Props) {
+export default function CameraCapture({ game, onGameChange, lastScan, queue, onRemove, onSwitchGame, quotaNote, onGetMore, onCapture, onClose, onOpen, onSwap: onPick, onCamera, onEdit, onApplyConditionToAll }: Props) {
   const onCameraRef = useRef(onCamera);
   useEffect(() => {
     onCameraRef.current = onCamera;
@@ -1280,7 +1282,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
             now, and the small tray button here opens the session sheet. */}
         <div className="flex shrink-0 items-center gap-3 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:justify-center sm:px-0 sm:pb-0">
           <button
-            onClick={nativeCam ? () => photoInput.current?.click() : capture}
+            onClick={onGetMore ?? (nativeCam ? () => photoInput.current?.click() : capture)}
             disabled={!ready && !nativeCam}
             className="flex-1 whitespace-nowrap rounded-full bg-brand-500 px-6 py-3.5 text-base font-semibold text-white shadow-lg shadow-brand-500/20 transition hover:bg-brand-400 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-none sm:px-10"
           >

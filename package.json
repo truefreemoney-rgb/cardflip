@@ -62,6 +62,7 @@
     "test:patternlook": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-pattern-look.mjs",
     "test:scanlogread": "node --experimental-strip-types --no-warnings scripts/test-scan-log-read.mjs",
     "test:firstreadsize": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-firstread-size.mjs",
+    "test:backstack": "node --experimental-strip-types --no-warnings --import ./scripts/lib/register-alias.mjs scripts/test-back-stack.mjs",
     "test:vision-schema": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-vision-schema.mjs",
     "test:centering": "node --experimental-strip-types --no-warnings scripts/test-centering.mjs",
     "test:profit": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-profit.mjs",

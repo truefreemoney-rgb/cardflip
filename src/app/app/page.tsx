@@ -1311,15 +1311,13 @@ export default function AppPage() {
    *  09-04: the sheet was covering the card the scanner had just found). */
   const onCameraCapture = useCallback(
     (file: File) => {
-      if (outOfScansRef.current) {
-        router.push("/pricing");
-        return;
-      }
+      // Capture goes to onGetMore when out of scans, so no photo gets here; this is the backstop (10-22).
+      if (outOfScansRef.current) return;
       const id = addFiles([file])[0] ?? null;
       setCameraItemId(id);
       if (id) sessionItemIdsRef.current.push(id);
     },
-    [addFiles, router],
+    [addFiles],
   );
 
   // Binder page (tier 1 #4, 09-27) was removed 10-03 with every upload path:
@@ -1342,6 +1340,13 @@ export default function AppPage() {
       });
     }
   }, []);
+
+  /** Capture while out of scans (10-22): no burst, no photo. The scanner closes (clearing scanOpenPending), then the
+   *  pricing page opens a beat later so the sheet-pop history.back() from the close lands first and can't eat the push. */
+  const getMoreScans = useCallback(() => {
+    closeCamera();
+    window.setTimeout(() => router.push("/pricing"), 200);
+  }, [closeCamera, router]);
 
   // Removal is undoable (Chris, 09-01 QoL pass): the ✕ used to hard-delete
   // the server card instantly — a misclick on a priced, photographed card was
@@ -1602,6 +1607,7 @@ export default function AppPage() {
       onRemove={clearItem}
       onSwitchGame={switchItemGame}
       quotaNote={quotaNote ?? (outOfScans ? "You're out of scans. Tap Capture to get more." : null)}
+      onGetMore={outOfScans ? getMoreScans : undefined}
       onSwap={swapCard}
       onCapture={onCameraCapture}
       onClose={closeCamera}

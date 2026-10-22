@@ -112,20 +112,38 @@ export function loginPathFor(pathname: string): string {
  * perfectly valid cookie to /login.
  */
 let inFlightMe: Promise<SessionUser | null> | null = null;
+let recentMe: { at: number; user: SessionUser | null } | null = null;
+const ME_SHARE_MS = 2000;
 export function fetchCurrentUser(): Promise<SessionUser | null> {
-  // Callers that ask at the same moment share one request (review 10-19 marketing #7: /pricing fired up to 7);
-  // nothing is kept once it answers, so a later call always reads the session as it is then.
-  inFlightMe ??= (async () => {
+  // Callers that ask at the same moment share one request (review 10-19 marketing #7: /pricing fired up to 7),
+  // and an answer under 2 s old is reused; a failure is never kept, and login/signup/logout clear it.
+  if (recentMe && Date.now() - recentMe.at < ME_SHARE_MS) return Promise.resolve(recentMe.user);
+  if (inFlightMe) return inFlightMe;
+  const p: Promise<SessionUser | null> = (async () => {
     const res = await apiFetch("/api/auth/me");
     if (res.status === 401 || res.status === 403) return null;
     if (res.status >= 500) throw new Error(`auth/me ${res.status}`);
     if (!res.ok) return null;
     const data = await readJson(res);
     return (data.user ?? null) as SessionUser | null;
-  })().finally(() => {
-    inFlightMe = null;
-  });
-  return inFlightMe;
+  })().then(
+    (user) => {
+      if (inFlightMe === p) recentMe = { at: Date.now(), user };
+      inFlightMe = null;
+      return user;
+    },
+    (err) => {
+      if (inFlightMe === p) inFlightMe = null;
+      throw err;
+    },
+  );
+  inFlightMe = p;
+  return p;
+}
+
+function forgetMe() {
+  inFlightMe = null;
+  recentMe = null;
 }
 
 /**
@@ -155,6 +173,7 @@ export async function signup(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name, email, password, ...(ref ? { ref } : {}), ...(touch ? { touch } : {}) }),
   });
+  forgetMe();
   const data = await readJson(res);
   // A confirmation-code limit answers { error: "slow_down", message }: show the message.
   if (!res.ok) throw new Error(data.message ?? data.error ?? "Sign up failed.");
@@ -172,6 +191,7 @@ export async function login(email: string, password: string, code?: string): Pro
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(code ? { email, password, code } : { email, password }),
   });
+  forgetMe();
   const data = await readJson(res);
   if (!res.ok) {
     if (data.totpRequired) throw new TotpRequiredError(data.error ?? "Enter your authenticator code.", Boolean(data.emailCode));
@@ -182,6 +202,7 @@ export async function login(email: string, password: string, code?: string): Pro
 
 export async function logout(): Promise<void> {
   await apiFetch("/api/auth/logout", { method: "POST" });
+  forgetMe();
   // Per-account browser prefs must not leak into the next login.
   const { clearAccountPrefs } = await import("@/lib/client/scanPrefs");
   clearAccountPrefs();

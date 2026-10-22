@@ -5,10 +5,17 @@ import { justRestoredScrollY, pinScroll } from "@/lib/client/useBodyScrollLock";
 
 /**
  * Android's back button (and the iOS back-swipe) closes the SHEET, not the
- * app. On open push a history entry tagged with the sheet's id; a popstate
- * that removes it calls `onClose`. A programmatic close (X, backdrop, Esc)
- * pops that entry itself so the stack doesn't collect dead sheet frames —
- * and the pop must not fire `onClose` again, hence the `popped` guard.
+ * app. On open push a history entry and a matching entry onto a module-level
+ * STACK of open sheets; a popstate closes the TOP stack entry only. A
+ * programmatic close (X, backdrop, Esc, Done) releases its own entry and pops
+ * history only if that entry is still on top — and that pop is marked, so the
+ * popstate it causes closes nothing.
+ *
+ * 10-22: who was popped comes from the stack, never from history.state.
+ * Next's router (and our own replaceState calls) overwrite state without any
+ * marker of ours, and the old marker compare then decided the camera had been
+ * popped when "This copy" said Done: camera closed, category sheet, listing
+ * page (Chris, 10-19). Next can't overwrite the stack.
  *
  * `onClose` rides on a ref: sheets pass inline arrows, and the effect must
  * run once per open, not once per parent render. SSR-safe: nothing runs
@@ -20,22 +27,64 @@ import { justRestoredScrollY, pinScroll } from "@/lib/client/useBodyScrollLock";
  * a tick instead, and a re-run for the same id cancels it and adopts the
  * entry that's already there — one push, one entry.
  */
-interface Marker {
-  sheet: string;
-  t: number;
+export interface BackEntry {
+  id: string;
+  /** Page the entry was pushed on: a pop after the page changed would walk back out of the new page. */
+  href: string;
+  close: () => void;
 }
 
-let pendingPop: { marker: Marker; timer: number } | null = null;
-
-function currentMarker(): Marker | null {
-  const s = window.history.state as Partial<Marker> | null;
-  return s && typeof s.sheet === "string" && typeof s.t === "number" ? { sheet: s.sheet, t: s.t } : null;
+/**
+ * The pure part, split out so scripts/test-back-stack.mjs can drive it with
+ * no browser. `stack` is bottom → top; `ignore` holds one token per
+ * history.back() we issued, so the popstate it causes isn't read as the
+ * user's Back.
+ */
+export function createBackStack() {
+  const stack: BackEntry[] = [];
+  const ignore: number[] = [];
+  let seq = 0;
+  return {
+    stack,
+    push(entry: BackEntry): BackEntry {
+      stack.push(entry);
+      return entry;
+    },
+    has: (entry: BackEntry) => stack.includes(entry),
+    /** A popstate arrived: the entry to close, or null (our own pop, or nothing open). */
+    onPop(): BackEntry | null {
+      if (ignore.length > 0) {
+        ignore.shift();
+        return null;
+      }
+      return stack.pop() ?? null;
+    },
+    /**
+     * A programmatic close. Returns a token when the caller must call
+     * history.back() (entry was on top and `canBack`), else null; the entry
+     * is out of the stack either way.
+     */
+    release(entry: BackEntry, canBack = true): number | null {
+      const i = stack.indexOf(entry);
+      if (i < 0) return null;
+      const onTop = i === stack.length - 1;
+      stack.splice(i, 1);
+      if (!onTop || !canBack) return null;
+      const token = ++seq;
+      ignore.push(token);
+      return token;
+    },
+    /** history.back() never answered: stop waiting for it. */
+    forget(token: number) {
+      const i = ignore.indexOf(token);
+      if (i >= 0) ignore.splice(i, 1);
+    },
+  };
 }
 
-function isMarker(m: Marker): boolean {
-  const c = currentMarker();
-  return c !== null && c.sheet === m.sheet && c.t === m.t;
-}
+const back = createBackStack();
+let listening = false;
+let pendingPop: { entry: BackEntry; timer: number } | null = null;
 
 export function useBackToClose(id: string, onClose: () => void, open = true): void {
   const onCloseRef = useRef(onClose);
@@ -45,41 +94,32 @@ export function useBackToClose(id: string, onClose: () => void, open = true): vo
 
   useEffect(() => {
     if (!open || typeof window === "undefined") return;
-    let marker: Marker;
-    if (pendingPop && pendingPop.marker.sheet === id && isMarker(pendingPop.marker)) {
+    if (!listening) {
+      listening = true;
+      window.addEventListener("popstate", () => back.onPop()?.close());
+    }
+    let entry: BackEntry;
+    if (pendingPop && pendingPop.entry.id === id && back.has(pendingPop.entry)) {
       window.clearTimeout(pendingPop.timer);
-      marker = pendingPop.marker;
+      entry = pendingPop.entry;
       pendingPop = null;
     } else {
-      marker = { sheet: id, t: Date.now() };
+      entry = back.push({ id, href: window.location.href, close: () => {} });
       // Keep Next's own keys (__NA, the tree) on the entry: the App Router
       // reloads the page on a popstate to an entry it doesn't recognise,
       // which Back-then-Forward would otherwise hit.
       const base = (window.history.state ?? {}) as Record<string, unknown>;
-      window.history.pushState({ ...base, ...marker }, "");
+      window.history.pushState({ ...base, sheet: id }, "");
     }
-    let popped = false;
-    const onPop = () => {
-      // Every open sheet hears every popstate (CategorySheet stacks over
-      // CardDetailModal); only the one whose entry just left the top closes.
-      if (isMarker(marker)) return;
-      // A marker pushed AFTER mine is still on top: a layer above me closed,
-      // not me. Three deep (camera → result sheet → "This copy"), Done on the
-      // top sheet left the result sheet's entry on top, and the camera read
-      // "not my marker" as "I was popped" and closed itself — straight into
-      // "Which category?" and the editor (Chris's phone check, 10-19).
-      const top = currentMarker();
-      if (top && top.t >= marker.t) return;
-      popped = true;
-      onCloseRef.current();
-    };
-    window.addEventListener("popstate", onPop);
+    // An adopted entry points at this run's ref, not the cleaned-up one's.
+    entry.close = () => onCloseRef.current();
+    const mine = entry;
     return () => {
-      window.removeEventListener("popstate", onPop);
-      if (popped || !isMarker(marker)) return;
+      if (!back.has(mine)) return; // popped by Back already: nothing to undo
       const timer = window.setTimeout(() => {
         pendingPop = null;
-        if (!isMarker(marker)) return;
+        const token = back.release(mine, window.location.href === mine.href);
+        if (token === null) return;
         // The pop is a history traversal, and Safari restores the scroll
         // position it saved for the earlier entry on it. That entry was left
         // while the body was pinned for the sheet (useBodyScrollLock), so the
@@ -95,8 +135,9 @@ export function useBackToClose(id: string, onClose: () => void, open = true): vo
         const y = justRestoredScrollY() ?? window.scrollY;
         window.addEventListener("popstate", () => pinScroll(y), { once: true });
         window.history.back();
+        window.setTimeout(() => back.forget(token), 1500);
       }, 0);
-      pendingPop = { marker, timer };
+      pendingPop = { entry: mine, timer };
     };
   }, [id, open]);
 }
