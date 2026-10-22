@@ -107,10 +107,10 @@ function marketOf(card: PokemonCard): number | null {
   return best.length ? Math.max(...best) : null;
 }
 
+/** Landing tiles: a whole-dollar price at $1,000+ drops its ".00" (Chris 10-22: "$1,499 is fine if the cents are .00"); any other cents show. */
 function money(n: number): string {
-  return n >= 1000
-    ? `$${Math.round(n).toLocaleString("en-US")}`
-    : `$${n.toFixed(2)}`;
+  const whole = Math.abs(n - Math.round(n)) < 0.005;
+  return n >= 1000 && whole ? `$${Math.round(n).toLocaleString("en-US")}` : formatMoney(n);
 }
 
 /**
