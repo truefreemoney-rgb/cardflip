@@ -220,7 +220,9 @@ const MTG_TREATMENTS: Record<string, RegExp> = {
 /** Printings that are foil by nature: the title may name the treatment instead of "foil". */
 const MTG_FOIL_BY_NATURE = new Set(["serialized", "raisedfoil", "neonink", "embossed", "sldbonus", "textured", "fracturefoil", "surgefoil", "galaxyfoil", "halofoil", "confettifoil", "manafoil", "silverfoil"]);
 /** Yu-Gi-Oh! rarities a title must name (the common ones share a print code with them). */
-const YGO_RARITY_WORDS = ["ghost", "ultimate", "prismatic", "starlight", "quarter century", "platinum", "collector", "mosaic", "starfoil"];
+// "secret" (10-22): Premium Pack 2 prints the same code as Super Rare ($2-5) and Secret Rare ($100-200); without the word the
+// Secret Rare rows matched the Super Rare asks and hid four right prices (hand check: PP02-EN007 Secret Rare sold $190-214).
+const YGO_RARITY_WORDS = ["ghost", "ultimate", "prismatic", "starlight", "quarter century", "platinum", "collector", "mosaic", "starfoil", "secret"];
 
 /**
  * Printing tags (tcg_cards.variant) the matcher knows how to require in a title. A tag outside these is NOT refereed: the
