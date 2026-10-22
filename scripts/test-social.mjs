@@ -650,9 +650,8 @@ console.log("10-16: a week whose start sat on a parked listing is no move (Alpha
   check("the Magic head to head picks the two real moves, not the parked pair", pV && [pV.a.cardId, pV.b.cardId].sort(), ["mtg-v1", "mtg-v2"]);
 }
 
-// Magic's 10-14 price cap: no Magic "this week" move while a 7-day window spans it; other games and later days unaffected.
-check("Magic moves paused 10-16 (window spans the 10-14 cap)", (await topMovers("mtg", "2026-10-16")).length, 0);
-check("Magic moves paused through 10-20", (await topMovers("mtg", "2026-10-20")).length, 0);
+// Magic's 10-14 price cap pause ended 10-21 and its CAP_PAUSES entry was removed 10-22 (4376b4c6): Magic moves read again.
+check("Magic moves read again after the pause (10-22)", (await topMovers("mtg", "2026-10-22")).length > 0, true);
 // Pokémon's 10-16/10-17 listing cap, same pause (10-19: the 7am "price drops" was all cap cuts, Dragonair 1st Ed $198 -> $29).
 check("Pokemon dips paused 10-19 (window spans the 10-17 cap)", (await topMovers("pokemon", "2026-10-19", { direction: "down" })).length, 0);
 check("Pokemon moves paused through 10-24 (second cap day 10-18)", (await topMovers("pokemon", "2026-10-24")).length, 0);
