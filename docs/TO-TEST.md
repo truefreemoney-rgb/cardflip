@@ -1,5 +1,12 @@
 ﻿# To test later
 
+## 10-22 ~6:52AM ET: the 106 cap-cut cards, measured + two blanks fixed (COMMIT ONLY code: price guard in-band check vouches; prod data: Raikou SL9 check, Typhlosion 1st keep)
+- Measured (prod, data/crash-2026-10-19.json): 15 of 106 stepped back up on the 10-22 point (217.50 -> 579.99 Raikou, 231.99 -> 507.49 Typhlosion 1st, ...); the guard's recovery rule waved 13 through; 91 still sit at their cut number (TCGplayer's own figure, nothing to do). The chart + 7d/30d % already start at the cap break (priceHistory.ts fromSeriesBreak), so the 'Down 60-80%' item is closed by code that shipped earlier.
+- Blank 1, Raikou SL9 Call of Legends holofoil: TCGplayer NM sales 719 / 699 / 699 (Oct 2-6) -> check recorded on prod at 699 n=3 (scripts/_put-check.mjs --prod). Our 579.99 is inside the 25% band so it STANDS, but the guard only let an exact check vouch -> fixed in priceTrustSite.ts (isOffCheck band), test:sitetrust +3, test:checked / pricetrust / sitetrustroutes green, tsc + eslint clean.
+- Blank 2, Typhlosion 1st Ed Neo Genesis 18 (neo1-18-1st): old step from 45 months ago reads as a never-came-back spike; the 10-14 eBay keep at 699.99 stopped binding once TCGplayer moved to 507.49 (10% band). TCGplayer: no 1st Ed NM sales in 80; eBay sold (1 search): one plain BIN NM 899.98, Best Offer sales 400-650, LP 450 -> TCGplayer's 507.49 stands; the keep moved to 507.49 (manual_day 10-22) on prod so it binds again.
+- [ ] After push: curl Raikou /cards/pokemon/call-of-legends/raikou--col1-SL9 = $579.99 printed, no 'looks off'. Typhlosion 1st page prints $507.49 now (keep binds; page may be ISR-cached up to 48 h).
+- [ ] Nightly 10-23 Pokémon write: the other recovered cards keep their new numbers, none blank (re-run the 15 through scripts/_trust-why.mjs with the Turso env).
+
 ## 10-22 ~2:35am ET: 7am TikTok + Pinterest posted by hand (Rayquaza ex Then vs Now; TikTok sound Littleroot Town after Chris rejected the battle theme)
 - [ ] ~2 h after posting: TikTok views (dead-post rule: under ~50 at the 2 h mark = repost with a new sound, pin, log); Pinterest pin visible on Pokemon Card Prices.
 - [ ] Comment check at the 7am / 1pm sessions: /admin/social/posts + TikTok by hand.
@@ -301,6 +308,13 @@
 - [x] PASS 10-16 (curl: $939.50, no "looks off") 10-15: /cards/pokemon/crystal-guardians/charizard--ex14-4 shows $939.50 (hand keep POSTed 10-14 ~2:45pm ET; page copy was still "looks off" right after, cache).
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
+
+## 10-22 ~6:52AM ET: the 106 cap-cut cards, measured + two blanks fixed (COMMIT ONLY code: price guard in-band check vouches; prod data: Raikou SL9 check, Typhlosion 1st keep)
+- Measured (prod, data/crash-2026-10-19.json): 15 of 106 stepped back up on the 10-22 point (217.50 -> 579.99 Raikou, 231.99 -> 507.49 Typhlosion 1st, ...); the guard's recovery rule waved 13 through; 91 still sit at their cut number (TCGplayer's own figure, nothing to do). The chart + 7d/30d % already start at the cap break (priceHistory.ts fromSeriesBreak), so the 'Down 60-80%' item is closed by code that shipped earlier.
+- Blank 1, Raikou SL9 Call of Legends holofoil: TCGplayer NM sales 719 / 699 / 699 (Oct 2-6) -> check recorded on prod at 699 n=3 (scripts/_put-check.mjs --prod). Our 579.99 is inside the 25% band so it STANDS, but the guard only let an exact check vouch -> fixed in priceTrustSite.ts (isOffCheck band), test:sitetrust +3, test:checked / pricetrust / sitetrustroutes green, tsc + eslint clean.
+- Blank 2, Typhlosion 1st Ed Neo Genesis 18 (neo1-18-1st): old step from 45 months ago reads as a never-came-back spike; the 10-14 eBay keep at 699.99 stopped binding once TCGplayer moved to 507.49 (10% band). TCGplayer: no 1st Ed NM sales in 80; eBay sold (1 search): one plain BIN NM 899.98, Best Offer sales 400-650, LP 450 -> TCGplayer's 507.49 stands; the keep moved to 507.49 (manual_day 10-22) on prod so it binds again.
+- [ ] After push: curl Raikou /cards/pokemon/call-of-legends/raikou--col1-SL9 = $579.99 printed, no 'looks off'. Typhlosion 1st page prints $507.49 now (keep binds; page may be ISR-cached up to 48 h).
+- [ ] Nightly 10-23 Pokémon write: the other recovered cards keep their new numbers, none blank (re-run the 15 through scripts/_trust-why.mjs with the Turso env).
 
 ## 10-22 ~2:35am ET: 7am TikTok + Pinterest posted by hand (Rayquaza ex Then vs Now; TikTok sound Littleroot Town after Chris rejected the battle theme)
 - [ ] ~2 h after posting: TikTok views (dead-post rule: under ~50 at the 2 h mark = repost with a new sound, pin, log); Pinterest pin visible on Pokemon Card Prices.
