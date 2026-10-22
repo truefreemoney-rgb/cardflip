@@ -3,9 +3,9 @@
 ## 10-22 6:03PM ET (real clock): PUSHED fb6b91f9 (31 commits, d3c5f350 -> fb6b91f9) on Chris "make the push when you can"; CI + Production smoke runs noted below
 Visible (all passed by Chris from shots before the push): Seller price pill B (Verify bar / green Verified band / Listing Ended band under the two prices), Collector pill D, "Listing Ended" wording, 44px Save on You paid.
 - [x] 6:15pm ET: CI 39861950928 GREEN on fb6b91f9 (the twin run 39862020072 on the same commit was still finishing), Production smoke 39862076443 GREEN.
-- [ ] Phone, Seller mode (Chris): open a draft card from Inventory -> Market and eBay Suggested Price side by side, yellow "Verify This Is Your Card" bar under them; tap it -> same as "Yes, This Is My Card"; a verified draft shows the green "✓ Verified" band; an ended listing the amber "Listing Ended" band; a live one the green "Live on eBay" band with the dot.
+- [x] PASSED by Chris on the phone ("1, 2, 3 pass"): Verify bar, then the green Verified band. Phone, Seller mode (Chris): open a draft card from Inventory -> Market and eBay Suggested Price side by side, yellow "Verify This Is Your Card" bar under them; tap it -> same as "Yes, This Is My Card"; a verified draft shows the green "✓ Verified" band; an ended listing the amber "Listing Ended" band; a live one the green "Live on eBay" band with the dot.
 - [ ] Phone, Collector mode: the D pill is unchanged (price, yellow Verify to its right, hint line).
-- [ ] Phone: Pokémon on, scan a Magic card, Switch to Magic = instant, ONE read, counter down by one (one-read wrong-game switch 10407ada).
+- [x] PASSED by Chris on the phone: Pokémon on, scan a Magic card, Switch to Magic = instant, ONE read, counter down by one (one-read wrong-game switch 10407ada).
 - [ ] Phone: scan chip label names the condition ("Lightly Played · Holofoil"); re-read text; slab needs its label; binder dividers are not slabs; Delete on the sheet asks first; scan condition = the seller's pick, photo warns only on HP/Damaged.
 - [ ] Phone, sealed row (none owned): skip; the local walk passed (TASKS B5).
 - [ ] 5:45am 10-23 Pokémon write: the 12 hand-mapped alternates get a TCGplayer price (Yveltal EX XY150a ~$231, M Lucario EX 55a ~$53, Guzzlord GX 63a ~$19.53, Reshiram BW004 ~$5.58...): scripts/.series-missing-tmp.mjs count 62 -> 50.
