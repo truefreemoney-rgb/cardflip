@@ -1,4 +1,4 @@
-# CardFlip design system
+﻿# CardFlip design system
 
 Read this before any visual/design work. It exists so the design language
 stays coherent across sessions (Impeccable-style "context first"). Update it
@@ -15,8 +15,9 @@ product.
 
 - Background `#0a0b11` with a fixed two-radial ambient on `body` (indigo
   glow from the top, faint pink from the corner) — depth that needs no
-  motion. Panels use `--surface-1/2/3` (blue-tinted `#aab4ff`-ish at
-  5.5/8.5/12%), hairlines `--edge` / `--edge-strong` (white at 11/19%).
+  motion. Panels use `--surface-1/2/3` (blue-tinted `#afb9ff`-ish at
+  7/10/14.5%), hairlines `--edge` / `--edge-strong` (white at 14/24%;
+  numbers re-read from globals.css 10-22).
   Raised 08-25 ("refined dark" pass, Chris: theme looked dated): the old
   white 3/5/8% surfaces had no contrast, and with animations off the site
   read as one flat sheet. **The static frame must carry the design** —
@@ -86,7 +87,7 @@ The scanner's one rationed showpiece is the moment of the match. Sequence:
 laser sweep (`.scan-sweep`) while looking/reading → shutter tick + flash on
 capture → the matched card's art pops out of the result chip
 (`.reveal-art`, spring + one foil sheen), name in display type, market price
-counts up (`.reveal-price`) → chime + haptic. Sized by value
+counts up (`.reveal-price`) → haptic pattern (the chimes and shutter tick were removed 10-02, Chris). Sized by value
 (`revealTier` in `lib/client/scanFx.ts`): <$20 plain, $20–100 "nice"
 (emerald), $100–500 "big" (gold border, `.holo-text` price, "NICE PULL"),
 ≥$500 "grail" (pink border, holo label, holo burst behind the guide,
@@ -101,11 +102,12 @@ by tier, "No match" flat + amber on a miss. This is the one deliberate
 exception to the no-exclamation-marks voice rule — Chris's call, 08-16:
 the scanner is allowed to celebrate. (A full-frame "scene" + per-scan
 personal line was built and reverted the same hour at Chris's request —
-don't rebuild without asking.) Sound + haptics are one toggle in the HUD,
-remembered (`cardflip.scanFx`), default on. HUD zoning (09-03, Chris's
+don't rebuild without asking.) Haptics only (`navigator.vibrate`, Android;
+iOS ignores it): the sound toggle, chimes and shutter tick were removed 10-02
+(Chris; `lib/client/scanFx.ts` header). HUD zoning (09-03, Chris's
 phone: "everything overlaps"): the auto-scan state + running tally (cards ·
 value) are one status row ABOVE the viewfinder, the result chip sits BELOW
-it, only the ✕ / torch / sound column stays on the video and the guide is
+it, only the ✕ / torch column stays on the video and the guide is
 narrowed to clear it (`guideGeometry` in CameraCapture — one rect drives
 the viewfinder, sampler and crop). Full-bleed below `sm`. All one-shot after the sweep — nothing
 loops once a match is showing. Voice stays dry: the labels are the only

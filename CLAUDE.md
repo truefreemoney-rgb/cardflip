@@ -3,9 +3,9 @@
 # CardFlip
 
 Scan Pokémon cards → identify → price → generate an eBay listing.
-Next.js 16 (App Router) · TypeScript · Tailwind v4 · `node:sqlite` · Fly.io.
+Next.js 16 (App Router) · TypeScript · Tailwind v4 · libsql (Turso in prod, `data/cardflip.db` locally) · Vercel.
 
-Live: https://cardflip-superior.fly.dev (app `cardflip-superior`, region `iad`)
+Live: https://cardflip.io (Vercel project `cardflip`, production deploys from `main` only; Fly.io was retired 09-2026)
 Current state and next steps: **`docs/STATE.md`** — read it before starting work.
 
 ---
@@ -89,29 +89,35 @@ Base Set Charizard (`base1-4`) is the reference case: it should resolve to
 Before shipping: `npx tsc --noEmit`, `npx eslint src`, the three test suites,
 `npm run build`.
 
-## Deploying
+## Deploying (Vercel, since 09-2026)
+
+Production builds from `main` only; pushing `vercel-migration` makes a preview.
+Chris decides every push ("build a bulk amount of commits before pushing"):
 
 ```bash
-flyctl deploy --app cardflip-superior
+git push origin HEAD:main
 ```
 
-The Fly machine scale-to-zeros — **wake it with a request before `flyctl ssh`**
-or you get "no started VMs". Production DB is at **`/app/data/cardflip.db`**
-(the mounted volume), *not* `/data`. After deploying a schema/mirror change,
-re-run the sync on production:
-
-```bash
-flyctl ssh console --app cardflip-superior -C "node scripts/sync-cards.mjs en en_cards"
-```
+Then check the real GitHub CI run and the Production smoke workflow, not the
+local test output. Never `vercel link` / `vercel pull` (they clobber
+`.env.local`); env vars go through the Vercel REST API with the token in
+`.env.migration.json`, secrets via `printf`. The production database is Turso:
+read it with `node scripts/_sql-ro.mjs --prod "SELECT ..."` (SELECT only; the
+local key cannot open eBay tokens, so never run ebayAuth code against prod).
+Schema changes are ALTER lines in `src/lib/db.ts` and run on the first boot
+after the deploy.
 
 ## Environment (Windows)
 
-- `flyctl` → `PATH="/c/Users/Chris/AppData/Local/Microsoft/WinGet/Links:$PATH"`
-- `node`/`npm` → `PATH="/c/Program Files/nodejs:$PATH"`
-- Git Bash mangles `/`-prefixed args — use `MSYS_NO_PATHCONV=1` for `flyctl ssh -C`
-- `flyctl ssh` prints `Error: The handle is invalid.` **after succeeding** — a
-  benign Windows artifact. Check the output above it before believing a failure.
+- Chris's rule: the PowerShell tool (5.1 syntax); the Bash tool eats
+  backslashes in Windows paths.
+- Scripts run with `node --experimental-strip-types --no-warnings` (plus
+  `--conditions=react-server --import ./scripts/lib/register-alias.mjs` when
+  they import from `src/`); see the `test:*` lines in package.json.
 - Don't write to `/tmp` from `node -e` — it resolves to `C:\tmp` and fails.
+- Node exits with `Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)`
+  **after succeeding** on some scripts — a benign Windows artifact. Read the
+  output above it before believing a failure.
 
 ---
 
@@ -132,9 +138,9 @@ a key derived from the client secret unless it's set. `redirect_uri` in the
 authorize URL is the RuName, **not** a URL. The demo account can never link
 eBay (`isDemoUser`) — it's shared.
 
-```bash
-flyctl secrets set ANTHROPIC_API_KEY=... --app cardflip-superior
-```
+Secrets live in Vercel's project env (set through the REST API, value piped
+with `printf`; never through `vercel env` from this machine). Locally they are
+in `.env.local` / `.env.testing.local`, both git-ignored.
 
 When a user reports **"pricing looks wrong"** or **"foreign cards aren't
 recognized"**, check which secrets are set *before* investigating — the
@@ -149,14 +155,14 @@ fallback paths are the likeliest explanation.
 - **Scryfall** (`api.scryfall.com`) — Magic: The Gathering catalogue AND
   prices (USD nonfoil/foil/etched from TCGplayer, EUR from Cardmarket), one
   row per paper printing, mirrored into `mtg_cards` + `mtg_sets` by
-  `npm run sync:mtg` (paginated search, ~540 pages, ~6 min from a home IP;
-  the bulk file is too big for the Fly machine's memory). Prices refresh on
-  every sync — there is no live MTG price call. **Scryfall 429s Fly's egress
-  IP** (seen 08-16, retries never clear), so the sync does NOT run on the
-  machine: `npm run export:mtg` packs the local mirror into
-  `seed/mtg-mirror.db.gz` (~9 MB, shipped in the image) and `db.ts`
-  imports it on boot when the volume's copy is empty/older. Refresh =
-  `npm run sync:mtg && npm run export:mtg && flyctl deploy`.
+  `npm run sync:mtg` (paginated search, ~540 pages, ~6 min from a home IP).
+  **Scryfall 429s datacentre egress IPs** (seen 08-16 on Fly, retries never
+  clear), so the sync runs locally: `npm run export:mtg` packs the local
+  mirror into `seed/mtg-mirror.db.gz` (~9 MB, in the repo) and
+  `seedMtgMirror` in `db.ts` imports it when the database's copy is
+  empty/older. Daily Magic prices come from the TCGplayer price jobs
+  (`lib/server/*PriceRefresh.ts`), not from this sync. Refresh of the
+  catalogue = `npm run sync:mtg && npm run export:mtg`, then a push.
 - **Scrydex was evaluated and rejected**: their robots.txt disallows ClaudeBot
   and they have a paid official API, so scraping was both unnecessary and
   against their stated wishes. Don't revisit it as a scrape target.
