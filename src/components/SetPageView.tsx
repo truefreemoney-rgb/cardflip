@@ -129,9 +129,24 @@ function SummaryStrip({ s, game, slug }: { s: SetSummary; game: GameId; slug: st
   );
 }
 
+/**
+ * Page numbers worth printing: first, last, the current page and one each side; 0 marks a gap.
+ * The List (Magic) runs 19 pages, so printing them all made a wall of pills (review 10-19 public #19).
+ */
+export function pagerWindow(page: number, pages: number): number[] {
+  const keep = new Set([1, pages, page - 1, page, page + 1].filter((n) => n >= 1 && n <= pages));
+  const out: number[] = [];
+  for (let n = 1; n <= pages; n++) {
+    if (keep.has(n)) out.push(n);
+    else if (out[out.length - 1] !== 0) out.push(0);
+  }
+  return out;
+}
+
 function Pager({ game, slug, page, pages }: { game: GameId; slug: string; page: number; pages: number }) {
   if (pages <= 1) return null;
-  const cell = "flex h-10 min-w-10 items-center justify-center rounded-xl border px-3 text-sm transition";
+  // 44px cells: a thumb target on the phone (review 10-19 public #20).
+  const cell = "flex h-11 min-w-11 items-center justify-center rounded-xl border px-3 text-sm transition";
   return (
     <nav aria-label="Pages" className="mt-6 flex flex-wrap items-center justify-center gap-2">
       {page > 1 && (
@@ -139,8 +154,12 @@ function Pager({ game, slug, page, pages }: { game: GameId; slug: string; page: 
           Previous
         </Link>
       )}
-      {Array.from({ length: pages }, (_, i) => i + 1).map((n) =>
-        n === page ? (
+      {pagerWindow(page, pages).map((n, i) =>
+        n === 0 ? (
+          <span key={`gap-${i}`} aria-hidden className="px-1 text-zinc-500">
+            …
+          </span>
+        ) : n === page ? (
           <span key={n} aria-current="page" className={`${cell} border-brand-400 bg-brand-500/20 font-semibold text-white`}>
             {n}
           </span>

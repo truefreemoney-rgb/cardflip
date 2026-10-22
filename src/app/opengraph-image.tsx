@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
-export const alt = "CardFlip — Scan. Price. List.";
+export const alt = "CardFlip — Scan. Price. List your Pokémon, Magic, Lorcana, Yu-Gi-Oh! and One Piece cards.";
 
 /**
  * Link previews (Slack, iMessage, eBay's own internal tooling) render bare
@@ -46,7 +46,11 @@ export default function OpengraphImage() {
             marginTop: 24,
           }}
         >
-          Scan. Price. List your Pokémon cards.
+          Scan. Price. List your cards.
+        </div>
+        {/* Five games, not one (review 10-19 public #29). */}
+        <div style={{ display: "flex", fontSize: 30, color: "#71717a", marginTop: 20 }}>
+          Pokémon · Magic · Lorcana · Yu-Gi-Oh! · One Piece
         </div>
       </div>
     ),
