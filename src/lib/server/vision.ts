@@ -1175,7 +1175,10 @@ function addUsage(a: VisionUsage, b: VisionUsage): VisionUsage {
 // scan in fifty), a few cents each.
 // ---------------------------------------------------------------------------
 
-export const TIEBREAK_MODEL = "claude-opus-5";
+// 10-21 (Chris: "Sonnet"): Sonnet 5 gave Opus's exact pick on all 8 of his own real tiebreaks (scripts/_tiebreak-ab-owner.mjs,
+// $0.14 test) at about half the cost (~$0.011 vs ~$0.020 a call); the tiebreak was firing on ~3 of 4 scans and was most
+// of the ~$0.028 scan cost. Watch the first week's picks in /admin; Opus is one word away if a subtle pattern card slips.
+export const TIEBREAK_MODEL = "claude-sonnet-5";
 
 // One Piece ties are almost all base-vs-parallel of ONE number: different
 // art or frame, nothing subtle. 10-01 A/B (scripts/.op-tiebreak-ab-tmp.mjs):
