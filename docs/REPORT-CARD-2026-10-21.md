@@ -207,3 +207,18 @@ Why the eBay numbers were low: those reads mixed in played copies and Best Offer
 | Darkpact Alpha/Beta, Judge token, Red Cliffs Armada, Gengar Fossil | as set | not pinned to an exact product tonight | Unchanged; low value or ambiguous, not worth an eBay slot |
 
 Net: nothing on the hand list moves. The two cards the asks referee called "too high" (Mewtwo Star, Shining Tyranitar) were right all along; the asks it compared against were junk listings.
+
+## 9. The "round-number" Pokémon prices (1:00-1:20am ET 10-22; TCGplayer sales, your sign-in, 0 eBay)
+
+366 Pokémon TCGplayer prices are whole dollars in multiples of 5 at $50+; 204 of them are real cards at $100+ (the rest are sealed products). Read all 204 against TCGplayer's last 25 sales. Result: a round number is TCGplayer's own market for that printing in all but one case, usually set by a single recent sale (Skyridge holos, Legendary Collection reverses, Star cards, 1st Editions: thin markets where one $300 sale is the market). Where the public market looked far off it was a different finish of the same product (TCGplayer's search shows the unlimited/normal line). Nothing systematic on our side.
+
+| What | Count |
+|---|---|
+| Round price = TCGplayer's market for our exact finish, or its NM sales agree | 174 |
+| Already retired tonight (§7), nightly write fixes them | 18 |
+| No TCGplayer product match (Expedition holos, Lucky Stadium, Mewtwo DP28): unchanged | 11 |
+| **Caught wrong and fixed** | **1** |
+
+**Fixed:** Entei · SM Black Star Promo SM219, holofoil: ours **$205** (flat at $203-205 since May) vs TCGplayer market **$22.17** with 11 Near Mint sales Sep-Oct at $18-27. Checked price $22.17 written (scripts/_fix-price-tcg.mjs, same write as the admin Fix button), 28 series points corrected, page caches dropped. Cause to look at: our TCGplayer product mapping for that promo (the raw feed kept writing ~$205, which is a different product's price). Not retuned anything else.
+
+Worth a glance later, not acted on (one or two sales, inside or near the band): Torchic ☆ TRR $6,500 vs 4 NM sales median $9,500 (last $4,000); Machamp Stormfront $145 vs 4 sales ~$200; Reshiram Legendary Treasures $290 vs 5 sales ~$345.
