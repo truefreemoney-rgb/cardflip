@@ -1,5 +1,18 @@
 ﻿# To test later
 
+## 10-22 8:25AM ET: review-backlog batch 2 (COMMIT ONLY ec1a5b6f scanner + cbbd3c71 server/public/auth/app; nothing visible by design)
+- SCHEMA on first boot after the push: cards.client_id (nullable) + partial index (user_id, client_id); card_removals index (user_id, how). The fingerprint changes, so the first process on prod runs the schema pass once (a few seconds); the db first-run path now fires only on "no such table".
+- [ ] After push: POST /api/cards from a real scan still 201 (Chris's phone scan, or scan_usage + cards rows grow); a second POST with the same clientId returns the same row (no duplicate in /app Inventory after a flaky-network scan).
+- [ ] After push: /admin/users still shows Joined / Last active / scans per user (rollups only there now); /admin Overview + System load faster; runner status route answers 200 with RUNNER_TOKEN.
+- [ ] After push, pane signed out of /admin: GET /api/admin/users -> 401 JSON; helper session on an owner route -> 403 JSON (was 403 for both).
+- [ ] After push: Google One Tap on /pricing still signs in (GET /api/auth/google/onetap sets the nonce cookie first; POST without it = 400 "Bad request.").
+- [ ] After push: reset a password on a throwaway (CI covers) -> /login?reset=1 shows "Password changed. Log in with your new password."
+- [ ] After push: curl https://cardflip.io/u/<handle> twice -> second is a cache hit (x-vercel-cache HIT within 5 min); /sitemap-pages has no lastmod on /cards.
+- [ ] After push: a card page of a set that released yesterday says "Out" on the ET day, not Preorder; /cards/pokemon/most-valuable prints no "# To test later
+
+.00".
+- [ ] 5:45am ET write after the push: scripts/_scan-usage-peek.mjs + /admin Insights totals unchanged or higher (every row read now, not the newest 400/600); nightly Sunday digest draft counts match /admin.
+- [ ] Phone: Watchlist star on Sets, Price Check, Wishlist search and a card popup still adds once and says "Already watching" on a repeat.
 ## 10-22 8:15AM ET: review-backlog batches 1-3 (COMMIT ONLY a4e07b86, 4fd890ad, 99f72068, c36f01db; Chris "we are trying to bulk push"; nothing visible)
 - Scanner a4e07b86: focus traps keep a stack (only the top sheet handles Tab); blur-note timers cleared on unmount; Verify All + candidate picker carry a Back id; page.tsx dedupes. API 4fd890ad: PATCH condition must be a real condition (40 chars), no negative sold price/date; bulk delete + deleteCards skip live eBay rows; $1M price caps on cards + reprice; price guard clamps young series; comps fence when IQR is 0 (test pin); comps route never 502s on a bad client price; dead in-memory 500/day scan rule gone; billing rate limit keyed by user id; signed-in owner skips /admin/login; switches built from GATED_GAMES. Campaigns 99f72068: send history = last 60 days. c36f01db: /home -> / (301); bot watch cron at :25 AND :55. tsc + eslint clean; test:ebay/pricing/ratelimit/sitetrust/adminroutes/apiauth/cards/campaigns/vision-schema/visionbudget/inputchecks/ebayreferee/ebaybrowse green.
 - [ ] After push: curl -I https://cardflip.io/home = 301 to /; Search Console 404 row drops to 1 (/&) on its next crawl.
