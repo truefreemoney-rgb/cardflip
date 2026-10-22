@@ -72,7 +72,7 @@ import { confirmAction } from "@/components/ConfirmDialog";
 import { apiPath } from "@/lib/client/basePath";
 import { EBAY_DRAFTS_URL, fetchEbayComps, sendEbayDraft } from "@/lib/client/ebayApi";
 import { uploadCardPhoto } from "@/lib/client/cardPhotoApi";
-import { giveBackScan, rateLimitMessage, scanCardWithVision, tiebreakCard, type ScanUsage } from "@/lib/client/visionApi";
+import { giveBackScan, rateLimitMessage, scanCardWithVision, tiebreakCard, type ScanUsage, type VisionScanOutcome } from "@/lib/client/visionApi";
 import { tiebreakIds } from "@/lib/tiebreak";
 import { claimPendingScan } from "@/lib/client/trialScan";
 import { foilChoices } from "@/lib/yugioh";
@@ -540,7 +540,17 @@ export default function AppPage() {
         }, SCAN_WATCHDOG_MS);
         try {
           // Vision only (no OCR fallback since 10-12): the read is the card, or the scan fails and says so.
-          const vision = await scanCardWithVision(next.file, next.language, next.game);
+          // "Switch to <game>" (Chris 10-22: "should only be 1 scan ... on the backend"): the wrong-game read already
+          // carries name, number and set code for the other game (10-22 measure: 19 of 20 of Chris's Magic scans read
+          // under the Pokémon prompt matched on name + number, set code 20/20), so it is reused as that game instead of
+          // sending the same photo to the reader again. Its scan id rides along so a miss still gives the scan back.
+          const reuse =
+            next.reread && next.vision && next.vision.detectedGame === next.game && next.vision.name && next.vision.cardNumber
+              ? next.vision
+              : null;
+          const vision: VisionScanOutcome = reuse
+            ? { status: "done", read: reuse, usage: null, error: null, scanId: next.scanId ?? null }
+            : await scanCardWithVision(next.file, next.language, next.game);
           watchdogScanId = vision.scanId ?? null;
           // The watchdog fired before the server answered, so it had no scan id to hand back: do it now (10-22).
           if (freed) {
@@ -804,11 +814,14 @@ export default function AppPage() {
               card: null,
               error: readError ?? artMiss ?? "No match found — search by name",
               wrongGame,
+              scanId: vision.scanId ?? null,
             });
             // Nothing found = not a scan (Chris, 10-11: "forgiving of bad scans, it doesn't deliver a product").
             // Every empty outcome asks: no match, couldn't read, another game, token, art card, slab. The server
             // decides from the stored read (lib/server/scanGiveback.ts) and answers with the balance.
-            giveBackThisScan();
+            // A wrong-game read with a switch on offer is NOT given back yet (10-22): the switch reuses it as the
+            // card's real game, so it stays the one paid scan; clearing the card instead gives it back (takeOffList).
+            if (!wrongGame) giveBackThisScan();
           } else {
             const card = matches[0];
             // A single match is only "Ready" when the photo actually supported
@@ -1411,6 +1424,15 @@ export default function AppPage() {
       const index = itemsRef.current.findIndex((i) => i.id === id);
       const target = itemsRef.current[index];
       if (!target) return;
+      // A wrong-game read cleared instead of switched: nothing came of it, so the scan goes back now (10-22; the
+      // pump held the give-back while the switch was on offer).
+      if (target.wrongGame && target.scanId && !target.card) {
+        void giveBackScan(target.scanId).then((usage) => {
+          if (!usage) return;
+          setScanUsage(usage);
+          patchUser({ scans: usage });
+        });
+      }
 
       if (del) deleted.current.add(id);
       const remaining = itemsRef.current.filter((i) => i.id !== id);
@@ -1444,7 +1466,7 @@ export default function AppPage() {
         },
       });
     },
-    [commit, finalizeRemoval],
+    [commit, finalizeRemoval, patchUser],
   );
 
   /** Row × / chip ×: off the list, card kept. */
@@ -1458,7 +1480,8 @@ export default function AppPage() {
     (id: string, to: GameId) => {
       setGame(to);
       abandoned.current.delete(id);
-      patchItem(id, { game: to, status: "queued", error: null, wrongGame: null, reread: true, visionStatus: "idle", vision: null, verifiedAt: null });
+      // vision stays: the pump reuses the read on file as the new game (one scan, no second reader call, 10-22).
+      patchItem(id, { game: to, status: "queued", error: null, wrongGame: null, reread: true, visionStatus: "idle", verifiedAt: null });
     },
     [patchItem, setGame],
   );

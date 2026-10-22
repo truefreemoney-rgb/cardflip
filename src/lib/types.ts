@@ -467,8 +467,10 @@ export interface ScanItem {
    * read was given back, so the card still costs one scan. Null otherwise.
    */
   wrongGame?: GameId | null;
-  /** Set by 'Switch to <game>': the same photo is being read again as that game, no new shot (10-22: the chip says so). */
+  /** Set by 'Switch to <game>': the first read is reused as that game, no new shot and no second reader call (10-22). */
   reread?: boolean;
+  /** The scan_usage row of the read on file: a wrong-game read is kept (not given back) until the seller switches or clears it. */
+  scanId?: string | null;
   /**
    * Set once the draft has been pushed to the seller's own eBay account via
    * the Sell Inventory API (offer id), and once that offer is published (the
