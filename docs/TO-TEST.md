@@ -1,13 +1,13 @@
 ﻿# To test later
 
-## 10-22 1:55PM ET: set pager = one row + five-game share image (COMMIT ONLY c97fd5c1 + the pager redo, VISIBLE: phone shots SENT, his yes owed before the push)
+## 10-22 1:55PM ET: set pager = one row + five-game share image (COMMIT ONLY c97fd5c1 + the pager redo, VISIBLE: share image PASSED by Chris 1:55pm; the one-row pager shot sent 1:58pm, his yes owed)
 - SetPageView Pager: ONE row that never wraps: "‹ Previous" | "Page 10 of 18" | "Next ›" (44px buttons, the end buttons grey out on page 1 / last). Chris 1:50pm on the first/last/window pills: "looks like shit" (they wrapped to two rows on the phone) -> redone. opengraph-image: "Scan. Price. List your cards." + "Pokémon · Magic · Lorcana · Yu-Gi-Oh! · One Piece"; alt names the five games. Review 10-19 public #19, #20, #29.
 - [ ] After push: /cards/magic/the-list/page/10 on the phone shows one row "‹ Previous · Page 10 of 18 · Next ›"; page 1 has Previous greyed; the last page has Next greyed; a 1-page set shows no pager.
 - [ ] After push: https://cardflip.io/opengraph-image shows the five-game line; paste cardflip.io into iMessage or X -> the preview card shows it (X may cache the old one for a day).
 
 ## 10-22 12:15PM ET: landing tiles: whole dollars at $1,000+ drop ".00" (COMMIT ONLY, VISIBLE on /: phone shot owed before the push)
 - Chris 10-22 12:10pm: "$1,499 is fine if the cents are .00". app/page.tsx money(): $1,000+ and whole -> "$1,499"; any other value -> formatMoney ("$1,499.50", "$12.34"). Was: every $1,000+ value rounded to whole dollars.
-- [ ] BEFORE push: phone-width shot of / High/Low tiles (SendUserFile) + his yes.
+- [x] BEFORE push: phone shot sent 12:30pm; Chris 1:55pm: "landing tiles and share image pass".
 - [ ] After push: / High/Low tiles show "$1,499" only when the price is a whole dollar; a $1,234.56 high keeps its cents.
 
 ## 10-22 12:05PM ET: one money formatter (COMMIT ONLY f554d807; only push banners + alert mails change text)
