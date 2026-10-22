@@ -230,8 +230,7 @@ export default function AppPage() {
 
   const [items, setItems] = useState<ScanItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  // English-only for now — the ja/zh pipeline underneath still works;
-  // restoring <LanguageToggle> here re-enables it.
+  // English only (Chris 10-22: "we only want english"); the ja/zh pipeline underneath is unused.
   const language: ScanLanguage = "en";
   // Which game the scanner reads: Pokémon or Magic. Remembered per browser;
   // every item entering the queue carries the game it was scanned under, so
