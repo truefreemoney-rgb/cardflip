@@ -187,3 +187,23 @@ Each of these was set from eBay sold on 10-18..10-21 (before tonight's rules). W
 **Verdict B: keep our number on these 20** (TCGplayer has no usable Near Mint data for the exact printing, or its sales agree with ours): Charizard 1st Edition $4,000 (no 1st Ed sale in the last 25, only unlimited); Mickey Best in Town Iconic $3,000 (no TCGplayer sales, 14 asks from $2,449); Rocket's Mewtwo Best of Game $1,000 (2 NM sales $899.99, LP $645-1,200: ours fits); Rocket's Mewtwo ex $750 (1 NM sale $900, 17% off); Milotic ex $530 (1 NM sale $799.99 two months ago: one sale is not a read, flag); Raigeki LOB 1st $107 (no 1st Ed sales); Kingdra δ reverse $92 (no reverse NM sale; TCGplayer's $289 looks wrong); Mewtwo Legends Awakened reverse $55 (thin, one $959 outlier); Torchic 017 $25 (NM sales $26); Genex Ally Axel $2, Tower of Babel $1.50, Bujingi Crane $1.25, Red-Eyes RP01 $15 (TCGplayer's five- and six-figure numbers are junk, no sales); and Pikachu Wizards promo 1 $42 (TCGplayer's $499.99 is junk). Second pass 12:27am on the 7 my match missed, by product id: 6 more retired (Sengenjin LP $140 / MP $120 vs our $7.06; Elemental HERO Heat LP $199.98 vs $3.99; Hecatrice six NM sales $190-200 vs $2.66; King Dragun Ultimate NM $153 vs $70; Ancient Gear Beast 1st Ed LP $75-78 vs $35; Mewtwo LV.X DP28 LP $195-296 and NM $445 vs $100). **Total handed back to TCGplayer: 33 of 47; 14 keep.**
 
 Why the eBay numbers were low: those reads mixed in played copies and Best Offer sales (both excluded as of tonight), so they landed near TCGplayer's LP price, not NM.
+
+## 8. The 10-22 hand list, done TCGplayer-first from the signed-in sales (12:30-12:50am ET; 0 eBay searches used)
+
+| Card | Ours | TCGplayer | Verdict |
+|---|---|---|---|
+| Mewtwo Star · Holon Phantoms 103 | $6,887.50 | market $9,200; one NM sale $9,200 (10-08); no copies listed | Stands (25% under one sale; eBay asks at $50 were proxies) |
+| Shining Tyranitar 1st Ed · Neo Destiny 113 | $4,249.99 | NM 1st Edition sold $4,099.05 (10-12); market $4,099 | Stands (4%) |
+| Gengar & Mimikyu GX alt art · Team Up 165 | $2,155.56 | market $2,155.56; NM sales $1,600-2,950, median ~$1,850 | Stands |
+| Celebi ex · Unseen Forces 117 | $999.99 | market $999.99; LP sold $999.99 (10-15) | Stands |
+| Typhlosion 1st Ed · Neo Genesis 17 | $475 | market $475 (1st subtype); only unlimited copies sold lately ($200-275 NM) | Stands |
+| Light Dragonite 1st Ed · Neo Destiny 14 | $699.99 | market $699.99; unlimited NM $499.99 | Stands |
+| Kabutops ex · Sandstorm 97 | $160.30 | market $160.30; NM $152-180 | Stands |
+| Luffy OP05-119 manga (Premium Booster) | $4,250 | one copy asked at $5,000, market $5,000 | Stands |
+| Luffy OP05-119 gold / special / manga (prize prints) | $13,000 / $5,749.97 / $3,915.86 | not sold on TCGplayer | Keep (no source but eBay, and eBay shows nothing clean) |
+| Blastoise 1st Ed · Base Set 2 | $1,300 | only unlimited copies sold (NM $230); market $228.99 is the unlimited line | Keep |
+| Treecko Star, Pikachu Star · Power Keepers | as set | not on TCGplayer at all | Keep |
+| Uria 1st Ed Ultimate Rare · SOI-EN001 | $999.97 | TCGplayer only lists the regular print ($9.64) | Keep |
+| Darkpact Alpha/Beta, Judge token, Red Cliffs Armada, Gengar Fossil | as set | not pinned to an exact product tonight | Unchanged; low value or ambiguous, not worth an eBay slot |
+
+Net: nothing on the hand list moves. The two cards the asks referee called "too high" (Mewtwo Star, Shining Tyranitar) were right all along; the asks it compared against were junk listings.
