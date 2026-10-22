@@ -1,6 +1,6 @@
 ﻿# To test later
 
-## 10-22 1:55PM ET: set pager = one row + five-game share image (COMMIT ONLY c97fd5c1 + the pager redo, VISIBLE: share image PASSED by Chris 1:55pm; the one-row pager shot sent 1:58pm, his yes owed)
+## 10-22 1:55PM ET: set pager = one row + five-game share image (COMMIT ONLY c97fd5c1 + the pager redo, VISIBLE: share image PASSED by Chris 1:55pm; the one-row pager PASSED by Chris 2:00pm; every visible change in the held batch is approved)
 - SetPageView Pager: ONE row that never wraps: "‹ Previous" | "Page 10 of 18" | "Next ›" (44px buttons, the end buttons grey out on page 1 / last). Chris 1:50pm on the first/last/window pills: "looks like shit" (they wrapped to two rows on the phone) -> redone. opengraph-image: "Scan. Price. List your cards." + "Pokémon · Magic · Lorcana · Yu-Gi-Oh! · One Piece"; alt names the five games. Review 10-19 public #19, #20, #29.
 - [ ] After push: /cards/magic/the-list/page/10 on the phone shows one row "‹ Previous · Page 10 of 18 · Next ›"; page 1 has Previous greyed; the last page has Next greyed; a 1-page set shows no pager.
 - [ ] After push: https://cardflip.io/opengraph-image shows the five-game line; paste cardflip.io into iMessage or X -> the preview card shows it (X may cache the old one for a day).
