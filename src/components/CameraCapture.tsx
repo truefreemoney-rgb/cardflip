@@ -1401,9 +1401,10 @@ function ScanToast({ item, onOpen, onRemove, onSwap, onSwitchGame, onEdit, onExp
         </span>
         <div>
           <p className="text-[10px] font-semibold tracking-[0.2em] text-brand-300">
-            IDENTIFYING
+            {item.reread ? "SAME PHOTO" : "IDENTIFYING"}
           </p>
-          <p className="text-sm font-medium text-zinc-200">Reading the card…</p>
+          {/* After "Switch to <game>" the SAME photo goes to the reader again (Chris 10-22: it looked like a second scan). */}
+          <p className="text-sm font-medium text-zinc-200">{item.reread ? `Reading it again as ${GAMES[item.game].label}…` : "Reading the card…"}</p>
         </div>
       </div>
     );

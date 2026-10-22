@@ -1458,7 +1458,7 @@ export default function AppPage() {
     (id: string, to: GameId) => {
       setGame(to);
       abandoned.current.delete(id);
-      patchItem(id, { game: to, status: "queued", error: null, wrongGame: null, visionStatus: "idle", vision: null, verifiedAt: null });
+      patchItem(id, { game: to, status: "queued", error: null, wrongGame: null, reread: true, visionStatus: "idle", vision: null, verifiedAt: null });
     },
     [patchItem, setGame],
   );
