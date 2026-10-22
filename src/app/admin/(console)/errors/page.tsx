@@ -28,7 +28,7 @@ export default async function AdminErrorsPage({ searchParams }: { searchParams: 
       <div className="mb-3 flex items-baseline justify-between">
         <h1 className="text-2xl font-semibold text-white">Server Log</h1>
         <span className={`text-xs ${errors24h ? "text-amber-300" : "text-zinc-500"}`}>
-          {errors24h ? `${num(errors24h)} errors in the last 24h` : "no errors in the last 24h"} · newest 500 lines kept
+          {errors24h ? `${num(errors24h)} errors in the last 24h` : "no errors in the last 24h"} · newest 200 shown
         </span>
       </div>
       <div className="mb-3 flex flex-wrap gap-1">

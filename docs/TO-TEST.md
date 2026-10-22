@@ -1,4 +1,4 @@
-﻿# To test later
+# To test later
 
 ## 10-22 2:50PM ET: PUSHED d3c5f350 (73 commits) on Chris "push it"; CI 39833559302 GREEN, Production smoke 39833757694 + 39834353848 GREEN; curl checks
 - [x] robots.txt lists ExaSearchBot in the turned-away group.
@@ -19,7 +19,7 @@
 
 ## 10-22 2:27PM ET (real clock): ExaSearchBot denied (firewall v37 LIVE now; robots.ts in the held batch)
 - [ ] 10-23: Vercel Observability > ISR writes on /cards/* for 10-22 vs 10-21 drop by ~1K/day; firewall rule "AI crawlers" shows ExaSearchBot denies.
-- [ ] After push: curl -s https://cardflip.io/robots.txt | grep -A1 ExaSearchBot -> Disallow: /
+- [x] 8:55pm ET: ExaSearchBot in robots.txt's turned-away group (same as the 2:50pm check). After push: curl -s https://cardflip.io/robots.txt | grep -A1 ExaSearchBot -> Disallow: /
 
 ## 10-22 1:55PM ET: social failure mail waits for a later ping; GitHub backstop pings at :20 (COMMIT ONLY f93afc8c; nothing visible by design)
 - 10-22 1:03pm: the GitHub backstop ping timed out on all five sites and mailed "Social Post Failed", then the Vercel 1:05pm cron posted the slot. alertFailures now only NOTES a failure (settings key social_slot:pending-alert:<site>); the next publisher run 10+ min later mails it if that slot is still unposted on the site, drops it if a later ping landed the post. social-post.yml post pings moved from :05 to :20 (7:20am / 1:20pm / 7:20pm ET, both DST hours); the video job's 1pm list follows. test:socialpublish + test:socialvideo green.
@@ -30,22 +30,22 @@
 ## 10-22 1:55PM ET: set pager = one row + five-game share image (COMMIT ONLY c97fd5c1 + the pager redo, VISIBLE: share image PASSED by Chris 1:55pm; the one-row pager PASSED by Chris 2:00pm; every visible change in the held batch is approved)
 - SetPageView Pager: ONE row that never wraps: "‹ Previous" | "Page 10 of 18" | "Next ›" (44px buttons, the end buttons grey out on page 1 / last). Chris 1:50pm on the first/last/window pills: "looks like shit" (they wrapped to two rows on the phone) -> redone. opengraph-image: "Scan. Price. List your cards." + "Pokémon · Magic · Lorcana · Yu-Gi-Oh! · One Piece"; alt names the five games. Review 10-19 public #19, #20, #29.
 - [ ] After push: /cards/magic/the-list/page/10 on the phone shows one row "‹ Previous · Page 10 of 18 · Next ›"; page 1 has Previous greyed; the last page has Next greyed; a 1-page set shows no pager.
-- [ ] After push: https://cardflip.io/opengraph-image shows the five-game line; paste cardflip.io into iMessage or X -> the preview card shows it (X may cache the old one for a day).
+- [x] 8:55pm ET: /opengraph-image 200, 39 KB, 'Pokémon · Magic · Lorcana · Yu-Gi-Oh! · One Piece' under the tagline (looked at the PNG). After push: https://cardflip.io/opengraph-image shows the five-game line; paste cardflip.io into iMessage or X -> the preview card shows it (X may cache the old one for a day).
 
 ## 10-22 12:15PM ET: landing tiles: whole dollars at $1,000+ drop ".00" (COMMIT ONLY, VISIBLE on /: phone shot owed before the push)
 - Chris 10-22 12:10pm: "$1,499 is fine if the cents are .00". app/page.tsx money(): $1,000+ and whole -> "$1,499"; any other value -> formatMoney ("$1,499.50", "$12.34"). Was: every $1,000+ value rounded to whole dollars.
 - [x] BEFORE push: phone shot sent 12:30pm; Chris 1:55pm: "landing tiles and share image pass".
-- [ ] After push: / High/Low tiles show "$1,499" only when the price is a whole dollar; a $1,234.56 high keeps its cents.
+- [x] 8:55pm ET: / tiles tonight are $1,990.51 and $1,717.33 (cents kept, as they should; no whole-dollar high tonight to see the trim). After push: / High/Low tiles show "$1,499" only when the price is a whole dollar; a $1,234.56 high keeps its cents.
 
 ## 10-22 12:05PM ET: one money formatter (COMMIT ONLY f554d807; only push banners + alert mails change text)
 - formatMoney moved to lib/money.ts; admin money / PostCheckRow / AnalyticsCharts / campaignData / plan prices call it (same "$1,234.56" as before). Push banners and the watchlist / card-alert mails now group thousands ("$1,500.00", was "$1500.00").
-- [ ] After push: /admin overview, /admin/analytics (USD axis + tiles), /admin/prices post cards, /pricing plan prices all print the same "$X,XXX.XX" as before (no "$NaN", no missing cents).
+- [x] 9:00pm ET pane: /pricing, /admin, /admin/analytics, /admin/prices all $X,XXX.XX, no $NaN. ONE MISS: Analytics 'Left over every month' prints $-199.88 while Overview prints -$199.88 (fixed in the held batch, see below). After push: /admin overview, /admin/analytics (USD axis + tiles), /admin/prices post cards, /pricing plan prices all print the same "$X,XXX.XX" as before (no "$NaN", no missing cents).
 - [ ] After push, next wishlist dip or card alert over $1,000 (Chris's own watchlist is fine): the banner / mail says "$1,574.99", not "$1574.99".
 
 ## 10-22 12:15PM ET: eBay comps know the printing (COMMIT ONLY 5d30fb0a; nothing visible by design)
 - The scan page and the card editor now tell /api/ebay/comps which printing is being quoted (reverse holo, Poke Ball / Master Ball pattern, Magic foil); the Browse search adds its words, the title filter requires them, the day cache keys on it (prefix ebaycomps:v2 = one day of misses after the push, then one call per card+printing per day).
 - [ ] After push, phone: scan a reverse holo (or a Poke Ball pattern) card -> the "eBay sellers asking" chip, if it shows, is in the printing's own range, and "Check on eBay" opens a search whose words include "reverse holo" / "poke ball".
-- [ ] After push, pane (signed in): POST /api/ebay/comps with {card: <a card with a reverseHolofoil row>, variant: "reverseHolofoil"} -> searchUrl contains reverse+holo; the same with variant: "zzz" -> searchUrl without it (treated as any printing), no 500.
+- [x] Done 2:55pm (see the 2:50PM block, lc-86). After push, pane (signed in): POST /api/ebay/comps with {card: <a card with a reverseHolofoil row>, variant: "reverseHolofoil"} -> searchUrl contains reverse+holo; the same with variant: "zzz" -> searchUrl without it (treated as any printing), no 500.
 - [ ] After push, phone: on a scanned card with two printings, open This copy and switch the printing (e.g. Normal -> Reverse Holofoil): the eBay asking chip goes to loading and comes back (re-pulled for that printing, commit aad451a1), not left as the old number.
 - [ ] After push, next day: card_cache rows with key LIKE 'ebaycomps:v2:%' exist and the old v1 rows age out with the 24 h sweep (no growth beyond one row per card+grade+edition+printing).
 
@@ -53,7 +53,7 @@
 - Batch 3: apiFailure() for the cards / card / wishlist / price-checks / live-prices routes (JSON 401 or 500, never HTML); nav search reads the public game list from GET /api/catalog/games (revalidate 300); set card lists cached per set (seo:setcards:v1, 1 day); set standings use cardStory's median; admin Social* fetches via apiFetch (timeout); AdminNav re-syncs its group; scan_usage read JSON keeps the first read's pattern verdict (first) and the look's ball (lookBall). Batch 4: back-to-close stack (Done on "This copy" cannot close the camera; test:backstack 12); out of scans = Capture opens the paywall, no photo; fetchCurrentUser answer reused 2 s.
 - [ ] After push, phone: scan a card, open the "Near Mint · Holofoil" pill (This copy), tap Done -> back on the camera, NOT the category sheet or the listing page. Android Back from an open sheet closes the sheet only; a second Back closes the camera.
 - [ ] After push, phone with 0 scans left (trial account or Chris's gift set to 0): Capture goes to /pricing with no photo taken and no spinner left behind; Back from /pricing returns to the app, not a dead camera.
-- [ ] After push: /pricing network tab shows ONE /api/auth/me call (was up to 7).
+- [x] 8:58pm ET pane (Chris signed in): cardflip.io/pricing made ONE /api/auth/me request. After push: /pricing network tab shows ONE /api/auth/me call (was up to 7).
 - [ ] After push: GET https://cardflip.io/api/catalog/games = JSON list of the public games; the nav search dropdown on / and /features lists the same games as /cards.
 - [ ] After push: /api/cards without a session -> JSON {"error":"Not signed in"} 401 (not HTML); a bad body on /api/wishlist -> JSON 400/500, never an HTML page.
 - [ ] After push, next scans: scan_usage read JSON has first + lookBall keys on rows where a pattern look ran (scripts/_scan-usage-peek.mjs); Chris's next Eevee 074 scan can then be measured.

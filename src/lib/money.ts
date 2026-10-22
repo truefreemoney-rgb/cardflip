@@ -15,6 +15,7 @@ const CURRENCY_SYMBOL: Record<Currency, string> = { USD: "$", EUR: "€" };
 export function formatMoney(value: number | null | undefined, currency: Currency = "USD"): string {
   if (value == null) return "—";
   // Grouped thousands: "$1,499.00" reads as a price, "$1499.00" as a typo.
-  const digits = value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return `${CURRENCY_SYMBOL[currency]}${digits}`;
+  // The sign goes before the symbol: "-$199.88", never "$-199.88" (10-22, the admin Money tiles).
+  const digits = Math.abs(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `${value < 0 ? "-" : ""}${CURRENCY_SYMBOL[currency]}${digits}`;
 }
