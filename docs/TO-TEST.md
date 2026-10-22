@@ -1323,3 +1323,9 @@ pm run replay:scans (or SELECT read FROM scan_usage ORDER BY at DESC LIMIT 1): t
 - page.tsx one line: fixes from TCGplayer sales are no longer labelled eBay. Same badge, same place.
 - [x] 12:38am 10-22: phone shot SENT (docs/shots/badge-recent-sales-after-phone.jpg, local Rare Candy bw10-105 "Checked against recent sales (9 sold)."); Chris's yes pending. Dev server stopped.
 - [ ] After push: curl the Entei SM219 page: "Checked against recent sales (11 sold)."
+
+## 10-22 ~7:45pm ET: scanner misses from the Haiku test fixed (COMMITTED, not pushed)
+- Lorcana promo line in SYSTEM_LORCANA (Stitch D23 "1TFC • EN • 2/P1": number = 2, P1); Pokémon second look sends a bottom-left corner close-up when the first read had no number (Fan Rotom PRE 085 through glare). Measure: scripts/_secondlook-corner-owner.mjs, 20 owner photos, no correct read lost. tsc/eslint/test:vision* green.
+- [ ] After push: scan the glare Fan Rotom (PRE 085) on the phone: lands as Prismatic Evolutions 085, not Ascended Heroes; the scan log shows secondLook "no-number".
+- [ ] After push: a Lorcana D23/promo card scan reads number 2 / P1 (any promo with the "1TFC • EN" line).
+- [ ] After push: an ordinary Pokémon scan with a readable number is unchanged (no second look = no extra cost); scan_usage cost per scan for a no-number scan rises ~$0.003.
