@@ -1,5 +1,9 @@
 ﻿# To test later
 
+## 10-22 7:30AM ET: testing API key rotated (Console mail: cardflip-testing expires 10-29)
+- New key cardflip-testing-2 (Testing workspace scope, never expires, linked to Chris) made in the pane with Chris signed in; stored as ANTHROPIC_DEV_API_KEY in .env.testing.local (old file kept as .env.testing.local.bak-1022, both git-ignored); one 5-token Haiku call answered 200. The old key cardflip-testing can be deleted on platform.claude.com/settings/keys or left to expire 10-29.
+- [ ] Next accuracy/A-B script run uses the new key without a prompt (scripts/lib/dev-key.mjs).
+
 ## 10-22 7:27AM ET: Pokémon listing cap OFF + chart lift day (COMMIT ONLY, not visible by itself; Chris "build the cap rule"; report card §15)
 - pokemonPriceRefresh.ts POKEMON_CAP_ON=false; priceOutliers.ts capLiftDay (fromCapBreak + seriesBreakDay start at the lift). test:pricehistory +9, test:sitetrust cap tests rewritten, cardpages/social/digest green, tsc + eslint clean.
 - [ ] After push, first 5:45am ET write: scripts/_uncapped-lines.mjs reads 0 lines breaking the cap... (script now moot) -> instead: scripts/_peek-series.mjs --prod on 5 of the 2,039 capped printings (e.g. ex9-41, dp6-12, lc-31, pl1-9, bwp-BW82) = last point at TCGplayer market, a step up of 1.45x+; their card pages: 24h/7d pills read from the lift (no "Up 200%"); /admin/prices "high" count does not explode (the referee reads asks, not the cap).
@@ -319,6 +323,10 @@
 - [x] PASS 10-16 (curl: $939.50, no "looks off") 10-15: /cards/pokemon/crystal-guardians/charizard--ex14-4 shows $939.50 (hand keep POSTed 10-14 ~2:45pm ET; page copy was still "looks off" right after, cache).
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
+
+## 10-22 7:30AM ET: testing API key rotated (Console mail: cardflip-testing expires 10-29)
+- New key cardflip-testing-2 (Testing workspace scope, never expires, linked to Chris) made in the pane with Chris signed in; stored as ANTHROPIC_DEV_API_KEY in .env.testing.local (old file kept as .env.testing.local.bak-1022, both git-ignored); one 5-token Haiku call answered 200. The old key cardflip-testing can be deleted on platform.claude.com/settings/keys or left to expire 10-29.
+- [ ] Next accuracy/A-B script run uses the new key without a prompt (scripts/lib/dev-key.mjs).
 
 ## 10-22 7:27AM ET: Pokémon listing cap OFF + chart lift day (COMMIT ONLY, not visible by itself; Chris "build the cap rule"; report card §15)
 - pokemonPriceRefresh.ts POKEMON_CAP_ON=false; priceOutliers.ts capLiftDay (fromCapBreak + seriesBreakDay start at the lift). test:pricehistory +9, test:sitetrust cap tests rewritten, cardpages/social/digest green, tsc + eslint clean.
