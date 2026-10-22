@@ -12,7 +12,7 @@ import type { GameId, VisionCardRead } from "@/lib/types";
  * for every Pokémon scan (null = the model read no symbol).
  */
 export function scanLogRead(
-  card: VisionCardRead & { switchedFrom?: string | null; secondLook?: string | null; detectedGame?: string | null },
+  card: VisionCardRead & { switchedFrom?: string | null; secondLook?: string | null; detectedGame?: string | null; patternFirst?: string | null; patternLookBall?: string | null },
   game: GameId,
   timing: { pre: number; ms: number },
 ): Record<string, unknown> {
@@ -35,6 +35,8 @@ export function scanLogRead(
     ...(game === "pokemon" ? { pattern: card.foilPattern ?? null, ball: card.patternBall ?? null } : {}),
     // The focused text-box look, when one ran (vision.ts needsPatternLook): "found", "reverse", "skipped-slow", "failed".
     ...(card.patternLook ? { look: card.patternLook } : {}),
+    // 10-22: what the first read said before the look ("reverse", "ball/poke") and the ball the look saw, so a wrong pick is measurable.
+    ...(card.patternFirst ? { first: card.patternFirst, lookBall: card.patternLookBall ?? null } : {}),
     // ms spent in the gates before the vision call, and in the call itself.
     pre: timing.pre,
     ms: timing.ms,

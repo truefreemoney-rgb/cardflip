@@ -9,7 +9,7 @@ import { Crumbs, ScanCta, TileGrid } from "@/components/CardPagesUi";
 import { cardPath, gamePath, gameTitle, setPath, type SetEntry } from "@/lib/cardPages";
 import { setSummary, type SetSummary } from "@/lib/cardStory";
 import { formatMoney } from "@/lib/listing";
-import { SET_PAGE_CARDS, loadSetCards, publicCardGame, setBySlug, type SetCard } from "@/lib/server/cardPages";
+import { SET_PAGE_CARDS, loadSetCardsCached, publicCardGame, setBySlug, type SetCard } from "@/lib/server/cardPages";
 import { pageMetadata } from "@/lib/seo";
 import { breadcrumbGraph } from "@/lib/structuredData";
 import { etDate, etDay } from "@/lib/time";
@@ -31,12 +31,13 @@ interface Loaded {
 }
 
 /** One read shared by generateMetadata and the page; null = no such game or set (or the game is not public). */
+// The set's cards come from the per-set day cache (loadSetCardsCached), so page 2..N reuse page 1's read.
 const load = cache(async (gameSlug: string, setSlug: string): Promise<Loaded | null> => {
   const game = await publicCardGame(gameSlug);
   if (!game) return null;
   const found = await setBySlug(game, setSlug);
   if (!found) return null;
-  const all = await loadSetCards(game, found.set);
+  const all = await loadSetCardsCached(game, found.set);
   // A flagged card stays on the list with the guard's sentence (its tile prints no number), sorted last by loadSetCards; it
   // used to be dropped outright (review 10-19 #22). Unverified (young, high) prices stay off the list as before.
   return { game, set: found.set, slug: found.slug, cards: all.filter((c) => !c.unverified && (c.flagged || (c.price != null && c.price > 0))) };

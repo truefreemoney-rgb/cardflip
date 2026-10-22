@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { apiFetch } from "@/lib/client/basePath";
 
 /**
  * The daily optimization loop's switch on /admin/social (Chris 10-02; 10-03
@@ -50,7 +51,7 @@ export default function SocialOptimizer({
     setBusy(true);
     setNote(null);
     try {
-      const res = await fetch("/api/admin/social/posts", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "optimizer", on: !on }) });
+      const res = await apiFetch("/api/admin/social/posts", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "optimizer", on: !on }) });
       const j = (await res.json()) as { optimizer?: boolean; error?: string };
       if (!res.ok) throw new Error(j.error ?? `HTTP ${res.status}`);
       setOn(j.optimizer === true);

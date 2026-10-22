@@ -70,9 +70,22 @@ function toHits(game: GameId, cards: PokemonCard[], max = SHOWN): Hit[] {
   return out;
 }
 
+/** The public game list, asked once per page load (10-22: admin-only games used to be offered and gave 404 results). */
+let publicGames: Promise<GameId[]> | null = null;
+function loadPublicGames(): Promise<GameId[]> {
+  publicGames ??= fetch("/api/catalog/games")
+    .then((r) => (r.ok ? r.json() : null))
+    .then((j) => (Array.isArray(j?.games) && j.games.length ? (j.games as GameId[]) : [...GAME_IDS]))
+    .catch(() => {
+      publicGames = null;
+      return [...GAME_IDS] as GameId[];
+    });
+  return publicGames;
+}
+
 export default function CatalogSearch({
   game: fixedGame,
-  games = GAME_IDS,
+  games: gamesProp,
   variant = "page",
   autoFocus = false,
   onNavigate,
@@ -85,6 +98,8 @@ export default function CatalogSearch({
   autoFocus?: boolean;
   onNavigate?: () => void;
 }) {
+  const [fetched, setFetched] = useState<readonly GameId[]>(GAME_IDS);
+  const games = gamesProp ?? fetched;
   const [pick, setPick] = useState<GameId>(games[0] ?? "pokemon");
   const game = fixedGame ?? pick;
   const [q, setQ] = useState("");
@@ -95,6 +110,19 @@ export default function CatalogSearch({
   const seq = useRef(0);
   const inPage = variant === "page";
   const [shown, setShown] = useState(PAGE_STEP);
+
+  useEffect(() => {
+    if (gamesProp || fixedGame) return;
+    let live = true;
+    loadPublicGames().then((g) => {
+      if (!live) return;
+      setFetched(g);
+      setPick((p) => (g.includes(p) ? p : (g[0] ?? "pokemon")));
+    });
+    return () => {
+      live = false;
+    };
+  }, [gamesProp, fixedGame]);
 
   useEffect(() => {
     const term = q.trim();

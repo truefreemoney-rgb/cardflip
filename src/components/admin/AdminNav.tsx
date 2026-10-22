@@ -31,6 +31,12 @@ export default function AdminNav({ badges = {} }: { badges?: AdminBadges }) {
   const path = usePathname();
   const current = Math.max(0, ADMIN_NAV_GROUPS.findIndex((g) => g.pages.some(([href]) => isActive(path, href))));
   const [open, setOpen] = useState(current);
+  // 10-22: an in-page route change (a link inside a page) moves the open group too.
+  const [seen, setSeen] = useState(current);
+  if (seen !== current) {
+    setSeen(current);
+    setOpen(current);
+  }
   const group = ADMIN_NAV_GROUPS[open];
   const badgeFor = (href: string) => badges[href as keyof AdminBadges];
 

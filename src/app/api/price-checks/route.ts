@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { requireUser, AuthError } from "@/lib/server/auth";
+import { requireUser } from "@/lib/server/auth";
+import { apiFailure } from "@/lib/server/apiError";
 import { clearPriceChecks, listPriceChecks, logPriceCheck } from "@/lib/server/priceChecks";
 import type { PokemonCard, ScanLanguage } from "@/lib/types";
 
@@ -8,10 +9,7 @@ export async function GET() {
     const user = await requireUser();
     return NextResponse.json({ entries: await listPriceChecks(user.id, 100) });
   } catch (err) {
-    if (err instanceof AuthError) {
-      return NextResponse.json({ error: err.message }, { status: 401 });
-    }
-    throw err;
+    return apiFailure(err);
   }
 }
 
@@ -31,10 +29,7 @@ export async function POST(req: Request) {
     const entry = await logPriceCheck(user.id, card, language);
     return NextResponse.json({ entry }, { status: 201 });
   } catch (err) {
-    if (err instanceof AuthError) {
-      return NextResponse.json({ error: err.message }, { status: 401 });
-    }
-    throw err;
+    return apiFailure(err);
   }
 }
 
@@ -45,9 +40,6 @@ export async function DELETE() {
     await clearPriceChecks(user.id);
     return NextResponse.json({ ok: true });
   } catch (err) {
-    if (err instanceof AuthError) {
-      return NextResponse.json({ error: err.message }, { status: 401 });
-    }
-    throw err;
+    return apiFailure(err);
   }
 }

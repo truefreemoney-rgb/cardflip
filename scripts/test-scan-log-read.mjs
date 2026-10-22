@@ -49,6 +49,12 @@ read = scanLogRead({ ...base, foilPattern: "ball", patternBall: "master", patter
 assert.equal(read.look, "found");
 read = scanLogRead({ ...base }, "pokemon", timing);
 assert.ok(!("look" in read), "no look key without a look");
+// 10-22: the first read's verdict and the look's ball are kept for measuring, only when a look ran.
+read = scanLogRead({ ...base, foilPattern: "ball", patternBall: "master", patternLook: "found", patternFirst: "ball/poke", patternLookBall: "master" }, "pokemon", timing);
+assert.equal(read.first, "ball/poke");
+assert.equal(read.lookBall, "master");
+read = scanLogRead({ ...base }, "pokemon", timing);
+assert.ok(!("first" in read), "no first key without a look");
 
 // Other games: no pattern keys at all (the log stays compact; the 2000-char slice matters).
 for (const game of ["mtg", "lorcana", "onepiece", "yugioh"]) {

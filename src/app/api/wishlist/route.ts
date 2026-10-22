@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { requireUser, AuthError } from "@/lib/server/auth";
+import { requireUser } from "@/lib/server/auth";
+import { apiFailure } from "@/lib/server/apiError";
 import { addToWishlist, listWishlist } from "@/lib/server/wishlist";
 import { WISHLIST_CAP_MESSAGE, wishlistFull } from "@/lib/server/rowCaps";
 import type { PokemonCard, ScanLanguage } from "@/lib/types";
@@ -9,10 +10,7 @@ export async function GET() {
     const user = await requireUser();
     return NextResponse.json({ items: await listWishlist(user.id) });
   } catch (err) {
-    if (err instanceof AuthError) {
-      return NextResponse.json({ error: err.message }, { status: 401 });
-    }
-    throw err;
+    return apiFailure(err);
   }
 }
 
@@ -39,9 +37,6 @@ export async function POST(req: Request) {
     const item = await addToWishlist(user.id, card, language, price, price == null ? null : variant);
     return NextResponse.json({ item }, { status: 201 });
   } catch (err) {
-    if (err instanceof AuthError) {
-      return NextResponse.json({ error: err.message }, { status: 401 });
-    }
-    throw err;
+    return apiFailure(err);
   }
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { apiFetch } from "@/lib/client/basePath";
 import type { SocialComment } from "@/lib/server/socialInbox";
 import { siteLabel, whenET } from "@/lib/socialPosts";
 
@@ -25,7 +26,13 @@ const STATUS_LABEL: Record<string, string> = { hidden: "Hidden", replied: "Repli
 type Action = "reply" | "hide" | "dismiss" | "redraft" | "undo" | "block";
 
 async function call(body: Record<string, unknown>): Promise<{ comment?: SocialComment; draft?: string | null; error?: string }> {
-  const res = await fetch("/api/admin/social/inbox", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  let res: Response;
+  try {
+    res = await apiFetch("/api/admin/social/inbox", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  } catch {
+    // 10-22: a dead connection ends the spinner with a message instead of throwing past the caller.
+    return { error: "Connection timed out. Try again." };
+  }
   return (await res.json().catch(() => ({ error: `HTTP ${res.status}` }))) as { comment?: SocialComment; draft?: string | null; error?: string };
 }
 

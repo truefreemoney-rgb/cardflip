@@ -658,9 +658,15 @@ type PatternLookRead = { foilPattern: string; patternBall: string };
 /** Fold the focused look into the read: a symbol it saw wins; otherwise the look's own answer is recorded. */
 export function mergePatternLook(read: VisionCardRead, look: PatternLookRead): VisionCardRead {
   const norm = normalizeFoilPattern({ ...read, foilPattern: look.foilPattern, patternBall: look.patternBall } as VisionCardRead);
-  if (norm.foilPattern && norm.foilPattern !== "reverse") return { ...read, ...norm, patternLook: "found" };
+  // 10-22: keep the first read's verdict and the look's ball beside the merged answer, so a wrong pick can be
+  // measured from scan_usage afterwards (a found symbol used to overwrite the first read; "reverse" dropped the ball).
+  const measure = {
+    patternFirst: `${read.foilPattern ?? "none"}${read.patternBall ? `/${read.patternBall}` : ""}`,
+    patternLookBall: look.patternBall || null,
+  };
+  if (norm.foilPattern && norm.foilPattern !== "reverse") return { ...read, ...norm, patternLook: "found", ...measure } as VisionCardRead;
   // "reverse" from the crop confirms foil with no symbol; keep the first read's ball if it had one.
-  return { ...read, patternLook: look.foilPattern || "unknown" };
+  return { ...read, patternLook: look.foilPattern || "unknown", ...measure } as VisionCardRead;
 }
 
 const PATTERN_LOOK_SCHEMA = {

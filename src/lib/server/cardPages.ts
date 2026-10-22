@@ -35,7 +35,7 @@ import {
   type SeriesInput,
   type SetEntry,
 } from "@/lib/cardPages";
-import { historyRange, type HistoryRange, type SetStanding } from "@/lib/cardStory";
+import { historyRange, median, type HistoryRange, type SetStanding } from "@/lib/cardStory";
 import type { Series } from "@/lib/client/priceHistoryData";
 import type { PokemonCard, GameId } from "@/lib/types";
 import { BACKUP_ORDER, backupRank, backupSourceLabel, cardmarketLift } from "@/lib/priceChain";
@@ -709,6 +709,14 @@ export async function loadSetCards(game: GameId, set: SetEntry, today = todayUtc
   return out.sort((a, b) => (b.price ?? -1) - (a.price ?? -1) || a.name.localeCompare(b.name) || a.number.localeCompare(b.number, "en", { numeric: true }));
 }
 
+/**
+ * loadSetCards, kept per set for a day like the sibling lists (10-22: every page URL of a set, page 2..N too, ran the catalog
+ * query and the price guard cold). An empty list is not kept (cachedList), so a failed guard or an unsynced set retries.
+ */
+export function loadSetCardsCached(game: GameId, set: SetEntry): Promise<SetCard[]> {
+  return cachedList(`seo:setcards:v1:${game}:${set.key}`, TOP_TTL_MS, () => loadSetCards(game, set));
+}
+
 // ---------------------------------------------------------------------------
 // Top cards (game hub, "more from this set")
 
@@ -753,10 +761,7 @@ async function setStandings(game: GameId, set: SetEntry): Promise<SetStandings> 
   try {
     return await cachedList(`seo:setrank:v5:${game}:${set.key}`, TOP_TTL_MS, async () => {
       const cards = (await loadSetCards(game, set)).filter((c) => c.price != null && c.price >= indexFloorUsd(game) && !c.unverified && !c.stale);
-      const prices = cards.map((c) => c.price as number).sort((a, b) => a - b);
-      const mid = prices.length >> 1;
-      const median = prices.length === 0 ? 0 : prices.length % 2 ? prices[mid] : (prices[mid - 1] + prices[mid]) / 2;
-      return { order: cards.map((c) => c.key), median };
+      return { order: cards.map((c) => c.key), median: median(cards.map((c) => c.price as number)) ?? 0 };
     });
   } catch (err) {
     console.warn(`card pages: could not rank ${game} set ${set.key}`, err);

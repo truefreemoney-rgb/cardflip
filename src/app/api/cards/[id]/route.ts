@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { doubtedCardsAmong, giveBackDoubtedDeletes } from "@/lib/server/scanGiveback";
-import { requireUser, AuthError } from "@/lib/server/auth";
+import { requireUser } from "@/lib/server/auth";
+import { apiFailure } from "@/lib/server/apiError";
 import { deleteCard, getCardForUser, updateCard, type CardStatus } from "@/lib/server/cards";
 import { deleteCardPhoto } from "@/lib/server/cardPhotos";
 import { CONDITIONS } from "@/lib/listing";
@@ -151,10 +152,7 @@ export async function PATCH(req: Request, { params }: RouteParams) {
     }
     return NextResponse.json({ card });
   } catch (err) {
-    if (err instanceof AuthError) {
-      return NextResponse.json({ error: err.message }, { status: 401 });
-    }
-    throw err;
+    return apiFailure(err);
   }
 }
 
@@ -178,9 +176,6 @@ export async function DELETE(_req: Request, { params }: RouteParams) {
     const scansBack = await giveBackDoubtedDeletes(user, doubted);
     return NextResponse.json({ ok: true, scansBack });
   } catch (err) {
-    if (err instanceof AuthError) {
-      return NextResponse.json({ error: err.message }, { status: 401 });
-    }
-    throw err;
+    return apiFailure(err);
   }
 }

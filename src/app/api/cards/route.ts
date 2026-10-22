@@ -1,6 +1,7 @@
 import { parseGame } from "@/lib/games";
 import { NextResponse } from "next/server";
-import { requireUser, AuthError, subscriptionGate } from "@/lib/server/auth";
+import { requireUser, subscriptionGate } from "@/lib/server/auth";
+import { apiFailure } from "@/lib/server/apiError";
 import { createCard, deleteCards, listCardsForUser } from "@/lib/server/cards";
 import { ownsPack } from "@/lib/server/packs";
 import { scannedRecently } from "@/lib/server/scanUsage";
@@ -13,10 +14,7 @@ export async function GET() {
     const user = await requireUser();
     return NextResponse.json({ cards: await listCardsForUser(user.id) });
   } catch (err) {
-    if (err instanceof AuthError) {
-      return NextResponse.json({ error: err.message }, { status: 401 });
-    }
-    throw err;
+    return apiFailure(err);
   }
 }
 
@@ -35,10 +33,7 @@ export async function DELETE(req: Request) {
     const scansBack = await giveBackDoubtedDeletes(user, doubted);
     return NextResponse.json({ ok: true, removed, scansBack });
   } catch (err) {
-    if (err instanceof AuthError) {
-      return NextResponse.json({ error: err.message }, { status: 401 });
-    }
-    throw err;
+    return apiFailure(err);
   }
 }
 
@@ -106,9 +101,6 @@ export async function POST(req: Request) {
     });
     return NextResponse.json({ card }, { status: 201 });
   } catch (err) {
-    if (err instanceof AuthError) {
-      return NextResponse.json({ error: err.message }, { status: 401 });
-    }
-    throw err;
+    return apiFailure(err);
   }
 }

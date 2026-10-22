@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { apiFetch } from "@/lib/client/basePath";
 import type { SocialComment } from "@/lib/server/socialInbox";
 import type { PostsPage } from "@/lib/server/socialPosts";
 import { count, groupByPost, postKey, SITE_ORDER, siteLabel, whenET, type StoredPost } from "@/lib/socialPosts";
@@ -136,7 +137,7 @@ export default function SocialPosts({ initial }: { initial: PostsPage }) {
     setBusy(append ? "more" : "filter");
     try {
       const before = append ? data.posts[data.posts.length - 1]?.at : undefined;
-      const res = await fetch(`/api/admin/social/posts?${qs(f, before)}`, { cache: "no-store" });
+      const res = await apiFetch(`/api/admin/social/posts?${qs(f, before)}`, { cache: "no-store" });
       const page = (await res.json()) as PostsPage & { error?: string };
       if (!res.ok) throw new Error(page.error ?? `HTTP ${res.status}`);
       setData((d) =>
@@ -159,7 +160,7 @@ export default function SocialPosts({ initial }: { initial: PostsPage }) {
     setBusy("refresh");
     setNote(null);
     try {
-      const res = await fetch("/api/admin/social/posts", {
+      const res = await apiFetch("/api/admin/social/posts", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ action: "refresh", site: filters.site, waiting: filters.waiting, commented: filters.commented }),
@@ -185,7 +186,7 @@ export default function SocialPosts({ initial }: { initial: PostsPage }) {
     const on = !data.autoReply;
     setBusy("filter");
     try {
-      const res = await fetch("/api/admin/social/posts", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "autoReply", on }) });
+      const res = await apiFetch("/api/admin/social/posts", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "autoReply", on }) });
       const j = (await res.json()) as { autoReply?: boolean; error?: string };
       if (!res.ok) throw new Error(j.error ?? `HTTP ${res.status}`);
       setData((d) => ({ ...d, autoReply: j.autoReply === true }));
