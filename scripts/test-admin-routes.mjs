@@ -2,7 +2,7 @@
  * Admin API routes called as plain functions: login, users create/delete,
  * plan override, role, reset-link, settings. Run: npm run test:adminroutes
  *
- * Pins: every route is 403 without the panel cookie (a seller session is
+ * Pins: every route is 401 without the panel cookie (a seller session is
  * not enough); login 401s bad credentials and issues the signed cookie;
  * create validates name/email/password, 201s, 409s a duplicate, honours
  * role; access override 400s garbage, 404s unknown, round-trips every
@@ -68,20 +68,20 @@ function req(method, body) {
 const ctx = (id) => ({ params: Promise.resolve({ id }) });
 const status = async (p) => (await p).status;
 
-// --- no cookie: everything is 403 ------------------------------------------
+// --- no cookie: everything is 401 ------------------------------------------
 testCookies.clear();
-check("users POST without cookie → 403", await status(users.POST(req("POST", { name: "x", email: "x@y.co", password: "12345678" }))), 403);
-check("settings GET without cookie → 403", await status(settings.GET()), 403);
-check("access PATCH without cookie → 403", await status(access.PATCH(req("PATCH", { override: null }), ctx("nope"))), 403);
-check("scans POST without cookie → 403", await status(scansRoute.POST(req("POST", { delta: 5, note: "x y z" }), ctx("nope"))), 403);
-check("role PATCH without cookie → 403", await status(role.PATCH(req("PATCH", { role: "admin" }), ctx("nope"))), 403);
-check("reset-link without cookie → 403", await status(resetLink.POST(req("POST", {}), ctx("nope"))), 403);
-check("delete without cookie → 403", await status(userById.DELETE(req("DELETE"), ctx("nope"))), 403);
+check("users POST without cookie → 401", await status(users.POST(req("POST", { name: "x", email: "x@y.co", password: "12345678" }))), 401);
+check("settings GET without cookie → 401", await status(settings.GET()), 401);
+check("access PATCH without cookie → 401", await status(access.PATCH(req("PATCH", { override: null }), ctx("nope"))), 401);
+check("scans POST without cookie → 401", await status(scansRoute.POST(req("POST", { delta: 5, note: "x y z" }), ctx("nope"))), 401);
+check("role PATCH without cookie → 401", await status(role.PATCH(req("PATCH", { role: "admin" }), ctx("nope"))), 401);
+check("reset-link without cookie → 401", await status(resetLink.POST(req("POST", {}), ctx("nope"))), 401);
+check("delete without cookie → 401", await status(userById.DELETE(req("DELETE"), ctx("nope"))), 401);
 
 // A seller session (even an admin-role user) is not the panel cookie.
 const seller = await createUser("Seller", "seller@example.com", "hunter22", "admin");
 testCookies.set(SESSION_COOKIE, (await createSession(seller.id)).token);
-check("seller session alone → still 403", await status(settings.GET()), 403);
+check("seller session alone → still 401", await status(settings.GET()), 401);
 // POST /api/cards cuts what it stores to the PATCH's lengths (10-01 sweep: it stored any length).
 {
   const cards = await import(at("app/api/cards/route.ts"));
@@ -258,7 +258,7 @@ await settings.PATCH(req("PATCH", { games: { lorcana: false } }));
 check("verify-email: unknown user → 404", await status(verifyEmail.PATCH(req("PATCH"), ctx("nope"))), 404);
 const savedAdmin = testCookies.get(ADMIN_COOKIE);
 testCookies.delete(ADMIN_COOKIE);
-check("verify-email without the panel cookie → 403", await status(verifyEmail.PATCH(req("PATCH"), ctx(waiting.id))), 403);
+check("verify-email without the panel cookie → 401", await status(verifyEmail.PATCH(req("PATCH"), ctx(waiting.id))), 401);
 testCookies.set(ADMIN_COOKIE, savedAdmin);
 const mark = await verifyEmail.PATCH(req("PATCH"), ctx(waiting.id));
 const markBody = await mark.json();
@@ -276,7 +276,7 @@ delete process.env.EMAIL_CONFIRM_DEV_ECHO;
 
 // --- expired cookie ----------------------------------------------------------
 testCookies.set(ADMIN_COOKIE, `${Date.now() - 1000}.deadbeef`);
-check("expired/forged cookie → 403", await status(settings.GET()), 403);
+check("expired/forged cookie → 401", await status(settings.GET()), 401);
 
 console.log(failures ? `\n${failures} FAILED` : "\nall passed");
 process.exit(failures ? 1 : 0);

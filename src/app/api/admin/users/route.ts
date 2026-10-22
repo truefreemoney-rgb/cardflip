@@ -3,6 +3,7 @@ import { requireAdminOwner, AuthError } from "@/lib/server/auth";
 import { createUser, findUserByEmail, toPublicUser, type Role } from "@/lib/server/users";
 import { isValidEmail } from "@/lib/emailAddress";
 import { passwordProblem } from "@/lib/passwordRules";
+import { adminAuthResponse } from "@/lib/server/adminGate";
 
 /**
  * Admin: create an account by hand (Chris, 09-04: "add new accounts from
@@ -27,7 +28,7 @@ export async function POST(req: Request) {
     const user = await createUser(name, email, password, role);
     return NextResponse.json({ user: toPublicUser(user) }, { status: 201 });
   } catch (err) {
-    if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 403 });
+    if (err instanceof AuthError) return adminAuthResponse(err);
     console.error("create user failed:", err);
     return NextResponse.json({ error: "Couldn't create the account" }, { status: 500 });
   }

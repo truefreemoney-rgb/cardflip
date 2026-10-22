@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { AuthError, requireAdminOwner } from "@/lib/server/auth";
+import { requireAdminOwner } from "@/lib/server/auth";
 import { getSetting } from "@/lib/server/settings";
 import { TIKTOK_SLOTS, parseTiktokSpec, tiktokKey } from "@/lib/socialTiktok";
+import { adminFailure } from "@/lib/server/adminGate";
 
 /**
  * Owner only. Streams one registered TikTok MP4 from the same origin as the
@@ -22,8 +23,7 @@ export async function GET(req: NextRequest) {
   try {
     await requireAdminOwner();
   } catch (err) {
-    if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 401 });
-    throw err;
+    return adminFailure(err);
   }
   const q = req.nextUrl.searchParams;
   const slot = TIKTOK_SLOTS.find((s) => s === q.get("slot"));

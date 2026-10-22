@@ -238,10 +238,17 @@ export interface SetSummary {
 
 type SummaryCard = { key: string; name: string; price: number | null; flagged: boolean; unverified: boolean; stale?: boolean; was7?: number | null; was30?: number | null };
 
+/** The median of a sorted-or-not list (the mean of the two middle values when the count is even); null when empty. The one definition: the set ranking in server/cardPages.ts should use it too (10-22). */
+export function median(values: readonly number[]): number | null {
+  if (values.length === 0) return null;
+  const v = values.slice().sort((a, b) => a - b);
+  const mid = Math.floor(v.length / 2);
+  return v.length % 2 ? v[mid] : (v[mid - 1] + v[mid]) / 2;
+}
+
 export function setSummary(cards: SummaryCard[]): SetSummary {
   const sure = cards.filter((c) => c.price != null && c.price > 0 && !c.flagged && !c.unverified && !c.stale);
-  const prices = sure.map((c) => c.price as number).sort((a, b) => a - b);
-  const mid = prices.length ? prices[Math.floor((prices.length - 1) / 2)] : null;
+  const mid = median(sure.map((c) => c.price as number));
   const top = sure.reduce<SummaryCard | null>((m, c) => (!m || (c.price as number) > (m.price as number) ? c : m), null);
   const change = (pick: (c: SummaryCard) => number | null | undefined) => {
     let now = 0;

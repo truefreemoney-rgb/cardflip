@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin, requireAdminOwner, AuthError } from "@/lib/server/auth";
 import { BoardConflictError, loadBoard, normalizeBoard, reseedBoard, saveBoard, serializeBoard, validateBoard } from "@/lib/server/board";
+import { adminFailure, adminAuthResponse } from "@/lib/server/adminGate";
 
 /**
  * The admin board. GET returns it (?format=md for markdown, the same
@@ -16,8 +17,7 @@ export async function GET(req: Request) {
     }
     return NextResponse.json(board);
   } catch (err) {
-    if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 403 });
-    throw err;
+    return adminFailure(err);
   }
 }
 
@@ -28,7 +28,7 @@ export async function POST() {
     const board = await reseedBoard();
     return NextResponse.json(board);
   } catch (err) {
-    if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 403 });
+    if (err instanceof AuthError) return adminAuthResponse(err);
     console.error("board reseed failed:", err);
     return NextResponse.json({ error: "Couldn't reload the board" }, { status: 500 });
   }
@@ -49,7 +49,7 @@ export async function PUT(req: Request) {
     // The normalised board comes back so a tick shows up in Completed at once.
     return NextResponse.json({ ok: true, updatedAt, sections: n.changed ? n.sections : undefined });
   } catch (err) {
-    if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 403 });
+    if (err instanceof AuthError) return adminAuthResponse(err);
     if (err instanceof BoardConflictError) {
       const live = await loadBoard();
       return NextResponse.json({ error: "The board changed elsewhere — reloaded it. Redo that last edit.", sections: live.sections, updatedAt: live.updatedAt }, { status: 409 });

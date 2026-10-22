@@ -142,7 +142,7 @@ export function TileGrid({ game, tiles, showSet = false, showBuy = false }: { ga
           >
             <div className="aspect-[5/7] bg-black/30">
               {/* The first row (6 wide on desktop) loads at once: lazy there delayed the page's largest paint (review 10-19 public #21). */}
-              {showsInLists(t.tile || t.image) && <ArtImg src={t.tile || t.image} alt={`${t.name}, ${t.setName}`} loading={i < 6 ? "eager" : "lazy"} width={500} height={700} className="h-full w-full object-cover" />}
+              {showsInLists(t.tile || t.image) && <ArtImg src={t.tile || t.image} alt={`${t.name}, ${t.setName}`} loading={i < 6 ? "eager" : "lazy"} priority={i === 0} width={500} height={700} className="h-full w-full object-cover" />}
             </div>
             <div className="flex flex-1 flex-col gap-0.5 p-2.5">
               <p className="truncate text-sm font-medium text-white">{t.name}</p>

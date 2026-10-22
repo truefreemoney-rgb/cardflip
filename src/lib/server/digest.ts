@@ -1,6 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
+import { pageAllCards } from "@/lib/server/pageAll";
 import { askingPriceFor } from "@/lib/listing";
 import { shipMethodOf } from "@/lib/fees";
 import { isMailConfigured, sendWeeklyDigestEmail } from "@/lib/server/mail";
@@ -32,6 +33,7 @@ import { historyStart } from "@/lib/priceOutliers";
  */
 export const EMAIL_CUTOFF = Date.parse("2026-10-07T04:00:00Z");
 
+// Rows are read in batches of this size, all of them (10-22: a single slice skipped cards past 400).
 const ROW_CAP = 400;
 const USER_CAP = 500;
 const TOP = 5;
@@ -104,13 +106,13 @@ export function isEasternSunday(now = Date.now()): boolean {
 
 /** The digest for one seller; null when there is nothing to say (no cards at all). */
 export async function buildDigest(userId: string, now = Date.now()): Promise<Digest | null> {
-  const rows = (await db
-    .prepare(
-      `SELECT id, card_name, set_name, card_number, condition, quantity, status, price,
+  const rows = await pageAllCards<Row>(
+    `SELECT id, card_name, set_name, card_number, condition, quantity, status, price,
               sold_price, sold_at, listed_at, catalog_card_id, game, price_locked, shipping_method
-       FROM cards WHERE user_id = ? ORDER BY created_at DESC LIMIT ${ROW_CAP}`,
-    )
-    .all(userId)) as unknown as Row[];
+       FROM cards WHERE user_id = ?`,
+    [userId],
+    ROW_CAP,
+  );
   if (rows.length === 0) return null;
 
   const held = rows.filter((r) => r.status !== "sold");

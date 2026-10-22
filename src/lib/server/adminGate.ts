@@ -1,5 +1,6 @@
 import "server-only";
 import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { AuthError } from "@/lib/server/auth";
 import {
@@ -47,14 +48,37 @@ export async function hasAdminSession(): Promise<boolean> {
   return (await adminRole()) !== null;
 }
 
+/** 401 = no panel session, 403 = a session whose role may not do this (10-22: the routes used to mix the two). */
+export class AdminAuthError extends AuthError {
+  status: 401 | 403;
+  constructor(message: string, status: 401 | 403) {
+    super(message);
+    this.status = status;
+  }
+}
+
+/** The JSON answer for an auth failure from an /api/admin route. */
+export function adminAuthResponse(err: AuthError): NextResponse {
+  return NextResponse.json({ error: err.message }, { status: err instanceof AdminAuthError ? err.status : 401 });
+}
+
+/** The JSON catch-all for an /api/admin route: auth failures keep their status, anything else is a JSON 500, not Next's HTML page. */
+export function adminFailure(err: unknown): NextResponse {
+  if (err instanceof AuthError) return adminAuthResponse(err);
+  console.error("admin route failed:", err);
+  return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
+}
+
 export async function requireAdminPanel(): Promise<AdminRole> {
   const role = await adminRole();
-  if (!role) throw new AuthError("Admin sign-in required");
+  if (!role) throw new AdminAuthError("Admin sign-in required", 401);
   return role;
 }
 
 export async function requireOwnerPanel(): Promise<void> {
-  if ((await adminRole()) !== "owner") throw new AuthError("Only the owner can do that");
+  const role = await adminRole();
+  if (role === null) throw new AdminAuthError("Admin sign-in required", 401);
+  if (role !== "owner") throw new AdminAuthError("Only the owner can do that", 403);
 }
 
 /** Sign Out: this browser's sign-in is ended everywhere its cookie went. Old rows are pruned on the way. */

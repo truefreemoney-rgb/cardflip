@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
-import { AuthError, requireAdminOwner } from "@/lib/server/auth";
+import { requireAdminOwner } from "@/lib/server/auth";
+import { adminFailure } from "@/lib/server/adminGate";
 
 /**
  * Owner-only file drop (Chris 10-04: "a button somewhere in admin so I can
@@ -18,8 +19,7 @@ export async function POST(req: NextRequest) {
   try {
     await requireAdminOwner();
   } catch (err) {
-    if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 401 });
-    throw err;
+    return adminFailure(err);
   }
   const body = (await req.json()) as HandleUploadBody;
   try {

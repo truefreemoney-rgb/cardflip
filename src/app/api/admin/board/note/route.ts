@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { AuthError } from "@/lib/server/auth";
-import { requireAdminPanel } from "@/lib/server/adminGate";
+import { requireAdminPanel, adminAuthResponse } from "@/lib/server/adminGate";
 import { helperName } from "@/lib/adminAuth";
 import { BoardConflictError, isBoardImageUrl, helperSection, loadBoard, MAX_IMAGES, saveBoard } from "@/lib/server/board";
 
@@ -25,7 +25,7 @@ export async function POST(req: Request) {
     if (text.length > 800) return NextResponse.json({ error: "Keep a note under 800 characters" }, { status: 400 });
     // The Run button reads "▶ RUNNING #n — " as its own marker (and closes issue n on a re-run): a typed one is not a note.
     if (/^▶\s*RUNNING/i.test(text)) return NextResponse.json({ error: "A note can't start with ▶ RUNNING" }, { status: 400 });
-    const name = role === "helper" ? helperName() : "Chris";
+    const name = role === "helper" ? helperName() : "Admin";
     const { sections, updatedAt } = await loadBoard();
     const mine = helperSection(sections);
     if (replyTo) {
@@ -42,7 +42,7 @@ export async function POST(req: Request) {
     const stamp = await saveBoard(sections, updatedAt);
     return NextResponse.json({ ok: true, sections, updatedAt: stamp });
   } catch (err) {
-    if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 403 });
+    if (err instanceof AuthError) return adminAuthResponse(err);
     if (err instanceof BoardConflictError) return NextResponse.json({ error: "The board changed while you typed — try again." }, { status: 409 });
     console.error("board note failed:", err);
     return NextResponse.json({ error: "Couldn't save the note" }, { status: 500 });

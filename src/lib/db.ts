@@ -447,6 +447,8 @@ const SCHEMA = `
     created_at INTEGER
   );
   CREATE INDEX IF NOT EXISTS idx_card_removals_at ON card_removals(at);
+  -- The Users page rollups count removals per user (10-22): without this each of them scanned the table.
+  CREATE INDEX IF NOT EXISTS idx_card_removals_user ON card_removals(user_id, how);
   -- Our card id -> Cardmarket idProduct (10-13), rebuilt nightly by the PC's
   -- catalog run (scripts/build-cardmarket-map.mjs --prod --write-db) so new
   -- cards get a Cardmarket price without a deploy. Overrides src/data/cardmarket-<game>.json.
@@ -1150,6 +1152,8 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
       // packs add these up so a pack's value matches its cards on screen. scan_price stays the asking-level
       // figure Inventory's "added at" compares against. NULL = rows from before; packs fall back to scan_price.
       "scan_market REAL",
+      // The scanner's own id for the save (10-22): a retried POST after a timed-out-but-landed one returns this row, no twin.
+      "client_id TEXT",
     ],
   ],
   // alert_price = "email me when it dips to this"; alerted_at = sent once,
@@ -1346,8 +1350,10 @@ async function initSchema(): Promise<void> {
   try {
     const rs = await client.execute({ sql: "SELECT value FROM price_history_meta WHERE key = ?", args: [SCHEMA_META_KEY] });
     if (rs.rows[0]?.value === SCHEMA_FINGERPRINT) return;
-  } catch {
-    // First run on an empty database — the table doesn't exist yet.
+  } catch (err) {
+    // First run on an empty database: the table is missing. Any other error is a
+    // down database and must not replay the whole schema pass (10-22).
+    if (!/no such table/i.test(err instanceof Error ? err.message : String(err))) throw err;
   }
   await client.executeMultiple(SCHEMA);
   // Only "duplicate column name" means the column is already there. Any other
@@ -1395,6 +1401,8 @@ async function initSchema(): Promise<void> {
   await client.execute("CREATE INDEX IF NOT EXISTS idx_cards_game ON cards(game)");
   // A pack page lists its pulls; pack_id is an added column, so after the probe.
   await client.execute("CREATE INDEX IF NOT EXISTS idx_cards_pack ON cards(pack_id)");
+  // The create-retry dedupe looks a save up by user + client id; added column, so after the probe. Partial: old rows are NULL.
+  await client.execute("CREATE INDEX IF NOT EXISTS idx_cards_client ON cards(user_id, client_id) WHERE client_id IS NOT NULL");
   if (probeFailed) return;
   await client.execute({
     sql: "INSERT OR REPLACE INTO price_history_meta (key, value) VALUES (?, ?)",

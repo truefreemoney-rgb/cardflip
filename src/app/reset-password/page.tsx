@@ -76,7 +76,7 @@ function ResetPasswordForm() {
       // The rate limiter answers with `error` ("Too many tries, wait N s"), the route itself with `message`.
       if (!res.ok) throw new Error(data.message ?? data.error ?? "Couldn't reset the password.");
       // Two-step accounts are not signed in by the link: log in with the new password and the code.
-      router.replace(data.signIn ? "/login" : "/app");
+      router.replace(data.signIn ? "/login?reset=1" : "/app");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't reset the password.");
       setSubmitting(false);

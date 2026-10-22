@@ -17,9 +17,10 @@ import { gamePath } from "@/lib/cardPages";
 import { fetchCardById, fetchSets } from "@/lib/cards";
 import { displayCardNumber } from "@/lib/games";
 import { pickPrice, priceFlagOf, watchPriceOf } from "@/lib/listing";
+import { useWatch } from "@/lib/client/useWatch";
 import { logPriceCheck } from "@/lib/client/priceChecksApi";
 import { etDay } from "@/lib/time";
-import { addToWishlist, fetchWishlist, removeFromWishlist, type WishlistItem } from "@/lib/client/wishlistApi";
+import { fetchWishlist, removeFromWishlist, type WishlistItem } from "@/lib/client/wishlistApi";
 import type { SetInfo } from "@/lib/grading";
 import type { GameId, PokemonCard, ScanLanguage } from "@/lib/types";
 
@@ -80,6 +81,8 @@ export default function PriceCheckPage() {
     else setSelectedLoading(false);
   }
 
+  const addWatch = useWatch();
+
   async function toggleWatch(card: PokemonCard) {
     if (!card.id || busyWatch.has(card.id)) return;
     setBusyWatch((s) => new Set(s).add(card.id));
@@ -103,9 +106,9 @@ export default function PriceCheckPage() {
     }
     // The price guard: a market the rule flags is not saved as the watchlist baseline.
     const picked = pickPrice(card);
-    const item = await addToWishlist(card, language, picked?.untrusted ? null : (picked?.market ?? null), picked?.variant);
-    if (item) {
-      setWatch((w) => [item, ...(w ?? [])]);
+    const res = await addWatch(card, language, picked?.untrusted ? null : (picked?.market ?? null), picked?.variant);
+    if (res.status === "added") {
+      setWatch((w) => [res.item, ...(w ?? [])]);
       toast(`${card.name} added to your watchlist`);
     } else toast("Couldn't save to watchlist — try again", "err");
     done();

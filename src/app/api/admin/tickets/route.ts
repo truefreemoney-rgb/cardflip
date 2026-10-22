@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { AuthError, requireAdminOwner } from "@/lib/server/auth";
+import { requireAdminOwner } from "@/lib/server/auth";
 import { listAllTickets } from "@/lib/server/supportTickets";
+import { adminFailure } from "@/lib/server/adminGate";
 
 /** Admin: every support ticket, open first. */
 export async function GET() {
@@ -8,7 +9,6 @@ export async function GET() {
     await requireAdminOwner();
     return NextResponse.json({ tickets: await listAllTickets() });
   } catch (err) {
-    if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 401 });
-    throw err;
+    return adminFailure(err);
   }
 }

@@ -3,6 +3,7 @@ import { AuthError, requireAdminOwner } from "@/lib/server/auth";
 import { setManualCall } from "@/lib/server/ebayReferee";
 import { dropCardLists } from "@/lib/server/cardPages";
 import type { GameId } from "@/lib/types";
+import { adminAuthResponse } from "@/lib/server/adminGate";
 
 /**
  * /api/admin/prices: owner only. POST `{ game, cardId, variant, call }` records an
@@ -30,7 +31,7 @@ export async function POST(req: Request) {
     if (changed) await dropCardLists(game as GameId, cardId.slice(0, 120));
     return changed ? NextResponse.json({ ok: true }) : NextResponse.json({ error: "No such row" }, { status: 404 });
   } catch (err) {
-    if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 403 });
+    if (err instanceof AuthError) return adminAuthResponse(err);
     console.error("admin prices call failed:", err);
     return NextResponse.json({ error: "Couldn't save the call" }, { status: 500 });
   }

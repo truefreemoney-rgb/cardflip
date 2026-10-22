@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { AuthError, requireAdminOwner } from "@/lib/server/auth";
+import { requireAdminOwner } from "@/lib/server/auth";
 import { listSocialPosts, refreshSocialPosts } from "@/lib/server/socialPosts";
 import { AUTO_REPLY_KEY, sweepSocialInbox } from "@/lib/server/socialInbox";
 import { OPT_OFF_KEY } from "@/lib/server/socialOptimize";
 import { setSetting } from "@/lib/server/settings";
+import { adminFailure } from "@/lib/server/adminGate";
 
 /**
  * Owner-only data for /admin/social/posts.
@@ -27,8 +28,7 @@ export async function GET(req: NextRequest) {
     await requireAdminOwner();
     return NextResponse.json(await listSocialPosts(query(req)));
   } catch (err) {
-    if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 401 });
-    throw err;
+    return adminFailure(err);
   }
 }
 
@@ -36,8 +36,7 @@ export async function POST(req: NextRequest) {
   try {
     await requireAdminOwner();
   } catch (err) {
-    if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 401 });
-    throw err;
+    return adminFailure(err);
   }
   const body = (await req.json().catch(() => null)) as { action?: string; site?: string | null; waiting?: boolean; commented?: boolean; on?: boolean } | null;
   if (body?.action === "autoReply") {

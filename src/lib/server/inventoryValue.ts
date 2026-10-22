@@ -1,5 +1,5 @@
 import "server-only";
-import { db } from "@/lib/db";
+import { pageAllCards } from "@/lib/server/pageAll";
 import { askingPriceFor, marketForCondition } from "@/lib/listing";
 import { shipMethodOf } from "@/lib/fees";
 import { heldSeries, preferredVariants, usdSeries } from "@/lib/server/priceHistory";
@@ -24,6 +24,7 @@ import type { GameId } from "@/lib/types";
  * of the line, not just today: its plateau days are junk too.
  */
 
+// Rows are read in batches of this size, all of them (10-22: a single slice under-counted past 400).
 const ROW_CAP = 400;
 export const MAX_VALUE_DAYS = 365;
 
@@ -81,13 +82,12 @@ export async function inventoryValueSeries(
 ): Promise<ValuePoint[]> {
   const span = Math.min(MAX_VALUE_DAYS, Math.max(2, Math.floor(days)));
   const categorySql = scope.category === undefined ? "" : scope.category === null ? "AND category IS NULL" : "AND category = ?";
-  const rows = (await db
-    .prepare(
-      `SELECT catalog_card_id, variant, condition, quantity, status, created_at, sold_at, shipping_method FROM cards
-       WHERE user_id = ? AND game = ? AND catalog_card_id IS NOT NULL ${categorySql} ${scope.status ? STATUS_SQL[scope.status] : ""}
-       ORDER BY created_at DESC LIMIT ${ROW_CAP}`,
-    )
-    .all(userId, game, ...(typeof scope.category === "string" ? [scope.category] : []))) as unknown as Row[];
+  const rows = await pageAllCards<Row>(
+    `SELECT catalog_card_id, variant, condition, quantity, status, created_at, sold_at, shipping_method FROM cards
+       WHERE user_id = ? AND game = ? AND catalog_card_id IS NOT NULL ${categorySql} ${scope.status ? STATUS_SQL[scope.status] : ""}`,
+    [userId, game, ...(typeof scope.category === "string" ? [scope.category] : [])],
+    ROW_CAP,
+  );
   if (rows.length === 0) return [];
 
   const series = await usdSeries([...new Set(rows.map((r) => r.catalog_card_id))], preferredVariants(rows));

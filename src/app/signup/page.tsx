@@ -311,7 +311,7 @@ export default function SignupPage() {
                 id="name"
                 name="name"
                 type="text"
-                autoComplete="nickname"
+                autoComplete="off"
                 maxLength={80}
                 autoFocus
                 enterKeyHint="next"

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { AuthError, requireAdminOwner } from "@/lib/server/auth";
+import { requireAdminOwner } from "@/lib/server/auth";
 import { TicketInputError, replyToTicket } from "@/lib/server/supportTickets";
+import { adminFailure } from "@/lib/server/adminGate";
 
 /** Admin: POST {message?, images?} = reply on the ticket's chat; mails the seller. */
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
@@ -18,7 +19,6 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       throw err;
     }
   } catch (err) {
-    if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 401 });
-    throw err;
+    return adminFailure(err);
   }
 }

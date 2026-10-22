@@ -31,6 +31,12 @@ export default function LoginPage() {
   useEffect(() => {
     if (error) alertRef.current?.focus();
   }, [error]);
+  // Back from a two-step reset (/reset-password sends ?reset=1): the one line saying the password changed (10-22).
+  const [notice, setNotice] = useState<string | null>(null);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the URL is browser-only, read once after hydration
+    if (new URLSearchParams(window.location.search).get("reset") === "1") setNotice("Password changed. Log in with your new password.");
+  }, []);
   // Sent back from Google without finishing (/api/auth/google/callback): say so in the same error slot.
   useEffect(() => {
     const fromGoogle = googleErrorFromUrl() ?? xErrorFromUrl();
@@ -218,6 +224,12 @@ export default function LoginPage() {
               </span>
             )}
           </p>
+
+          {notice && !error && (
+            <p role="status" className="rounded-lg bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-300">
+              {notice}
+            </p>
+          )}
 
           <button
             type="submit"

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { requireAdminOwner, AuthError } from "@/lib/server/auth";
+import { requireAdminOwner } from "@/lib/server/auth";
+import { adminFailure } from "@/lib/server/adminGate";
 import { findUserById } from "@/lib/server/users";
 import { issueResetToken } from "@/lib/server/passwordReset";
 import { isMailConfigured, sendPasswordResetEmail } from "@/lib/server/mail";
@@ -40,9 +41,6 @@ export async function POST(req: Request, { params }: RouteParams) {
       mailConfigured: isMailConfigured(),
     });
   } catch (err) {
-    if (err instanceof AuthError) {
-      return NextResponse.json({ error: err.message }, { status: 403 });
-    }
-    throw err;
+    return adminFailure(err);
   }
 }

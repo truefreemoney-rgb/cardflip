@@ -1,5 +1,5 @@
 import "server-only";
-import { db } from "@/lib/db";
+import { pageAllCards } from "@/lib/server/pageAll";
 import { askingPriceFor } from "@/lib/listing";
 import { shipMethodOf } from "@/lib/fees";
 import { heldSeries, preferredVariants, usdSeries } from "@/lib/server/priceHistory";
@@ -26,6 +26,7 @@ import type { GameId } from "@/lib/types";
  * that just corrected is not a "loser".
  */
 
+// Rows are read in batches of this size, all of them (10-22: a single slice under-counted past 600).
 const ROW_CAP = 600;
 const MOVERS = 5;
 const TOP = 10;
@@ -104,14 +105,13 @@ function onDay(series: { startDay: string; prices: (number | null)[] }, day: str
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
 export async function collectionInsights(userId: string, game: GameId, now = Date.now()): Promise<Insights> {
-  const rows = (await db
-    .prepare(
-      `SELECT id, card_name, set_name, image_url, kind, condition, status, price, sold_price, quantity,
+  const rows = await pageAllCards<Row>(
+    `SELECT id, card_name, set_name, image_url, kind, condition, status, price, sold_price, quantity,
               catalog_card_id, variant, game, ebay_ended_at, verified_at, price_locked, shipping_method
-       FROM cards WHERE user_id = ? AND game = ?
-       ORDER BY created_at DESC LIMIT ${ROW_CAP}`,
-    )
-    .all(userId, game)) as unknown as Row[];
+       FROM cards WHERE user_id = ? AND game = ?`,
+    [userId, game],
+    ROW_CAP,
+  );
 
   const ids = [...new Set(rows.filter((r) => r.status !== "sold" && r.catalog_card_id).map((r) => r.catalog_card_id!))];
   // Each copy is priced on its OWN printing's line (a foil on the foil line), the same as the value

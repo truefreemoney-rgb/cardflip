@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+﻿import type { ReactNode } from "react";
 import Link from "next/link";
 import ActivityBars from "@/components/admin/ActivityBars";
 import DailyJobControl from "@/components/admin/DailyJobControl";
@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 /**
  * The ops page: what is deployed, what it runs on, what the database holds,
  * whether the nightly job ran, and what has been failing. Everything here is
- * read from state the console already gathers — no new probes, and nothing
+ * read from state the console already gathers â€” no new probes, and nothing
  * that costs a whole-table walk on Turso (09-06 rows-read outage).
  */
 
@@ -35,7 +35,7 @@ function Card({ title, right, span, children }: { title: string; right?: ReactNo
 
 /**
  * Label/value pairs. Each list is its own two-column grid so a right-aligned
- * value can never run into the next label — the four-column layout on the
+ * value can never run into the next label â€” the four-column layout on the
  * Database card did exactly that ("292.7 MBPrice points", issue #17).
  */
 function Pairs({ heading, children }: { heading?: string; children: ReactNode }) {
@@ -63,7 +63,7 @@ function daysSince(isoDay: string, now: number): number {
 export default async function AdminSystemPage() {
   await requireOwnerPage();
   const [o, errors24h, errorDays, groups] = await Promise.all([
-    getAdminOverview(),
+    getAdminOverview(undefined, { rollups: false }),
     errorCount24h(),
     perDay("error_events", "at", 14),
     errorGroups24h(5),
@@ -87,7 +87,7 @@ export default async function AdminSystemPage() {
         <Card
           title="Build"
           span="lg:col-span-2"
-          right={deploy.target ? `${deploy.target} · Vercel` : "local dev"}
+          right={deploy.target ? `${deploy.target} Â· Vercel` : "local dev"}
         >
           <Pairs>
             <Row label="Commit">
@@ -100,12 +100,12 @@ export default async function AdminSystemPage() {
                   <code className="text-[12px]">{deploy.sha.slice(0, 7)}</code>
                 )
               ) : (
-                "—"
+                "â€”"
               )}
             </Row>
-            <Row label="Branch">{deploy.branch ?? "—"}</Row>
-            <Row label="Built">{builtAtMs ? `${fmtDate(builtAtMs)} · ${ago(builtAtMs, now)}` : "—"}</Row>
-            <Row label="Region">{deploy.region ?? "—"}</Row>
+            <Row label="Branch">{deploy.branch ?? "â€”"}</Row>
+            <Row label="Built">{builtAtMs ? `${fmtDate(builtAtMs)} Â· ${ago(builtAtMs, now)}` : "â€”"}</Row>
+            <Row label="Region">{deploy.region ?? "â€”"}</Row>
           </Pairs>
           {deploy.message && <p className="mt-3 truncate text-xs text-zinc-500" title={deploy.message}>{deploy.message}</p>}
         </Card>
@@ -113,7 +113,7 @@ export default async function AdminSystemPage() {
         <Card title="Process" right={o.system.vercel ? "this function instance" : "long-lived server"}>
           <Pairs>
             <Row label="Node">{o.system.node}</Row>
-            <Row label="Runtime">{o.system.runtime} · {o.system.platform}</Row>
+            <Row label="Runtime">{o.system.runtime} Â· {o.system.platform}</Row>
             <Row label="Instance uptime">{uptime(o.system.uptimeSec)}</Row>
             <Row label="Memory (RSS)">{bytes(o.system.rssBytes)}</Row>
             <Row label="Heap">{bytes(o.system.heapUsedBytes)} / {bytes(o.system.heapTotalBytes)}</Row>
@@ -128,7 +128,7 @@ export default async function AdminSystemPage() {
         <Card
           title="Daily refresh"
           span="lg:col-span-3"
-          right={`started ${fmtDate(d.daily.startedAt)} · finished ${fmtDate(d.daily.finishedAt)}`}
+          right={`started ${fmtDate(d.daily.startedAt)} Â· finished ${fmtDate(d.daily.finishedAt)}`}
         >
           <DailyJobControl initial={d.daily} now={now} />
           <div className="mt-3 border-t border-white/5 pt-3">
@@ -157,7 +157,7 @@ export default async function AdminSystemPage() {
             {o.system.vercel && nextCron?.nextAt && (
               <p className="mt-1 text-[11px] text-zinc-600">
                 Next half fires in {uptime(Math.max(0, Math.round((nextCron.nextAt - now) / 1000)))}. The Magic half stamps
-                &ldquo;finished&rdquo;; the Pokémon half only records its steps.
+                &ldquo;finished&rdquo;; the PokÃ©mon half only records its steps.
               </p>
             )}
           </div>
@@ -166,30 +166,30 @@ export default async function AdminSystemPage() {
         <Card
           title="Database"
           span="lg:col-span-2"
-          right={o.system.dbRemote ? "Turso (remote libSQL)" : "local file · data/cardflip.db"}
+          right={o.system.dbRemote ? "Turso (remote libSQL)" : "local file Â· data/cardflip.db"}
         >
           <div className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
             <Pairs heading="Catalogue">
-              <Row label="Pokémon EN">{num(d.enCards)}</Row>
-              <Row label="Pokémon JA">{num(d.jpCards)}</Row>
-              <Row label="Pokémon ZH">{num(d.zhCards)}</Row>
-              <Row label="Magic cards">{num(d.mtgCards)} · {num(d.mtgSets)} sets</Row>
-              <Row label="Magic synced">{d.mtgSyncedAt ? `${fmtDate(d.mtgSyncedAt)} · ${ago(d.mtgSyncedAt, now)}` : "—"}</Row>
+              <Row label="PokÃ©mon EN">{num(d.enCards)}</Row>
+              <Row label="PokÃ©mon JA">{num(d.jpCards)}</Row>
+              <Row label="PokÃ©mon ZH">{num(d.zhCards)}</Row>
+              <Row label="Magic cards">{num(d.mtgCards)} Â· {num(d.mtgSets)} sets</Row>
+              <Row label="Magic synced">{d.mtgSyncedAt ? `${fmtDate(d.mtgSyncedAt)} Â· ${ago(d.mtgSyncedAt, now)}` : "â€”"}</Row>
               <Row label="TCGplayer map">{num(d.tcgplayerMap)}</Row>
               {d.seedMarker && <Row label="MTG seed">{d.seedMarker}</Row>}
             </Pairs>
             <Pairs heading="Price history">
               <Row label="Points">{num(d.priceSeries.total)}</Row>
-              <Row label="Pokémon">{num(d.priceSeries.pokemon)}</Row>
+              <Row label="PokÃ©mon">{num(d.priceSeries.pokemon)}</Row>
               <Row label="Magic">{num(d.priceSeries.mtg)}</Row>
               <Row label="Latest day" tone={pointStale ? "warn" : undefined}>
-                {d.priceSeries.latestDay ?? "—"}{pointStale && " · stale"}
+                {d.priceSeries.latestDay ?? "â€”"}{pointStale && " Â· stale"}
               </Row>
-              <Row label="Size">{d.dbBytes ? bytes(d.dbBytes) : "—"}</Row>
+              <Row label="Size">{d.dbBytes ? bytes(d.dbBytes) : "â€”"}</Row>
             </Pairs>
           </div>
           <p className="mt-3 text-[11px] text-zinc-600">
-            Catalogue counts are memoed for six hours — they only move on a sync.
+            Catalogue counts are memoed for six hours â€” they only move on a sync.
             {pointStale && ` The latest price point is more than ${STALE_POINT_DAYS} days old, so the daily refresh has been missing.`}
           </p>
         </Card>
@@ -198,7 +198,7 @@ export default async function AdminSystemPage() {
           title="Errors"
           right={
             <>
-              {num(errors24h)} / 24h · {num(errors7d)} / 7d ·{" "}
+              {num(errors24h)} / 24h Â· {num(errors7d)} / 7d Â·{" "}
               <Link href="/admin/errors" className="text-brand-300 hover:underline">all</Link>
             </>
           }
@@ -212,7 +212,7 @@ export default async function AdminSystemPage() {
                 <li key={`${g.source}:${g.message}`} className="text-xs">
                   <div className="flex items-baseline justify-between gap-2">
                     <code className="truncate text-zinc-400" title={g.source}>{g.source}</code>
-                    <span className="shrink-0 text-zinc-500">×{g.count}</span>
+                    <span className="shrink-0 text-zinc-500">Ã—{g.count}</span>
                   </div>
                   <p className="truncate text-red-300/80" title={g.message}>{g.message}</p>
                 </li>
@@ -220,7 +220,7 @@ export default async function AdminSystemPage() {
             </ul>
           )}
           <p className="mt-2 text-[11px] text-zinc-600">
-            A digest is mailed after the Pokémon cron when the 24h count passes {ERROR_DIGEST_MIN}.
+            A digest is mailed after the PokÃ©mon cron when the 24h count passes {ERROR_DIGEST_MIN}.
           </p>
         </Card>
 

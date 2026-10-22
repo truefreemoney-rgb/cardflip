@@ -4,6 +4,7 @@ import { requireAdminOwner, AuthError } from "@/lib/server/auth";
 import { CAMPAIGN_IDS, VARIANT_KEYS, campaignOverview, sendCampaignTest, setCampaignsOn, sweepCampaigns, type CampaignId, type VariantKey } from "@/lib/server/campaigns";
 import { isMailConfigured } from "@/lib/server/mail";
 import { OWNER_EMAIL } from "@/lib/server/users";
+import { adminAuthResponse } from "@/lib/server/adminGate";
 
 /**
  * The weekly mails (lib/server/campaigns.ts), owner only.
@@ -15,7 +16,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 function fail(err: unknown, what: string) {
-  if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 403 });
+  if (err instanceof AuthError) return adminAuthResponse(err);
   console.error(`admin emails ${what} failed:`, err);
   return NextResponse.json({ error: err instanceof Error ? err.message : "Something went wrong" }, { status: 500 });
 }

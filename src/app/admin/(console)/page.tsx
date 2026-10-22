@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { after } from "next/server";
 import type { ReactNode } from "react";
 import ActivityBars from "@/components/admin/ActivityBars";
@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 /**
- * /admin — the front page (remade 09-27, Chris: "a proper overview of the
+ * /admin â€” the front page (remade 09-27, Chris: "a proper overview of the
  * essentials", with support tickets). Top to bottom: what needs him today,
  * support, money, sellers, the 30-day charts, and the robots (social, daily
  * job, errors). Every section links to the page that owns it; nothing here
@@ -26,7 +26,7 @@ export const maxDuration = 60;
  */
 export default async function AdminOverviewPage() {
   await requireOwnerPage();
-  const [o, p, { last24h: spend24h, last30d: spend30d }, ebayLimits, stale] = await Promise.all([getAdminOverview(), getOverviewPulse(), scanSpendSummary(), ebayRateLimits(), staleChecks()]);
+  const [o, p, { last24h: spend24h, last30d: spend30d }, ebayLimits, stale] = await Promise.all([getAdminOverview(undefined, { rollups: false }), getOverviewPulse(), scanSpendSummary(), ebayRateLimits(), staleChecks()]);
   // A visit also files the once-a-day Errors-page line if the backup or price run is stale.
   // after(): a bare promise in a serverless render can be cut off when the response ends (review 10-19 admin #5).
   if (stale.length) after(() => reportStaleOnceADay());
@@ -97,7 +97,7 @@ export default async function AdminOverviewPage() {
         <Tile>
           <Big>{num(p.support.helpMessages24h)}</Big>
           <Label>Help chat questions</Label>
-          <Sub>last 24h · <Link href="/admin/robot" className="text-brand-300 hover:text-white">read the chats</Link></Sub>
+          <Sub>last 24h Â· <Link href="/admin/robot" className="text-brand-300 hover:text-white">read the chats</Link></Sub>
         </Tile>
         <Tile className="col-span-2 md:col-span-4">
           {p.support.recent.length === 0 ? (
@@ -130,7 +130,7 @@ export default async function AdminOverviewPage() {
         <Tile>
           <Big className="text-emerald-400">{money(p.money.mrrUsd)}</Big>
           <Label>Coming in per month</Label>
-          <Sub>{num(p.money.activeStandard + p.money.activePro)} paying · {num(p.money.activeStandard)} standard, {num(p.money.activePro)} pro</Sub>
+          <Sub>{num(p.money.activeStandard + p.money.activePro)} paying Â· {num(p.money.activeStandard)} standard, {num(p.money.activePro)} pro</Sub>
         </Tile>
         <Tile>
           <Big>{money(p.money.costsMonthlyUsd)}</Big>
@@ -145,12 +145,12 @@ export default async function AdminOverviewPage() {
         <Tile>
           <Big>{money(s.grossRevenue)}</Big>
           <Label>Sellers sold, all time</Label>
-          <Sub>{num(s.soldCount)} card{s.soldCount === 1 ? "" : "s"} · {money(s.netRevenue)} to them after fees</Sub>
+          <Sub>{num(s.soldCount)} card{s.soldCount === 1 ? "" : "s"} Â· {money(s.netRevenue)} to them after fees</Sub>
         </Tile>
         <Tile>
           <Big>{money(spend30d.usd)}</Big>
           <Label>Vision spend, 30d</Label>
-          <Sub>{spend30d.scans ? `${num(spend30d.scans)} calls · $${(spend30d.usd / spend30d.scans).toFixed(4)} each` : "no scans recorded yet"}</Sub>
+          <Sub>{spend30d.scans ? `${num(spend30d.scans)} calls Â· $${(spend30d.usd / spend30d.scans).toFixed(4)} each` : "no scans recorded yet"}</Sub>
         </Tile>
         <Tile>
           <Big>{money(spend24h.usd)}</Big>
@@ -170,16 +170,16 @@ export default async function AdminOverviewPage() {
         <Tile>
           <Big>{num(s.connectedUsers)}</Big>
           <Label>eBay connected</Label>
-          <Sub>{s.totalUsers ? `${Math.round((s.connectedUsers / s.totalUsers) * 100)}% of users` : "—"}</Sub>
+          <Sub>{s.totalUsers ? `${Math.round((s.connectedUsers / s.totalUsers) * 100)}% of users` : "â€”"}</Sub>
         </Tile>
         <Tile>
           <Big>{num(s.totalCards)}</Big>
           <Label>Cards scanned</Label>
-          <Sub>+{num(s.scans7d)} this week · {num(s.scans30d)} / 30d</Sub>
+          <Sub>+{num(s.scans7d)} this week Â· {num(s.scans30d)} / 30d</Sub>
         </Tile>
         <Tile>
-          <Big>{num(s.pokemonCards)} · {num(s.mtgCards)}</Big>
-          <Label>Pokémon · Magic</Label>
+          <Big>{num(s.pokemonCards)} Â· {num(s.mtgCards)}</Big>
+          <Label>PokÃ©mon Â· Magic</Label>
         </Tile>
         <Tile>
           <Big>{num(s.readyCount)}</Big>
@@ -255,7 +255,7 @@ export default async function AdminOverviewPage() {
             <ul className="mt-1 space-y-1">
               {p.errors.groups.map((g) => (
                 <li key={`${g.source}:${g.message}`} className="text-xs text-zinc-500">
-                  <span className="tabular-nums text-zinc-400">{num(g.count)}×</span> <code className="text-zinc-400">{g.source}</code>{" "}
+                  <span className="tabular-nums text-zinc-400">{num(g.count)}Ã—</span> <code className="text-zinc-400">{g.source}</code>{" "}
                   <span className="text-zinc-500">{g.message.slice(0, 80)}</span>
                 </li>
               ))}
@@ -323,7 +323,7 @@ function H2({ children, href, link }: { children: ReactNode; href?: string; link
       <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">{children}</h2>
       {href && link && (
         <Link href={href} className="text-xs text-zinc-500 hover:text-zinc-300">
-          {link} →
+          {link} â†’
         </Link>
       )}
     </div>
@@ -334,7 +334,7 @@ function Head({ children, href, link }: { children: ReactNode; href: string; lin
     <div className="flex items-baseline justify-between">
       <p className="text-sm font-medium text-zinc-200">{children}</p>
       <Link href={href} className="text-xs text-zinc-500 hover:text-zinc-300">
-        {link} →
+        {link} â†’
       </Link>
     </div>
   );
@@ -357,7 +357,7 @@ function dayLabel(day: string): string {
 }
 /** The daily job stores its result as JSON; turn it into one plain line, the steps Chris cares about first. */
 const DAILY_STEPS: Record<string, { label: string; key: string; unit: string }> = {
-  pokemon: { label: "Pokémon", key: "recorded", unit: "prices" },
+  pokemon: { label: "PokÃ©mon", key: "recorded", unit: "prices" },
   pokemonTcgcsv: { label: "TCGplayer", key: "seriesTouched", unit: "series" },
   mtg: { label: "Magic", key: "updated", unit: "prices" },
   ebaySales: { label: "eBay sales", key: "sold", unit: "sold" },
@@ -377,7 +377,7 @@ function summarizeDaily(raw: string): string {
       else if ("skipped" in o) parts.push(`${step.label}: skipped`);
       else parts.push(`${step.label} ${num(Number(o[step.key] ?? 0))} ${step.unit}`);
     }
-    return parts.length ? parts.join(" · ") : raw.slice(0, 160);
+    return parts.length ? parts.join(" Â· ") : raw.slice(0, 160);
   } catch {
     return raw.slice(0, 160);
   }

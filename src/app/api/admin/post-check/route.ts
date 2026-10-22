@@ -9,6 +9,7 @@ import { dispatchTiktokRender } from "@/lib/server/socialTiktok";
 import type { Slot } from "@/lib/server/socialPublish";
 import { todayUtc } from "@/lib/priceSeries";
 import type { GameId } from "@/lib/types";
+import { adminAuthResponse } from "@/lib/server/adminGate";
 
 /**
  * /api/admin/post-check (owner only, /admin/prices "Post cards", 10-18).
@@ -92,7 +93,7 @@ export async function POST(req: Request) {
     // The remade video prints the checked price (no %), or picks another card for a change post.
     return NextResponse.json({ ok: true, fixed, ...(await remake()) });
   } catch (err) {
-    if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 403 });
+    if (err instanceof AuthError) return adminAuthResponse(err);
     console.error("post check failed:", err);
     return NextResponse.json({ error: "Couldn't save." }, { status: 500 });
   }

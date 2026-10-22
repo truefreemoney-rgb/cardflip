@@ -9,7 +9,7 @@ import Spinner from "@/components/Spinner";
 import { useOptionalSession } from "@/components/SessionProvider";
 import HoloCard from "@/components/HoloCard";
 import { MatchHero } from "@/components/CenteringPhoto";
-import { addToWishlist } from "@/lib/client/wishlistApi";
+import { useWatch } from "@/lib/client/useWatch";
 import { askingNoteFor, askingPriceFor, ebaySoldSearchUrl, formatMoney, pickPrice, plausiblePrices, tcgPriceOf } from "@/lib/listing";
 import { PriceFlagText, PriceStaleNote } from "@/components/PriceFlagNote";
 import { PRICE_FLAG_LINK } from "@/lib/priceFlag";
@@ -84,18 +84,19 @@ export default function CardDetailModal({
 }: Props) {
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const addWatch = useWatch();
 
   async function handleSave() {
     setSaving(true);
     // The price guard: a market the rule flags is not saved as the watchlist baseline.
     const picked = pickPrice(card);
     const price = picked?.untrusted ? null : (picked?.market ?? null);
-    const result = await addToWishlist(card, language, price, picked?.variant);
+    const result = await addWatch(card, language, price, picked?.variant, saved);
     setSaving(false);
-    if (result) {
+    if (result.status === "added") {
       setSaved(true);
       toast(`${card.name} added to your watchlist`);
-    } else {
+    } else if (result.status !== "duplicate") {
       toast("Couldn't save to watchlist — try again", "err");
     }
   }

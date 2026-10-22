@@ -11,7 +11,8 @@ export const STATIC_PAGES: SitemapEntry[] = [
   { path: "/features", lastmod: "2026-10-03" },
   { path: "/pricing", lastmod: "2026-09-04" },
   { path: "/help", lastmod: "2026-09-30" },
-  { path: "/cards", lastmod: "2026-09-30" },
+  // No lastmod on /cards (10-22): the hub changes daily and a hand-set date went stale; omitted beats wrong.
+  { path: "/cards" },
   { path: "/signup", lastmod: "2026-09-04" },
   { path: "/terms", lastmod: "2026-08-14" },
   { path: "/privacy", lastmod: "2026-08-14" },

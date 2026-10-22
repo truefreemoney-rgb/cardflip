@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin, AuthError } from "@/lib/server/auth";
 import { loadBoard } from "@/lib/server/board";
 import { runStatuses } from "@/lib/server/boardRuns";
+import { adminAuthResponse } from "@/lib/server/adminGate";
 
 /**
  * Status of every "▶ RUNNING #n" task on the board, read from GitHub once
@@ -19,7 +20,7 @@ export async function GET() {
     const runs = await runStatuses(numbers);
     return NextResponse.json({ runs }, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
-    if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 403 });
+    if (err instanceof AuthError) return adminAuthResponse(err);
     console.error("board runs failed:", err);
     return NextResponse.json({ error: "Couldn't read run status" }, { status: 500 });
   }

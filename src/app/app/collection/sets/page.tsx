@@ -9,6 +9,7 @@ import { useSession } from "@/components/SessionProvider";
 import { toast } from "@/components/Toaster";
 import { apiPath } from "@/lib/client/basePath";
 import { fetchWishlist } from "@/lib/client/wishlistApi";
+import { useWatch } from "@/lib/client/useWatch";
 import { GAMES, isGameId, readSavedGame, saveGame } from "@/lib/games";
 import { formatMoney } from "@/lib/listing";
 import type { GameId } from "@/lib/types";
@@ -60,6 +61,7 @@ export default function SetCompletionPage() {
   const [open, setOpen] = useState<string | null>(null);
   const [full, setFull] = useState<Record<string, MissingCard[] | "loading">>({});
   const [watched, setWatched] = useState<Set<string>>(new Set());
+  const addWatch = useWatch();
   const [failed, setFailed] = useState(false);
   const [tick, setTick] = useState(0);
 
@@ -126,37 +128,32 @@ export default function SetCompletionPage() {
   }
 
   async function watch(set: SetProgress, card: MissingCard) {
-    try {
-      const r = await fetch(apiPath("/api/wishlist"), {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          card: {
-            id: card.id,
-            name: card.name,
-            setName: set.setName,
-            setSeries: "",
-            number: card.number,
-            rarity: null,
-            imageSmall: card.imageUrl,
-            imageLarge: card.imageLarge || card.imageUrl,
-            prices: [],
-            englishName: null,
-            game,
-            setTotal: game === "pokemon" ? set.printed : null,
-            setCode: null,
-            isSecretRare: false,
-          },
-          language: "en",
-          price: card.price,
-        }),
-      });
-      if (!r.ok) throw new Error(String(r.status));
+    const res = await addWatch(
+      {
+        id: card.id,
+        name: card.name,
+        setName: set.setName,
+        setSeries: "",
+        number: card.number,
+        rarity: null,
+        imageSmall: card.imageUrl,
+        imageLarge: card.imageLarge || card.imageUrl,
+        prices: [],
+        englishName: null,
+        game,
+        setTotal: game === "pokemon" ? set.printed : null,
+        setCode: null,
+        isSecretRare: false,
+      },
+      "en",
+      card.price,
+      null,
+      watched.has(card.id),
+    );
+    if (res.status === "added") {
       setWatched((w) => new Set(w).add(card.id));
       toast(`${card.name} added to your watchlist`);
-    } catch {
-      toast("Couldn't add it to the watchlist — try again", "err");
-    }
+    } else if (res.status !== "duplicate") toast("Couldn't add it to the watchlist — try again", "err");
   }
 
   if (failed && !sets && status === "ready") {

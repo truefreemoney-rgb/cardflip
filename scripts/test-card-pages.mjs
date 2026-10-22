@@ -375,7 +375,7 @@ check("loaders: no cookies/headers", /next\/headers/.test(serverSrc), false);
 check("card page price: the guard hears the cheapest listing", [/readListingLows\(facts\.game, \[facts\.id\]/.test(serverSrc), /released: rec\.released, lows, asks \}/.test(serverSrc)], [true, true]);
 // 10-13: and the nightly eBay referee's reading (ebay_asks), so a price eBay calls absurd is hidden on the card page too.
 check("card page price: the guard hears the eBay referee", /readEbayAsks\(facts\.game, \[facts\.id\]/.test(serverSrc), true);
-check("card page: a future release reads 'Preorder · out Mon YYYY', not 'released'", /f\.release > todayUtc\(\) \? ` · Preorder · out \$\{etDate\(`\$\{f\.release\}T12:00:00Z`, "", \{ month: "short", year: "numeric" \}\)\}`/.test(cardPageSrc), true);
+check("card page: a future release reads 'Preorder · out Mon YYYY', not 'released'", /f\.release > today \? ` · Preorder · out \$\{etDate\(`\$\{f\.release\}T12:00:00Z`, "", \{ month: "short", year: "numeric" \}\)\}`/.test(cardPageSrc), true);
 check("pages print prices only through PriceCell / the guarded view", /PriceFlagText/.test(read("src/components/CardPagesUi.tsx")), true);
 check("sitemap.xml route is the index", /indexXml\(/.test(read("src/app/sitemap.xml/route.ts")), true);
 check("child sitemaps: on-demand, cached a day", [/revalidate = 86400/.test(read("src/app/sitemaps/[name]/route.ts")), /generateStaticParams = async \(\) => \[\]/.test(read("src/app/sitemaps/[name]/route.ts"))], [true, true]);

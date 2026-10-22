@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { pageAllCards } from "@/lib/server/pageAll";
 import { askingPriceFor, marketForCondition } from "@/lib/listing";
 import { shipMethodOf } from "@/lib/fees";
 import { heldSeries, preferredVariants, usdSeries } from "@/lib/server/priceHistory";
@@ -32,6 +33,7 @@ import type { PriceFlag, PriceStale } from "@/lib/priceFlag";
  * Rows scanned before catalog_card_id existed (09-01) are skipped.
  */
 
+// Rows are read in batches of this size, all of them (10-22: a single slice skipped cards past 400).
 const ROW_CAP = 400;
 
 export interface LivePrice {
@@ -81,13 +83,12 @@ function onDay(series: { startDay: string; prices: (number | null)[] }, day: str
 }
 
 export async function refreshLivePrices(userId: string, now = Date.now()): Promise<LivePrice[]> {
-  const rows = (await db
-    .prepare(
-      `SELECT id, price, catalog_card_id, variant, game, condition, status, price_locked, scan_price, created_at, shipping_method FROM cards
-       WHERE user_id = ? AND status != 'sold' AND catalog_card_id IS NOT NULL
-       ORDER BY created_at DESC LIMIT ${ROW_CAP}`,
-    )
-    .all(userId)) as unknown as Row[];
+  const rows = await pageAllCards<Row>(
+    `SELECT id, price, catalog_card_id, variant, game, condition, status, price_locked, scan_price, created_at, shipping_method FROM cards
+       WHERE user_id = ? AND status != 'sold' AND catalog_card_id IS NOT NULL`,
+    [userId],
+    ROW_CAP,
+  );
   if (rows.length === 0) return [];
 
   const series = await usdSeries([...new Set(rows.map((r) => r.catalog_card_id))], preferredVariants(rows));

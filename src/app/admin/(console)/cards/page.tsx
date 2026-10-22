@@ -1,15 +1,13 @@
 import { fmtDate, money, STATUS_STYLE } from "@/components/admin/format";
 import { GAMES, isGameId } from "@/lib/games";
-import { listAllCards } from "@/lib/server/cards";
-import { listAllUsers } from "@/lib/server/users";
+import { listAllCardsWithOwner } from "@/lib/server/cards";
 import { requireOwnerPage } from "@/lib/server/adminPage";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminCardsPage() {
   await requireOwnerPage();
-  const [cards, users] = await Promise.all([listAllCards(60), listAllUsers()]);
-  const userById = new Map(users.map((u) => [u.id, u]));
+  const cards = await listAllCardsWithOwner(60);
   return (
     <section>
       <h1 className="mb-3 text-2xl font-semibold text-white">Recent cards <span className="text-sm font-normal text-zinc-500">(latest {cards.length})</span></h1>
@@ -28,7 +26,6 @@ export default async function AdminCardsPage() {
           </thead>
           <tbody>
             {cards.map((c) => {
-              const owner = userById.get(c.userId);
               const displayPrice = c.status === "sold" ? c.soldPrice : c.price;
               // A listing that ended without selling keeps status "listed"
               // with ebay_ended_at stamped (Inventory shows "Auction
@@ -43,7 +40,7 @@ export default async function AdminCardsPage() {
                   </td>
                   {/* Every game by its own name (10-20: Lorcana rows read "Pokémon" here); a row from before the game column is Pokémon. */}
                   <td className="px-4 py-3 text-xs text-zinc-400">{GAMES[isGameId(c.game) ? c.game : "pokemon"].label}</td>
-                  <td className="px-4 py-3 text-zinc-400">{owner?.name ?? "Unknown"}</td>
+                  <td className="px-4 py-3 text-zinc-400">{c.ownerName ?? "Unknown"}</td>
                   <td className="px-4 py-3"><span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLE[shownStatus]}`}>{shownStatus}</span></td>
                   <td className="px-4 py-3 text-xs">
                     {ended

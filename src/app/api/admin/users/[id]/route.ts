@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdminOwner, AuthError } from "@/lib/server/auth";
 import { deleteUser, findUserById } from "@/lib/server/users";
 import { cancelAllSubscriptions } from "@/lib/server/stripe";
+import { adminAuthResponse } from "@/lib/server/adminGate";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -24,7 +25,7 @@ export async function DELETE(_req: Request, { params }: RouteParams) {
     await deleteUser(id);
     return NextResponse.json({ ok: true });
   } catch (err) {
-    if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 403 });
+    if (err instanceof AuthError) return adminAuthResponse(err);
     console.error("delete user failed:", err);
     return NextResponse.json({ error: "Couldn't delete the user" }, { status: 500 });
   }

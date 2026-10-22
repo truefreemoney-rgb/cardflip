@@ -17,7 +17,9 @@ import { pageMetadata } from "@/lib/seo";
  * one line about CardFlip at the bottom.
  */
 
-export const dynamic = "force-dynamic";
+// Cached five minutes (10-22, review 10-19): nothing here is per-viewer, and a shared page can go viral; force-dynamic
+// put every hit on the database. A new card or a switched-off page shows within five minutes.
+export const revalidate = 300;
 
 type Params = { params: Promise<{ handle: string }> };
 

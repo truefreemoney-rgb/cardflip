@@ -3,6 +3,7 @@ import { requireAdminOwner, AuthError } from "@/lib/server/auth";
 import { adjustPackScans, adjustPlanScans, ledgerForUser } from "@/lib/server/scanCredits";
 import { db } from "@/lib/db";
 import { TRIAL_SCANS, findUserById, scanTier, toPublicUser } from "@/lib/server/users";
+import { adminAuthResponse } from "@/lib/server/adminGate";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -54,7 +55,7 @@ export async function POST(req: Request, { params }: RouteParams) {
       ledger: await ledgerForUser(id, 20),
     });
   } catch (err) {
-    if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 403 });
+    if (err instanceof AuthError) return adminAuthResponse(err);
     console.error("adjust scans failed:", err);
     return NextResponse.json({ error: "Couldn't adjust the scans" }, { status: 500 });
   }

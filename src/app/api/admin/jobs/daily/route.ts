@@ -1,6 +1,7 @@
 import { NextResponse, after } from "next/server";
-import { requireAdminOwner, AuthError } from "@/lib/server/auth";
+import { requireAdminOwner } from "@/lib/server/auth";
 import { dailyStatus, runDailyIfDue } from "@/lib/server/dailyJobs";
+import { adminFailure } from "@/lib/server/adminGate";
 
 /**
  * Admin: current daily-job status, or kick a run now (background).
@@ -17,8 +18,7 @@ export async function GET() {
     await requireAdminOwner();
     return NextResponse.json({ status: await dailyStatus() });
   } catch (err) {
-    if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 403 });
-    throw err;
+    return adminFailure(err);
   }
 }
 
@@ -30,7 +30,6 @@ export async function POST() {
     after(() => runDailyIfDue(true));
     return NextResponse.json({ started: true, status: { ...status, running: true } });
   } catch (err) {
-    if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 403 });
-    throw err;
+    return adminFailure(err);
   }
 }

@@ -63,6 +63,12 @@ check("POST /api/cards checks the cap", src("app/api/cards/route.ts").includes("
 check("POST /api/wishlist checks the cap", src("app/api/wishlist/route.ts").includes("await wishlistFull(user.id)"));
 check("a new lookup trims the history", src("lib/server/priceChecks.ts").includes("await trimPriceChecks(userId)"));
 
+// The value/refresh readers page through every row, not one LIMIT slice (10-22).
+const { pageAllCards } = await import(at("lib/server/pageAll.ts"));
+for (let i = 0; i < 7; i++) await card(`pg${i}`, U2, "ready");
+const paged = await pageAllCards("SELECT id FROM cards WHERE user_id = ?", [U2], 3);
+check("pageAllCards: 7 rows in batches of 3 all come back, no repeats", [paged.length, new Set(paged.map((r) => r.id)).size], [7, 7]);
+
 await db.close?.();
 console.log(failures === 0 ? "\nAll row-cap checks passed" : `\n${failures} row-cap check(s) failed`);
 process.exitCode = failures === 0 ? 0 : 1;

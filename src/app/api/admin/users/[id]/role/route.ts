@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { requireAdminOwner, AuthError } from "@/lib/server/auth";
+import { requireAdminOwner } from "@/lib/server/auth";
+import { adminFailure } from "@/lib/server/adminGate";
 import { findUserById, setUserRole, toPublicUser, type Role } from "@/lib/server/users";
 
 interface RouteParams {
@@ -25,9 +26,6 @@ export async function PATCH(req: Request, { params }: RouteParams) {
     }
     return NextResponse.json({ user: toPublicUser(updated) });
   } catch (err) {
-    if (err instanceof AuthError) {
-      return NextResponse.json({ error: err.message }, { status: 403 });
-    }
-    throw err;
+    return adminFailure(err);
   }
 }

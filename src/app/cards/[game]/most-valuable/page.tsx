@@ -12,7 +12,7 @@ import { TOP_LIST, gameTop100, publicCardGame, type Tile } from "@/lib/server/ca
 import { formatMoney } from "@/lib/listing";
 import { pageMetadata } from "@/lib/seo";
 import { breadcrumbGraph } from "@/lib/structuredData";
-import { todayUtc } from "@/lib/priceSeries";
+import { etDate } from "@/lib/time";
 import type { GameId } from "@/lib/types";
 
 /**
@@ -37,7 +37,7 @@ export async function generateMetadata({ params }: { params: Promise<{ game: str
   const name = gameTitle(l.game);
   const top = l.tiles[0];
   return pageMetadata({
-    title: `Top ${TOP_LIST} most valuable ${name} cards ${todayUtc().slice(0, 4)}`,
+    title: `Top ${TOP_LIST} most valuable ${name} cards ${etDate(new Date(), "", { year: "numeric" })}`,
     absoluteTitle: true,
     description: top
       ? `The ${l.tiles.length} most valuable ${name} cards at today's market prices. Number one: ${top.name} from ${top.setName}${top.price != null && top.price > 0 ? ` at ${formatMoney(top.price)}` : ""}. Checked daily.`

@@ -241,13 +241,14 @@ export interface RobotChat {
 /**
  * Every robot conversation of the last N days for /admin/robot (10-14, Chris: treat every chat as a
  * learning experience). Thumbs-down chats first, then the ones where the robot was stuck, then newest.
+ * Capped to the newest 4000 messages (10-22) so a chatty week cannot make the page walk unbounded rows.
  */
 export async function listRobotChats(days = 7, now = Date.now()): Promise<RobotChat[]> {
   const rows = (await db
     .prepare(
       `SELECT m.id, m.user_id, m.role, m.content, m.created_at, m.rating, u.name, u.email
          FROM help_messages m JOIN users u ON u.id = m.user_id
-        WHERE m.created_at > ?
+        WHERE m.rowid IN (SELECT rowid FROM help_messages WHERE created_at > ? ORDER BY created_at DESC LIMIT 4000)
         ORDER BY m.user_id, m.created_at, m.rowid`,
     )
     .all(now - days * 24 * 60 * 60 * 1000)) as unknown as (Row & { user_id: string; name: string; email: string })[];

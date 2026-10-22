@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { AuthError } from "@/lib/server/auth";
-import { requireAdminPanel } from "@/lib/server/adminGate";
+import { requireAdminPanel, adminAuthResponse } from "@/lib/server/adminGate";
 import { BoardConflictError, helperSectionTitle, loadBoard, saveBoard } from "@/lib/server/board";
 
 const REPO = "truefreemoney-rgb/cardflip";
@@ -89,7 +89,7 @@ export async function POST(req: Request) {
       }
     }
   } catch (err) {
-    if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 403 });
+    if (err instanceof AuthError) return adminAuthResponse(err);
     console.error("board run failed:", err);
     return NextResponse.json({ error: "Couldn't start the task" }, { status: 500 });
   }

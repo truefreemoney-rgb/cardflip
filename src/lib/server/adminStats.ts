@@ -210,10 +210,8 @@ async function cardAggregates(now: number): Promise<CardAggregates> {
   return value;
 }
 
-export async function getAdminOverview(now = Date.now()): Promise<AdminOverview> {
-  const { base, scans7d, scans30d, mtgCards, pokemonCards } = await cardAggregates(now);
-  const week = now - 7 * DAY_MS;
-
+/** Per-user rollups for the Users page. */
+export async function getUserRollups(): Promise<Record<string, UserRollup>> {
   const rollupRows = (await db
     .prepare(
       `SELECT u.id,
@@ -235,6 +233,16 @@ export async function getAdminOverview(now = Date.now()): Promise<AdminOverview>
     .all()) as unknown as UserRollup[];
   const userRollups: Record<string, UserRollup> = {};
   for (const r of rollupRows) userRollups[r.id] = { ...r, lastActive: r.lastActive ?? null, country: r.country ?? null };
+  return userRollups;
+}
+
+/** `rollups: false` leaves userRollups empty (Overview, System and the runner never read it). */
+export async function getAdminOverview(now = Date.now(), opts: { rollups?: boolean } = {}): Promise<AdminOverview> {
+  const { base, scans7d, scans30d, mtgCards, pokemonCards } = await cardAggregates(now);
+  const week = now - 7 * DAY_MS;
+
+  // Eight subqueries per user: only the Users page reads them, so the others skip the walk (10-22).
+  const userRollups = opts.rollups === false ? {} : await getUserRollups();
 
   // Catalog health = eight whole-table walks (~450k rows: en/jp/zh/mtg cards,
   // sets, tcgplayer map, price_series sums). It only changes on a sync or the

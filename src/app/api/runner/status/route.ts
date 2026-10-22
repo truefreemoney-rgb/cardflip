@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { presentedKey, secretEqual } from "@/lib/server/secretEqual";
 import { errorCount24h, errorGroups24h } from "@/lib/server/errorLog";
 import { scanSpendSummary } from "@/lib/server/scanUsage";
@@ -10,8 +10,8 @@ export const dynamic = "force-dynamic";
 /**
  * What the board runner may know about production (runner upgrade 4, Chris
  * yes 09-10): the last day's errors grouped, the last production smoke run,
- * scan spend, the deploy sha and the daily job. Read-only by construction —
- * this route touches nothing — and guarded by its own secret (RUNNER_TOKEN)
+ * scan spend, the deploy sha and the daily job. Read-only by construction â€”
+ * this route touches nothing â€” and guarded by its own secret (RUNNER_TOKEN)
  * that only the routine holds, so it can't reach Vercel, Stripe, eBay or the
  * database no matter what it is asked to do.
  *
@@ -27,7 +27,7 @@ export async function GET(req: Request) {
 
   const now = Date.now();
   const [overview, errors24h, groups, spend, smoke] = await Promise.all([
-    getAdminOverview(now),
+    getAdminOverview(now, { rollups: false }),
     errorCount24h(),
     errorGroups24h(10),
     scanSpendSummary(),

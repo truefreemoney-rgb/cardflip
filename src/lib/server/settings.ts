@@ -61,7 +61,17 @@ export async function gameVisibleFor(user: Pick<User, "role"> | null | undefined
 /** The per-game visibility map the session hands the client. */
 export async function gameFeaturesFor(user: Pick<User, "role"> | null | undefined): Promise<Record<GatedGame, boolean>> {
   const out = {} as Record<GatedGame, boolean>;
-  for (const g of GATED_GAMES) out[g] = await gameVisibleFor(user, g);
+  if (user?.role === "admin") {
+    for (const g of GATED_GAMES) out[g] = true;
+    return out;
+  }
+  // One read for all the switches, not one round trip per game (10-22).
+  const keys = GATED_GAMES.map(gamePublicKey);
+  const rows = (await db
+    .prepare(`SELECT key, value FROM settings WHERE key IN (${keys.map(() => "?").join(", ")})`)
+    .all(...keys)) as { key: string; value: string }[];
+  const on = new Map(rows.map((r) => [r.key, r.value]));
+  for (const g of GATED_GAMES) out[g] = on.get(gamePublicKey(g)) === "1";
   return out;
 }
 

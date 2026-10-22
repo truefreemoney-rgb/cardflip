@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdminOwner, AuthError } from "@/lib/server/auth";
 import { BOARD_REPO, ghHeaders } from "@/lib/server/boardRuns";
+import { adminAuthResponse } from "@/lib/server/adminGate";
 
 /**
  * Merge a board runner's PR from the board (Chris, 09-09: "I don't want
@@ -61,7 +62,7 @@ export async function POST(req: Request) {
     if (!res.ok || !data.merged) return NextResponse.json({ error: data.message ?? "GitHub refused the merge" }, { status: 502 });
     return NextResponse.json({ ok: true, sha: data.sha });
   } catch (err) {
-    if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 403 });
+    if (err instanceof AuthError) return adminAuthResponse(err);
     console.error("board merge failed:", err);
     return NextResponse.json({ error: "Couldn't merge" }, { status: 500 });
   }

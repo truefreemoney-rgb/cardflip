@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { AuthError, requireAdminOwner } from "@/lib/server/auth";
 import { loadExpenses, saveExpenses } from "@/lib/server/expenses";
+import { adminFailure, adminAuthResponse } from "@/lib/server/adminGate";
 
 /**
  * /api/admin/expenses — owner only. GET the list, PUT the whole list back
@@ -14,8 +15,7 @@ export async function GET() {
     await requireAdminOwner();
     return NextResponse.json({ expenses: await loadExpenses() });
   } catch (err) {
-    if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 403 });
-    throw err;
+    return adminFailure(err);
   }
 }
 
@@ -26,7 +26,7 @@ export async function PUT(req: Request) {
     const saved = await saveExpenses(body?.expenses);
     return NextResponse.json({ expenses: saved });
   } catch (err) {
-    if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 403 });
+    if (err instanceof AuthError) return adminAuthResponse(err);
     if (err instanceof Error && /must be a list|too many/.test(err.message)) return NextResponse.json({ error: err.message }, { status: 400 });
     console.error("expenses put failed:", err);
     return NextResponse.json({ error: "Couldn't save the expenses" }, { status: 500 });

@@ -30,10 +30,10 @@ import {
 import { STRIP_TILES, loadCardPage, loadCardRecord, otherPrintings, publicCardGame, setIndex, setNeighbors, setStanding, setTopTiles, type CardPage, type Neighbor, type Tile } from "@/lib/server/cardPages";
 import { cardFaq, conditionLadder, rangeWords, rankWords, scanHeading, scanWords, sellMath, sellWords, type SetStanding } from "@/lib/cardStory";
 import { formatMoney } from "@/lib/listing";
-import { dayIndex, todayUtc } from "@/lib/priceSeries";
+import { dayIndex } from "@/lib/priceSeries";
 import { priceStaleNote } from "@/lib/priceFlag";
 import { breadcrumbGraph } from "@/lib/structuredData";
-import { etDate } from "@/lib/time";
+import { etDate, etDay } from "@/lib/time";
 import type { GameId } from "@/lib/types";
 
 /**
@@ -263,7 +263,9 @@ export default async function CardPricePage({ params }: PageProps<"/cards/[game]
   const name = gameTitle(game);
   // Rank in the set (SEO 10-02): one sentence from the daily set ranking, only when the set has company to compare against.
   const rank = standing && page.headline ? rankWords(f.name, f.setName, page.headline.price, standing) : null;
-  const faq = cardFaq(f, page.headline, printings, todayUtc());
+  // Release wording compares on the ET day: a UTC day flipped it at 8 pm ET, and this page is cached two days (10-22).
+  const today = etDay();
+  const faq = cardFaq(f, page.headline, printings, today);
 
   return (
     <div className="flex min-h-dvh flex-col bg-background pb-[calc(4.5rem+env(safe-area-inset-bottom)+var(--bottom-nav-h,0px))] text-foreground md:pb-0">
@@ -294,7 +296,7 @@ export default async function CardPricePage({ params }: PageProps<"/cards/[game]
               <Link href={setPath(game, f.setSlug)} className="text-brand-300 transition hover:text-brand-200">
                 {f.setName}
               </Link>
-              {f.release ? (f.release > todayUtc() ? ` · Preorder · out ${etDate(`${f.release}T12:00:00Z`, "", { month: "short", year: "numeric" })}` : ` · released ${etDate(`${f.release}T12:00:00Z`)}`) : ""}
+              {f.release ? (f.release > today ? ` · Preorder · out ${etDate(`${f.release}T12:00:00Z`, "", { month: "short", year: "numeric" })}` : ` · released ${etDate(`${f.release}T12:00:00Z`)}`) : ""}
             </p>
 
             <PriceBlock page={page} />
@@ -325,7 +327,7 @@ export default async function CardPricePage({ params }: PageProps<"/cards/[game]
                 {[
                   ["Set", f.setName],
                   ["Number", f.number],
-                  [f.release > todayUtc() ? "Out" : "Released", f.release ? etDate(`${f.release}T12:00:00Z`) : ""],
+                  [f.release > today ? "Out" : "Released", f.release ? etDate(`${f.release}T12:00:00Z`) : ""],
                   ["Rarity", f.rarity],
                   ["Printing", f.tags.join(", ")],
                 ]

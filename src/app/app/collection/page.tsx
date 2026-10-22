@@ -53,7 +53,6 @@ import PriceFlagNote, { PriceFlagText, PriceStaleNote } from "@/components/Price
 import { priceFlagLeftOut } from "@/lib/priceFlag";
 import { saleBreakdown, saleNet } from "@/lib/profit";
 import { toast } from "@/components/Toaster";
-// import CollectorValueHeader from "@/components/CollectorValueHeader"; (parked 10-08, see the render spot)
 import { etDate } from "@/lib/time";
 import { TAP_10, TAP_8 } from "@/lib/tap";
 
@@ -1758,14 +1757,6 @@ export default function CollectionPage() {
     .filter(Boolean)
     .join(" · ");
 
-  // The whole game's rows total, same rule as stats.inPlayMarket below but never scoped by a filter:
-  // drafts (minus flagged unlocked ones) + live listings, each at its row's Market price.
-  // Fed the Collector value box, parked 10-08; kept for its return.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const gameMarketTotal = gameCards
-    .filter((c) => isLive(c) || (c.status === "ready" && (c.priceLocked || livePrices[c.id]?.flag == null)))
-    .reduce((sum, c) => sum + (marketById[c.id] ?? c.price) * (c.quantity || 1), 0);
-
   const leftOutKey = scopeCards
     .filter((c) => c.status === "ready" && !c.priceLocked && livePrices[c.id]?.flag != null)
     .map((c) => c.id)
@@ -1975,9 +1966,7 @@ export default function CollectionPage() {
           button to switch between pokemon and magic" — it had one). */}
       {/* Phones: five pills with counts do not fit 375px, so the row scrolls sideways with real padding instead of squeezing ("One Piece · 1Yu-Gi-Oh! · 0"). */}
       {/* Wraps into two rows on a phone instead of sliding off screen (Chris 10-08). */}
-      <div className="[&>div>button]:px-3.5 [&>div>button]:py-2 sm:[&>div>button]:px-2">
-        <GameToggle game={gameView} onChange={switchGame} counts={gameCounts} block />
-      </div>
+      <GameToggle game={gameView} onChange={switchGame} counts={gameCounts} block roomy />
 
       {/* Collector value box (CollectorValueHeader) parked 10-08 (Chris: "don't think we need the collection value box
           for now"): it repeated the Market Value line below it. The component stays for when it comes back. */}

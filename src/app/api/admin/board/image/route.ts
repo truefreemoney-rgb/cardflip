@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { del, put } from "@vercel/blob";
 import { requireAdmin, requireAdminOwner, AuthError } from "@/lib/server/auth";
 import { isBoardImageUrl } from "@/lib/server/board";
+import { adminAuthResponse } from "@/lib/server/adminGate";
 
 /**
  * Photos on board notes (Chris, 09-09: "for my thoughts, i need a image
@@ -26,7 +27,7 @@ export async function POST(req: Request) {
     const blob = await put(`board/${randomUUID()}.${ext}`, file, { access: "public", addRandomSuffix: false, contentType: file.type });
     return NextResponse.json({ url: blob.url });
   } catch (err) {
-    if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 403 });
+    if (err instanceof AuthError) return adminAuthResponse(err);
     console.error("board image upload failed:", err);
     return NextResponse.json({ error: "Couldn't upload the photo" }, { status: 500 });
   }
@@ -43,7 +44,7 @@ export async function DELETE(req: Request) {
     await del(url);
     return NextResponse.json({ ok: true });
   } catch (err) {
-    if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 403 });
+    if (err instanceof AuthError) return adminAuthResponse(err);
     console.error("board image delete failed:", err);
     return NextResponse.json({ error: "Couldn't remove the photo" }, { status: 500 });
   }

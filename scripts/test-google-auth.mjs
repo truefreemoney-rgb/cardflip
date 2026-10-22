@@ -262,14 +262,15 @@ check("callback: repeat device → account made, free scans already spent", [r7.
 // --- One Tap (POST /api/auth/google/onetap) ------------------------------------------------
 const onetap = await import(at("app/api/auth/google/onetap/route.ts"));
 const NONCE = "one-tap-nonce-0123456789abcdef";
-async function tap(body, { cookie = "", sig = "s" } = {}) {
+async function tap(body, { cookie = "", sig = "s", nonceCookie = NONCE } = {}) {
   testCookies.clear();
   if (cookie) testCookies.set(SESSION_COOKIE, cookie);
+  if (nonceCookie !== null) testCookies.set("cf_onetap_nonce", nonceCookie);
   const payload = body.claims ? `h.${Buffer.from(JSON.stringify(goodClaims({ nonce: NONCE, exp: Math.floor(Date.now() / 1000) + 3600, ...body.claims }))).toString("base64url")}.${sig}` : body.credential;
   const res = await onetap.POST(new Request("https://cardflip.io/api/auth/google/onetap", {
     method: "POST",
     headers: { "content-type": "application/json", ...ipHeader() },
-    body: JSON.stringify({ credential: payload, nonce: NONCE, ...body.extra }),
+    body: JSON.stringify({ credential: payload, nonce: NONCE, ...body.extra }), // the body nonce is ignored by the route
   }));
   return { res, json: await res.json().catch(() => null) };
 }
@@ -302,6 +303,11 @@ const forged = await tap({ claims: { sub: "tap-forged", email: "forged@example.c
 check("onetap: a token Google will not vouch for → 401", [forged.res.status, forged.res.cookies.get(SESSION_COOKIE)?.value ?? null], [401, null]);
 const nonceBad = await tap({ claims: { sub: "tap-nonce", email: "nonce@example.com", nonce: "some-other-nonce-1234567890" } });
 check("onetap: nonce not the page's → 401", nonceBad.res.status, 401);
+check("onetap: no nonce cookie → 400 (the body nonce counts for nothing)", (await tap({ claims: { sub: "tap-nc", email: "nc@example.com" } }, { nonceCookie: null })).res.status, 400);
+const mint = await onetap.GET(new Request("https://cardflip.io/api/auth/google/onetap", { headers: ipHeader() }));
+const minted = await mint.json();
+check("onetap: GET mints a random nonce into a 10-minute httpOnly cookie", [mint.status, minted.nonce?.length >= 32, mint.cookies.get("cf_onetap_nonce")?.value === minted.nonce, mint.cookies.get("cf_onetap_nonce")?.httpOnly, mint.cookies.get("cf_onetap_nonce")?.maxAge], [200, true, true, true, 600]);
+check("onetap: a success clears the nonce cookie", [(await tap({ claims: { sub: "tap-new" } })).res.cookies.get("cf_onetap_nonce")?.maxAge], [0]);
 check("onetap: wrong audience → 401", (await tap({ claims: { sub: "tap-aud", email: "aud@example.com", aud: "someone-else" } })).res.status, 401);
 check("onetap: unverified email → 401", (await tap({ claims: { sub: "tap-unv", email: "unv@example.com", email_verified: false } })).res.status, 401);
 check("onetap: expired → 401", (await tap({ claims: { sub: "tap-exp", email: "exp@example.com", exp: 1 } })).res.status, 401);
@@ -310,8 +316,8 @@ const tAdmin = await tap({ claims: { sub: "tap-boss", email: "boss@example.com" 
 check("onetap: admin account → 403 with the extra-security message, not linked", [tAdmin.res.status, /extra security/.test(tAdmin.json?.error ?? ""), (await findUserByEmail("boss@example.com")).googleSub], [403, true, null]);
 const tSigned = await tap({ claims: { sub: "tap-new" } }, { cookie: "some-live-session" });
 check("onetap: with a session cookie → 409, no account switch", [tSigned.res.status, tSigned.res.cookies.get(SESSION_COOKIE)?.value ?? null], [409, null]);
-for (const [label, body] of [["no credential", { credential: "" }], ["not a jwt", { credential: "abc" }], ["short nonce", { credential: "a.b.c", extra: { nonce: "short" } }]]) {
-  check(`onetap: ${label} → 400`, (await tap(body)).res.status, 400);
+for (const [label, body, opts] of [["no credential", { credential: "" }], ["not a jwt", { credential: "abc" }], ["short nonce cookie", { credential: "a.b.c" }, { nonceCookie: "short" }]]) {
+  check(`onetap: ${label} → 400`, (await tap(body, opts)).res.status, 400);
 }
 const notJson = await onetap.POST(new Request("https://cardflip.io/api/auth/google/onetap", { method: "POST", headers: ipHeader(), body: "not json" }));
 check("onetap: body not JSON → 400", notJson.status, 400);

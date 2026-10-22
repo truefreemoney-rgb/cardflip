@@ -19,6 +19,8 @@ interface Props {
   inCard?: boolean;
   /** Block row that wraps onto more lines instead of scrolling sideways (the scanner options sheet, 10-15). */
   wrap?: boolean;
+  /** Block row with taller, wider chips on a phone (the Inventory switch, 10-22: it was restyled from outside). */
+  roomy?: boolean;
 }
 
 /**
@@ -26,7 +28,7 @@ interface Props {
  * prompt runs, which words go in the listing. Items already in the queue keep
  * the game they were added under.
  */
-export default function GameToggle({ game, onChange, compact = false, counts, block = false, inCard = false, wrap = false }: Props) {
+export default function GameToggle({ game, onChange, compact = false, counts, block = false, inCard = false, wrap = false, roomy = false }: Props) {
   // Magic admins-only (09-04): the toggle vanishes for sellers and a saved
   // "mtg" preference snaps back to Pokémon, so nothing downstream sees it.
   // Every game after Pokémon is admins-only until its switch is flipped
@@ -65,7 +67,7 @@ export default function GameToggle({ game, onChange, compact = false, counts, bl
               role="radio"
               aria-checked={game === id}
               onClick={() => onChange(id)}
-              className={`${TAP_8} shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 font-medium transition ${
+              className={`${TAP_8} shrink-0 whitespace-nowrap rounded-full border font-medium transition ${roomy ? "px-3.5 py-2 sm:px-2" : "px-3 py-1.5"} ${
                 game === id ? "border-brand-500 bg-brand-500 text-white" : "border-edge bg-surface-1 text-zinc-400 hover:border-edge-strong hover:text-zinc-200"
               }`}
             >

@@ -11,12 +11,12 @@ import { toast } from "@/components/Toaster";
 import PageSkeleton from "@/components/PageSkeleton";
 import { useSession } from "@/components/SessionProvider";
 import {
-  addToWishlist,
   fetchWishlist,
   removeFromWishlist,
   setWishlistAlert,
   type WishlistItem,
 } from "@/lib/client/wishlistApi";
+import { useWatch } from "@/lib/client/useWatch";
 import { fetchCardById, searchCards } from "@/lib/cards";
 import { ebaySearchUrl, ebaySoldSearchUrl, formatMoney, pickPrice, priceFlagOf, watchPriceOf, withEpnParams } from "@/lib/listing";
 import { PriceFlagText } from "@/components/PriceFlagNote";
@@ -322,8 +322,8 @@ export default function WishlistPage() {
   // The same search as Search Cards (components/CardSearch): game, By Name /
   // By Set, filter and sort. The "From a Photo" way in (a file picker and a
   // drop target) went 10-03 with every photo upload on the site.
-  const [resultsLanguage, setResultsLanguage] = useState<ScanLanguage>("en");
-  const search = useCardSearch(addLanguage, () => setResultsLanguage(addLanguage));
+  const search = useCardSearch(addLanguage);
+  const addWatch = useWatch();
   // Total value starts folded (Chris 10-14); the viewer's own choice sticks after that.
   const [valueOpen, toggleValue] = useFold("value", false);
   const [searchOpen, toggleSearch] = useFold("search");
@@ -447,8 +447,9 @@ export default function WishlistPage() {
     }
     if (addedIds.has(card.id)) return;
     const picked = priceFlagOf(card) ? null : pickPrice(card);
-    const item = await addToWishlist(card, resultsLanguage, picked?.market ?? null, picked?.variant);
-    if (!item) {
+    const res = await addWatch(card, addLanguage, picked?.market ?? null, picked?.variant, addedIds.has(card.id));
+    if (res.status === "duplicate") return;
+    if (res.status !== "added") {
       setAddError(`Couldn't add ${card.name} — check your connection and try again.`);
       return;
     }
@@ -457,7 +458,7 @@ export default function WishlistPage() {
     // The server no-ops on duplicates and returns the existing row, so only
     // prepend when it isn't already in the grid.
     setItems((prev) =>
-      prev.some((i) => i.id === item.id) ? prev : [item, ...prev],
+      prev.some((i) => i.id === res.item.id) ? prev : [res.item, ...prev],
     );
   }
 

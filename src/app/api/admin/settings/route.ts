@@ -4,6 +4,7 @@ import { requireAdminOwner, AuthError } from "@/lib/server/auth";
 import { EBAY_LOCAL_MARKETS_KEY, GATED_GAMES, ebayLocalMarketsOn, gamePublic, gamePublicKey, setSetting, type GatedGame } from "@/lib/server/settings";
 import { EMAIL_CONFIRM_KEY, emailConfirmStats, releaseAllPending } from "@/lib/server/emailVerify";
 import { emailConfirmActive } from "@/lib/server/mail";
+import { adminFailure, adminAuthResponse } from "@/lib/server/adminGate";
 
 /**
  * Admin console switches: each game after Pokémon public or admins-only.
@@ -37,8 +38,7 @@ export async function GET() {
     await requireAdminOwner();
     return NextResponse.json(await allSwitches());
   } catch (err) {
-    if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 403 });
-    throw err;
+    return adminFailure(err);
   }
 }
 
@@ -70,7 +70,7 @@ export async function PATCH(req: Request) {
     if (flips.length > 0) revalidatePath("/", "layout");
     return NextResponse.json({ ...(await allSwitches()), released });
   } catch (err) {
-    if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 403 });
+    if (err instanceof AuthError) return adminAuthResponse(err);
     console.error("settings patch failed:", err);
     return NextResponse.json({ error: "Couldn't save the setting" }, { status: 500 });
   }

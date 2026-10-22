@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdminOwner, AuthError } from "@/lib/server/auth";
 import { markEmailConfirmed } from "@/lib/server/emailVerify";
 import { findUserById, toPublicUser } from "@/lib/server/users";
+import { adminAuthResponse } from "@/lib/server/adminGate";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -24,7 +25,7 @@ export async function PATCH(_req: Request, { params }: RouteParams) {
     const user = await findUserById(id);
     return NextResponse.json({ changed, user: user ? toPublicUser(user) : null });
   } catch (err) {
-    if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 403 });
+    if (err instanceof AuthError) return adminAuthResponse(err);
     console.error("mark email confirmed failed:", err);
     return NextResponse.json({ error: "Couldn't mark the email confirmed" }, { status: 500 });
   }

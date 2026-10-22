@@ -12,8 +12,7 @@ import { formatMoney } from "@/lib/listing";
 import { SET_PAGE_CARDS, loadSetCards, publicCardGame, setBySlug, type SetCard } from "@/lib/server/cardPages";
 import { pageMetadata } from "@/lib/seo";
 import { breadcrumbGraph } from "@/lib/structuredData";
-import { etDate } from "@/lib/time";
-import { todayUtc } from "@/lib/priceSeries";
+import { etDate, etDay } from "@/lib/time";
 import type { GameId } from "@/lib/types";
 
 /**
@@ -56,7 +55,7 @@ export async function setMetadata(gameSlug: string, setSlug: string, page: numbe
   const name = gameTitle(l.game);
   const pages = Math.max(1, Math.ceil(l.cards.length / SET_PAGE_CARDS));
   return pageMetadata({
-    title: `${l.set.name} ${name} card prices ${todayUtc().slice(0, 4)}${page > 1 ? `, page ${page}` : ""}`,
+    title: `${l.set.name} ${name} card prices ${etDate(new Date(), "", { year: "numeric" })}${page > 1 ? `, page ${page}` : ""}`,
     absoluteTitle: true,
     description: setDescription(l.set.name, name, l.cards, page, pages),
     path: pageHref(l.game, l.slug, page),
@@ -169,6 +168,8 @@ export async function SetView({ gameSlug, setSlug, page }: { gameSlug: string; s
   const pages = Math.max(1, Math.ceil(cards.length / SET_PAGE_CARDS));
   if (page > pages) notFound();
   const name = gameTitle(game);
+  // The ET day, not the UTC one: this page is cached 48 h and "out" flipped at the wrong hour (10-22).
+  const today = etDay();
   const from = (page - 1) * SET_PAGE_CARDS;
   const shown = cards.slice(from, from + SET_PAGE_CARDS);
   const tiles = shown.map((c) => ({ ...c, setSlug: slug, setName: set.name }));
@@ -192,7 +193,7 @@ export async function SetView({ gameSlug, setSlug, page }: { gameSlug: string; s
         </h1>
         <p className="mt-3 max-w-prose leading-relaxed text-zinc-400">
           Market prices for {name} cards from {set.name}
-          {set.release ? `, ${set.release > todayUtc() ? "out" : "released"} ${etDate(`${set.release}T12:00:00Z`)}${set.release > todayUtc() ? " (preorder prices)" : ""}` : ""}. Most valuable first. A price
+          {set.release ? `, ${set.release > today ? "out" : "released"} ${etDate(`${set.release}T12:00:00Z`)}${set.release > today ? " (preorder prices)" : ""}` : ""}. Most valuable first. A price
           that looks wrong is not shown.
         </p>
         {page === 1 && <SummaryStrip s={setSummary(cards)} game={game} slug={slug} />}

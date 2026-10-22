@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { decodeJwtPayload, safeNext, validateClaims } from "@/lib/googleAuth";
@@ -15,9 +16,31 @@ import { ipGate } from "@/lib/server/rateLimitDb";
  *  - the claims go through the same validateClaims as the code flow (iss, aud = our client id,
  *    exp, email_verified, and the nonce the page handed Google when it opened the prompt);
  *  - then lib/server/googleSignIn.ts does exactly what the callback does (make / link / log in).
+ * The nonce is minted HERE (10-22, review 10-19): GET hands the page a random one and keeps it in a 10-minute httpOnly cookie;
+ * the POST compares the token's nonce to that cookie, then clears it. It used to come from the request body, so anyone who
+ * could replay a token could replay its nonce too and the check protected nothing.
  * Answers { next } for the page to go to: a new account → the welcome step; an existing account
  * → the page it was on (`next`, same-site only), else /app. Refusals are plain JSON errors.
  */
+const NONCE_COOKIE = "cf_onetap_nonce";
+const NONCE_MAX_AGE_S = 10 * 60;
+
+export async function GET(req: Request) {
+  if (!googleConfigured()) return NextResponse.json({ error: "Google sign-in is off." }, { status: 503 });
+  const limited = await ipGate(req, "auth:google:onetap-nonce");
+  if (limited) return limited;
+  const nonce = randomBytes(24).toString("hex");
+  const res = NextResponse.json({ nonce }, { headers: { "cache-control": "no-store" } });
+  res.cookies.set(NONCE_COOKIE, nonce, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/api/auth/google/onetap",
+    maxAge: NONCE_MAX_AGE_S,
+  });
+  return res;
+}
+
 export async function POST(req: Request) {
   if (!googleConfigured()) return NextResponse.json({ error: "Google sign-in is off." }, { status: 503 });
   const limited = await ipGate(req, "auth:google:onetap");
@@ -34,7 +57,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Bad request." }, { status: 400 });
   }
   const credential = typeof body.credential === "string" ? body.credential : "";
-  const nonce = typeof body.nonce === "string" ? body.nonce : "";
+  // The server's own nonce from the cookie; whatever the body says is ignored.
+  const nonce = jar.get(NONCE_COOKIE)?.value ?? "";
   if (!credential || credential.length > 4096 || credential.split(".").length !== 3 || nonce.length < 16 || nonce.length > 128) {
     return NextResponse.json({ error: "Bad request." }, { status: 400 });
   }
@@ -60,6 +84,7 @@ export async function POST(req: Request) {
       );
     }
     const res = NextResponse.json({ next: result.dest, isNew: result.isNew });
+    res.cookies.set(NONCE_COOKIE, "", { path: "/api/auth/google/onetap", maxAge: 0 }); // one use
     result.apply(res);
     return res;
   } catch (err) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { AuthError, requireAdminOwner } from "@/lib/server/auth";
+import { requireAdminOwner } from "@/lib/server/auth";
 import { getTicketThread, setTicketStatus } from "@/lib/server/supportTickets";
+import { adminFailure } from "@/lib/server/adminGate";
 
 /** Admin: one ticket with its whole chat (refreshed when the thread opens). */
 export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
@@ -11,8 +12,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
     if (!ticket) return NextResponse.json({ error: "No such ticket" }, { status: 404 });
     return NextResponse.json({ ticket });
   } catch (err) {
-    if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 401 });
-    throw err;
+    return adminFailure(err);
   }
 }
 
@@ -28,7 +28,6 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     if (!ticket) return NextResponse.json({ error: "No such ticket" }, { status: 404 });
     return NextResponse.json({ ticket });
   } catch (err) {
-    if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 401 });
-    throw err;
+    return adminFailure(err);
   }
 }

@@ -23,15 +23,14 @@ export async function dayBudgetSpent(name: string, budget: number): Promise<bool
 export async function dayBump(name: string): Promise<number> {
   const key = `${name}_${todayUtc()}`;
   await sweepOldKeys(name);
-  await db
+  // RETURNING hands back the new count in the same round trip (10-22; rateLimitDb does the same).
+  const row = await db
     .prepare(
       `INSERT INTO price_history_meta (key, value) VALUES (?, '1')
-       ON CONFLICT(key) DO UPDATE SET value = CAST(CAST(value AS INTEGER) + 1 AS TEXT)`,
+       ON CONFLICT(key) DO UPDATE SET value = CAST(CAST(value AS INTEGER) + 1 AS TEXT)
+       RETURNING value`,
     )
-    .run(key);
-  const row = (await db.prepare("SELECT value FROM price_history_meta WHERE key = ?").get(key)) as
-    | { value: string }
-    | undefined;
+    .get<{ value: string }>(key);
   return Number(row?.value ?? 0);
 }
 

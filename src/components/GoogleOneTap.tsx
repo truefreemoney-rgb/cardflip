@@ -76,10 +76,16 @@ export function nextFlagAfterNotShown(prev: Flag | null, now: number): Flag {
   return tries >= 3 ? "done" : { retryAfter: now + 24 * 60 * 60 * 1000, tries };
 }
 
-function randomNonce(): string {
-  const bytes = new Uint8Array(24);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+/** The server mints the nonce and keeps it in a cookie (10-22); the POST is checked against that, not against anything the page says. */
+async function fetchNonce(): Promise<string | null> {
+  try {
+    const r = await fetch("/api/auth/google/onetap", { credentials: "same-origin", cache: "no-store" });
+    if (!r.ok) return null;
+    const data = (await r.json().catch(() => null)) as { nonce?: unknown } | null;
+    return typeof data?.nonce === "string" && data.nonce.length >= 16 ? data.nonce : null;
+  } catch {
+    return null;
+  }
 }
 
 function loadGsi(): Promise<Gsi | null> {
@@ -118,7 +124,7 @@ export default function GoogleOneTap({ clientId }: { clientId: string | null }) 
 
     let cancelled = false;
     let gsi: Gsi | null = null;
-    const nonce = randomNonce();
+    let nonce = "";
 
     async function onCredential(resp: { credential?: string }) {
       if (!resp?.credential) return;
@@ -131,7 +137,6 @@ export default function GoogleOneTap({ clientId }: { clientId: string | null }) 
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
             credential: resp.credential,
-            nonce,
             next: window.location.pathname + window.location.search,
             ref: readReferralCode(),
             touch: readTouch(),
@@ -174,6 +179,9 @@ export default function GoogleOneTap({ clientId }: { clientId: string | null }) 
       }
       gsi = await loadGsi();
       if (cancelled || !gsi) return;
+      const minted = await fetchNonce();
+      if (cancelled || !minted) return; // no nonce, no prompt; try another day
+      nonce = minted;
       gsi.accounts.id.initialize({
         client_id: clientId,
         callback: onCredential,

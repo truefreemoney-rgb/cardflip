@@ -249,9 +249,17 @@ export interface NewCard {
   variant?: string | null;
   /** The headline market the scanner showed (packs sum it). */
   scanMarket?: number | null;
+  /** The scanner's id for this save: the same user + id again returns the first row instead of a second one. */
+  clientId?: string | null;
 }
 
 export async function createCard(userId: string, card: NewCard): Promise<CardRecord> {
+  if (card.clientId) {
+    const twin = (await db
+      .prepare("SELECT * FROM cards WHERE user_id = ? AND client_id = ?")
+      .get(userId, card.clientId)) as CardRow | undefined;
+    if (twin) return fromRow(twin);
+  }
   const id = randomUUID();
   const now = Date.now();
   const kind: CardKind = card.kind === "sealed" ? "sealed" : "card";
@@ -263,8 +271,8 @@ export async function createCard(userId: string, card: NewCard): Promise<CardRec
   await db
     .prepare(
       `INSERT INTO cards
-         (id, user_id, kind, game, card_name, set_name, card_number, image_url, condition, product_type, status, price, scan_price, catalog_card_id, rarity, category, pack_id, verified_at, match_doubt, cost_basis, shipping_method, first_edition, variant, scan_market, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ready', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (id, user_id, kind, game, card_name, set_name, card_number, image_url, condition, product_type, status, price, scan_price, catalog_card_id, rarity, category, pack_id, verified_at, match_doubt, cost_basis, shipping_method, first_edition, variant, scan_market, client_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ready', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -293,6 +301,7 @@ export async function createCard(userId: string, card: NewCard): Promise<CardRec
       card.firstEdition ? 1 : 0,
       card.variant ?? null,
       card.scanMarket != null && card.scanMarket > 0 ? card.scanMarket : null,
+      card.clientId ?? null,
       now,
       now,
     );
@@ -691,49 +700,48 @@ export async function updateCard(
     updated_at: Date.now(),
   };
 
+  // Write only the columns this patch touches (or that its rules changed). The old whole-row write
+  // sent back ~33 columns read a moment earlier, so a slow PATCH could undo a concurrent eBay sold
+  // sync's status / price / fees (10-22).
+  const cols: [string, keyof CardUpdate | null, unknown, unknown][] = [
+    ["card_name", "cardName", merged.card_name, existingRow.card_name],
+    ["set_name", "setName", merged.set_name, existingRow.set_name],
+    ["card_number", "cardNumber", merged.card_number, existingRow.card_number],
+    ["image_url", "imageUrl", merged.image_url, existingRow.image_url],
+    ["catalog_card_id", "catalogCardId", merged.catalog_card_id ?? null, existingRow.catalog_card_id ?? null],
+    ["rarity", "rarity", merged.rarity ?? null, existingRow.rarity ?? null],
+    ["category", "category", merged.category ?? null, existingRow.category ?? null],
+    ["condition", "condition", merged.condition, existingRow.condition],
+    ["price", "price", merged.price, existingRow.price],
+    ["quantity", "quantity", merged.quantity ?? 1, existingRow.quantity ?? 1],
+    ["status", "status", merged.status, existingRow.status],
+    ["listed_at", "listedAt", merged.listed_at, existingRow.listed_at],
+    ["sold_price", "soldPrice", merged.sold_price, existingRow.sold_price],
+    ["sold_at", "soldAt", merged.sold_at, existingRow.sold_at],
+    ["verified_at", "verifiedAt", merged.verified_at ?? null, existingRow.verified_at ?? null],
+    ["match_doubt", "matchDoubt", merged.match_doubt ?? null, existingRow.match_doubt ?? null],
+    ["first_edition", "firstEdition", merged.first_edition ?? null, existingRow.first_edition ?? null],
+    ["variant", "variant", merged.variant ?? null, existingRow.variant ?? null],
+    ["price_locked", "priceLocked", merged.price_locked ?? 0, existingRow.price_locked ?? 0],
+    ["cost_basis", "costBasis", merged.cost_basis ?? null, existingRow.cost_basis ?? null],
+    ["shipping_method", "shippingMethod", merged.shipping_method ?? null, existingRow.shipping_method ?? null],
+    ["alert_price", "alertPrice", merged.alert_price ?? null, existingRow.alert_price ?? null],
+    ["alerted_at", null, merged.alerted_at ?? null, existingRow.alerted_at ?? null],
+    ["sold_fees", null, merged.sold_fees, existingRow.sold_fees],
+    ["ebay_order_id", null, merged.ebay_order_id, existingRow.ebay_order_id],
+    ["ebay_line_item_id", null, merged.ebay_line_item_id, existingRow.ebay_line_item_id],
+    ["sold_price_local", null, merged.sold_price_local ?? null, existingRow.sold_price_local ?? null],
+    ["sold_currency", null, merged.sold_currency ?? null, existingRow.sold_currency ?? null],
+    ["ebay_ended_at", null, merged.ebay_ended_at, existingRow.ebay_ended_at],
+    ["scan_price", null, merged.scan_price ?? null, existingRow.scan_price ?? null],
+    ["scan_market", null, merged.scan_market ?? null, existingRow.scan_market ?? null],
+    ["sold_by_hand", null, merged.sold_by_hand ?? null, existingRow.sold_by_hand ?? null],
+  ];
+  const touched = cols.filter(([, key, now, was]) => (key !== null && patch[key] !== undefined) || now !== was);
+  const sets = [...touched.map(([c]) => `${c} = ?`), "updated_at = ?"];
   await db
-    .prepare(
-      `UPDATE cards
-       SET card_name = ?, set_name = ?, card_number = ?, image_url = ?, catalog_card_id = ?, rarity = ?, category = ?, condition = ?, price = ?, quantity = ?, status = ?, listed_at = ?, sold_price = ?, sold_at = ?, verified_at = ?, match_doubt = ?, first_edition = ?, variant = ?, price_locked = ?, cost_basis = ?, shipping_method = ?, alert_price = ?, alerted_at = ?, sold_fees = ?, ebay_order_id = ?, ebay_line_item_id = ?, sold_price_local = ?, sold_currency = ?, ebay_ended_at = ?, scan_price = ?, scan_market = ?, sold_by_hand = ?, updated_at = ?
-       WHERE id = ? AND user_id = ?`,
-    )
-    .run(
-      merged.card_name,
-      merged.set_name,
-      merged.card_number,
-      merged.image_url,
-      merged.catalog_card_id ?? null,
-      merged.rarity ?? null,
-      merged.category ?? null,
-      merged.condition,
-      merged.price,
-      merged.quantity ?? 1,
-      merged.status,
-      merged.listed_at,
-      merged.sold_price,
-      merged.sold_at,
-      merged.verified_at ?? null,
-      merged.match_doubt ?? null,
-      merged.first_edition ?? null,
-      merged.variant ?? null,
-      merged.price_locked ?? 0,
-      merged.cost_basis ?? null,
-      merged.shipping_method ?? null,
-      merged.alert_price ?? null,
-      merged.alerted_at ?? null,
-      merged.sold_fees,
-      merged.ebay_order_id,
-      merged.ebay_line_item_id,
-      merged.sold_price_local ?? null,
-      merged.sold_currency ?? null,
-      merged.ebay_ended_at,
-      merged.scan_price ?? null,
-      merged.scan_market ?? null,
-      merged.sold_by_hand ?? null,
-      merged.updated_at,
-      id,
-      userId,
-    );
+    .prepare(`UPDATE cards SET ${sets.join(", ")} WHERE id = ? AND user_id = ?`)
+    .run(...touched.map(([, , now]) => now as string | number | null), merged.updated_at, id, userId);
 
   return fromRow(merged);
 }
@@ -869,6 +877,14 @@ export async function listAllCards(limit = 200): Promise<CardRecord[]> {
     .prepare("SELECT * FROM cards ORDER BY created_at DESC LIMIT ?")
     .all(limit)) as unknown as CardRow[];
   return rows.map(fromRow);
+}
+
+/** The newest cards across all accounts with the owner's name joined in (admin Cards page, 10-22: it fetched every user to name 60 rows). */
+export async function listAllCardsWithOwner(limit = 60): Promise<(CardRecord & { ownerName: string | null })[]> {
+  const rows = (await db
+    .prepare("SELECT c.*, u.name AS owner_name FROM cards c LEFT JOIN users u ON u.id = c.user_id ORDER BY c.created_at DESC LIMIT ?")
+    .all(limit)) as unknown as (CardRow & { owner_name: string | null })[];
+  return rows.map((r) => ({ ...fromRow(r), ownerName: r.owner_name ?? null }));
 }
 
 export interface PlatformStats {

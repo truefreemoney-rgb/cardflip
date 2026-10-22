@@ -28,6 +28,8 @@ const CCG_SINGLES_CATEGORY = "183454";
  * The comps search text: name + collector number, plus the set code for MTG
  * (a name is reprinted across dozens of sets; the code pins the printing) and
  * the game word so a Pokémon "Charizard 4" and an MTG "Charizard" never mix.
+ * Every game carries its word (10-22; the referee queries already did): a bare
+ * "Elsa 12" pulled other games' cards.
  */
 function compsQuery(card: PokemonCard, firstEdition = false): string {
   const name = card.englishName || card.name;
@@ -37,7 +39,7 @@ function compsQuery(card: PokemonCard, firstEdition = false): string {
     game.id === "mtg" && card.setCode ? card.setCode : "",
     card.number,
     firstEdition ? "1st edition" : "",
-    game.id === "mtg" ? game.searchToken : "",
+    game.searchToken,
   ]
     .filter(Boolean)
     .join(" ")

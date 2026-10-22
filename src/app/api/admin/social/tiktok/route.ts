@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { AuthError, requireAdminOwner } from "@/lib/server/auth";
+import { requireAdminOwner } from "@/lib/server/auth";
 import { eastern } from "@/lib/server/socialPublish";
 import { markTiktokPosted } from "@/lib/server/socialTiktok";
 import { TIKTOK_SLOTS } from "@/lib/socialTiktok";
 import { addDays } from "@/lib/priceSeries";
+import { adminFailure } from "@/lib/server/adminGate";
 
 /**
  * Owner only. "Mark Posted" on the /admin/social TikTok card (Chris posts
@@ -19,8 +20,7 @@ export async function POST(req: NextRequest) {
   try {
     await requireAdminOwner();
   } catch (err) {
-    if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 401 });
-    throw err;
+    return adminFailure(err);
   }
   const body = (await req.json().catch(() => null)) as { slot?: string; day?: string; posted?: boolean } | null;
   const slot = TIKTOK_SLOTS.find((s) => s === body?.slot);

@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import { GAMES, printedCardNumber, SET_IN_NUMBER_GAMES } from "@/lib/games";
 import { formatMoney, formatVariantLabel } from "@/lib/listing";
 import { variantRank } from "@/lib/variantOrder";
-import { addDays, dayIndex, todayUtc, type HistoryPoint } from "@/lib/priceSeries";
+import { addDays, dayIndex, type HistoryPoint } from "@/lib/priceSeries";
 import { cleanSeriesPoints } from "@/lib/priceOutliers";
 import type { PriceFlag, PriceStale } from "@/lib/priceFlag";
-import { etDate } from "@/lib/time";
+import { etDate, etDay } from "@/lib/time";
 import { clipDescription, pageMetadata } from "@/lib/seo";
 import type { GameId } from "@/lib/types";
 
@@ -471,7 +471,7 @@ export function cardTitle(f: CardFacts, max = 60, price?: number | null): string
 }
 
 /** The catalog facts as one plain paragraph: only what the catalog holds, nothing invented. */
-export function factsParagraph(f: CardFacts, today = todayUtc()): string {
+export function factsParagraph(f: CardFacts, today = etDay()): string {
   // A preorder set (Magic Star Trek, out Nov 13, 2026) is not "released" yet.
   const released = f.release ? `, ${f.release > today ? "out" : "released"} ${etDate(`${f.release}T12:00:00Z`)}` : "";
   const bits = [`${f.name} is card ${f.number} in ${f.setName}${released}.`];

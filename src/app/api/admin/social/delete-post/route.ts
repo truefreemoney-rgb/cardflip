@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { AuthError, requireAdminOwner } from "@/lib/server/auth";
+import { requireAdminOwner } from "@/lib/server/auth";
 import { metaReadCreds } from "@/lib/server/sites/meta";
 import { xSignedJson } from "@/lib/server/sites/x";
 import { blueskyCall, blueskySession } from "@/lib/server/sites/bluesky";
+import { adminFailure } from "@/lib/server/adminGate";
 
 /**
  * Owner-only: take one of OUR posts down on its site, by the URL social_post_log stored (10-16: the 1pm head to head went
@@ -71,8 +72,7 @@ export async function POST(req: NextRequest) {
   try {
     await requireAdminOwner();
   } catch (err) {
-    if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 401 });
-    throw err;
+    return adminFailure(err);
   }
   const body = (await req.json().catch(() => null)) as { site?: string; url?: string } | null;
   const site = body?.site?.trim();

@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
-import { AuthError, requireAdminOwner } from "@/lib/server/auth";
+import { NextRequest } from "next/server";
+import { requireAdminOwner } from "@/lib/server/auth";
 import { uploadTicketImage } from "@/lib/server/ticketImage";
+import { adminFailure } from "@/lib/server/adminGate";
 
 /**
  * Photos on an admin reply (09-26). The admin panel has its own session, so
@@ -12,7 +13,6 @@ export async function POST(req: NextRequest) {
     await requireAdminOwner();
     return await uploadTicketImage(req);
   } catch (err) {
-    if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 401 });
-    throw err;
+    return adminFailure(err);
   }
 }
