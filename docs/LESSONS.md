@@ -198,3 +198,6 @@ Robot chat before it: "Why can't I just have free scans" / "is it possible to ge
 - Found by: the round-number sweep read against TCGplayer's own sales with Chris's sign-in; the one card that disagreed was pulled apart to its product ids.
 - Fix: stamped products recognised by name and skipped (code, test); the 15 prices corrected on prod; measure-first script scripts/_dup-products.mjs kept for the 528 non-stamp doubles.
 - Rule reinforced: every "odd" price gets its TCGplayer product id checked, not just its number; two products on one card is a smell.
+
+## 10-22 1:25am ET: CI red after a push, from a dated test I left behind
+Removing the expired Magic CAP_PAUSES entry (4376b4c6) made two dated assertions in scripts/test-social.mjs fail ("Magic moves paused 10-16/10-20"). tsc and eslint were clean, so I pushed without running the suite that covers social.ts. Rule: any change to a lib with a dated test (social.ts, pricing, cron) gets its npm test:<name> run BEFORE the commit, not just tsc + eslint; and after every push read the real CI run, not only the smoke.

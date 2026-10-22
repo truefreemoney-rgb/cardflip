@@ -1,8 +1,8 @@
 ﻿# To test later
 
 ## 10-22 12:53am ET: PUSHED 5573c19d..16524bee on Chris's "yes push it" (3 code: Magic pause entry removed; stamped-promo products never price the plain card; card-page badge "Checked against recent sales"; the rest docs/scripts). CI run 39724915663 running at 12:54am.
-- [ ] CI 39724915663 + Production smoke green (gh run list --branch main).
-- [ ] curl the Entei SM219 page: "Checked against recent sales (11 sold)." (and the 7 stamp-only cards like HGSS18 go stale by design).
+- [x] 1:25am: CI 39724915663 + 39725006148 RED (my doing: scripts/test-social.mjs still asserted Magic paused 10-16/10-20 after 4376b4c6 removed the expired entry; tsc/eslint were clean but test:social never ran before the push). Fixed 975fb559 (the test now asserts Magic moves read again on 10-22), CI 39727336041 GREEN, Production smoke green x3. The site itself was never wrong.
+- [x] 1:27am curl: /cards/pokemon/sm-black-star-promos/entei--smp-SM219 = 200, "Checked against recent sales (11 sold)." live. (The 7 stamp-only cards like HGSS18 go stale by design.)
 - [ ] 5:45am ET Pokémon write: the 15 fixed Staff-stamp promos stay at the plain product's market (code now skips the stamp products); the 33 retired cards show TCGplayer's number.
 
 ## 10-21 ~10:50pm ET: picture tiebreak on SONNET 5 (Chris: "Sonnet"; PUSHED 5573c19d with the Booster fix, Pinterest scripts, docs)
@@ -291,8 +291,8 @@
 # To test later
 
 ## 10-22 12:53am ET: PUSHED 5573c19d..16524bee on Chris's "yes push it" (3 code: Magic pause entry removed; stamped-promo products never price the plain card; card-page badge "Checked against recent sales"; the rest docs/scripts). CI run 39724915663 running at 12:54am.
-- [ ] CI 39724915663 + Production smoke green (gh run list --branch main).
-- [ ] curl the Entei SM219 page: "Checked against recent sales (11 sold)." (and the 7 stamp-only cards like HGSS18 go stale by design).
+- [x] 1:25am: CI 39724915663 + 39725006148 RED (my doing: scripts/test-social.mjs still asserted Magic paused 10-16/10-20 after 4376b4c6 removed the expired entry; tsc/eslint were clean but test:social never ran before the push). Fixed 975fb559 (the test now asserts Magic moves read again on 10-22), CI 39727336041 GREEN, Production smoke green x3. The site itself was never wrong.
+- [x] 1:27am curl: /cards/pokemon/sm-black-star-promos/entei--smp-SM219 = 200, "Checked against recent sales (11 sold)." live. (The 7 stamp-only cards like HGSS18 go stale by design.)
 - [ ] 5:45am ET Pokémon write: the 15 fixed Staff-stamp promos stay at the plain product's market (code now skips the stamp products); the 33 retired cards show TCGplayer's number.
 
 ## 10-19 ~10:30am ET: sign-up takeover closed (94efdbb4) + cap-break history (99159765), COMMIT ONLY
