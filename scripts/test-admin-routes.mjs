@@ -201,6 +201,12 @@ const grantBody = await grant.json();
 check("scans: +40 lands on the balance and in the ledger", [grant.status, grantBody.applied, grantBody.balanceAfter, (await findUserById(pat.id)).planScans, grantBody.ledger[0].kind, grantBody.ledger[0].note], [200, 40, 40, 40, "admin", "goodwill for the outage"]);
 const take = await (await scansRoute.POST(req("POST", { delta: -100, note: "refunded the payment" }), ctx(pat.id))).json();
 check("scans: a take-back floors at zero and the ledger keeps what was asked", [take.applied, take.balanceAfter, (await findUserById(pat.id)).planScans, take.ledger[0].scans, take.ledger[0].applied], [-40, 0, 0, -100, -40]);
+// Booster scans (10-20, Chris: a Booster account's plan scans sit paused, so a gift must land in the pack): { pack: true }.
+const packGrant = await (await scansRoute.POST(req("POST", { delta: 12, note: "gift for testing scans", pack: true }), ctx(pat.id))).json();
+check("scans: { pack: true } +12 lands in extra_scans, not plan scans, as an admin_pack ledger row", [packGrant.pack, packGrant.applied, packGrant.balanceAfter, (await findUserById(pat.id)).extraScans, (await findUserById(pat.id)).planScans, packGrant.ledger[0].kind, packGrant.ledger[0].plan], [true, 12, 12, 12, 0, "admin_pack", "pack"]);
+const packTake = await (await scansRoute.POST(req("POST", { delta: -20, note: "refunded the Booster", pack: true }), ctx(pat.id))).json();
+check("scans: a Booster take-back floors at zero", [packTake.applied, packTake.balanceAfter, (await findUserById(pat.id)).extraScans], [-12, 0, 0]);
+check("scans: without { pack: true } the plan balance moves as before", (await (await scansRoute.POST(req("POST", { delta: 3, note: "plan again" }), ctx(pat.id))).json()).pack, false);
 
 // --- role --------------------------------------------------------------------
 check("role: garbage → 400", await status(role.PATCH(req("PATCH", { role: "owner" }), ctx(pat.id))), 400);

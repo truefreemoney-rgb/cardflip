@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminOwner, AuthError } from "@/lib/server/auth";
-import { adjustPlanScans, ledgerForUser } from "@/lib/server/scanCredits";
+import { adjustPackScans, adjustPlanScans, ledgerForUser } from "@/lib/server/scanCredits";
 import { db } from "@/lib/db";
 import { TRIAL_SCANS, findUserById, scanTier, toPublicUser } from "@/lib/server/users";
 
@@ -41,9 +41,12 @@ export async function POST(req: Request, { params }: RouteParams) {
       const updated = await findUserById(id);
       return NextResponse.json({ applied: before - after, trial: true, trialLeftBefore: TRIAL_SCANS - before, trialLeftAfter: TRIAL_SCANS - after, user: updated ? toPublicUser(updated) : null, ledger: await ledgerForUser(id, 20) });
     }
-    const out = await adjustPlanScans(id, delta, note);
+    // Booster scans (10-20, Chris: "we should have a way"): a Booster account's plan scans sit paused, so a gift to it
+    // goes to the pack with { pack: true }; the ledger row is kind admin_pack.
+    const out = body?.pack === true ? await adjustPackScans(id, delta, note) : await adjustPlanScans(id, delta, note);
     const updated = await findUserById(id);
     return NextResponse.json({
+      pack: body?.pack === true,
       applied: out.applied,
       balanceBefore: out.balanceBefore,
       balanceAfter: out.balanceAfter,

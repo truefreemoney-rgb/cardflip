@@ -18,7 +18,7 @@ import { fromRow, planOf, planSeedFor, type Plan, type User, type UserRow } from
  *    write ADDS to the balance, nothing assigns it.
  */
 
-export type CreditKind = "payment" | "proration" | "migration" | "admin" | "reversal";
+export type CreditKind = "payment" | "proration" | "migration" | "admin" | "admin_pack" | "reversal";
 
 export interface LedgerRow {
   credit_key: string;
@@ -272,6 +272,25 @@ export async function adjustPlanScans(userId: string, delta: number, note: strin
     await tx.prepare(INSERT_ROW).run(`admin:${randomUUID()}`, userId, "admin", null, want, applied, before, null, null, null, null, note.slice(0, 300), now);
     if (applied !== 0) await tx.prepare("UPDATE users SET plan_scans = COALESCE(plan_scans, 0) + ? WHERE id = ?").run(applied, userId);
     return { recorded: true, applied, seeded, balanceBefore: before, balanceAfter: before + applied };
+  });
+}
+
+/**
+ * Owner-only hand adjustment of BOOSTER scans (users.extra_scans), a ledger row
+ * of kind admin_pack. 10-20, Chris: a Booster account's plan scans sit paused,
+ * so a gift there has to land in the pack or the buyer never sees it (Jenny's
+ * +12 went to plan scans she could not spend). A negative delta floors at zero.
+ */
+export async function adjustPackScans(userId: string, delta: number, note: string, now = Date.now()): Promise<CreditOutcome> {
+  return db.transaction(async (tx) => {
+    const user = await readUser(tx, userId);
+    if (!user) return { ...NOTHING, note: "no such user" };
+    const before = Math.max(0, user.extraScans ?? 0);
+    const want = Math.round(delta);
+    const applied = want >= 0 ? want : -Math.min(-want, before);
+    await tx.prepare(INSERT_ROW).run(`admin_pack:${randomUUID()}`, userId, "admin_pack", "pack", want, applied, before, null, null, null, null, note.slice(0, 300), now);
+    if (applied !== 0) await tx.prepare("UPDATE users SET extra_scans = COALESCE(extra_scans, 0) + ? WHERE id = ?").run(applied, userId);
+    return { recorded: true, applied, seeded: 0, balanceBefore: before, balanceAfter: before + applied };
   });
 }
 

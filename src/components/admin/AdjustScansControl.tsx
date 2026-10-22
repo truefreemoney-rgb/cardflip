@@ -18,6 +18,10 @@ interface Props {
   userId: string;
   /** Plan scans on the account now (an unmigrated subscriber's seed counts). */
   planScans: number;
+  /** Booster scans banked on the account (users.extra_scans). */
+  packScans?: number;
+  /** A Booster-only account (no subscription): its plan scans sit paused, so the Booster bucket is the default. */
+  packTier?: boolean;
 }
 
 /**
@@ -26,13 +30,16 @@ interface Props {
  * cancel takes its scans back, how a won dispute or a goodwill grant is put
  * right, and how a missed credit is fixed. Taking back floors at zero. Add or
  * Take Back is a toggle (the API still takes a signed delta).
+ * Plan / Booster picks the bucket (10-20, Chris: a Booster account's plan scans
+ * sit paused, so a gift there must go to the Booster scans, { pack: true }).
  * The answer names what really moved and lists the newest ledger rows.
  */
-export default function AdjustScansControl({ userId, planScans }: Props) {
+export default function AdjustScansControl({ userId, planScans, packScans = 0, packTier = false }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   // Add or Take Back is a toggle so the phone's digits-only keypad never needs a minus sign.
   const [mode, setMode] = useState<"add" | "take">("add");
+  const [bucket, setBucket] = useState<"plan" | "pack">(packTier ? "pack" : "plan");
   const [delta, setDelta] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -54,14 +61,14 @@ export default function AdjustScansControl({ userId, planScans }: Props) {
       const res = await fetch(apiPath(`/api/admin/users/${userId}/scans`), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ delta: n, note: note.trim() }),
+        body: JSON.stringify({ delta: n, note: note.trim(), pack: bucket === "pack" }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error ?? "Couldn't adjust the scans.");
       const moved = Number(data.applied) || 0;
       const short = moved !== n ? ` (asked for ${n > 0 ? "+" : ""}${n.toLocaleString("en-US")}; a balance stops at zero)` : "";
       setResult({
-        line: `${moved > 0 ? "Added" : moved < 0 ? "Took back" : "Changed nothing:"} ${Math.abs(moved).toLocaleString("en-US")} scans${short}. Plan scans now ${Number(data.balanceAfter ?? 0).toLocaleString("en-US")}.`,
+        line: `${moved > 0 ? "Added" : moved < 0 ? "Took back" : "Changed nothing:"} ${Math.abs(moved).toLocaleString("en-US")} ${bucket === "pack" ? "Booster" : "plan"} scans${short}. ${bucket === "pack" ? "Booster" : "Plan"} scans now ${Number(data.balanceAfter ?? 0).toLocaleString("en-US")}.`,
         ledger: Array.isArray(data.ledger) ? (data.ledger as LedgerLine[]).slice(0, 5) : [],
       });
       setDelta("");
@@ -82,6 +89,12 @@ export default function AdjustScansControl({ userId, planScans }: Props) {
       <div className="flex items-center gap-2">
         <span className="text-[11px] uppercase tracking-wider text-zinc-600">Plan scans</span>
         <span className="text-xs tabular-nums text-zinc-300">{planScans.toLocaleString("en-US")}</span>
+        {packScans > 0 && (
+          <>
+            <span className="text-[11px] uppercase tracking-wider text-zinc-600">Booster</span>
+            <span className="text-xs tabular-nums text-zinc-300">{packScans.toLocaleString("en-US")}</span>
+          </>
+        )}
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
@@ -108,6 +121,24 @@ export default function AdjustScansControl({ userId, planScans }: Props) {
               </button>
             ))}
           </div>
+          <div role="group" aria-label="Plan or Booster scans" className="flex gap-2">
+            {(["plan", "pack"] as const).map((b) => (
+              <button
+                key={b}
+                type="button"
+                onClick={() => setBucket(b)}
+                aria-pressed={bucket === b}
+                className={`min-h-10 flex-1 rounded-full px-3 py-2 text-xs font-semibold transition ${
+                  bucket === b ? "bg-white/15 text-white" : "bg-white/5 text-zinc-400 hover:bg-white/10"
+                }`}
+              >
+                {b === "plan" ? "Plan scans" : "Booster scans"}
+              </button>
+            ))}
+          </div>
+          {packTier && bucket === "plan" && (
+            <p className="text-[11px] text-amber-300">This account has no subscription: plan scans sit paused here. Booster scans are the ones it can spend.</p>
+          )}
           <label className="block">
             <span className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-zinc-500">
               {mode === "add" ? "Scans to add" : "Scans to take back"}

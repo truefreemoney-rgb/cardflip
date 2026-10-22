@@ -357,7 +357,7 @@ export default function AdminUsersTable({ users, rollups }: { users: AdminUserRo
                       <span className="text-[11px] uppercase tracking-wider text-zinc-600">Email</span>
                       <MarkConfirmedButton userId={u.id} pending={u.emailPending} verifiedAt={u.emailVerifiedAt} />
                     </div>
-                    {u.tier !== "owner" && <AdjustScansControl userId={u.id} planScans={u.planScans} />}
+                    {u.tier !== "owner" && <AdjustScansControl userId={u.id} planScans={u.planScans} packScans={u.packScans} packTier={u.tier === "pack"} />}
                     <span className="text-[11px] text-zinc-500">{r?.wishlist ?? 0} on watchlist</span>
                     {r?.country && (
                       <span className="text-[11px] text-zinc-500" title="Where the signup came from">
