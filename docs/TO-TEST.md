@@ -1,5 +1,10 @@
 ﻿# To test later
 
+## 10-22 12:15PM ET: landing tiles: whole dollars at $1,000+ drop ".00" (COMMIT ONLY, VISIBLE on /: phone shot owed before the push)
+- Chris 10-22 12:10pm: "$1,499 is fine if the cents are .00". app/page.tsx money(): $1,000+ and whole -> "$1,499"; any other value -> formatMoney ("$1,499.50", "$12.34"). Was: every $1,000+ value rounded to whole dollars.
+- [ ] BEFORE push: phone-width shot of / High/Low tiles (SendUserFile) + his yes.
+- [ ] After push: / High/Low tiles show "$1,499" only when the price is a whole dollar; a $1,234.56 high keeps its cents.
+
 ## 10-22 12:05PM ET: one money formatter (COMMIT ONLY f554d807; only push banners + alert mails change text)
 - formatMoney moved to lib/money.ts; admin money / PostCheckRow / AnalyticsCharts / campaignData / plan prices call it (same "$1,234.56" as before). Push banners and the watchlist / card-alert mails now group thousands ("$1,500.00", was "$1500.00").
 - [ ] After push: /admin overview, /admin/analytics (USD axis + tiles), /admin/prices post cards, /pricing plan prices all print the same "$X,XXX.XX" as before (no "$NaN", no missing cents).
