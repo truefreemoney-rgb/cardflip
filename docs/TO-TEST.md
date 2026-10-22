@@ -27,7 +27,7 @@
 - PRICE: no slab lines in raw lists (9d1f198e). Prod read 10:00am (scripts/_graded-series-peek.mjs --prod): 2 graded rows, both Charizard-GX sm3-150 (PSA 10 $2,079.39, PSA 9 $780.38). Card pages never read them (TCGplayer lines only).
 - [ ] After push: app search / card sheet for Charizard-GX Burning Shadows 150 (sm3-150): printing list has no "Graded Psa 10/9" rows (read via Watchlist or Recent lookups, not a name search, until af757e38 is live).
 - [ ] After push: curl a Magic card page whose only price is a converted Cardmarket figure: "As of ..." line without "Recorded daily by CardFlip."
-- [ ] After push: curl /cards/pokemon/skyridge: "7-day change" tile; view-source a card page: BreadcrumbList has 5 items ending on the card.
+- [x] 10-22 12:40am curl: /cards/pokemon/skyridge has the "7-day change" tile; Ho-oh ecard3-149 page BreadcrumbList = 5 positions.
 - [ ] After push: next daily run log (/admin) has the held-card sweep line; Vercel logs show no "pokemon-prices cron: ... failed" lines (or say which step).
 - [ ] After push: one Google sign-in on the pane still works (Chris's account), and the One Tap prompt still signs in; travel case needs a non-US network (skip unless one is handy).
 - [ ] After push: /pricing in the pane, Network tab: /api/auth/me fires once or twice, not ~7.
@@ -63,7 +63,7 @@
 ## 10-21 ~8:10am ET: 6 post cards fixed on prod from eBay sold (Chris OK'd 2 + 4 extra searches; 10-21 = 26 of 20), /admin/prices Post cards Fix
 - bog-8 Rocket's Mewtwo rev $2,400 -> $1,000 (19 sold); ex2-99 Typhlosion ex $259.63 -> $200 (32); ex1-101 Mewtwo ex $746.79 -> $250 (37; its 10-14 hide sat at $554.98 and no longer bound = TASKS B.8, 387e78ef unpushed); ex1-3 Blaziken holo $101.02 -> $40.64 (36); ex1-102 Scyther ex $180.86 -> $115 (36); ex1-98 Hitmonchan ex $125.32 -> $70 (37). All raw English, lots/foreign/graded/"choose your card" left out, 30-day window.
 - LIVE 8:20am ET: app id lookups show all 6 fixed numbers. 1pm remake: Mewtwo out (fell below the top 5 by price), 1st Ed Charizard base1-4-1st $4,000 in (its own 10-21 check, n=3). 7pm remade twice: Sandstorm -> Ruby & Sapphire -> (third pick pending, run 39597318240).
-- [ ] Card pages of the 6 print the fixed price with "Checked against recent eBay sales" (post-check rebuilds them; curl each).
+- [x] SUPERSEDED 10-22: all 6 were handed back to TCGplayer at 12:12am (report card §7); the badge itself verified on Entei SM219 (12:40am curl: $22.17 + "Checked against recent eBay sales (11 sold)").
 - [ ] FOUND (decision, not code yet): "Most valuable" (social.ts topByPrice) never reads postHolds, so a fixed card still posts at its checked price while /admin/prices says "out of posts" (1st Ed Charizard 10-21 1pm). Chris 10-18 "fixed on the fly and used" vs the built 30-day sit-out: his call (TASKS-REMAINING E), then make all kinds + the admin wording agree.
 - Pattern: old ex-era holos ran 1.6-3x eBay sold on TCGplayer (6 of 6 today); 4 of them carried the referee's "check" verdict. Data point only (the 10-18 research says asks alone can't be the catch).
 
@@ -546,7 +546,7 @@
 ## 10-16 ~9:30am ET: site-audit fixes (PUSHED, live by 10-17 9:18am ET (90033b03), ddea8db2..36c2e6a5; docs/AUDIT-2026-10-16.md)
 Mostly server guards, proven by local tests; these are the prod checks after the push.
 - [ ] eBay comps (#1): on a card page / scan result, "eBay listings" still loads comps for a Pokémon and a Magic card (catalog lookup in front of the cache). (Mine, pane.)
-- [ ] Cron routes (#4): `curl -s -o /dev/null -w "%{http_code}" https://cardflip.io/api/cron/emails` → 403 even when signed in to /admin in the pane (open it in the pane: 403). The 10am/6:30pm mail sweep and the 9:15pm TikTok net still run (Vercel cron with the key): check /admin Log next morning. (Mine.)
+- [x] 10-22 12:40am: curl https://cardflip.io/api/cron/emails -> 403. Cron routes (#4): `curl -s -o /dev/null -w "%{http_code}" https://cardflip.io/api/cron/emails` → 403 even when signed in to /admin in the pane (open it in the pane: 403). The 10am/6:30pm mail sweep and the 9:15pm TikTok net still run (Vercel cron with the key): check /admin Log next morning. (Mine.)
 - [ ] Stripe $0 (#7): no live check needed unless a 100%-off code exists in Stripe; next real renewal still credits scans (watch the Errors page / stripe log). (Mine.)
 - [ ] eBay quantity (#10): next real card push lists Quantity 1 on eBay. (Mine, eBay Seller Hub view.)
 - [ ] Login lockout (#5): 11 wrong passwords for a test email from one network → 429; the same email from another network still answers "Incorrect email or password". (Mine, curl with two IPs is not possible on prod; trust tests unless a lockout ticket shows up.)
