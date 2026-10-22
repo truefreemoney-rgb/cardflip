@@ -21,6 +21,7 @@ import { GAMES, MTG_FINISH_LABEL, printedCardNumber } from "./games.ts";
 import { CONDITION_ABBREV, titlePrintingWord, titleRarityWord } from "./ebayVocab.ts";
 import { gameOf } from "./types.ts";
 import { printingWords } from "./ebayComps.ts";
+import { formatMoney } from "./money.ts";
 import { BACKUP_ORDER } from "./priceChain.ts";
 import type { PriceFlag, PriceStale } from "./priceFlag.ts";
 import { costTaperedPrice, coversAllCosts, coversCosts, defaultShipMethod, postageFor, type ShipMethod } from "./fees.ts";
@@ -239,22 +240,8 @@ export function quickSaleEligible(marketValue: number | null | undefined): boole
   return typeof marketValue === "number" && marketValue >= QUICK_SALE_MIN_USD;
 }
 
-const CURRENCY_SYMBOL: Record<Currency, string> = { USD: "$", EUR: "€" };
-
-/**
- * Renders a price in its own currency. Cardmarket quotes euros, and showing
- * €4,184 as "$4,184" isn't a cosmetic slip — it invites a seller to list at a
- * number that was never dollars.
- */
-export function formatMoney(
-  value: number | null | undefined,
-  currency: Currency = "USD",
-): string {
-  if (value == null) return "—";
-  // Grouped thousands: "$1,499.00" reads as a price, "$1499.00" as a typo.
-  const digits = value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return `${CURRENCY_SYMBOL[currency]}${digits}`;
-}
+// formatMoney lives in lib/money.ts (10-22) and is re-exported here so the many existing imports keep working.
+export { formatMoney };
 
 /**
  * Whether a price can drive the listing. The listing is denominated in USD on

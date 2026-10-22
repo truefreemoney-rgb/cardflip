@@ -5,6 +5,7 @@ import { GAMES, GAME_IDS } from "@/lib/games";
 import { addDays, decodePrices, todayUtc } from "@/lib/priceSeries";
 import { historyStart, seriesCapBreak } from "@/lib/priceOutliers";
 import { SITE_URL } from "@/lib/siteUrl";
+import { formatMoney } from "@/lib/money";
 import type { GameId } from "@/lib/types";
 import { pageTilesByIds } from "@/lib/server/cardPages";
 import { buildDigest } from "@/lib/server/digest";
@@ -31,7 +32,7 @@ import { toPics } from "@/lib/pics";
 
 const DAY = 86_400_000;
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
-export const money = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+export const money = (n: number) => formatMoney(n);
 export const pct = (p: number) => `${p >= 0 ? "+" : ""}${Math.round(p)}%`;
 
 /* ------------------------------------------------------------------ */

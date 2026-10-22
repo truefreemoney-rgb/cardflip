@@ -15,6 +15,7 @@
  * invoice on an unknown price credits no scans and lands on the Errors page.
  */
 import { currencyFor } from "@/lib/countries";
+import { formatMoney } from "@/lib/money";
 
 export const PRICING = {
   /** Fresh account, no card: lifetime scans before the wall. */
@@ -77,7 +78,7 @@ export function planPriceLabel(plan: PaidPlan | "pack", currency: string | null 
 
 export type PaidPlan = "standard" | "pro";
 
-const usd = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const usd = (n: number) => formatMoney(n);
 const num = (n: number) => n.toLocaleString("en-US");
 
 /** "$9.99" */

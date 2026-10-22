@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { formatMoney } from "@/lib/money";
 
 /**
  * /admin/analytics charts (10-07, Chris: "make it look amazing"). The headline
@@ -82,7 +83,7 @@ export default function AnalyticsCharts({ headline, secondary, priorLabel }: { h
 /* ---------- formatting ---------- */
 
 function fmt(v: number, usd?: boolean): string {
-  if (usd) return `$${v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  if (usd) return formatMoney(v);
   return (Math.round(v * 100) / 100).toLocaleString("en-US");
 }
 /** Axis labels: short ($1.2k, 3.4k). */

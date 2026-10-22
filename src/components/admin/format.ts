@@ -1,6 +1,7 @@
 import type { BoardOwner } from "@/lib/server/board";
 import type { ScanTier } from "@/lib/server/users";
 import { etDateTime } from "@/lib/time";
+import { formatMoney } from "@/lib/money";
 
 /** Formatting shared by the admin console pages (app/admin/(console)/*). */
 
@@ -15,9 +16,8 @@ export function ownerLabel(owner: BoardOwner): string {
   return owner ?? "—";
 }
 
-export function money(v: number): string {
-  return `$${v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
+/** The app's one money formatter (lib/money.ts), under the short name the console pages use. */
+export const money = (v: number): string => formatMoney(v);
 export function num(v: number): string {
   return v.toLocaleString("en-US");
 }

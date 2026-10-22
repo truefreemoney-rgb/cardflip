@@ -5,6 +5,7 @@ import type { Digest } from "@/lib/server/digest";
 import { PRICE_FLAG_LEFT_OUT_NEXT, priceFlagLeftOut } from "@/lib/priceFlag";
 import { defaultShipMethod, type ShipMethod } from "@/lib/fees";
 import { shipLabel, shipSteps } from "@/lib/shipping";
+import { formatMoney } from "@/lib/money";
 
 /**
  * Outbound mail — the password-reset link and the subscription welcome.
@@ -204,7 +205,7 @@ export async function sendWishlistAlertEmail(to: string, hits: WishlistAlertHit[
   if (!isMailConfigured()) throw new Error("Mail isn't configured on this server");
   const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://cardflip.io";
   const line = (h: WishlistAlertHit) =>
-    `${h.name} (${h.set} · ${h.number}) — now $${h.price.toFixed(2)}, your alert was $${h.target.toFixed(2)}`;
+    `${h.name} (${h.set} · ${h.number}) — now ${formatMoney(h.price)}, your alert was ${formatMoney(h.target)}`;
   const text = [
     hits.length === 1
       ? "A card on your CardFlip watchlist dipped to your alert price."
@@ -229,7 +230,7 @@ export async function sendWishlistAlertEmail(to: string, hits: WishlistAlertHit[
     to,
     subject:
       hits.length === 1
-        ? `${hits[0].name} dipped to $${hits[0].price.toFixed(2)}`
+        ? `${hits[0].name} dipped to ${formatMoney(hits[0].price)}`
         : `${hits.length} watchlist cards hit your alert prices`,
     text,
     html,
@@ -253,10 +254,10 @@ export async function sendCardAlertEmail(to: string, hits: CardAlertHit[]): Prom
   const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://cardflip.io";
   const targets = hits.filter((h) => h.kind === "target");
   const spikes = hits.filter((h) => h.kind === "spike");
-  const tLine = (h: CardAlertHit) => `${h.name} (${h.set} · ${h.number}) — now $${h.price.toFixed(2)}, your alert was $${h.target.toFixed(2)}`;
+  const tLine = (h: CardAlertHit) => `${h.name} (${h.set} · ${h.number}) — now ${formatMoney(h.price)}, your alert was ${formatMoney(h.target)}`;
   const sLine = (h: CardAlertHit) => {
     const pct = h.target > 0 ? Math.round(((h.price - h.target) / h.target) * 100) : 0;
-    return `${h.name} (${h.set} · ${h.number}) — $${h.price.toFixed(2)}, up ${pct}% from $${h.target.toFixed(2)} a week ago`;
+    return `${h.name} (${h.set} · ${h.number}) — ${formatMoney(h.price)}, up ${pct}% from ${formatMoney(h.target)} a week ago`;
   };
   const blocks: Array<{ head: string; lines: string[] }> = [];
   if (targets.length) blocks.push({ head: targets.length === 1 ? "A card you own reached your alert price." : `${targets.length} cards you own reached your alert prices.`, lines: targets.map(tLine) });
@@ -281,8 +282,8 @@ export async function sendCardAlertEmail(to: string, hits: CardAlertHit[]): Prom
     subject:
       hits.length === 1
         ? first.kind === "target"
-          ? `${first.name} reached $${first.price.toFixed(2)}`
-          : `Sell now? ${first.name} is up to $${first.price.toFixed(2)}`
+          ? `${first.name} reached ${formatMoney(first.price)}`
+          : `Sell now? ${first.name} is up to ${formatMoney(first.price)}`
         : `${hits.length} cards you own moved to your prices`,
     text,
     html,

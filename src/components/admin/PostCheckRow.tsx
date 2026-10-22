@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { formatMoney } from "@/lib/money";
 import { useRouter } from "next/navigation";
 import { apiPath } from "@/lib/client/basePath";
 
@@ -18,7 +19,7 @@ interface Props {
   fixedUsd?: number;
 }
 
-const usd = (v: number) => `$${v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const usd = (v: number) => formatMoney(v);
 
 /**
  * One card of a post on /admin/prices: open eBay sold, then "Looks right", or

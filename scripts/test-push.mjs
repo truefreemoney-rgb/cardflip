@@ -39,7 +39,7 @@ function check(label, actual, expected = true) {
 console.log("copy");
 check("one dip", wishlistDipPush([{ name: "Charizard", price: 400, target: 450 }]), { title: "Charizard dipped to $400.00", body: "Your alert was $450.00. Tap to see it on your watchlist.", url: "/app/wishlist", tag: "wishlist-dip" });
 check("many dips, three named", wishlistDipPush([{ name: "A", price: 1, target: 2 }, { name: "B", price: 1, target: 2 }, { name: "C", price: 1, target: 2 }, { name: "D", price: 1, target: 2 }]).body, "A $1.00 · B $1.00 · C $1.00 · …");
-check("target reached", cardAlertPush([{ name: "Umbreon ex", price: 1500, target: 1400, kind: "target" }]).title, "Umbreon ex reached $1500.00");
+check("target reached", cardAlertPush([{ name: "Umbreon ex", price: 1500, target: 1400, kind: "target" }]).title, "Umbreon ex reached $1,500.00");
 check("spike", cardAlertPush([{ name: "Pikachu", price: 12.5, target: 10, kind: "spike" }]), { title: "Pikachu is up 25% this week", body: "$12.50 today, $10.00 a week ago. Good time to sell.", url: "/app/collection", tag: "card-alert" });
 check("mixed", cardAlertPush([{ name: "A", price: 2, target: 1, kind: "target" }, { name: "B", price: 2, target: 1, kind: "spike" }]).body, "1 reached your price · 1 spiked this week. Tap to see them.");
 check("one sale", soldPush([{ name: "Charizard", soldPrice: 800 }]).title, "Charizard sold for $800.00");

@@ -4,6 +4,8 @@
  * every one opens the page where the seller acts on it.
  */
 
+import { formatMoney } from "@/lib/money";
+
 export interface PushMessage {
   title: string;
   body: string;
@@ -13,7 +15,7 @@ export interface PushMessage {
   tag: string;
 }
 
-const money = (n: number) => `$${n.toFixed(2)}`;
+const money = (n: number) => formatMoney(n);
 
 export function wishlistDipPush(hits: { name: string; price: number; target: number }[]): PushMessage {
   if (hits.length === 1) {
