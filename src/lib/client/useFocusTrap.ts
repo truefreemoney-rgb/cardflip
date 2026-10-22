@@ -5,6 +5,10 @@ import { useEffect, type RefObject } from "react";
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
+// Active traps, oldest first (10-22): with the camera and a sheet on top both mounted, only the topmost
+// one handles Tab, so the two never fight over focus.
+const trapStack: symbol[] = [];
+
 /**
  * Keep Tab / Shift+Tab inside a modal while it's open, and put focus back on
  * whatever opened it when it closes. Without this a keyboard user tabs
@@ -20,6 +24,8 @@ export function useFocusTrap(panelRef: RefObject<HTMLElement | null>, active = t
     if (!active) return;
     const panel = panelRef.current;
     if (!panel) return;
+    const me = Symbol("focusTrap");
+    trapStack.push(me);
     const opener = document.activeElement as HTMLElement | null;
 
     if (!panel.contains(document.activeElement)) {
@@ -28,7 +34,7 @@ export function useFocusTrap(panelRef: RefObject<HTMLElement | null>, active = t
     }
 
     function onKey(e: KeyboardEvent) {
-      if (e.key !== "Tab" || !panel) return;
+      if (e.key !== "Tab" || !panel || trapStack[trapStack.length - 1] !== me) return;
       const nodes = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
         (el) => el.offsetParent !== null || el === document.activeElement,
       );
@@ -50,6 +56,8 @@ export function useFocusTrap(panelRef: RefObject<HTMLElement | null>, active = t
     document.addEventListener("keydown", onKey);
     return () => {
       document.removeEventListener("keydown", onKey);
+      const at = trapStack.indexOf(me);
+      if (at !== -1) trapStack.splice(at, 1);
       // Return focus to the opener if it's still in the document.
       if (opener && document.contains(opener)) opener.focus({ preventScroll: true });
     };

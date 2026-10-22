@@ -420,6 +420,16 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
   // a seller who can't get it sharper (foil glare, low light) must never
   // be stuck behind the gate.
   const [blurNote, setBlurNote] = useState<string | null>(null);
+  // One timer for the note (10-22): a second note restarts it, and unmount clears it.
+  const blurNoteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showBlurNote = useCallback((msg: string) => {
+    if (blurNoteTimer.current) clearTimeout(blurNoteTimer.current);
+    setBlurNote(msg);
+    blurNoteTimer.current = setTimeout(() => setBlurNote(null), 2500);
+  }, []);
+  useEffect(() => () => {
+    if (blurNoteTimer.current) clearTimeout(blurNoteTimer.current);
+  }, []);
   const lastBlurRejectAt = useRef(0);
   // Lazy initialiser: read the stored preference once, on the client (the
   // modal only ever mounts client-side, after a tap).
@@ -883,8 +893,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
     const now = Date.now();
     if (!isSharpEnough(score) && now - lastBlurRejectAt.current > 8000) {
       lastBlurRejectAt.current = now;
-      setBlurNote("Looks blurry — hold still and tap again");
-      setTimeout(() => setBlurNote(null), 2500);
+      showBlurNote("Looks blurry — hold still and tap again");
       return;
     }
     // A card small or turned in the guide is flattened to fill the photo.
@@ -895,8 +904,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
         if (!blob) {
           // Safari under memory pressure hands back null; the tap did nothing
           // and said nothing (mobile QA 09-06).
-          setBlurNote("Couldn't capture that frame — tap again");
-          setTimeout(() => setBlurNote(null), 2500);
+          showBlurNote("Couldn't capture that frame — tap again");
           setTimeout(() => { busy.current = false; }, 600);
           return;
         }
@@ -915,7 +923,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
     } finally {
       if (!handedOff) busy.current = false;
     }
-  }, [onCapture, mirror]);
+  }, [onCapture, mirror, showBlurNote]);
 
   // The phone's own camera (in-app browsers): the photo is flattened to the card when one is found, then sent like a capture.
   const onNativePhoto = useCallback(
@@ -928,8 +936,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
       photo?.toBlob(
         (blob) => {
           if (!blob) {
-            setBlurNote("Couldn't capture that frame — tap again");
-            setTimeout(() => setBlurNote(null), 2500);
+            showBlurNote("Couldn't capture that frame — tap again");
             return;
           }
           onCapture(new File([blob], `camera-${Date.now()}.jpg`, { type: "image/jpeg" }));
@@ -940,11 +947,10 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
         0.92,
       );
       if (!photo) {
-        setBlurNote("Couldn't read that photo — tap again");
-        setTimeout(() => setBlurNote(null), 2500);
+        showBlurNote("Couldn't read that photo — tap again");
       }
     },
-    [onCapture],
+    [onCapture, showBlurNote],
   );
 
   // Sweep while the last capture is still identifying; off once a match is

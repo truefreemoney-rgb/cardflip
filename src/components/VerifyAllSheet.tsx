@@ -93,6 +93,7 @@ export default function VerifyAllSheet({
 
   return (
     <Sheet
+      backId="verify-all"
       title="Scans waiting to verify"
       hint={
         <>

@@ -51,7 +51,7 @@ import { fetchCardById, searchCards } from "@/lib/cards";
 import { mtgCuesOf } from "@/lib/mtgCues";
 import { patternPrintingFor } from "@/lib/foilPattern";
 import { isSecretRareNumber, normalizeNumber, pickPrinting, readHasPrintedKey, type PrintedNumber } from "@/lib/cardNumber";
-import { buildListing, buildSealedListing, canBeFirstEdition, isFirstEditionCard, itemFirstEdition, withListingOverrides, currentPrice, headlinePrice, describeItemCondition, effectiveVariant, formatMoney, mtgFinishOf, quotePrice, withEbayPrices, quoteForItem } from "@/lib/listing";
+import { buildListing, buildSealedListing, canBeFirstEdition, isFirstEditionCard, itemFirstEdition, withListingOverrides, currentPrice, headlinePrice, describeItemCondition, effectiveVariant, formatMoney, mtgFinishOf, quotePrice, withEbayPrices, quoteForItem, CONDITIONS } from "@/lib/listing";
 import { GRADED_LOCKED, parseGradeQuery } from "@/lib/grading";
 import { GAMES, isGameId, parseGame, readSavedGame, saveGame } from "@/lib/games";
 import { TAP_8 } from "@/lib/tap";
@@ -77,7 +77,6 @@ import { tiebreakIds } from "@/lib/tiebreak";
 import { claimPendingScan } from "@/lib/client/trialScan";
 import { foilChoices } from "@/lib/yugioh";
 import { ONE_PIECE_DON_SET, ONE_PIECE_PROMO_SET, printingChoices } from "@/lib/onepiece";
-import { CONDITIONS } from "@/lib/listing";
 import { LOW_CONFIDENCE, UNREADABLE_CONFIDENCE } from "@/lib/types";
 import type {
   ArtStyle,
@@ -462,9 +461,6 @@ export default function AppPage() {
   // ledger (collection page) already keeps every card that reached the
   // server, so nothing is lost by starting empty -- the snapshot is cleared
   // on arrival so there is never anything to restore.
-  useEffect(() => {
-  }, []);
-
   // Release the object URLs held by previews when the page goes away.
   useEffect(() => {
     return () => {
@@ -523,6 +519,15 @@ export default function AppPage() {
           // Vision only (no OCR fallback since 10-12): the read is the card, or the scan fails and says so.
           const vision = await scanCardWithVision(next.file, next.language, next.game);
           watchdogScanId = vision.scanId ?? null;
+          // Same give-back for every empty outcome below (10-22: was pasted twice).
+          const giveBackThisScan = () => {
+            if (!vision.scanId) return;
+            void giveBackScan(vision.scanId).then((usage) => {
+              if (!usage) return;
+              setScanUsage(usage);
+              patchUser({ scans: usage });
+            });
+          };
 
           if (vision.usage) {
             setScanUsage(vision.usage);
@@ -534,7 +539,7 @@ export default function AppPage() {
           }
           // A trial that just ran out: re-read the session so the
           // SubscriptionGate swaps the scanner for the paywall.
-          if (vision.status === "quota") void refresh();
+          if (vision.status === "quota" && vision.usage?.remaining !== 0) void refresh();
           if (vision.status === "quota" && !quotaNoteDismissed.current) {
             // The server's 402 names the next credit date, a Booster or the paused scans.
             setQuotaNote(vision.error ?? "You're out of scans.");
@@ -757,11 +762,7 @@ export default function AppPage() {
               error: searchLimited ? "Too many lookups at once — wait a few seconds, then tap Scan again" : "Card lookup is down right now — search by name to retry",
             });
             // The seller got nothing here either: same give-back as a miss (10-11).
-            if (vision.scanId) void giveBackScan(vision.scanId).then((usage) => {
-              if (!usage) return;
-              setScanUsage(usage);
-              patchUser({ scans: usage });
-            });
+            giveBackThisScan();
           } else if (matches.length === 0) {
             patchItem(next.id, {
               status: "review",
@@ -773,11 +774,7 @@ export default function AppPage() {
             // Nothing found = not a scan (Chris, 10-11: "forgiving of bad scans, it doesn't deliver a product").
             // Every empty outcome asks: no match, couldn't read, another game, token, art card, slab. The server
             // decides from the stored read (lib/server/scanGiveback.ts) and answers with the balance.
-            if (vision.scanId) void giveBackScan(vision.scanId).then((usage) => {
-              if (!usage) return;
-              setScanUsage(usage);
-              patchUser({ scans: usage });
-            });
+            giveBackThisScan();
           } else {
             const card = matches[0];
             // A single match is only "Ready" when the photo actually supported

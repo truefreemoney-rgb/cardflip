@@ -54,7 +54,7 @@ export default function CandidatePicker({
   }
 
   return (
-    <Sheet title="Select Your Card" onClose={onClose} z="z-[70]" bodyClassName="flex flex-col">
+    <Sheet title="Select Your Card" backId="candidate-picker" onClose={onClose} z="z-[70]" bodyClassName="flex flex-col">
       <form
         className="flex gap-2"
         onSubmit={(e) => {
