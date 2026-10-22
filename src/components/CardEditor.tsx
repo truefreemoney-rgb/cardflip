@@ -30,7 +30,7 @@ import { LOW_CONFIDENCE } from "@/lib/types";
 import { foilChoices, foilLabel } from "@/lib/yugioh";
 import { printingChoices, printingLabel } from "@/lib/onepiece";
 import { useLastRecordedPrice } from "@/lib/client/priceHistoryData";
-import { saveCondition, saveStrategy } from "@/lib/client/scanPrefs";
+import { saveStrategy } from "@/lib/client/scanPrefs";
 import { ENVELOPE_LABEL_MAX_USD, ENVELOPE_MAX_USD, envelopeAllowed, formatMoneyPostage } from "@/lib/fees";
 import { ENVELOPE_OVER_CAP, shipOptionsFor } from "@/lib/shipping";
 import ShippingHelpSheet from "@/components/ShippingHelpSheet";
@@ -948,11 +948,11 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
 
           {/* The grade drives the price, so say what the photo showed rather
               than silently applying a multiplier the seller can't check. */}
-          {verified && item.vision?.condition && (() => {
-            // Condition suggestion (09-27, Tier 1 #3): since 10-21 the photo's
-            // call is a hint only (scans start Near Mint); the seller sees it and either agrees
-            // or changes it. A manual change of the Condition select is the
-            // override, so the strip shrinks to one line either way.
+          {verified && item.vision?.condition && (item.vision.condition === "Heavily Played" || item.vision.condition === "Damaged") && (() => {
+            // Condition from the photo (09-27, Tier 1 #3) is a warning only, and only for real damage (Chris 10-22:
+            // "let the user pick the condition, you don't need to scan for it unless it's in real bad condition" —
+            // a phone photo can't tell Near Mint from Lightly Played, and the 10-21 run called 19 of 22 scans LP).
+            // Scans start Near Mint; the seller picks. A manual change of the Condition select is the override.
             const v = item.vision;
             const suggested = v.condition;
             const overridden = item.condition !== suggested;
@@ -981,7 +981,7 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
               l === "clean" ? "text-emerald-400" : l === "light wear" ? "text-amber-300" : "text-rose-400";
             return (
               <div className="mt-3 rounded-xl border border-edge bg-surface-1 p-3">
-                <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Condition from the photo</p>
+                <p className="text-[10px] font-medium uppercase tracking-wide text-amber-300">Heads up: the photo shows wear</p>
                 <p className="mt-0.5 font-display text-lg font-semibold text-white">{suggested}</p>
                 {seen.length > 0 && (
                   <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
@@ -1229,8 +1229,8 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
                 const condition = e.target.value as Condition;
                 onChange({ condition, priceOverride: null });
                 syncLedgerCondition({ condition });
-                // Remembered per browser — the next scanned card starts here.
-                saveCondition(condition);
+                // NOT remembered as the scan default (Chris 10-22: one card set to Lightly Played here made every scan
+                // after it start Lightly Played). Only the scanner's Options pick changes the starting condition.
                 setConditionNote(`Priced as ${condition} — the suggested price below follows the condition.`);
               }}
               className="rounded-lg border border-edge bg-black/40 px-3 py-2.5 text-sm text-white outline-none transition focus:border-brand-400"

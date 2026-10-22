@@ -8,11 +8,13 @@ import type { Condition, PriceStrategy } from "@/lib/types";
  * browser (same pattern as the game toggle in lib/games.ts). A seller
  * grading a whole box as Lightly Played, or one who always holds out for
  * market, shouldn't re-pick it on every card — new queue items are born
- * with these instead of hardcoded Near Mint / quick. Vision still wins:
- * a condition read off the photo overwrites the default.
+ * with these instead of hardcoded Near Mint / quick. The photo's grade is a
+ * hint only (10-21); the per-card editor never writes this (10-22).
  */
 
-const CONDITION_KEY = "cardflip.condition";
+// v2 (10-22): the old key was polluted by the editor's per-card dropdown saving itself as the default, so phones
+// out there start every scan at "Lightly Played". A new key forgets that once; only the scanner's Options write it now.
+const CONDITION_KEY = "cardflip.condition.v2";
 const STRATEGY_KEY = "cardflip.strategy";
 
 export function readSavedCondition(): Condition {
