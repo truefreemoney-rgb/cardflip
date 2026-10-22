@@ -222,3 +222,20 @@ Net: nothing on the hand list moves. The two cards the asks referee called "too 
 **Fixed:** Entei · SM Black Star Promo SM219, holofoil: ours **$205** (flat at $203-205 since May) vs TCGplayer market **$22.17** with 11 Near Mint sales Sep-Oct at $18-27. Checked price $22.17 written (scripts/_fix-price-tcg.mjs, same write as the admin Fix button), 28 series points corrected, page caches dropped. Cause to look at: our TCGplayer product mapping for that promo (the raw feed kept writing ~$205, which is a different product's price). Not retuned anything else.
 
 Worth a glance later, not acted on (one or two sales, inside or near the band): Torchic ☆ TRR $6,500 vs 4 NM sales median $9,500 (last $4,000); Machamp Stormfront $145 vs 4 sales ~$200; Reshiram Legendary Treasures $290 vs 5 sales ~$345.
+
+## 10. Found while sweeping: Staff-stamped promos priced the plain card (12:25-12:55am ET 10-22)
+
+The Entei SM219 miss in §9 had a cause worth measuring: TCGplayer sells stamped copies of a promo as separate products ("[Staff]" prerelease stamps, Worlds placement stamps like "[Champion]" or "[Top 32]"), our catalog has the plain card only, and the product matcher mapped both products to it. The nightly price write takes the first product it meets, so whichever stamp came first in TCGplayer's list priced the plain card.
+
+| Measured (read only, tcgcsv product names + prices) | Count |
+|---|---|
+| Pokémon cards with 2+ TCGplayer products mapped | 688 |
+| ...of which one product is a Staff / placement stamp | 160 |
+| Price lines following the STAMP while the plain product has its own price (wrong) | 15 incl. Entei |
+| Price lines following the stamp because the plain product has no TCGplayer price | 7 |
+| Plain product's price in use (fine) | 145 |
+| Doubles with no stamp involved (matcher dupes, e.g. "Clefable (Prerelease)" mapped to Pikachu promo 1): separate item | 528 |
+
+**Fixed on prod (same write as the admin Fix button, 28 series points each corrected):** Entei SM219 $205 -> $22.17; Dragalge XY10 $64.95 -> $19.95; Zygarde XY129 $72.50 -> $15.80; Bruxish SM11 $38.02 -> $10.72; Zygarde SM48 $59.25 -> $15.30; Crabominable SM47 $32.23 -> $4.47; Manectric SM130 $92.62 -> $8.24; Celesteela SM131 $40.49 -> $7.23; Delcatty SM132 $82.98 -> $8.93; Rillaboom SWSH006 $147.50 -> $5.74; Galarian Perrserker SWSH008 $69.58 -> $4.75; Hydreigon SWSH037 $98.77 -> $8.87; Lugia SWSH069 $256.34 -> $42.01; Charizard SWSH066 $621.21 -> $104.97; Donphan SWSH067 $49.59 -> $4.59.
+
+**Code (committed, NOT pushed):** stamped products are recognised by name and skipped in the price loop, so they can never price a plain card again (test added). After the push, the 7 stamp-only cards (Tropical Tidal Wave HGSS18 $1,400, Champions Festival XY91 $370, three SV prerelease promos, two Mega Evolution promos) stop getting a TCGplayer point: their price goes stale and then unsure, which is right, a Staff stamp is not the plain card. Making stamps their own catalog cards (like 1st Edition twins) is the real answer; parked under the feature freeze.

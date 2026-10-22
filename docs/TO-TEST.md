@@ -1160,3 +1160,9 @@ pm run replay:scans (or SELECT read FROM scan_usage ORDER BY at DESC LIMIT 1): t
 ## 10-22 ~12:20am ET: Entei SM219 promo fixed $205 -> $22.17 (TCGplayer market + 11 NM sales; prod write via scripts/_fix-price-tcg.mjs)
 - [ ] Card page for Entei SM219 (SM Black Star Promos) shows $22.17 with the checked-price badge; the nightly write does not push it back to ~$205 (the check holds while the raw feed is >band away).
 - [ ] Find why the raw TCGplayer feed carried ~$205 for smp-SM219 (product mapping in pokemonPriceRefresh / tcgcsv group for SM promos); if it is a mapping slip, other SM promos may share it: list SM promos whose TCGplayer price is >5x their Cardmarket EUR.
+
+## 10-22 ~12:55am ET: stamped promo products never price the plain card (COMMITTED, not pushed; 15 prices fixed on prod already)
+- tcgplayerProductStamp (lib/tcgcsv.ts) + skip in refreshPokemonPricesFromTcgcsv; test:pricehistory +2, tsc + eslint clean. The 15 wrong prices (report card §10) were fixed on prod via scripts/_fix-price-tcg.mjs (checked prices, the check holds against the raw feed until the code ships).
+- [ ] After push: next nightly Pokémon write logs no price for the stamped product ids (201942 Entei Staff etc.); Entei SM219 / Rillaboom SWSH006 / Charizard SWSH066 pages show the plain price; the 15 checked prices can then be retired (they agree with the raw feed now) = run scripts/_checks-named.mjs and retire the ones whose TCG number matches within 10%.
+- [ ] After push: the 7 stamp-only cards (hgssp-HGSS18, xyp-XY91, svp-133/134/135, mep-002/004) get no new point; confirm they show stale/unsure rather than the stamp price within a week.
+- [ ] Separate item: 528 Pokémon cards with 2+ non-stamp products mapped (matcher dupes like Clefable (Prerelease) on basep-1); measure which price wins before touching the matcher.

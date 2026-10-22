@@ -192,3 +192,9 @@ Robot chat before it: "Why can't I just have free scans" / "is it possible to ge
 - Cause: our price is Near Mint (TCGplayer market $167.66); most copies people hold and most eBay sales are played ($25-$75). A reader with a played copy sees a number far above what theirs sells for. Not a wrong price by the TCGplayer-first rule; logged as the first "condition gap" flag.
 - Rule change from tonight: Chris does not click through price checks himself. Every post card / reader flag / hand-list check is mine, TCGplayer first, eBay sold as the fallback read as Near Mint unless the title says lower, then marked or fixed from a script.
 - Watch: if condition-gap flags keep coming, the card page's "price looks wrong?" could ask "what condition is yours?" first (feature freeze: parked).
+
+## 10-22 Staff-stamped promos priced the plain card (Entei SM219 $205 vs $22, 15 cards)
+- Cause: TCGplayer lists stamped promo copies as their own products; the matcher mapped them onto the plain catalog card; the price loop takes the first product it meets. Sat unnoticed for five months because a $205 promo is not absurd on its face and no one compared it to TCGplayer's sales by condition.
+- Found by: the round-number sweep read against TCGplayer's own sales with Chris's sign-in; the one card that disagreed was pulled apart to its product ids.
+- Fix: stamped products recognised by name and skipped (code, test); the 15 prices corrected on prod; measure-first script scripts/_dup-products.mjs kept for the 528 non-stamp doubles.
+- Rule reinforced: every "odd" price gets its TCGplayer product id checked, not just its number; two products on one card is a smell.
