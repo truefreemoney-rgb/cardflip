@@ -748,14 +748,28 @@ export default function CollectionPage() {
     // Status chips ride in the price box's corner, not a row of their own (Chris, 10-07: "a waste of a lot of space").
     // The scan-doubt line ("read #SVP085, closest printing is #085") is gone from the sheet (Chris 10-22: not needed
     // here); the list row still carries its ⚠ and the Verify step is where the match gets checked.
+    const editionChip = card.firstEdition || card.setName.endsWith(" (1st Edition)") ? (
+      <span className="rounded-full border border-brand-400/40 bg-brand-500/10 px-2.5 py-1 text-xs font-semibold text-brand-300">1st Edition</span>
+    ) : null;
     const chips = (
       <>
         {status}
-        {(card.firstEdition || card.setName.endsWith(" (1st Edition)")) && (
-          <span className="rounded-full border border-brand-400/40 bg-brand-500/10 px-2.5 py-1 text-xs font-semibold text-brand-300">1st Edition</span>
-        )}
+        {editionChip}
       </>
     );
+    // Seller mode (Chris 10-22: "the listing ending should be similar"): the listing status is a full-width band
+    // under the two prices, the same shape as the Verify bar, instead of a chip squeezed into the market cell.
+    const statusBar = live ? (
+      <div className="flex w-full items-center justify-center gap-2 rounded-full bg-emerald-500/15 px-4 py-2.5 text-sm font-semibold text-emerald-300">
+        <span className="relative flex h-2 w-2">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+        </span>
+        Live on eBay
+      </div>
+    ) : ended ? (
+      <div className="flex w-full items-center justify-center rounded-full bg-amber-400/15 px-4 py-2.5 text-sm font-semibold text-amber-300">Listing Ended</div>
+    ) : null;
     // Market Price pill makeover (Chris 10-22, from his phone: "looks terrible", Verify goes to the RIGHT of the
     // price and is tappable, prices are green, the verified box had "way too much room"). The Verify pill runs the
     // same action as "Yes, This Is My Card"; a game that asks which printing/foil first jumps to that picker.
@@ -779,26 +793,28 @@ export default function CollectionPage() {
         <span aria-hidden>✓</span> Verified
       </span>
     );
-    const verifyPill = (size: "sm" | "md") => (
+    const verifyPill = (size: "bar" | "md") => (
       <button
         type="button"
         onClick={onVerifyTap}
         disabled={verifyBusy}
         aria-label="Verify this is your card"
-        className={`inline-flex shrink-0 items-center gap-1.5 rounded-full bg-amber-400 font-semibold text-black shadow-sm transition hover:bg-amber-300 active:scale-[0.97] disabled:opacity-60 ${
-          size === "md" ? "px-4 py-2 text-sm" : "px-2.5 py-1 text-xs"
+        className={`inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full bg-amber-400 font-semibold text-black shadow-sm transition hover:bg-amber-300 active:scale-[0.97] disabled:opacity-60 ${
+          size === "md" ? "px-4 py-2 text-sm" : "w-full px-4 py-2.5 text-sm"
         }`}
       >
         {verifyBusy && <Spinner className="h-3.5 w-3.5" />}
-        {verifyBusy ? "Saving…" : "Verify"}
+        {verifyBusy ? "Saving…" : size === "bar" ? "Verify This Is Your Card" : "Verify"}
       </button>
     );
     const marketPriceCls = "font-display text-[28px] font-bold leading-none tracking-tight text-emerald-400 tabular-nums";
     const labelCls = "text-[10px] font-medium uppercase tracking-wide text-zinc-500";
     const draftControl = verifiedDraft ? verifiedTick : unverified ? verifyPill("md") : null;
-    const draftControlSm = verifiedDraft ? verifiedTick : unverified ? verifyPill("sm") : null;
-    // One box, two shapes: the full-width (Collector) box has room for the Verify button beside the price; the
-    // half-width cell (Seller, beside the eBay price) keeps the control on the label row where it fits.
+    // Two pills, one per mode (Chris 10-22 evening, from his phone in Seller mode: the half-width cell with
+    // "MARKET" + Verify squeezed onto the label row "looks like shit", "we need a unique pill for sellers").
+    // Collector (D, picked 10-22 afternoon): full-width box, Verify to the right of the price, a hint line.
+    // Seller (B, picked 10-22 evening): Market and eBay price side by side, Verify as a full-width bar under
+    // them; once verified the bar goes and the "Verified" tick rides with the chips in the market cell.
     const marketCell = (
       <div className="min-w-0 bg-black/25 px-3 py-2.5">
         {pricingOnly ? (
@@ -815,13 +831,14 @@ export default function CollectionPage() {
           </>
         ) : (
           <>
-            <div className="flex items-center justify-between gap-2">
-              {/* "MARKET PRICE" + the pill wrapped to two lines in the half-width cell: "MARKET" alone while a control is there. */}
-              <dt className={`${labelCls} whitespace-nowrap`}>{draftControlSm ? "Market" : "Market Price"}</dt>
-              {draftControlSm}
-            </div>
+            <dt className={`${labelCls} whitespace-nowrap`}>Market Price</dt>
             <dd className={`mt-1 ${marketPriceCls}`}>{marketText}</dd>
-            {chips && <div className="mt-1.5 flex flex-wrap items-center gap-1">{chips}</div>}
+            {(editionChip || verifiedDraft) && (
+              <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                {editionChip}
+                {verifiedDraft && verifiedTick}
+              </div>
+            )}
           </>
         )}
       </div>
@@ -841,6 +858,11 @@ export default function CollectionPage() {
                   {card.price > 0 ? formatMoney(card.price) : "—"}
                 </dd>
               </div>}
+              {!pricingOnly && (unverified || statusBar) && (
+                <div className="col-span-2 bg-black/25 px-3 py-2">
+                  {unverified ? verifyPill("bar") : statusBar}
+                </div>
+              )}
             </dl>
           )}
           {sold && (
