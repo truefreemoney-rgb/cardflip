@@ -253,7 +253,7 @@ The Entei SM219 miss in §9 had a cause worth measuring: TCGplayer sells stamped
 
 All four are TCGplayer's market from a real sale of the exact printing; no eBay needed. The other ~139 prize cards still have no price anywhere (PriceCharting or by hand later).
 
-## 12. Condition discounts measured on TCGplayer's own sales (1:15-1:35am ET 10-22, your sign-in, 0 eBay; TASKS C "measure first")
+## 12. Condition discounts measured on TCGplayer's own sales (12:42-12:47am ET 10-22, your sign-in, 0 eBay; TASKS C "measure first")
 What we do today (listing.ts CONDITION_MULTIPLIER): Lightly Played 85%, Moderately Played 70%, Heavily Played 55%, Damaged 40% of the headline. Read: the last 100 sales (English, main printing, shipping included) of 12 vintage (1999-2006) and 10 modern (2021-2025) Pokémon cards worth $250-$900, median sale per condition, as a share of the NEAR MINT median sale.
 
 Modern (NM sold 44-86 times per card, the anchor is solid):
@@ -294,7 +294,7 @@ Recommendation (your call, nothing changed): leave the table alone. If you want 
 
 Feed note for me: the latestsales feed only returns 25 per page with paging when the call carries the TCGplayer sign-in (credentials include); without it every product reports 5 sales. Calls spent: 59, 1.5 s apart.
 
-### 8a. The four "unpinned" low-value cards, read 1:45-1:55am ET 10-22 (TCGplayer signed-in sales + search, 0 eBay)
+### 8a. The four "unpinned" low-value cards, read 12:48-12:49am ET 10-22 (TCGplayer signed-in sales + search, 0 eBay)
 | Card | Ours | TCGplayer | Verdict |
 |---|---|---|---|
 | Gengar Fossil 5, Unlimited holofoil (product 106521) | $188.50 | NM sold 4x, median $236 (Oct 5-21); LP 18x $143, MP 22x $109 | Stands (20% under NM sales, inside the band; the nightly feed moves it) |
