@@ -210,3 +210,6 @@ Every stamp I wrote between 1:25am and 6:59am (TikTok post '2:35am', Search Cons
 
 ## 10-22 7:27AM ET: a pricing rule validated on a biased sample
 The 10-16 listing cap was okayed on eBay sold reads that mixed played copies and Best Offer sales; both read low, so a cut looked right. Read against TCGplayer's own Near Mint sales, the market beat the cap in 15 of 16 cards across every band, and the cap had priced 106 cards at a fraction of real sales for six days. Rule: a pricing rule gets validated against the source we rank FIRST (TCGplayer NM sales), with the exclusions that apply (NM unless titled lower, no Best Offer), on a sample drawn across the rule's whole range, never the handful it was designed on.
+
+## 10-22 4:11PM ET: scans started Lightly Played (Chris, phone check 2)
+Cause: the editor's per-card Condition dropdown also saved itself as the scan default (scanPrefs), so one Lightly Played edit set every later scan. Fix 201a18b5: only the scanner's Options pick writes the default; key rotated to v2 so every phone resets to Near Mint once; the photo's condition strip shows only for Heavily Played / Damaged. Rule (Chris): the user picks the condition, the AI does not grade it unless the card is in real bad shape. Lesson: a 'remember my last pick' must only be written by the control that means 'from now on', never by a one-card edit.
