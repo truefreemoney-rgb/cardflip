@@ -1,4 +1,4 @@
-// One-off (10-22 1:10am ET, Chris "do whatever you think is best"): retire the 27 eBay-set checks that TCGplayer's own
+﻿// One-off (10-22 12:10am ET, Chris "do whatever you think is best"): retire the 27 eBay-set checks that TCGplayer's own
 // Near Mint sales contradict (docs/REPORT-CARD-2026-10-21.md §7). retireCheck = off_day set; the card goes back to
 // TCGplayer's market from the next nightly write. --dry lists only.
 // Run: node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/_retire-checks-1022.mjs [--dry]
@@ -21,7 +21,7 @@ const LIST = [
   ["pokemon", "pop4-13", "holofoil"], ["pokemon", "ex1-3", "holofoil"], ["pokemon", "hgssp-HGSS17", "holofoil"],
   ["yugioh", "ygo-78160", "normal"], ["yugioh", "ygo-78073", "normal"], ["yugioh", "ygo-90812", "normal"],
 ];
-// Second pass 1:25am (the 7 whose product match missed, looked up by product id): 6 of 7 lose to TCGplayer's sales too.
+// Second pass 12:25am (the 7 whose product match missed, looked up by product id): 6 of 7 lose to TCGplayer's sales too.
 const LIST_B = [
   ["yugioh", "ygo-90821", "normal"], ["yugioh", "ygo-90811", "normal"], ["yugioh", "ygo-90819", "normal"],
   ["yugioh", "ygo-58774", "normal"], ["yugioh", "ygo-58739-1st", "normal"], ["pokemon", "dpp-DP28", "holofoil"],
