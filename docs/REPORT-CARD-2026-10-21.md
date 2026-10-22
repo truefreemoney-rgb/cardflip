@@ -293,3 +293,13 @@ What it says:
 Recommendation (your call, nothing changed): leave the table alone. If you want vintage closer, the better lever is the headline: TCGplayer publishes a market price PER CONDITION per product (the signed-in pricepoints feed), so a vintage card's LP/MP quote could come straight from TCGplayer's own LP/MP market instead of a multiplier. That is a build (feed + storage + a nightly read for ~3K vintage cards worth $50+), parked until you say.
 
 Feed note for me: the latestsales feed only returns 25 per page with paging when the call carries the TCGplayer sign-in (credentials include); without it every product reports 5 sales. Calls spent: 59, 1.5 s apart.
+
+### 8a. The four "unpinned" low-value cards, read 1:45-1:55am ET 10-22 (TCGplayer signed-in sales + search, 0 eBay)
+| Card | Ours | TCGplayer | Verdict |
+|---|---|---|---|
+| Gengar Fossil 5, Unlimited holofoil (product 106521) | $188.50 | NM sold 4x, median $236 (Oct 5-21); LP 18x $143, MP 22x $109 | Stands (20% under NM sales, inside the band; the nightly feed moves it) |
+| Gengar Fossil 5, 1st Edition holofoil | $362.49 | LP $351, MP $320, HP $220 (Oct); one "NM" at $49.98 is a mislabel | Stands |
+| Darkpact Beta (product 8726) | $181.25 | market $230; NM sold $235 (09-30), $238 (09-07); LP $130 | Stands (23% under, inside the band; feed catches up) |
+| Darkpact Alpha (product 1081) | $434.99 | no sales in 4 months, 11 listings, no market price | Unsure, stands (no proper data) |
+| Red Cliffs Armada, Portal Three Kingdoms (product 514) | $10.74 | market $10.74; NM sold $11.82 x2 (July) | Stands |
+| "Judge token" | - | not a catalog card I can name (the Sunday draft's "Official Judge Token" line); skipped | - |
