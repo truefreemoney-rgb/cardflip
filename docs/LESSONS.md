@@ -204,3 +204,6 @@ Removing the expired Magic CAP_PAUSES entry (4376b4c6) made two dated assertions
 
 ## 10-22 ~6:59AM ET: the 10-16 listing cap cut 106 Pokémon prices to a fraction of real sales
 The cap took the lowest listing as the market; on vintage cards that is a damaged copy. 28 of the 30 cards with 3+ TCGplayer Near Mint sales sat at 15-55% of the NM median for six days, on pages and in posts, and nobody caught it until the 'Down 60-80%' chart item was pulled apart tonight. Rule: a cap or guard that LOWERS a price by more than 25% gets a TCGplayer-sales read on a sample THE SAME DAY (scripts pattern: the latestsales feed from the pane, median NM, n>=3), and the fix is a check at the sales median, not a hidden row.
+
+## 10-22 7:20am ET: five hours of guessed timestamps
+Every stamp I wrote between 1:25am and 6:59am (TikTok post '2:35am', Search Console '2:05am', the cap-cut fixes '3:30am') was a guess that drifted hours behind the real clock. Rule: run Get-Date (PowerShell) right before writing ANY time into a doc, never estimate from how long things felt.

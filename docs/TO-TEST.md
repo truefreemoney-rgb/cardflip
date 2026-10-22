@@ -12,15 +12,15 @@
 - [ ] After push: curl Raikou /cards/pokemon/call-of-legends/raikou--col1-SL9 = $579.99 printed, no 'looks off'. Typhlosion 1st page prints $507.49 now (keep binds; page may be ISR-cached up to 48 h).
 - [ ] Nightly 10-23 Pokémon write: the other recovered cards keep their new numbers, none blank (re-run the 15 through scripts/_trust-why.mjs with the Turso env).
 
-## 10-22 ~2:35am ET: 7am TikTok + Pinterest posted by hand (Rayquaza ex Then vs Now; TikTok sound Littleroot Town after Chris rejected the battle theme)
+## 10-22 ~4-5am ET (clock not read; stamp was a guess): 7am TikTok + Pinterest posted by hand (Rayquaza ex Then vs Now; TikTok sound Littleroot Town after Chris rejected the battle theme)
 - [ ] ~2 h after posting: TikTok views (dead-post rule: under ~50 at the 2 h mark = repost with a new sound, pin, log); Pinterest pin visible on Pokemon Card Prices.
 - [ ] Comment check at the 7am / 1pm sessions: /admin/social/posts + TikTok by hand.
 
-## 10-22 ~2:05am ET: Search Console mail 'Blocked by robots.txt' = 1 URL, the Apple touch icon (/apple-icon?hash), crawled before the 10-16 robots fix; Validate fix pressed in the pane (Validation started 10/22)
+## 10-22 ~3-4am ET (stamp guessed): Search Console mail 'Blocked by robots.txt' = 1 URL, the Apple touch icon (/apple-icon?hash), crawled before the 10-16 robots fix; Validate fix pressed in the pane (Validation started 10/22)
 - [ ] Google's validation mail: Passed (days to 2 weeks). If it fails, curl https://cardflip.io/robots.txt and check the /app rule still reads /app$ + /app/.
 - Index report 10-22 (to 10/15): indexed 21.3K (was 16,922 on 10-16), Discovered-not-indexed 53,236, noindex 1,244 by design, 5xx 3, 404 2 (/home, /&).
 
-## 10-22 ~1:50am ET: first vision read gets a 1,024 px picture (COMMIT ONLY, not visible; Chris "build it" after the §13 measure)
+## 10-22 ~2-3am ET (stamp guessed): first vision read gets a 1,024 px picture (COMMIT ONLY, not visible; Chris "build it" after the §13 measure)
 - vision.ts firstReadPicture: the photo shrinks to 1,024 px on its long edge (JPEG q88) for the FIRST read only; second look crops, pattern look and tiebreak keep the full photo; unreadable bytes go as sent. test:firstreadsize (6 checks, in npm test), vision-schema / budget / patternlook green, tsc + eslint clean.
 - [ ] After push: scan_usage first-read rows show input_tokens ~1,400 lower than before (scripts/_scan-cost.mjs: cost per scan toward ~$0.018); no rise in "Not this card?" corrections over the first week; a few of my own scans read right (Pokémon + Magic).
 
@@ -326,15 +326,15 @@
 - [ ] After push: curl Raikou /cards/pokemon/call-of-legends/raikou--col1-SL9 = $579.99 printed, no 'looks off'. Typhlosion 1st page prints $507.49 now (keep binds; page may be ISR-cached up to 48 h).
 - [ ] Nightly 10-23 Pokémon write: the other recovered cards keep their new numbers, none blank (re-run the 15 through scripts/_trust-why.mjs with the Turso env).
 
-## 10-22 ~2:35am ET: 7am TikTok + Pinterest posted by hand (Rayquaza ex Then vs Now; TikTok sound Littleroot Town after Chris rejected the battle theme)
+## 10-22 ~4-5am ET (clock not read; stamp was a guess): 7am TikTok + Pinterest posted by hand (Rayquaza ex Then vs Now; TikTok sound Littleroot Town after Chris rejected the battle theme)
 - [ ] ~2 h after posting: TikTok views (dead-post rule: under ~50 at the 2 h mark = repost with a new sound, pin, log); Pinterest pin visible on Pokemon Card Prices.
 - [ ] Comment check at the 7am / 1pm sessions: /admin/social/posts + TikTok by hand.
 
-## 10-22 ~2:05am ET: Search Console mail 'Blocked by robots.txt' = 1 URL, the Apple touch icon (/apple-icon?hash), crawled before the 10-16 robots fix; Validate fix pressed in the pane (Validation started 10/22)
+## 10-22 ~3-4am ET (stamp guessed): Search Console mail 'Blocked by robots.txt' = 1 URL, the Apple touch icon (/apple-icon?hash), crawled before the 10-16 robots fix; Validate fix pressed in the pane (Validation started 10/22)
 - [ ] Google's validation mail: Passed (days to 2 weeks). If it fails, curl https://cardflip.io/robots.txt and check the /app rule still reads /app$ + /app/.
 - Index report 10-22 (to 10/15): indexed 21.3K (was 16,922 on 10-16), Discovered-not-indexed 53,236, noindex 1,244 by design, 5xx 3, 404 2 (/home, /&).
 
-## 10-22 ~1:50am ET: first vision read gets a 1,024 px picture (COMMIT ONLY, not visible; Chris "build it" after the §13 measure)
+## 10-22 ~2-3am ET (stamp guessed): first vision read gets a 1,024 px picture (COMMIT ONLY, not visible; Chris "build it" after the §13 measure)
 - vision.ts firstReadPicture: the photo shrinks to 1,024 px on its long edge (JPEG q88) for the FIRST read only; second look crops, pattern look and tiebreak keep the full photo; unreadable bytes go as sent. test:firstreadsize (6 checks, in npm test), vision-schema / budget / patternlook green, tsc + eslint clean.
 - [ ] After push: scan_usage first-read rows show input_tokens ~1,400 lower than before (scripts/_scan-cost.mjs: cost per scan toward ~$0.018); no rise in "Not this card?" corrections over the first week; a few of my own scans read right (Pokémon + Magic).
 
