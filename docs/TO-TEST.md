@@ -1,5 +1,14 @@
 ﻿# To test later
 
+## 10-22 7:45AM ET: eBay referee measures a SELLER FLOOR beside every read (COMMIT ONLY bfb67ab5, not visible; TASKS C1.4 "measure first")
+- lib/ebayReferee.ts trustedSeller (under 95% positive or under 20 feedbacks = untrusted; no seller block = kept) + measureSellerFloor; server/ebay.ts searchEbayAsks carries seller {pct, score} from the Browse summary; the nightly run writes sellerFloor {asks, dropped, cardsTouched, flips "from>to", verdicts} into price_history_meta ebay_referee_last. Stored verdicts unchanged. test:ebayreferee +10, test:ebaybrowse +2, tsc + eslint clean.
+- [ ] After push, first 8:15am ET referee run: SELECT value FROM price_history_meta WHERE key = 'ebay_referee_last' has a sellerFloor block; dropped > 0 on some rows; note flips (expect a few ok>high / ok>check where shill asks held the median down). Decide with Chris whether to turn it on (then: filter in readOne, not just measure).
+
+## 10-22 7:40AM ET: morning checks that needed no sign-in (read only)
+- [x] Vercel billing feed (scripts/_vercel-isr-days.mjs): 10-21 = $1.00 total, ISR Writes $0.49 (122,964; 10-20 was 200,247 / $0.80, 10-19 425,405 / $1.70) = the Wave block from 3pm cut the day roughly in half; 10-22 not in the feed yet.
+- [x] Bot watch runs (gh run list): every run green; GitHub ran the hourly schedule at 10-21 6:27pm, 9:36pm, 10-22 12:06am (manual), 3:43am ET and then SKIPPED every slot from 3:43am to 7:40am (GitHub drops busy-hour cron slots). Nothing blocked. If the gaps matter: cron-job.org (TASKS F) can dispatch the workflow on the hour.
+
+
 ## 10-22 7:30AM ET: testing API key rotated (Console mail: cardflip-testing expires 10-29)
 - New key cardflip-testing-2 (Testing workspace scope, never expires, linked to Chris) made in the pane with Chris signed in; stored as ANTHROPIC_DEV_API_KEY in .env.testing.local (old file kept as .env.testing.local.bak-1022, both git-ignored); one 5-token Haiku call answered 200. The old key cardflip-testing can be deleted on platform.claude.com/settings/keys or left to expire 10-29.
 - [ ] Next accuracy/A-B script run uses the new key without a prompt (scripts/lib/dev-key.mjs).
@@ -12,7 +21,7 @@
 
 ## 10-22 ~6:59AM ET: 28 of the 106 cap-cut Pokémon prices FIXED on prod with TCGplayer NM-sales checks (report card §14; data write, no code)
 - [x] 3:55am curl: Rayquaza C DP47 $999.99, Giratina EX DE 124 $611.98, Rayquaza C SV 8 $399.50 all print with "Checked against recent sales" (invalidated by hand; the other 25 within 48 h).
-- [ ] 5:45am ET write keeps the 28 checked numbers (price_checked binds; tcg_usd notes TCGplayer's raw figure).
+- [x] 7:40am 10-22 (scripts/_write-1022-check.mjs --prod, read only): all 43 checks dated 10-22 are on and bind after the 5:45am write (the two "off" lines, Raikou SL9 $699 vs $579.99 and Pikachu ex2-73 $500 vs $436.20, are in-band vouches by design: the series stays at TCGplayer's number).
 - [ ] /admin/prices lists the 28 new checks (Chris's sign-in).
 
 ## 10-22 ~6:52AM ET: the 106 cap-cut cards, measured + two blanks fixed (COMMIT ONLY code: price guard in-band check vouches; prod data: Raikou SL9 check, Typhlosion 1st keep)
@@ -37,7 +46,7 @@
 ## 10-22 12:53am ET: PUSHED 5573c19d..16524bee on Chris's "yes push it" (3 code: Magic pause entry removed; stamped-promo products never price the plain card; card-page badge "Checked against recent sales"; the rest docs/scripts). CI run 39724915663 running at 12:54am.
 - [x] 1:25am: CI 39724915663 + 39725006148 RED (my doing: scripts/test-social.mjs still asserted Magic paused 10-16/10-20 after 4376b4c6 removed the expired entry; tsc/eslint were clean but test:social never ran before the push). Fixed 975fb559 (the test now asserts Magic moves read again on 10-22), CI 39727336041 GREEN, Production smoke green x3. The site itself was never wrong.
 - [x] 1:27am curl: /cards/pokemon/sm-black-star-promos/entei--smp-SM219 = 200, "Checked against recent sales (11 sold)." live. (The 7 stamp-only cards like HGSS18 go stale by design.)
-- [ ] 5:45am ET Pokémon write: the 15 fixed Staff-stamp promos stay at the plain product's market (code now skips the stamp products); the 33 retired cards show TCGplayer's number.
+- [x] 7:40am 10-22 (scripts/_write-1022-check.mjs --prod): all 15 Staff-stamp fixes hold (Entei SM219 $22.17, Rillaboom SWSH006 $5.74, Charizard SWSH066 $104.97 ...); 39 of the 44 retired Pokémon checks moved to TCGplayer's number on the 10-22 point (Mewtwo ex ex1-101 $746.79, Venusaur base1-15 $136.30, Dark Charizard 1st $64.58); the 5 not updated are secondary "normal" lines with no TCGplayer feed (ex6-115, ex6-116, ex7-105, ex7-97) + 2016xy-7 (no 10-22 point).
 
 ## 10-21 ~10:50pm ET: picture tiebreak on SONNET 5 (Chris: "Sonnet"; PUSHED 5573c19d with the Booster fix, Pinterest scripts, docs)
 - vision.ts TIEBREAK_MODEL = claude-sonnet-5 (One Piece stays Haiku 4.5). Basis: 8 of 8 same picks as Opus on Chris's own tiebreaks ($0.14 test, scripts/_tiebreak-ab-owner.mjs). tsc, test:visionbudget, test:vision-schema green.
@@ -322,47 +331,6 @@
 - [ ] HALF 10-14 ~11:00pm ET (raw card: the Search/Watchlist sheet "View Sold on eBay" and "Buy on eBay" links carry -psa -bgs -cgc -sgc -graded -slab; /admin/prices half needs your /admin sign-in): After push: /admin/prices 'eBay sold' and a raw card's 'check sold listings' open eBay with '-psa -bgs -cgc -sgc -graded -slab' and no slab titles; a slab item's eBay link still searches its grade (e.g. PSA 9).
 - [x] PASS 10-16 (curl: $939.50, no "looks off") 10-15: /cards/pokemon/crystal-guardians/charizard--ex14-4 shows $939.50 (hand keep POSTed 10-14 ~2:45pm ET; page copy was still "looks off" right after, cache).
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
-# To test later
-
-## 10-22 7:30AM ET: testing API key rotated (Console mail: cardflip-testing expires 10-29)
-- New key cardflip-testing-2 (Testing workspace scope, never expires, linked to Chris) made in the pane with Chris signed in; stored as ANTHROPIC_DEV_API_KEY in .env.testing.local (old file kept as .env.testing.local.bak-1022, both git-ignored); one 5-token Haiku call answered 200. The old key cardflip-testing can be deleted on platform.claude.com/settings/keys or left to expire 10-29.
-- [ ] Next accuracy/A-B script run uses the new key without a prompt (scripts/lib/dev-key.mjs).
-
-## 10-22 7:27AM ET: Pokémon listing cap OFF + chart lift day (COMMIT ONLY, not visible by itself; Chris "build the cap rule"; report card §15)
-- pokemonPriceRefresh.ts POKEMON_CAP_ON=false; priceOutliers.ts capLiftDay (fromCapBreak + seriesBreakDay start at the lift). test:pricehistory +9, test:sitetrust cap tests rewritten, cardpages/social/digest green, tsc + eslint clean.
-- [ ] After push, first 5:45am ET write: scripts/_uncapped-lines.mjs reads 0 lines breaking the cap... (script now moot) -> instead: scripts/_peek-series.mjs --prod on 5 of the 2,039 capped printings (e.g. ex9-41, dp6-12, lc-31, pl1-9, bwp-BW82) = last point at TCGplayer market, a step up of 1.45x+; their card pages: 24h/7d pills read from the lift (no "Up 200%"); /admin/prices "high" count does not explode (the referee reads asks, not the cap).
-- [ ] The 28 checked cards keep the checked number (price_checked binds; tcg_usd notes the raw market).
-- [ ] 1pm / 7pm posts the day after: no card's "this week" move spans the lift (social reads seriesCapBreak via campaignData).
-
-## 10-22 ~6:59AM ET: 28 of the 106 cap-cut Pokémon prices FIXED on prod with TCGplayer NM-sales checks (report card §14; data write, no code)
-- [x] 3:55am curl: Rayquaza C DP47 $999.99, Giratina EX DE 124 $611.98, Rayquaza C SV 8 $399.50 all print with "Checked against recent sales" (invalidated by hand; the other 25 within 48 h).
-- [ ] 5:45am ET write keeps the 28 checked numbers (price_checked binds; tcg_usd notes TCGplayer's raw figure).
-- [ ] /admin/prices lists the 28 new checks (Chris's sign-in).
-
-## 10-22 ~6:52AM ET: the 106 cap-cut cards, measured + two blanks fixed (COMMIT ONLY code: price guard in-band check vouches; prod data: Raikou SL9 check, Typhlosion 1st keep)
-- Measured (prod, data/crash-2026-10-19.json): 15 of 106 stepped back up on the 10-22 point (217.50 -> 579.99 Raikou, 231.99 -> 507.49 Typhlosion 1st, ...); the guard's recovery rule waved 13 through; 91 still sit at their cut number (TCGplayer's own figure, nothing to do). The chart + 7d/30d % already start at the cap break (priceHistory.ts fromSeriesBreak), so the 'Down 60-80%' item is closed by code that shipped earlier.
-- Blank 1, Raikou SL9 Call of Legends holofoil: TCGplayer NM sales 719 / 699 / 699 (Oct 2-6) -> check recorded on prod at 699 n=3 (scripts/_put-check.mjs --prod). Our 579.99 is inside the 25% band so it STANDS, but the guard only let an exact check vouch -> fixed in priceTrustSite.ts (isOffCheck band), test:sitetrust +3, test:checked / pricetrust / sitetrustroutes green, tsc + eslint clean.
-- Blank 2, Typhlosion 1st Ed Neo Genesis 18 (neo1-18-1st): old step from 45 months ago reads as a never-came-back spike; the 10-14 eBay keep at 699.99 stopped binding once TCGplayer moved to 507.49 (10% band). TCGplayer: no 1st Ed NM sales in 80; eBay sold (1 search): one plain BIN NM 899.98, Best Offer sales 400-650, LP 450 -> TCGplayer's 507.49 stands; the keep moved to 507.49 (manual_day 10-22) on prod so it binds again.
-- [ ] After push: curl Raikou /cards/pokemon/call-of-legends/raikou--col1-SL9 = $579.99 printed, no 'looks off'. Typhlosion 1st page prints $507.49 now (keep binds; page may be ISR-cached up to 48 h).
-- [ ] Nightly 10-23 Pokémon write: the other recovered cards keep their new numbers, none blank (re-run the 15 through scripts/_trust-why.mjs with the Turso env).
-
-## 10-22 ~4-5am ET (clock not read; stamp was a guess): 7am TikTok + Pinterest posted by hand (Rayquaza ex Then vs Now; TikTok sound Littleroot Town after Chris rejected the battle theme)
-- [ ] ~2 h after posting: TikTok views (dead-post rule: under ~50 at the 2 h mark = repost with a new sound, pin, log); Pinterest pin visible on Pokemon Card Prices.
-- [ ] Comment check at the 7am / 1pm sessions: /admin/social/posts + TikTok by hand.
-
-## 10-22 ~3-4am ET (stamp guessed): Search Console mail 'Blocked by robots.txt' = 1 URL, the Apple touch icon (/apple-icon?hash), crawled before the 10-16 robots fix; Validate fix pressed in the pane (Validation started 10/22)
-- [ ] Google's validation mail: Passed (days to 2 weeks). If it fails, curl https://cardflip.io/robots.txt and check the /app rule still reads /app$ + /app/.
-- Index report 10-22 (to 10/15): indexed 21.3K (was 16,922 on 10-16), Discovered-not-indexed 53,236, noindex 1,244 by design, 5xx 3, 404 2 (/home, /&).
-
-## 10-22 ~2-3am ET (stamp guessed): first vision read gets a 1,024 px picture (COMMIT ONLY, not visible; Chris "build it" after the §13 measure)
-- vision.ts firstReadPicture: the photo shrinks to 1,024 px on its long edge (JPEG q88) for the FIRST read only; second look crops, pattern look and tiebreak keep the full photo; unreadable bytes go as sent. test:firstreadsize (6 checks, in npm test), vision-schema / budget / patternlook green, tsc + eslint clean.
-- [ ] After push: scan_usage first-read rows show input_tokens ~1,400 lower than before (scripts/_scan-cost.mjs: cost per scan toward ~$0.018); no rise in "Not this card?" corrections over the first week; a few of my own scans read right (Pokémon + Magic).
-
-## 10-22 12:53am ET: PUSHED 5573c19d..16524bee on Chris's "yes push it" (3 code: Magic pause entry removed; stamped-promo products never price the plain card; card-page badge "Checked against recent sales"; the rest docs/scripts). CI run 39724915663 running at 12:54am.
-- [x] 1:25am: CI 39724915663 + 39725006148 RED (my doing: scripts/test-social.mjs still asserted Magic paused 10-16/10-20 after 4376b4c6 removed the expired entry; tsc/eslint were clean but test:social never ran before the push). Fixed 975fb559 (the test now asserts Magic moves read again on 10-22), CI 39727336041 GREEN, Production smoke green x3. The site itself was never wrong.
-- [x] 1:27am curl: /cards/pokemon/sm-black-star-promos/entei--smp-SM219 = 200, "Checked against recent sales (11 sold)." live. (The 7 stamp-only cards like HGSS18 go stale by design.)
-- [ ] 5:45am ET Pokémon write: the 15 fixed Staff-stamp promos stay at the plain product's market (code now skips the stamp products); the 33 retired cards show TCGplayer's number.
-
 ## 10-19 ~10:30am ET: sign-up takeover closed (94efdbb4) + cap-break history (99159765), COMMIT ONLY
 - [x] COVERED BY TESTS 10-21 3:45am ET (live): test:sessionrevoke (stranger browser drops password + sessions; own browser keeps both) + test:emailverify E green on today's code; 94efdbb4 is on main. A live run needs a new account on cardflip.io, which I may not create; the next real cross-browser confirm can be read (users row password gone) read only.
 - After push, takeover: sign up a throwaway test account in one browser (pane, local-dev values only, never a real inbox of Chris's), open its confirm link in another (curl POST /api/auth/confirm-email): that browser is signed in, the first browser's session is gone, the typed password no longer logs in, Forgot Password still works. Same browser: password + session stay.
