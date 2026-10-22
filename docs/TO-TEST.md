@@ -1150,3 +1150,9 @@ pm run replay:scans (or SELECT read FROM scan_usage ORDER BY at DESC LIMIT 1): t
 - [ ] (B4 #9) With the This copy sheet open, "Use X for all N waiting scans": the "X set on N cards" toast shows ABOVE the sheet.
 - [ ] (B4 #10) Scan, tap Lightly Played in This copy, scan again: the new card starts as the options-sheet default (Near Mint unless changed there), not Lightly Played.
 - [ ] (B4 #11) Inventory, select a LIVE eBay row + a not-listed row: "Back to Not Listed" counts only the ended one; "Mark sold (1)" on the live row ends the listing on eBay first then marks it sold (Seller Hub: listing ended); Delete button stays disabled for the live row; PATCH /api/cards/<live id> {status:"ready"} answers 409 "live on eBay - end the listing first".
+
+## 10-22 ~1:12am ET: 27 eBay-set prices handed back to TCGplayer (Chris: "do whatever you think is best"; prod write via scripts/_retire-checks-1022.mjs, no code change)
+- Report card §7 lists them (Mewtwo ex RS, Charizard GX rainbow, Crystal Celebi, Spider-Man 238, Zapdos ex, Blaziken RS, Dark Magician RP01, ...). retireCheck sets off_day; the price returns to TCGplayer's market on the next nightly write; card-list caches dropped.
+- [ ] After the 10-22 nightly price write: these card pages show TCGplayer's number (e.g. Mewtwo ex Ruby & Sapphire ~$747, not $250; Venusaur Base Set ~$168, not $75); /admin/prices no longer lists them as hand-set.
+- [ ] 10-23: the referee's next read does not flag them "too high" again (it compares to clean ungraded BIN asks now).
+- [ ] The 7 with a missed product match (Mewtwo DP28, Pikachu Wizards promo 1, King Dragun Ultimate, Ancient Gear Beast Ultimate, Sengenjin, Elemental HERO Heat, Hecatrice): look up by hand on TCGplayer, same test.

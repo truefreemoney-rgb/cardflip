@@ -150,7 +150,7 @@ All six post cards marked "Looks right" on prod (scripts/_post-check-mark.mjs, t
 
 ## 7. The 47 hand-set prices re-read TCGplayer-first (12:40-1:05am ET 10-22, your sign-in, read only)
 
-Each of these was set from eBay sold on 10-18..10-21 (before tonight's rules). With your TCGplayer sign-in I pulled each card's last 25 TCGplayer sales and kept Near Mint sales of our exact finish. Nothing has been changed yet.
+Each of these was set from eBay sold on 10-18..10-21 (before tonight's rules). With your TCGplayer sign-in I pulled each card's last 25 TCGplayer sales and kept Near Mint sales of our exact finish. DONE 1:12am ET on Chris's "do whatever you think is best": the 27 in Verdict A were retired on prod (scripts/_retire-checks-1022.mjs); they return to TCGplayer's market on the next nightly write.
 
 **Verdict A: TCGplayer should win back these 27** (its Near Mint sales sit well above our eBay number; "retire" = the hand-set price is switched off and the card goes back to TCGplayer's market from the next nightly write).
 
