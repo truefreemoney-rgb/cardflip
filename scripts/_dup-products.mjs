@@ -32,13 +32,19 @@ for (const gid of groups) {
 const prices = new Map();
 const ps = (await c.execute("SELECT card_id, variant, prices FROM price_series WHERE game = 'pokemon' AND source = 'tcgplayer' AND currency = 'USD'")).rows;
 for (const r of ps) { try { const p = JSON.parse(r.prices); const last = [...p].reverse().find((v) => v != null); if (last != null) prices.set(r.card_id + "|" + r.variant, last); } catch {} }
+const cardNames = new Map();
+for (let i = 0; i < dups.length; i += 100) {
+  const ids = dups.slice(i, i + 100).map(([id]) => id);
+  const q = await c.execute({ sql: `SELECT id, name, set_name, local_id FROM en_cards WHERE id IN (${ids.map(() => "?").join(",")})`, args: ids });
+  for (const r of q.rows) cardNames.set(r.id, `${r.name} · ${r.set_name} ${r.local_id}`);
+}
 const out = [];
 for (const [cardId, a] of dups) {
   const mk = (pid) => [...pmarket.entries()].filter(([k]) => k.startsWith(pid + "|")).map(([k, v]) => `${k.split("|")[1]} $${v}`).join("/");
   const pn = a.map((r) => `${r.product_id} ${names.get(r.product_id) ?? "?"} {${mk(r.product_id) || "no price"}}`);
   const tagged = pn.filter((n) => /staff|prerelease|pre-release|league|championship|worlds|error|misprint|promo/i.test(n)).length;
   const ours = [...prices.entries()].filter(([k]) => k.startsWith(cardId + "|")).map(([k, v]) => `${k.split("|")[1]} $${v}`).join(", ");
-  out.push({ cardId, n: a.length, tagged, ours, pn });
+  out.push({ cardId, card: cardNames.get(cardId) ?? "?", n: a.length, tagged, ours, pn });
 }
 out.sort((x, y) => y.tagged - x.tagged || y.n - x.n);
 console.log(`${out.filter((o) => o.tagged).length} of them have a Staff/Prerelease/League/Championship-tagged product`);
