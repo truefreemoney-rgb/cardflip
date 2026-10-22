@@ -1,5 +1,9 @@
 ﻿# To test later
 
+## 10-22 ~2:35am ET: 7am TikTok + Pinterest posted by hand (Rayquaza ex Then vs Now; TikTok sound Littleroot Town after Chris rejected the battle theme)
+- [ ] ~2 h after posting: TikTok views (dead-post rule: under ~50 at the 2 h mark = repost with a new sound, pin, log); Pinterest pin visible on Pokemon Card Prices.
+- [ ] Comment check at the 7am / 1pm sessions: /admin/social/posts + TikTok by hand.
+
 ## 10-22 ~2:05am ET: Search Console mail 'Blocked by robots.txt' = 1 URL, the Apple touch icon (/apple-icon?hash), crawled before the 10-16 robots fix; Validate fix pressed in the pane (Validation started 10/22)
 - [ ] Google's validation mail: Passed (days to 2 weeks). If it fails, curl https://cardflip.io/robots.txt and check the /app rule still reads /app$ + /app/.
 - Index report 10-22 (to 10/15): indexed 21.3K (was 16,922 on 10-16), Discovered-not-indexed 53,236, noindex 1,244 by design, 5xx 3, 404 2 (/home, /&).
@@ -297,6 +301,10 @@
 - [x] PASS 10-16 (curl: $939.50, no "looks off") 10-15: /cards/pokemon/crystal-guardians/charizard--ex14-4 shows $939.50 (hand keep POSTed 10-14 ~2:45pm ET; page copy was still "looks off" right after, cache).
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
+
+## 10-22 ~2:35am ET: 7am TikTok + Pinterest posted by hand (Rayquaza ex Then vs Now; TikTok sound Littleroot Town after Chris rejected the battle theme)
+- [ ] ~2 h after posting: TikTok views (dead-post rule: under ~50 at the 2 h mark = repost with a new sound, pin, log); Pinterest pin visible on Pokemon Card Prices.
+- [ ] Comment check at the 7am / 1pm sessions: /admin/social/posts + TikTok by hand.
 
 ## 10-22 ~2:05am ET: Search Console mail 'Blocked by robots.txt' = 1 URL, the Apple touch icon (/apple-icon?hash), crawled before the 10-16 robots fix; Validate fix pressed in the pane (Validation started 10/22)
 - [ ] Google's validation mail: Passed (days to 2 weeks). If it fails, curl https://cardflip.io/robots.txt and check the /app rule still reads /app$ + /app/.
