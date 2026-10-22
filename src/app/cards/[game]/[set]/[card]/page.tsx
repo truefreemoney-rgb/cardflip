@@ -130,7 +130,7 @@ function PriceBlock({ page }: { page: CardPage }) {
         {/* A converted backup figure has no recorded days behind it, so it does not claim a daily record (review 10-19 public #8). */}
         <p className="mt-1 text-sm text-zinc-500">As of {priceDayLabel(headline.day)}.{historyDays(page) > 0 ? " Recorded daily by CardFlip." : ""}</p>
         {/* A hand eBay sold check replaced TCGplayer's number (10-18, checkedPrices.ts). */}
-        {page.checked && <p className="mt-0.5 text-sm text-emerald-300/80">Checked against recent eBay sales{page.checked.n > 0 ? ` (${page.checked.n} sold)` : ""}.</p>}
+        {page.checked && <p className="mt-0.5 text-sm text-emerald-300/80">Checked against recent sales{page.checked.n > 0 ? ` (${page.checked.n} sold)` : ""}.</p>}
         {/* How much history stands behind the number (audit G1): only facts we hold, never a sales count. */}
         {!page.checked && <PriceConfidenceBadge days={historyDays(page)} staleDays={headline.stale?.days ?? null} few={headline.stale?.few} className="mt-1.5" />}
         {/* The value has stood 45+ days (10-02): the number stands, this says how old it is. */}
