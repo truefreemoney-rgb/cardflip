@@ -340,7 +340,7 @@ Today the cap fires on 2,039 Pokémon printings at $20+ (1,239 in the 1.45-2x ba
 | 2-3x | 7 | 6 of 7 | 13% | 38% |
 | 3x+ | 5 | 5 of 5 | 41% | 72% |
 
-Examples: Rayquaza C Supreme Victors NM $399.50, market $235, cap $74; Lugia Expedition 1st? no: ecard1-6 NM $1,455, market $875, cap $418; Pikachu BW Promo 26 NM $40, market $24, cap $17. The one cap win: ex16-95 (market 35% high, cap 8% off).
+Examples: Rayquaza C Supreme Victors NM $399.50, market $235, cap $74; Charizard Expedition 6 NM $1,455, market $875, cap $418; Axew BW Promo 26 NM $40, market $24, cap $17. The one cap win: Metagross ex Power Keepers 95 (market 35% high, cap 8% off).
 
 Why the 10-16 and 10-17 samples said the opposite: they were eBay sold reads that mixed played copies and Best Offer sales (both excluded since 10-21), which read low and made the cut look right. A damaged copy for sale says nothing about a Near Mint price.
 
