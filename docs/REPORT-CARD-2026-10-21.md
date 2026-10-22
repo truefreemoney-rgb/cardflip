@@ -303,3 +303,17 @@ Feed note for me: the latestsales feed only returns 25 per page with paging when
 | Darkpact Alpha (product 1081) | $434.99 | no sales in 4 months, 11 listings, no market price | Unsure, stands (no proper data) |
 | Red Cliffs Armada, Portal Three Kingdoms (product 514) | $10.74 | market $10.74; NM sold $11.82 x2 (July) | Stands |
 | "Judge token" | - | not a catalog card I can name (the Sunday draft's "Official Judge Token" line); skipped | - |
+
+## 13. Scan cost: a smaller picture for the first read (1:40-1:55am ET 10-22, your scans only, testing key, $0.50 spent = the ceiling)
+Today the first read sends the photo as the phone took it (long edge 1,600 px; Claude bills it at about 2,450 picture tokens). Test: the same 32 of your own scans (20 Pokémon, 12 Magic, newest first), same Sonnet 5, same live prompt and schema, three sizes of the picture. Ground truth = the card you accepted at scan time. Script: scripts/_firstread-size-owner.mjs, raw results data/firstread-size-owner-2026-10-22-*.json.
+
+| Picture | Pokémon name / number right (20) | Magic name / number right (12 full, 11 small) | Picture tokens | First-read cost |
+|---|---|---|---|---|
+| As sent (1,600 px) | 20 / 17 | 11 / 11 | ~2,450 | $0.0080 Pokémon, $0.0098 Magic |
+| 1,024 px | 20 / 16 (the one "miss" read SVP085 for 085, a correct read with the set prefix) | not run | ~1,040 | $0.0047 |
+| 768 px | 20 / 17 | 10 / 10 | ~600 | $0.0038 Pokémon, $0.0049 Magic |
+
+- Every miss is shared by all sizes: Virizion 015 reads 010 at every size, the two Fan Rotom numbers fail at every size, and one Magic photo reads "Back to Nature 169" at every size (the row is labelled Nature's Lore 177; likely the stored label, not the picture). The small picture never lost a card the full one got right.
+- Caveat for 768: where the full picture said "number unknown" (Fan Rotom), 768 guessed wrong numbers (083, 005). A wrong number is worse than none. 1,024 gave none / one wrong. So 1,024 is the safer size.
+- Money: the first read is about 40% of a scan's $0.021. At 1,024 px it drops from ~$0.008 to ~$0.0047, about $0.0035 a scan (15% of the scan); at 768 px about $0.0042 a scan (20%). On 500 scans a month that is $1.75-2.10 a month today, more as scans grow. Speed is unchanged (~3 s either way).
+- What the change would be: one server-side resize (sharp, long edge 1,024) of the picture handed to the FIRST read only. The second look's text-box and bottom-strip crops, the pattern look and the picture tiebreak keep reading the full photo, so nothing that needs fine print gets a smaller picture. About 10 lines in vision.ts plus a test. Your yes.
