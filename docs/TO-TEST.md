@@ -1,5 +1,10 @@
 ﻿# To test later
 
+## 10-22 1:35PM ET: set pager window + five-game share image (COMMIT ONLY c97fd5c1, VISIBLE: phone shots SENT 1:30pm, his yes owed before the push)
+- SetPageView: pagerWindow() prints first, last, current and one each side with "…" gaps (The List = 19 pages, was 19 pills); cells 44px (h-11). opengraph-image: "Scan. Price. List your cards." + "Pokémon · Magic · Lorcana · Yu-Gi-Oh! · One Piece"; alt names the five games. Review 10-19 public #19, #20, #29.
+- [ ] After push: /cards/magic/the-list/page/10 on the phone shows Previous 1 … 9 10 11 … 19 Next Page; /cards/magic/the-list (page 1) shows 1 2 … 19 Next Page, no Previous; a 2-page set shows 1 2 only.
+- [ ] After push: https://cardflip.io/opengraph-image shows the five-game line; paste cardflip.io into iMessage or X -> the preview card shows it (X may cache the old one for a day).
+
 ## 10-22 12:15PM ET: landing tiles: whole dollars at $1,000+ drop ".00" (COMMIT ONLY, VISIBLE on /: phone shot owed before the push)
 - Chris 10-22 12:10pm: "$1,499 is fine if the cents are .00". app/page.tsx money(): $1,000+ and whole -> "$1,499"; any other value -> formatMoney ("$1,499.50", "$12.34"). Was: every $1,000+ value rounded to whole dollars.
 - [ ] BEFORE push: phone-width shot of / High/Low tiles (SendUserFile) + his yes.
