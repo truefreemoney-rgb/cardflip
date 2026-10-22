@@ -24,7 +24,7 @@
 ## 10-22 1:55PM ET: social failure mail waits for a later ping; GitHub backstop pings at :20 (COMMIT ONLY f93afc8c; nothing visible by design)
 - 10-22 1:03pm: the GitHub backstop ping timed out on all five sites and mailed "Social Post Failed", then the Vercel 1:05pm cron posted the slot. alertFailures now only NOTES a failure (settings key social_slot:pending-alert:<site>); the next publisher run 10+ min later mails it if that slot is still unposted on the site, drops it if a later ping landed the post. social-post.yml post pings moved from :05 to :20 (7:20am / 1:20pm / 7:20pm ET, both DST hours); the video job's 1pm list follows. test:socialpublish + test:socialvideo green.
 - [ ] After push, first slot (7pm or 7am): GitHub Actions social-post runs at :20 (ET), not :03-:05; its post job reports every site "already posted" (repeat), no mail.
-- [ ] After push, pane (signed in): SELECT key, value FROM settings WHERE key LIKE 'social_slot:pending-alert:%' -> empty after a clean slot (a note only lives between a failure and the next run).
+- [x] 9:12pm ET prod read: 0 'social_slot:pending-alert:%' rows (clean slots all day; re-read after the push once a failure has happened). After push, pane (signed in): SELECT key, value FROM settings WHERE key LIKE 'social_slot:pending-alert:%' -> empty after a clean slot (a note only lives between a failure and the next run).
 - [ ] After push: the next genuine failure (a token dies) mails ONE "Social Post Failed on <site>" at the next run after 10 min, not two mails and not at :05.
 
 ## 10-22 1:55PM ET: set pager = one row + five-game share image (COMMIT ONLY c97fd5c1 + the pager redo, VISIBLE: share image PASSED by Chris 1:55pm; the one-row pager PASSED by Chris 2:00pm; every visible change in the held batch is approved)
@@ -47,7 +47,7 @@
 - [ ] After push, phone: scan a reverse holo (or a Poke Ball pattern) card -> the "eBay sellers asking" chip, if it shows, is in the printing's own range, and "Check on eBay" opens a search whose words include "reverse holo" / "poke ball".
 - [x] Done 2:55pm (see the 2:50PM block, lc-86). After push, pane (signed in): POST /api/ebay/comps with {card: <a card with a reverseHolofoil row>, variant: "reverseHolofoil"} -> searchUrl contains reverse+holo; the same with variant: "zzz" -> searchUrl without it (treated as any printing), no 500.
 - [ ] After push, phone: on a scanned card with two printings, open This copy and switch the printing (e.g. Normal -> Reverse Holofoil): the eBay asking chip goes to loading and comes back (re-pulled for that printing, commit aad451a1), not left as the old number.
-- [ ] After push, next day: card_cache rows with key LIKE 'ebaycomps:v2:%' exist and the old v1 rows age out with the 24 h sweep (no growth beyond one row per card+grade+edition+printing).
+- [x] 9:12pm ET prod read: 14 ebaycomps:v2 rows already, 406 old v1 rows still aging out (re-count 10-23: v1 should be near 0). After push, next day: card_cache rows with key LIKE 'ebaycomps:v2:%' exist and the old v1 rows age out with the 24 h sweep (no growth beyond one row per card+grade+edition+printing).
 
 ## 10-22 8:35AM ET: review-backlog batches 3 + 4 (COMMIT ONLY 384126ec, e9f19a47 docs, 8f94890d; nothing visible by design)
 - Batch 3: apiFailure() for the cards / card / wishlist / price-checks / live-prices routes (JSON 401 or 500, never HTML); nav search reads the public game list from GET /api/catalog/games (revalidate 300); set card lists cached per set (seo:setcards:v1, 1 day); set standings use cardStory's median; admin Social* fetches via apiFetch (timeout); AdminNav re-syncs its group; scan_usage read JSON keeps the first read's pattern verdict (first) and the look's ball (lookBall). Batch 4: back-to-close stack (Done on "This copy" cannot close the camera; test:backstack 12); out of scans = Capture opens the paywall, no photo; fetchCurrentUser answer reused 2 s.
@@ -56,7 +56,7 @@
 - [x] 8:58pm ET pane (Chris signed in): cardflip.io/pricing made ONE /api/auth/me request. After push: /pricing network tab shows ONE /api/auth/me call (was up to 7).
 - [x] Done 2:50pm (five games, see that block). After push: GET https://cardflip.io/api/catalog/games = JSON list of the public games; the nav search dropdown on / and /features lists the same games as /cards.
 - [x] Done 2:50pm (JSON 401 for both). After push: /api/cards without a session -> JSON {"error":"Not signed in"} 401 (not HTML); a bad body on /api/wishlist -> JSON 400/500, never an HTML page.
-- [ ] After push, next scans: scan_usage read JSON has first + lookBall keys on rows where a pattern look ran (scripts/_scan-usage-peek.mjs); Chris's next Eevee 074 scan can then be measured.
+- [x] 9:12pm ET prod read: of the last 40 scan_usage rows one ran a pattern look and carries both first + lookBall (pattern, ball, look, first, lookBall, pre, ms). After push, next scans: scan_usage read JSON has first + lookBall keys on rows where a pattern look ran (scripts/_scan-usage-peek.mjs); Chris's next Eevee 074 scan can then be measured.
 - [x] Done 2:50pm (second request HIT, 0.22 s). After push: /cards/pokemon/base-set?page=2 is served from the set cache (second request fast; x-vercel-cache HIT on the page itself).
 
 ## 10-22 8:30AM ET: pane checks with Chris's sign-in (admin console + app account, reads only)
