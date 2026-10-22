@@ -7,7 +7,7 @@
  * product, and proxies alongside the actual single, and every one of them
  * would drag the average somewhere untrue.
  */
-import { isComparable, trimOutliers, buildComps } from "../src/lib/ebayComps.ts";
+import { isComparable, trimOutliers, buildComps, printingWords, printingMatches, knownPrintingVariant } from "../src/lib/ebayComps.ts";
 
 const card = {
   id: "sv3pt5-6",
@@ -200,6 +200,44 @@ check("graded: CGC '10 Pristine' matches 'CGC 10'",
   isComparable("Charizard ex 199/165 CGC 10 Gem", card, { company: "CGC", grade: "10 Pristine" }), true);
 check("ungraded mode still rejects slabs",
   isComparable("Charizard ex 199/165 PSA 7", card), false);
+
+// 10-22 (review 10-19 #32): the printing rides into the search words and the title filter.
+console.log("\nPrintings (reverse holo, ball patterns, Magic foil):");
+const pika = { ...card, id: "sv8pt5-179", name: "Pikachu", setName: "Prismatic Evolutions", number: "179", setTotal: 131, game: "pokemon" };
+check("words: reverse holo", printingWords("reverseHolofoil", pika), "reverse holo");
+check("words: poke ball pattern", printingWords("pokeBallPattern", pika), "poke ball");
+check("words: master ball pattern", printingWords("masterBallPattern", pika), "master ball");
+check("words: plain / holo add nothing", printingWords("normal", pika) + printingWords("holofoil", pika), "");
+check("words: unknown printing adds nothing", printingWords(null, pika), "");
+check("words: Magic foil", printingWords("foil", { game: "mtg" }), "foil");
+check("words: Magic nonfoil adds nothing", printingWords("nonfoil", { game: "mtg" }), "");
+for (const [title, variant, want] of [
+  ["Pikachu 179/131 Prismatic Evolutions Reverse Holo NM", "reverseHolofoil", true],
+  ["Pikachu 179/131 Prismatic Evolutions Reverse Holo NM", "normal", false],
+  ["Pikachu 179/131 Prismatic Evolutions Holo NM", "reverseHolofoil", false],
+  ["Pikachu 179/131 Prismatic Evolutions Poke Ball Pattern Holo", "pokeBallPattern", true],
+  ["Pikachu 179/131 Prismatic Evolutions Poké Ball Pattern Holo", "pokeBallPattern", true],
+  ["Pikachu 179/131 Prismatic Evolutions Master Ball Pattern Holo", "pokeBallPattern", false],
+  ["Pikachu 179/131 Prismatic Evolutions Master Ball Pattern Holo", "normal", false],
+  ["Pikachu 179/131 Prismatic Evolutions NM", "pokeBallPattern", false],
+  ["Pikachu 179/131 Prismatic Evolutions NM", "normal", true],
+  ["Pikachu 179/131 Prismatic Evolutions NM", null, true],
+]) check(`${variant ?? "any"}: ${title}`, isComparable(title, pika, null, null, variant), want);
+check("the Poké Ball trainer card is not a pattern", printingMatches("Poke Ball 185/198 Scarlet & Violet NM", "normal", pika), true);
+const bolt = { id: "m3c-1", name: "Lightning Bolt", englishName: null, setName: "Modern Horizons 3 Commander", setCode: "m3c", number: "1", game: "mtg", prices: [] };
+for (const [title, variant, want] of [
+  ["Lightning Bolt M3C Foil NM", "foil", true],
+  ["Lightning Bolt M3C NM", "foil", false],
+  ["Lightning Bolt M3C Non-Foil NM", "foil", false],
+  ["Lightning Bolt M3C Foil NM", "nonfoil", false],
+  ["Lightning Bolt M3C Non-Foil NM", "nonfoil", true],
+  ["Lightning Bolt M3C NM", "nonfoil", true],
+  ["Lightning Bolt M3C Etched Foil NM", "etched", true],
+  ["Lightning Bolt M3C Foil NM", "etched", false],
+]) check(`mtg ${variant}: ${title}`, printingMatches(title, variant, bolt), want);
+check("known printings pass through", knownPrintingVariant("reverseHolofoil"), "reverseHolofoil");
+check("a made-up printing is 'any'", knownPrintingVariant("x".repeat(30)), null);
+check("a non-string printing is 'any'", knownPrintingVariant({ a: 1 }), null);
 
 console.log(
   failures === 0

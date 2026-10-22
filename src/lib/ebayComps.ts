@@ -1,4 +1,6 @@
 import type { EbayComps, EbayListing, PokemonCard } from "@/lib/types";
+// Relative so scripts/test-ebay-comps.mjs can import this file without the alias loader.
+import { gameOf } from "./types.ts";
 
 /**
  * Turning raw eBay search results into a price a seller can trust.
@@ -35,6 +37,57 @@ const REJECT_PATTERNS: RegExp[] = [
 
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * The printing the seller is quoting, carried into the eBay search and the title filter (review 10-19 #32: a Poké Ball
+ * pattern Pikachu's comps were the plain card's asks, and a Magic foil's were mostly nonfoil copies). Only the printings
+ * whose titles say so are handled; everything else ("holofoil", a One Piece tag) leaves the search as it was.
+ */
+const POKEMON_BALL = /^([a-z]+)BallPattern$/;
+const BALL_WORD: Record<string, RegExp> = { poke: /pok[eé]\s*ball/i };
+const ballWord = (ball: string): RegExp => BALL_WORD[ball] ?? new RegExp(`${ball}\\s*ball`, "i");
+/** A title naming some ball PATTERN (not the "Poké Ball" trainer card itself). */
+const ANY_BALL_PATTERN = /(pok[eé]|master|dusk|friend|love|quick)\s*ball\s*(pattern|holo|foil|reverse|stamp|mirror)/i;
+const MTG_NONFOIL_WORD = /non[-\s]?foil|regular/i;
+
+/** The printings the comps know by name; anything else (a client's made-up string) is "any printing", so it cannot mint cache keys. */
+const KNOWN_PRINTING = /^(normal|holofoil|reverseHolofoil|1stEditionHolofoil|1stEditionNormal|unlimitedHolofoil|nonfoil|foil|etched|[a-z]+BallPattern)$/;
+export function knownPrintingVariant(variant: unknown): string | null {
+  return typeof variant === "string" && KNOWN_PRINTING.test(variant) ? variant : null;
+}
+
+/** Extra search words for a printing ("reverse holo", "poke ball", "foil"); empty for the plain or an unknown printing. */
+export function printingWords(variant: string | null | undefined, card: Pick<PokemonCard, "game">): string {
+  if (!variant) return "";
+  const game = gameOf(card as PokemonCard);
+  if (game === "pokemon") {
+    if (variant === "reverseHolofoil") return "reverse holo";
+    const ball = POKEMON_BALL.exec(variant)?.[1];
+    return ball ? `${ball} ball` : "";
+  }
+  if (game === "mtg") return variant === "etched" ? "etched foil" : variant === "foil" ? "foil" : "";
+  return "";
+}
+
+/** Does this title describe the printing being priced? True when the printing is unknown or has no words of its own. */
+export function printingMatches(title: string, variant: string | null | undefined, card: Pick<PokemonCard, "game">): boolean {
+  if (!variant) return true;
+  const game = gameOf(card as PokemonCard);
+  if (game === "pokemon") {
+    if ((variant === "reverseHolofoil") !== /reverse/i.test(title)) return false;
+    const ball = POKEMON_BALL.exec(variant)?.[1];
+    if (ball) return ballWord(ball).test(title);
+    return !ANY_BALL_PATTERN.test(title);
+  }
+  if (game === "mtg") {
+    const foil = variant === "foil" || variant === "etched";
+    const nonfoilWord = MTG_NONFOIL_WORD.test(title);
+    if (foil && (nonfoilWord || !/foil/i.test(title))) return false;
+    if (variant === "nonfoil" && /foil/i.test(title) && !nonfoilWord) return false;
+    if (variant === "etched" && !/etched/i.test(title)) return false;
+  }
+  return true;
 }
 
 /** Pokémon mechanic suffixes that make "Name X" a different card from "Name". */
@@ -102,7 +155,10 @@ export function isComparable(
    *  the noise — Base Set Charizard is a different market with the stamp).
    *  Null/undefined: the set never had one, don't look. */
   firstEdition?: boolean | null,
+  /** The printing being priced ("reverseHolofoil", "pokeBallPattern", "foil"); unknown = any printing. */
+  variant?: string | null,
 ): boolean {
+  if (!printingMatches(title, variant, card)) return false;
   for (const pattern of REJECT_PATTERNS) {
     // In graded mode the slab patterns are the point, not noise.
     if (grading && pattern.source.includes("psa|bgs")) continue;

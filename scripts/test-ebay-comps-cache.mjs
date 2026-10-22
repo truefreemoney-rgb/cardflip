@@ -48,6 +48,12 @@ check(
   3,
 );
 
+// 10-22: the printing is part of the key (a Poké Ball pattern card no longer shares the plain card's day).
+await cachedEbayComps(card, null, null, fetcher, "pokeBallPattern");
+check("a printing is its own key", calls, 4);
+check("key carries the printing", compsCacheKey(card, null, null, "pokeBallPattern").endsWith(":any:pokeBallPattern"), true);
+check("no printing = any", compsCacheKey(card, null, null).endsWith(":any:any"), true);
+
 const nothing = { id: "x-1", name: "Nobody", number: "1", setName: "Nowhere" };
 let nullCalls = 0;
 const nullFetcher = () => { nullCalls++; return Promise.resolve(null); };
@@ -59,7 +65,7 @@ const key = compsCacheKey(card, null, null);
 await putCachedComps(key, comps, Date.now() - 25 * 60 * 60 * 1000);
 check("25h-old row is a miss", (await getCachedComps(key)) === undefined);
 r = await cachedEbayComps(card, null, null, fetcher);
-check("stale row refetches", [r.cached, calls], [false, 4]);
+check("stale row refetches", [r.cached, calls], [false, 5]);
 
 const idless = { name: "Pikachu", number: "25", setName: "Base Set" };
 check("no id: key from name|set|number", compsCacheKey(idless, null, null).includes("Pikachu|Base Set|25"), true);

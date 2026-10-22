@@ -29,6 +29,8 @@ export async function fetchEbayComps(
   grading?: { company: string; grade: string } | null,
   /** 1st Edition stamp: true prices stamped copies, false excludes them. */
   firstEdition?: boolean | null,
+  /** The printing being quoted ("reverseHolofoil", "pokeBallPattern", "foil"); the server keeps it only if the catalog prices it. */
+  variant?: string | null,
 ): Promise<EbayCompsResult> {
   try {
     const res = await apiFetch("/api/ebay/comps", {
@@ -38,6 +40,7 @@ export async function fetchEbayComps(
         card,
         ...(grading ? { grading } : {}),
         ...(typeof firstEdition === "boolean" ? { firstEdition } : {}),
+        ...(variant ? { variant } : {}),
       }),
     }, 30_000); // comps wait on eBay itself
     const data = await res.json().catch(() => null);

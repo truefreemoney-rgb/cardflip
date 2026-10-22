@@ -10,6 +10,7 @@ import {
 } from "@/lib/server/ebay";
 import type { GradedInfo, PokemonCard } from "@/lib/types";
 import { canBeFirstEdition, isFirstEditionCard } from "@/lib/listing";
+import { knownPrintingVariant } from "@/lib/ebayComps";
 import { recordPoint } from "@/lib/server/priceHistory";
 import { englishCardById } from "@/lib/server/enCards";
 import { mtgCardById } from "@/lib/server/mtgCards";
@@ -80,8 +81,12 @@ export async function POST(req: Request) {
           ? (body.firstEdition as boolean)
           : false;
 
+    // The printing being quoted (review 10-19 #32): one of the printings the comps know by name, so a client string
+    // cannot steer the search or mint cache keys; its words join the query, the title filter and the cache key.
+    const variant = knownPrintingVariant(body?.variant);
+
     // A slab's links search its own grade; a raw card's leave slabs out (RAW_ONLY_TERMS).
-    const linkFacts = { firstEdition: firstEdition === true, grading: grading as GradedInfo | null };
+    const linkFacts = { firstEdition: firstEdition === true, grading: grading as GradedInfo | null, variant };
     const searchUrl = ebaySearchUrl(card, linkFacts);
     const soldSearchUrl = ebaySoldSearchUrl(card, linkFacts);
 
@@ -110,8 +115,8 @@ export async function POST(req: Request) {
         if ((await dayBudgetSpent(`comps_${user.id}`, COMPS_USER_DAILY)) || (await dayBudgetSpent("comps_all", COMPS_APP_DAILY))) {
           throw new CompsBudgetError();
         }
-        return fetchEbayComps(card, grading, firstEdition);
-      }),
+        return fetchEbayComps(card, grading, firstEdition, variant);
+      }, variant),
       process.env.EBAY_INSIGHTS_ENABLED === "1"
         ? fetchEbaySoldComps(card)
         : Promise.reject(new Error("Marketplace Insights not enabled")),

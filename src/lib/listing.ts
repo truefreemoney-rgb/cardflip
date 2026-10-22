@@ -20,6 +20,7 @@ import { SITE_URL } from "./siteUrl.ts";
 import { GAMES, MTG_FINISH_LABEL, printedCardNumber } from "./games.ts";
 import { CONDITION_ABBREV, titlePrintingWord, titleRarityWord } from "./ebayVocab.ts";
 import { gameOf } from "./types.ts";
+import { printingWords } from "./ebayComps.ts";
 import { BACKUP_ORDER } from "./priceChain.ts";
 import type { PriceFlag, PriceStale } from "./priceFlag.ts";
 import { costTaperedPrice, coversAllCosts, coversCosts, defaultShipMethod, postageFor, type ShipMethod } from "./fees.ts";
@@ -732,6 +733,8 @@ export interface ListingFacts {
   sealed?: boolean;
   /** MTG finish of the copy being sold ("nonfoil" | "foil" | "etched"); the priced variant when unset. */
   finish?: string | null;
+  /** The printing being priced ("reverseHolofoil", "pokeBallPattern", "foil"): its words join the eBay search (10-22). */
+  variant?: string | null;
 }
 
 /** eBay caps listing titles at 80 characters. */
@@ -962,11 +965,12 @@ function ebayQuery(card: PokemonCard, facts: ListingFacts = {}): string {
   // MTG: the set code is how buyers narrow a reprinted name to one printing;
   // "foil" only when the copy is one (a nonfoil search would drag foils in).
   const isMtg = game.id === "mtg";
+  const finish = facts.finish ?? (isMtg ? facts.variant : null);
   return [
     name,
     isMtg && card.setCode ? card.setCode : "",
     card.number,
-    isMtg && facts.finish && facts.finish !== "nonfoil" ? "foil" : "",
+    isMtg ? (finish && finish !== "nonfoil" ? "foil" : "") : printingWords(facts.variant, card),
     facts.firstEdition ? "1st edition" : "",
     facts.grading ? gradeLabel(facts.grading) : "",
     game.searchToken,

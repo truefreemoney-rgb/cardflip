@@ -308,7 +308,9 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
   // 1st Edition ↔ unlimited: the other printing is a separate catalog card.
   const [swapping, setSwapping] = useState(false);
   const [gradedSettledKey, setGradedSettledKey] = useState("");
-  const gradeKey = item.grading ? `${item.grading.company}:${item.grading.grade}:${card?.id ?? ""}` : "";
+  // The slab's own printing: a reverse holo PSA 10 is not a holo PSA 10 (10-22). Part of the key so a printing swap refetches.
+  const gradedPrinting = (() => { const v = effectiveVariant(item); return v && card?.prices.some((p) => p.variant === v && p.source !== "ebay") ? v : null; })();
+  const gradeKey = item.grading ? `${item.grading.company}:${item.grading.grade}:${card?.id ?? ""}:${gradedPrinting ?? ""}` : "";
   const gradedCacheHit = gradeKey ? gradedCompsCache.get(gradeKey) : undefined;
   const gradedComps = !gradeKey ? null : gradedCacheHit !== undefined ? gradedCacheHit : fetchedGradedComps;
   const gradedCompsLoading = Boolean(gradeKey) && gradedCacheHit === undefined && gradedSettledKey !== gradeKey;
@@ -317,7 +319,8 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
     // Cached grade: rendered from the cache directly — nothing to fetch.
     if (gradedCompsCache.get(gradeKey) !== undefined) return;
     let stale = false;
-    void fetchEbayComps(card, item.grading).then((res) => {
+    const printing = gradedPrinting;
+    void fetchEbayComps(card, item.grading, null, printing).then((res) => {
       const value =
         res.comps && res.comps.count >= 2
           ? { average: res.comps.average, count: res.comps.count }
@@ -334,9 +337,9 @@ export default function CardEditor({ item, ebayConnected, onChange, onNext, onAp
       const at = scale.indexOf(item.grading!.grade);
       for (const neighbor of [scale[at - 1], scale[at + 1]]) {
         if (!neighbor) continue;
-        const nKey = `${item.grading!.company}:${neighbor}:${card.id}`;
+        const nKey = `${item.grading!.company}:${neighbor}:${card.id}:${printing ?? ""}`;
         if (gradedCompsCache.has(nKey)) continue;
-        void fetchEbayComps(card, { company: item.grading!.company, grade: neighbor }).then((n) => {
+        void fetchEbayComps(card, { company: item.grading!.company, grade: neighbor }, null, printing).then((n) => {
           if (n.status === "done" || n.status === "empty") {
             gradedCompsCache.set(
               nKey,

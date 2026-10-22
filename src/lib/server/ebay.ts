@@ -1,5 +1,5 @@
 import "server-only";
-import { buildComps, isComparable } from "@/lib/ebayComps";
+import { buildComps, isComparable, printingWords } from "@/lib/ebayComps";
 import type { AskSeller } from "@/lib/ebayReferee";
 import { ebaySearchUrl, ebaySoldSearchUrl } from "@/lib/listing";
 import { gameOf, type EbayComps, type EbayListing, type GradedInfo, type PokemonCard } from "@/lib/types";
@@ -31,13 +31,15 @@ const CCG_SINGLES_CATEGORY = "183454";
  * Every game carries its word (10-22; the referee queries already did): a bare
  * "Elsa 12" pulled other games' cards.
  */
-function compsQuery(card: PokemonCard, firstEdition = false): string {
+function compsQuery(card: PokemonCard, firstEdition = false, variant: string | null = null): string {
   const name = card.englishName || card.name;
   const game = GAMES[gameOf(card)];
   return [
     name,
     game.id === "mtg" && card.setCode ? card.setCode : "",
     card.number,
+    // The printing's own words ("reverse holo", "poke ball", "foil"): without them a pattern card's asks are the plain card's.
+    printingWords(variant, card),
     firstEdition ? "1st edition" : "",
     game.searchToken,
   ]
@@ -163,14 +165,16 @@ export async function fetchEbayComps(
   grading?: { company: string; grade: string } | null,
   /** See isComparable: true = stamped copies only, false = unstamped only. */
   firstEdition?: boolean | null,
+  /** The printing being priced ("reverseHolofoil", "pokeBallPattern", "foil"); null = any. */
+  variant: string | null = null,
 ): Promise<EbayComps | null> {
   const token = await getAppToken(BROWSE_SCOPE);
-  const searchUrl = ebaySearchUrl(card, { firstEdition: firstEdition === true, grading: grading as GradedInfo | null });
+  const searchUrl = ebaySearchUrl(card, { firstEdition: firstEdition === true, grading: grading as GradedInfo | null, variant });
 
   const url = new URL(`${EBAY_API}/buy/browse/v1/item_summary/search`);
   // For a slab, the company+grade go into the query and isComparable flips
   // from rejecting graded titles to requiring exactly this grade.
-  const base = compsQuery(card, firstEdition === true);
+  const base = compsQuery(card, firstEdition === true, variant);
   const query = grading
     ? `${base} ${grading.company} ${grading.grade.match(/\d+(?:\.\d+)?/)?.[0] ?? grading.grade}`
     : base;
@@ -207,7 +211,7 @@ export async function fetchEbayComps(
     // Mixed currencies would silently corrupt a USD average.
     if (item.price?.currency && item.price.currency !== "USD") continue;
     if (!isPlainFixedPrice(item)) continue;
-    if (!isComparable(title, card, grading, firstEdition)) continue;
+    if (!isComparable(title, card, grading, firstEdition, variant)) continue;
 
     listings.push({
       id: item.itemId ?? `${title}-${value}`,

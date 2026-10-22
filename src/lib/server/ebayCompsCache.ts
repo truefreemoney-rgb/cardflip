@@ -14,7 +14,8 @@ import type { EbayComps, PokemonCard } from "@/lib/types";
  */
 
 const TTL_MS = 24 * 60 * 60 * 1000;
-const PREFIX = "ebaycomps:v1:";
+// v2 (10-22): the printing joined the key; a pattern card and its plain twin no longer share a day's answer.
+const PREFIX = "ebaycomps:v2:";
 
 export type Grading = { company: string; grade: string } | null | undefined;
 
@@ -46,11 +47,17 @@ export function compsIdentity(
   };
 }
 
-export function compsCacheKey(card: PokemonCard, grading: Grading, firstEdition: boolean | null | undefined): string {
+export function compsCacheKey(
+  card: PokemonCard,
+  grading: Grading,
+  firstEdition: boolean | null | undefined,
+  /** The printing being priced; null/undefined = any printing. */
+  variant?: string | null,
+): string {
   const id = card.id || `${card.name}|${card.setName ?? ""}|${card.number ?? ""}`;
   const g = grading ? `${grading.company}-${grading.grade}`.toLowerCase() : "raw";
   const fe = firstEdition === true ? "1st" : firstEdition === false ? "unl" : "any";
-  return `${PREFIX}${id}:${g}:${fe}`;
+  return `${PREFIX}${id}:${g}:${fe}:${variant || "any"}`;
 }
 
 interface Row {
@@ -88,8 +95,9 @@ export async function cachedEbayComps(
   grading: Grading,
   firstEdition: boolean | null | undefined,
   fetcher: () => Promise<EbayComps | null>,
+  variant?: string | null,
 ): Promise<{ comps: EbayComps | null; cached: boolean }> {
-  const key = compsCacheKey(card, grading, firstEdition);
+  const key = compsCacheKey(card, grading, firstEdition, variant);
   const hit = await getCachedComps(key).catch(() => undefined);
   if (hit) return { comps: hit.comps, cached: true };
   const comps = await fetcher();

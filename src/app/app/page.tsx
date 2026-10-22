@@ -1054,6 +1054,12 @@ export default function AppPage() {
     [patchItem],
   );
 
+  /** The printing to pull eBay comps for: the item's quoted printing when the card's own (non-eBay) prices carry it. */
+  const compsPrinting = (item: ScanItem | undefined, card: PokemonCard): string | null => {
+    const v = item ? effectiveVariant(item) : undefined;
+    return v && card.prices.some((p) => p.variant === v && p.source !== "ebay") ? v : null;
+  };
+
   const loadEbayComps = useCallback(
     async (id: string, card: PokemonCard, firstEditionOverride?: boolean) => {
       compsInFlight.current.add(id);
@@ -1068,7 +1074,9 @@ export default function AppPage() {
         // for an unlimited copy of a set that had a run).
         const current = itemsRef.current.find((i) => i.id === id);
         const stamped = firstEditionOverride ?? (current ? itemFirstEdition(current) : false);
-        const result = await fetchEbayComps(card, null, canBeFirstEdition(card) ? stamped : null);
+        // The printing being quoted (the scan's pattern read or the seller's pick): a reverse holo or Poké Ball
+        // pattern card is priced against its own asks, not the plain card's (10-22).
+        const result = await fetchEbayComps(card, null, canBeFirstEdition(card) ? stamped : null, compsPrinting(current, card));
         const item = itemsRef.current.find((i) => i.id === id);
         // Dropped from the queue, or the seller corrected the match while we
         // were waiting — either way these comps are for the wrong card now.
