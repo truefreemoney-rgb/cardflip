@@ -1,5 +1,10 @@
 ﻿# To test later
 
+## 10-22 12:53am ET: PUSHED 5573c19d..16524bee on Chris's "yes push it" (3 code: Magic pause entry removed; stamped-promo products never price the plain card; card-page badge "Checked against recent sales"; the rest docs/scripts). CI run 39724915663 running at 12:54am.
+- [ ] CI 39724915663 + Production smoke green (gh run list --branch main).
+- [ ] curl the Entei SM219 page: "Checked against recent sales (11 sold)." (and the 7 stamp-only cards like HGSS18 go stale by design).
+- [ ] 5:45am ET Pokémon write: the 15 fixed Staff-stamp promos stay at the plain product's market (code now skips the stamp products); the 33 retired cards show TCGplayer's number.
+
 ## 10-21 ~10:50pm ET: picture tiebreak on SONNET 5 (Chris: "Sonnet"; PUSHED 5573c19d with the Booster fix, Pinterest scripts, docs)
 - vision.ts TIEBREAK_MODEL = claude-sonnet-5 (One Piece stays Haiku 4.5). Basis: 8 of 8 same picks as Opus on Chris's own tiebreaks ($0.14 test, scripts/_tiebreak-ab-owner.mjs). tsc, test:visionbudget, test:vision-schema green.
 - [x] 11:15pm: CI run 39713226057 green (7m26s) + Production smoke 39713302347 green for 5573c19d.
@@ -284,6 +289,11 @@
 - [x] PASS 10-16 (curl: $939.50, no "looks off") 10-15: /cards/pokemon/crystal-guardians/charizard--ex14-4 shows $939.50 (hand keep POSTed 10-14 ~2:45pm ET; page copy was still "looks off" right after, cache).
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
+
+## 10-22 12:53am ET: PUSHED 5573c19d..16524bee on Chris's "yes push it" (3 code: Magic pause entry removed; stamped-promo products never price the plain card; card-page badge "Checked against recent sales"; the rest docs/scripts). CI run 39724915663 running at 12:54am.
+- [ ] CI 39724915663 + Production smoke green (gh run list --branch main).
+- [ ] curl the Entei SM219 page: "Checked against recent sales (11 sold)." (and the 7 stamp-only cards like HGSS18 go stale by design).
+- [ ] 5:45am ET Pokémon write: the 15 fixed Staff-stamp promos stay at the plain product's market (code now skips the stamp products); the 33 retired cards show TCGplayer's number.
 
 ## 10-19 ~10:30am ET: sign-up takeover closed (94efdbb4) + cap-break history (99159765), COMMIT ONLY
 - [x] COVERED BY TESTS 10-21 3:45am ET (live): test:sessionrevoke (stranger browser drops password + sessions; own browser keeps both) + test:emailverify E green on today's code; 94efdbb4 is on main. A live run needs a new account on cardflip.io, which I may not create; the next real cross-browser confirm can be read (users row password gone) read only.
