@@ -34,7 +34,7 @@ export const MOVER_DAYS = 7;
  * in the 10-18 data: 528 drops that day). Same days as CAP_BREAK_DAYS in lib/priceOutliers.ts (pages, mail, alerts).
  */
 export const CAP_PAUSES: Partial<Record<GameId, { from: string; settled: string; end: string }>> = {
-  mtg: { from: "2026-10-14", settled: "2026-10-14", end: "2026-10-21" },
+  // Magic's entry (from 10-14, end 10-21) ran out on its own and was removed 10-22; Pokémon's ends 10-25, remove it then.
   pokemon: { from: "2026-10-16", settled: "2026-10-18", end: "2026-10-25" },
 };
 export const MOVER_LIMIT = 5;
