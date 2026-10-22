@@ -330,3 +330,18 @@ The 10-16/10-17 listing cap cut 106 Pokémon prices (data/crash-2026-10-19.json)
 What it says: the listing cap took the LOWEST LISTING as the price for these cards, and on vintage cards the lowest listing is a damaged or heavily played copy. The checks hold 30 days; the nightly writer keeps the checked number while TCGplayer's own number stays more than 25% off it. Pages show "Checked against recent sales (N sold)". ISR-cached pages refresh within 48 h (three invalidated by hand: Rayquaza C DP47, Giratina EX, Rayquaza C SV).
 
 Follow-up (your call): the 76 thin ones could be read against LP sales x 1/0.85 or left; and the cap itself (pokemonListingCap) should never take a lowest listing on a vintage card as the market. Noted in TASKS C.
+
+## 15. The Pokémon listing cap, measured across its whole range and switched OFF (7:27AM ET 10-22, Chris "build the cap rule")
+Today the cap fires on 2,039 Pokémon printings at $20+ (1,239 in the 1.45-2x band, 586 at 2-3x, 214 at 3x+). A 48-card sample, 16 per band, read against TCGplayer's latest Near Mint sales of the exact printing (your sign-in, 0 eBay). 16 had 3+ NM sales:
+
+| Band (market / cheapest listing) | Cards with NM evidence | Market closer than the cap | Median error, market | Median error, cap |
+|---|---|---|---|---|
+| 1.45-2x (the band the cap was tuned on) | 4 | 4 of 4 | 18% | 30% |
+| 2-3x | 7 | 6 of 7 | 13% | 38% |
+| 3x+ | 5 | 5 of 5 | 41% | 72% |
+
+Examples: Rayquaza C Supreme Victors NM $399.50, market $235, cap $74; Lugia Expedition 1st? no: ecard1-6 NM $1,455, market $875, cap $418; Pikachu BW Promo 26 NM $40, market $24, cap $17. The one cap win: ex16-95 (market 35% high, cap 8% off).
+
+Why the 10-16 and 10-17 samples said the opposite: they were eBay sold reads that mixed played copies and Best Offer sales (both excluded since 10-21), which read low and made the cut look right. A damaged copy for sale says nothing about a Near Mint price.
+
+Done (code, held for your push): POKEMON_CAP_ON = false in pokemonPriceRefresh.ts (the function stays and answers the market); charts and the 7d/30d change words now start at the LIFT, the day a cut series steps back to 65%+ of its pre-cut level (lib/priceOutliers.ts capLiftDay), so the 2,039 cards coming back read as flat history, not "Up 200%". Tests: price history +9, site guard cap tests rewritten, card pages 323 green, tsc + eslint clean. Expect after the push: the first nightly write puts ~2,000 Pokémon prices back to TCGplayer's market (mostly up); the guard's recovery rule and the in-band check rule wave them through; the 28 checks keep binding until TCGplayer agrees.

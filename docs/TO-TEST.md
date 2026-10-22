@@ -1,5 +1,11 @@
 ﻿# To test later
 
+## 10-22 7:27AM ET: Pokémon listing cap OFF + chart lift day (COMMIT ONLY, not visible by itself; Chris "build the cap rule"; report card §15)
+- pokemonPriceRefresh.ts POKEMON_CAP_ON=false; priceOutliers.ts capLiftDay (fromCapBreak + seriesBreakDay start at the lift). test:pricehistory +9, test:sitetrust cap tests rewritten, cardpages/social/digest green, tsc + eslint clean.
+- [ ] After push, first 5:45am ET write: scripts/_uncapped-lines.mjs reads 0 lines breaking the cap... (script now moot) -> instead: scripts/_peek-series.mjs --prod on 5 of the 2,039 capped printings (e.g. ex9-41, dp6-12, lc-31, pl1-9, bwp-BW82) = last point at TCGplayer market, a step up of 1.45x+; their card pages: 24h/7d pills read from the lift (no "Up 200%"); /admin/prices "high" count does not explode (the referee reads asks, not the cap).
+- [ ] The 28 checked cards keep the checked number (price_checked binds; tcg_usd notes the raw market).
+- [ ] 1pm / 7pm posts the day after: no card's "this week" move spans the lift (social reads seriesCapBreak via campaignData).
+
 ## 10-22 ~6:59AM ET: 28 of the 106 cap-cut Pokémon prices FIXED on prod with TCGplayer NM-sales checks (report card §14; data write, no code)
 - [x] 3:55am curl: Rayquaza C DP47 $999.99, Giratina EX DE 124 $611.98, Rayquaza C SV 8 $399.50 all print with "Checked against recent sales" (invalidated by hand; the other 25 within 48 h).
 - [ ] 5:45am ET write keeps the 28 checked numbers (price_checked binds; tcg_usd notes TCGplayer's raw figure).
@@ -313,6 +319,12 @@
 - [x] PASS 10-16 (curl: $939.50, no "looks off") 10-15: /cards/pokemon/crystal-guardians/charizard--ex14-4 shows $939.50 (hand keep POSTed 10-14 ~2:45pm ET; page copy was still "looks off" right after, cache).
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
+
+## 10-22 7:27AM ET: Pokémon listing cap OFF + chart lift day (COMMIT ONLY, not visible by itself; Chris "build the cap rule"; report card §15)
+- pokemonPriceRefresh.ts POKEMON_CAP_ON=false; priceOutliers.ts capLiftDay (fromCapBreak + seriesBreakDay start at the lift). test:pricehistory +9, test:sitetrust cap tests rewritten, cardpages/social/digest green, tsc + eslint clean.
+- [ ] After push, first 5:45am ET write: scripts/_uncapped-lines.mjs reads 0 lines breaking the cap... (script now moot) -> instead: scripts/_peek-series.mjs --prod on 5 of the 2,039 capped printings (e.g. ex9-41, dp6-12, lc-31, pl1-9, bwp-BW82) = last point at TCGplayer market, a step up of 1.45x+; their card pages: 24h/7d pills read from the lift (no "Up 200%"); /admin/prices "high" count does not explode (the referee reads asks, not the cap).
+- [ ] The 28 checked cards keep the checked number (price_checked binds; tcg_usd notes the raw market).
+- [ ] 1pm / 7pm posts the day after: no card's "this week" move spans the lift (social reads seriesCapBreak via campaignData).
 
 ## 10-22 ~6:59AM ET: 28 of the 106 cap-cut Pokémon prices FIXED on prod with TCGplayer NM-sales checks (report card §14; data write, no code)
 - [x] 3:55am curl: Rayquaza C DP47 $999.99, Giratina EX DE 124 $611.98, Rayquaza C SV 8 $399.50 all print with "Checked against recent sales" (invalidated by hand; the other 25 within 48 h).
