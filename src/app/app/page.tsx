@@ -363,7 +363,18 @@ export default function AppPage() {
       }
       commit(
         itemsRef.current.map((item) =>
-          item.id === id ? { ...item, ...patch } : item,
+          item.id === id
+            ? {
+                ...item,
+                ...patch,
+                // A printing pick (reverse holo, Poké Ball pattern, Magic foil) is a different eBay market: queue the
+                // comps again for it (one Browse call, cached per printing for the day). A lookup already out re-queues
+                // itself when it lands (loadEbayComps' finally), so a loading item is left alone here (10-22).
+                ...("variant" in patch && item.card && (patch.variant ?? null) !== (item.variant ?? null) && item.ebayStatus !== "loading"
+                  ? { ebayStatus: "idle" as const }
+                  : {}),
+              }
+            : item,
         ),
       );
 
@@ -1064,6 +1075,7 @@ export default function AppPage() {
     async (id: string, card: PokemonCard, firstEditionOverride?: boolean) => {
       compsInFlight.current.add(id);
       patchItem(id, { ebayStatus: "loading" });
+      let printing: string | null = null;
       // The point rides alongside the comps; whichever lands second re-saves
       // the price, so the ledger ends up on the same number as the screen.
       void loadCurrentPoint(id, card);
@@ -1076,7 +1088,8 @@ export default function AppPage() {
         const stamped = firstEditionOverride ?? (current ? itemFirstEdition(current) : false);
         // The printing being quoted (the scan's pattern read or the seller's pick): a reverse holo or Poké Ball
         // pattern card is priced against its own asks, not the plain card's (10-22).
-        const result = await fetchEbayComps(card, null, canBeFirstEdition(card) ? stamped : null, compsPrinting(current, card));
+        printing = compsPrinting(current, card);
+        const result = await fetchEbayComps(card, null, canBeFirstEdition(card) ? stamped : null, printing);
         const item = itemsRef.current.find((i) => i.id === id);
         // Dropped from the queue, or the seller corrected the match while we
         // were waiting — either way these comps are for the wrong card now.
@@ -1126,8 +1139,10 @@ export default function AppPage() {
         // The card changed while this lookup was out: the effect below skipped the new card because this
         // one was in flight, and nothing re-ran it after (Angel #25 kept the D23 promo's price, 10-20).
         // A no-op patch re-renders, so the effect picks the new card up now.
+        // Same when the seller picked another printing while it was out: these comps are the old printing's.
         const now = itemsRef.current.find((i) => i.id === id);
         if (now?.card && now.card.id !== card.id && now.ebayStatus === "idle") patchItem(id, { ebayStatus: "idle" });
+        else if (now?.card && now.card.id === card.id && compsPrinting(now, now.card) !== printing) patchItem(id, { ebayStatus: "idle" });
       }
     },
     [patchItem, loadCurrentPoint],
