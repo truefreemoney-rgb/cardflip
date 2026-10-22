@@ -1,6 +1,11 @@
 # To test later
 
-## 10-21 ~10:35pm ET: admin can gift BOOSTER scans (TASKS B; COMMIT ONLY 18ef47f8, VISIBLE admin: shot SENT docs/shots/admin-booster-scans-after-phone.jpg)
+## 10-21 ~10:50pm ET: picture tiebreak on SONNET 5 (Chris: "Sonnet"; PUSHED 5573c19d with the Booster fix, Pinterest scripts, docs)
+- vision.ts TIEBREAK_MODEL = claude-sonnet-5 (One Piece stays Haiku 4.5). Basis: 8 of 8 same picks as Opus on Chris's own tiebreaks ($0.14 test, scripts/_tiebreak-ab-owner.mjs). tsc, test:visionbudget, test:vision-schema green.
+- [ ] After push: next scans in scan_usage show model claude-sonnet-5 on tiebreak rows (read LIKE '%tiebreak%'), cost_micros ~11,000 not ~20,000; /admin scan cost tile drops toward ~$0.021 a scan over the week.
+- [ ] Watch the first week's tiebreak picks (/admin, or SELECT read FROM scan_usage WHERE read LIKE '%tiebreak%'): any pick that a user then corrects with "Not this card?" on a pattern card (Poké Ball / Master Ball / reverse) = switch back to Opus and say so.
+
+## 10-21 ~10:35pm ET: admin can gift BOOSTER scans (TASKS B; PUSHED 5573c19d ~10:50pm on Chris's "push the booster fix", VISIBLE admin: shot SENT docs/shots/admin-booster-scans-after-phone.jpg)
 - Adjust Scans: Plan scans / Booster scans toggle (Booster default + amber note on a Booster-only account); POST /api/admin/users/[id]/scans { pack: true } -> adjustPackScans (users.extra_scans, ledger kind admin_pack, plan "pack", floors at 0). test:adminroutes +3, tsc + eslint clean.
 - [ ] After push: /admin/users, open Jenny's row (jporter1421): header shows "Booster N"; Add 1 with Booster scans -> "Added 1 Booster scans. Booster scans now N+1"; her app shows one more scan; ledger row kind admin_pack.
 ## 10-21 ~10:20pm ET: eBay reads = Ungraded + plain Buy It Now only (PUSHED 6ba0c921, CI + Production smoke green 10:25pm)
