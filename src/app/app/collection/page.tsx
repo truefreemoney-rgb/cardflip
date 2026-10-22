@@ -757,6 +757,7 @@ export default function CollectionPage() {
         {editionChip}
       </>
     );
+    const verifiedDraft = draft && card.kind !== "sealed" && Boolean(card.verifiedAt);
     // Seller mode (Chris 10-22: "the listing ending should be similar"): the listing status is a full-width band
     // under the two prices, the same shape as the Verify bar, instead of a chip squeezed into the market cell.
     const statusBar = live ? (
@@ -769,11 +770,15 @@ export default function CollectionPage() {
       </div>
     ) : ended ? (
       <div className="flex w-full items-center justify-center rounded-full bg-amber-400/15 px-4 py-2.5 text-sm font-semibold text-amber-300">Listing Ended</div>
+    ) : verifiedDraft ? (
+      // Chris 10-22: "the verified tag with the check mark should be like 'listing ended', keep the green color".
+      <div className="flex w-full items-center justify-center gap-1.5 rounded-full bg-emerald-500/15 px-4 py-2.5 text-sm font-semibold text-emerald-300">
+        <span aria-hidden>✓</span> Verified
+      </div>
     ) : null;
     // Market Price pill makeover (Chris 10-22, from his phone: "looks terrible", Verify goes to the RIGHT of the
     // price and is tappable, prices are green, the verified box had "way too much room"). The Verify pill runs the
     // same action as "Yes, This Is My Card"; a game that asks which printing/foil first jumps to that picker.
-    const verifiedDraft = draft && card.kind !== "sealed" && Boolean(card.verifiedAt);
     const choicesNow = verifyChoices[card.id];
     const needsPick = asksPrinting(card) && (choicesNow === undefined || choicesNow === "failed" || choicesNow.length >= 2);
     const verifyBusy = verifying === card.id;
@@ -814,7 +819,7 @@ export default function CollectionPage() {
     // "MARKET" + Verify squeezed onto the label row "looks like shit", "we need a unique pill for sellers").
     // Collector (D, picked 10-22 afternoon): full-width box, Verify to the right of the price, a hint line.
     // Seller (B, picked 10-22 evening): Market and eBay price side by side, Verify as a full-width bar under
-    // them; once verified the bar goes and the "Verified" tick rides with the chips in the market cell.
+    // them; once verified the same band reads "Verified" in green (statusBar below).
     const marketCell = (
       <div className="min-w-0 bg-black/25 px-3 py-2.5">
         {pricingOnly ? (
@@ -833,12 +838,7 @@ export default function CollectionPage() {
           <>
             <dt className={`${labelCls} whitespace-nowrap`}>Market Price</dt>
             <dd className={`mt-1 ${marketPriceCls}`}>{marketText}</dd>
-            {(editionChip || verifiedDraft) && (
-              <div className="mt-1.5 flex flex-wrap items-center gap-1">
-                {editionChip}
-                {verifiedDraft && verifiedTick}
-              </div>
-            )}
+            {editionChip && <div className="mt-1.5 flex flex-wrap items-center gap-1">{editionChip}</div>}
           </>
         )}
       </div>
