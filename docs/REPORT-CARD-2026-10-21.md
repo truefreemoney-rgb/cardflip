@@ -144,6 +144,6 @@ eBay sold read the new way: Graded: No, Buy It Now, and every listing counts as 
 | Hunter's Insight · Marvel Universe 35 borderless (1pm) | $2.77 | $2.67 (222 listings) | not needed | Stands |
 | Dragonite · Dragon Vault 5 (7pm) | $27.87 | $34.76 (53 listings) | not needed | Stands (20% under TCGplayer, inside the band) |
 | Latios · Dragon Vault 10 (7pm) | $18.71 | $19.07 (44 listings) | not needed | Stands |
-| Venusaur · Base Set 15/102 holo (reader: "too high", 10-19) | $136.30 | $167.66 (218 listings) | 8 untitled-condition sales in 2 days: $24.99-$105, median ~$57; the one marked LP went $100 | **Stands by the TCGplayer-first rule** (19% under TCGplayer). Flag for you: eBay NM-read says ~$57, a 2.4x gap; Pokémon vintage holos are where TCGplayer and eBay disagree most. Your call if you want eBay to win here. |
+| Venusaur · Base Set 15/102 holo (reader: "too high", 10-19) | $136.30 | $167.66 (218 listings) | plain Buy It Now only: $53.50 (no condition), $53.34 (MP), $100 (LP); the other 8 were Best Offer = out. One clean sale is not a read | **Stands by the TCGplayer-first rule** (19% under TCGplayer; eBay has too little clean data to argue) |
 
 All six post cards marked "Looks right" on prod (scripts/_post-check-mark.mjs, the same write as the button). The reader flag itself stays open on /admin/prices (resolving it needs the admin sign-in); nothing to fix.
