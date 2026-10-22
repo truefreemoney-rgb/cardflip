@@ -782,7 +782,8 @@ export async function deleteCard(id: string, userId: string): Promise<void> {
  * Bulk delete (09-09): the Inventory used to fire one DELETE per selected
  * card — 88 at once from one browser left every response lost on the way
  * back while the server had already removed the rows. One statement per
- * chunk instead. Sold rows are the record and are skipped, as is anything
+ * chunk instead. Sold rows are the record and are skipped, as are rows live on eBay (10-22: the
+ * listing is ended first) and anything
  * that is not the seller's. Returns how many rows went.
  */
 export async function deleteCards(ids: string[], userId: string): Promise<number> {
@@ -795,14 +796,14 @@ export async function deleteCards(ids: string[], userId: string): Promise<number
       // Only the photos of rows this delete removes: the seller's own, unsold (10-01 sweep: it took any id it was sent,
       // another seller's photo included, and the photos of sold rows that stay as the record).
       await db
-        .prepare(`DELETE FROM card_photos WHERE card_id IN (SELECT id FROM cards WHERE user_id = ? AND status != 'sold' AND id IN (${marks}))`)
+        .prepare(`DELETE FROM card_photos WHERE card_id IN (SELECT id FROM cards WHERE user_id = ? AND status != 'sold' AND NOT (ebay_listing_id IS NOT NULL AND ebay_ended_at IS NULL) AND id IN (${marks}))`)
         .run(userId, ...chunk);
     } catch {
       // Nothing stored.
     }
-    await logRemovals(`user_id = ? AND status != 'sold' AND id IN (${marks})`, [userId, ...chunk], "bulk");
+    await logRemovals(`user_id = ? AND status != 'sold' AND NOT (ebay_listing_id IS NOT NULL AND ebay_ended_at IS NULL) AND id IN (${marks})`, [userId, ...chunk], "bulk");
     const r = await db
-      .prepare(`DELETE FROM cards WHERE user_id = ? AND status != 'sold' AND id IN (${marks})`)
+      .prepare(`DELETE FROM cards WHERE user_id = ? AND status != 'sold' AND NOT (ebay_listing_id IS NOT NULL AND ebay_ended_at IS NULL) AND id IN (${marks})`)
       .run(userId, ...chunk);
     removed += Number(r.changes ?? 0);
   }

@@ -61,7 +61,7 @@ export async function POST(req: Request) {
     // A missing price means "unpriced" ($0); a present one must be a real
     // non-negative number, and never under the fee floor (lib/fees.ts).
     const price = body?.price === undefined || body?.price === null ? 0 : body.price;
-    if (typeof price !== "number" || !Number.isFinite(price) || price < 0) {
+    if (typeof price !== "number" || !Number.isFinite(price) || price < 0 || price > 1e6) {
       return NextResponse.json({ error: "price must be a non-negative number" }, { status: 400 });
     }
     // US sellers: the original floor sentence; a seller on another eBay site is checked in their currency.

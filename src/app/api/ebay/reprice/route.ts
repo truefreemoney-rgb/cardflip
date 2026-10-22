@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     const body = (await req.json().catch(() => null)) as { cardId?: unknown; price?: unknown } | null;
     const cardId = typeof body?.cardId === "string" ? body.cardId : null;
     const price =
-      typeof body?.price === "number" && Number.isFinite(body.price) && body.price > 0
+      typeof body?.price === "number" && Number.isFinite(body.price) && body.price > 0 && body.price <= 1e6
         ? Math.round(body.price * 100) / 100
         : null;
     if (!cardId || price == null) {

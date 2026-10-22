@@ -9,10 +9,12 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminSwitchesPage() {
   await requireOwnerPage();
-  const games = { mtg: false, lorcana: false, onepiece: false, yugioh: false };
-  for (const g of GATED_GAMES) games[g] = await gamePublic(g);
-  const email = await emailConfirmStats();
-  const localMarkets = await ebayLocalMarketsOn();
+  const [gameRows, email, localMarkets] = await Promise.all([
+    Promise.all(GATED_GAMES.map(async (g) => [g, await gamePublic(g)] as const)),
+    emailConfirmStats(),
+    ebayLocalMarketsOn(),
+  ]);
+  const games = Object.fromEntries(gameRows) as Record<(typeof GATED_GAMES)[number], boolean>;
   return (
     <section>
       <h1 className="mb-3 text-2xl font-semibold text-white">Switches</h1>

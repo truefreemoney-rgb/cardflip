@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AuthError, emailGate, requireUser } from "@/lib/server/auth";
-import { ipGate } from "@/lib/server/rateLimitDb";
+import { limitOrRespondAsync, shutOutResponse, torResponse } from "@/lib/server/rateLimitDb";
+import { LIMITS } from "@/lib/server/rateLimit";
 import { ensureStripeCustomer, isSubscribed } from "@/lib/server/users";
 import { checkoutCurrency } from "@/lib/pricing";
 import { createCheckoutSession, createCustomer, createPackCheckoutSession, packConfigured, proConfigured, stripeConfigured } from "@/lib/server/stripe";
@@ -11,10 +12,13 @@ import { createCheckoutSession, createCustomer, createPackCheckoutSession, packC
  * subscribed or not (a subscriber's pack scans are spent after the month).
  */
 export async function POST(req: NextRequest) {
-  const limited = await ipGate(req, "billing");
-  if (limited) return limited;
+  // Shut-out and Tor stay per IP; the budget itself is per signed-in user (10-22: it shared the sign-in budget per IP).
+  const blocked = (await shutOutResponse(req)) ?? (await torResponse(req));
+  if (blocked) return blocked;
   try {
     const user = await requireUser();
+    const limited = await limitOrRespondAsync(`billing:${user.id}`, LIMITS.authAttempt);
+    if (limited) return limited;
     // Paying does not prove the inbox, and Stripe is given user.email.
     const unconfirmed = emailGate(user, "Confirm your email first, then you can subscribe.");
     if (unconfirmed) return unconfirmed;

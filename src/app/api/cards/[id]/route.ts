@@ -3,6 +3,7 @@ import { doubtedCardsAmong, giveBackDoubtedDeletes } from "@/lib/server/scanGive
 import { requireUser, AuthError } from "@/lib/server/auth";
 import { deleteCard, getCardForUser, updateCard, type CardStatus } from "@/lib/server/cards";
 import { deleteCardPhoto } from "@/lib/server/cardPhotos";
+import { CONDITIONS } from "@/lib/listing";
 import { ledgerFloorProblem, listedFloorProblem } from "@/lib/server/ebayMarket";
 
 interface RouteParams {
@@ -61,6 +62,15 @@ export async function PATCH(req: Request, { params }: RouteParams) {
       }
     }
     const str = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : undefined);
+    // Condition is one of the listed grades (10-22): it used to take any text.
+    if (body?.condition !== undefined && !(typeof body.condition === "string" && (CONDITIONS as string[]).includes(body.condition.slice(0, 40)))) {
+      return NextResponse.json({ error: "condition must be one of the listed grades" }, { status: 400 });
+    }
+    for (const k of ["soldPrice", "soldAt"] as const) {
+      if (typeof body?.[k] === "number" && body[k] < 0) {
+        return NextResponse.json({ error: `${k} can't be negative` }, { status: 400 });
+      }
+    }
     // Nullable numeric columns (dates, a sale price): a finite number >= 0 lands, anything else clears (review 10-19 pricing #14).
     const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : null);
     const card = await updateCard(id, user.id, {

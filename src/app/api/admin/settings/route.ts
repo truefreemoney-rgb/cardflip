@@ -23,9 +23,13 @@ import { emailConfirmActive } from "@/lib/server/mail";
  * routes a seller to a local marketplace yet.
  */
 async function allSwitches() {
-  const games: Record<string, boolean> = {};
-  for (const g of GATED_GAMES) games[g] = await gamePublic(g);
-  return { magicPublic: games.mtg, games, emailConfirm: await emailConfirmStats(), ebayLocalMarkets: await ebayLocalMarketsOn() };
+  const [gameRows, emailConfirm, ebayLocalMarkets] = await Promise.all([
+    Promise.all(GATED_GAMES.map(async (g) => [g, await gamePublic(g)] as const)),
+    emailConfirmStats(),
+    ebayLocalMarketsOn(),
+  ]);
+  const games: Record<string, boolean> = Object.fromEntries(gameRows);
+  return { magicPublic: games.mtg, games, emailConfirm, ebayLocalMarkets };
 }
 
 export async function GET() {

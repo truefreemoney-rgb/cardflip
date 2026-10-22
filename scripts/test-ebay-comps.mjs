@@ -156,6 +156,9 @@ const kept = trimOutliers(prices);
 check(`drops the $12 bargain`, kept.includes(12), false);
 check(`drops the $4000 moonshot`, kept.includes(4000), false);
 check(`keeps the real cluster (7 listings)`, kept.length, 7);
+// A flat middle (iqr 0) used to skip the fence (10-22).
+check("flat middle still drops the $500 moonshot", trimOutliers([1, 1, 1, 1, 1, 500]).includes(500), false);
+
 
 console.log("\nSmall samples are left alone (a fence on 3 points is noise):");
 check("3 prices survive untrimmed", trimOutliers([10, 50, 900]).length, 3);

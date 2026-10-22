@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AuthError, requireUser } from "@/lib/server/auth";
-import { ipGate } from "@/lib/server/rateLimitDb";
+import { limitOrRespondAsync, shutOutResponse, torResponse } from "@/lib/server/rateLimitDb";
+import { LIMITS } from "@/lib/server/rateLimit";
 import { createPortalSession, stripeConfigured } from "@/lib/server/stripe";
 
 /** POST — answers { url } to Stripe's hosted manage-billing portal. */
 export async function POST(req: NextRequest) {
-  const limited = await ipGate(req, "billing");
-  if (limited) return limited;
+  // Shut-out and Tor stay per IP; the budget itself is per signed-in user (10-22: it shared the sign-in budget per IP).
+  const blocked = (await shutOutResponse(req)) ?? (await torResponse(req));
+  if (blocked) return blocked;
   try {
     const user = await requireUser();
+    const limited = await limitOrRespondAsync(`billing:${user.id}`, LIMITS.authAttempt);
+    if (limited) return limited;
     if (!stripeConfigured() || !user.stripeCustomerId) {
       return NextResponse.json({ error: "No billing to manage yet" }, { status: 400 });
     }

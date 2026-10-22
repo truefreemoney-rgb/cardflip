@@ -126,7 +126,13 @@ export async function POST(req: Request) {
     // "4/102" slabs priced Base Set Charizard PSA 10 at $629 vs $944 raw) —
     // no price beats a wrong one, and it never enters the history.
     // A raw market the price guard flagged (untrusted) is not a floor to hold real slab sales against.
-    const rawMarket = Math.max(0, ...(card.prices ?? []).filter((p) => p.currency === "USD" && !p.untrusted).map((p) => p.market ?? 0));
+    // card.prices comes from the client: a malformed value counts as no price, never a 502 (10-22).
+    const rawMarket = Math.max(
+      0,
+      ...(Array.isArray(card.prices) ? card.prices : [])
+        .filter((p) => p && p.currency === "USD" && !p.untrusted)
+        .map((p) => (Number.isFinite(p.market) ? (p.market as number) : 0)),
+    );
     if (grading && comps && rawMarket > 0 && comps.average < rawMarket) {
       console.warn(`graded comps below raw for ${card.id}: ${grading.company} ${grading.grade} ${comps.average} < ${rawMarket}`);
       comps = null;

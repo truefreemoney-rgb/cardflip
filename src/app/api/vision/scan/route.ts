@@ -25,8 +25,8 @@ import {
 
 /**
  * Durable daily caps (db counters — the in-memory windows in rateLimit.ts
- * never bind on serverless, the PSA-leak lesson). Same numbers the in-memory
- * daily rules carried; those stay as warm-instance burst guards per minute.
+ * never bind on serverless, the PSA-leak lesson). The in-memory rule is gone (10-22); only the
+ * per-minute burst guard stays there.
  */
 const SCAN_DAILY_BUDGET = 500;
 
@@ -46,7 +46,7 @@ export async function POST(req: Request) {
     const user = await requireUser();
     const wall = subscriptionGate(user);
     if (wall) return wall;
-    // Every call here costs money at Anthropic — per-account burst + daily caps.
+    // Every call here costs money at Anthropic — per-account burst cap here, the daily cap below.
     enforceRateLimit(`vision:${user.id}`, ...LIMITS.visionScan);
 
     if (!isVisionConfigured()) {

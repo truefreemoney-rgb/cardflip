@@ -128,15 +128,12 @@ const MINUTE = 60_000;
 const DAY = 24 * 60 * MINUTE;
 
 /**
- * Per-route budgets. Vision is the only one that costs real money per call,
- * so it gets a daily cap on top of the burst cap; a scanning session is a
- * few calls a minute, so 30/min leaves headroom for auto-scan retries.
+ * Per-route budgets. Vision is the only one that costs real money per call; its DAILY cap is a db
+ * counter in the scan route (10-22: an in-memory daily rule never binds on serverless, so it is gone).
+ * A scanning session is a few calls a minute, so 30/min leaves headroom for auto-scan retries.
  */
 export const LIMITS = {
-  visionScan: [
-    { limit: 30, windowMs: MINUTE },
-    { limit: 500, windowMs: DAY },
-  ] as RateLimitRule[],
+  visionScan: [{ limit: 30, windowMs: MINUTE }] as RateLimitRule[],
   ebayComps: [{ limit: 60, windowMs: MINUTE }] as RateLimitRule[],
   /** Per-user burst guard on PSA cert lookups. */
   psaCert: [{ limit: 10, windowMs: MINUTE }] as RateLimitRule[],

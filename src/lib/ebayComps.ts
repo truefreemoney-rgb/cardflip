@@ -218,10 +218,10 @@ export function trimOutliers(prices: number[]): number[] {
   const q1 = quantile(sorted, 0.25);
   const q3 = quantile(sorted, 0.75);
   const iqr = q3 - q1;
-  if (iqr === 0) return sorted;
-
-  const lower = q1 - 1.5 * iqr;
-  const upper = q3 + 1.5 * iqr;
+  // A flat middle (iqr 0) used to skip the fence, so [1,1,1,1,1,500] averaged 84 (10-22): fence at 3x the median instead.
+  const mid = median(sorted);
+  const lower = iqr === 0 ? mid / 3 : q1 - 1.5 * iqr;
+  const upper = iqr === 0 ? mid * 3 : q3 + 1.5 * iqr;
   const kept = sorted.filter((p) => p >= lower && p <= upper);
   return kept.length > 0 ? kept : sorted;
 }

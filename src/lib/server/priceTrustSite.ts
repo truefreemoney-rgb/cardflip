@@ -140,7 +140,7 @@ export function judgeFull(data: TrustData, opts: JudgeOpts = {}): { flag: PriceF
     // The OLD side of a move: this series up to that day, the siblings as they stood then (social.ts oldPriceOk).
     to = opts.old.value;
     if (!(to > 0)) return NONE;
-    prices = prices.slice(0, todayIdx - opts.old.back + 1);
+    prices = prices.slice(0, Math.max(0, todayIdx - opts.old.back + 1));
   } else {
     to = s ? lastIn(s) : null;
     const live = opts.liveUsd != null && opts.liveUsd > 0 ? opts.liveUsd : null;
