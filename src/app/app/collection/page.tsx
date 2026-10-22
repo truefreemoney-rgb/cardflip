@@ -297,7 +297,7 @@ function MarkSoldSheet({
                   />
                 </span>
               </label>
-              <p className="mt-3 text-xs text-zinc-500">The sale counts in your stats. The card stays in Inventory as a sold record.</p>
+              <p className="mt-3 text-xs text-zinc-500">The sale counts in your stats. It stays in Inventory as a sold record.</p>
             </>
           )}
           <div className="mt-5 flex gap-2">
@@ -714,7 +714,8 @@ export default function CollectionPage() {
     // Why a cheap draft sits above its market (value + fees + postage): only
     // while the price IS the suggested one, not a price the seller typed.
     const lp = livePrices[card.id];
-    const costNote = !pricingOnly && draft && lp && !lp.flag && Math.abs(card.price - lp.suggested) < 0.005 ? askingNoteFor(lp.market, card.condition, card.shippingMethod) : null;
+    // Sealed product skips it (10-22 local walk): a booster box is not "Card value … tracked-mailer postage".
+    const costNote = !pricingOnly && draft && card.kind !== "sealed" && lp && !lp.flag && Math.abs(card.price - lp.suggested) < 0.005 ? askingNoteFor(lp.market, card.condition, card.shippingMethod) : null;
     // Condition is a tap away on any card still in hand (Chris 10-04, both modes); a live listing changes on eBay's
     // side, a sale is the record, and a graded slab ("PSA 10") keeps its own path in the editor.
     const conditionEditable = !sold && !live && !ended && (CONDITIONS as string[]).includes(card.condition);
