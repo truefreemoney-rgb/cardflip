@@ -820,6 +820,35 @@ async function matchArtByPicture(base64Image: string, read: VisionCardRead, kind
   }
 }
 
+/**
+ * Long edge of the picture the FIRST read sees. The phone sends up to 1,600 px (~2,450 picture tokens); at 1,024 px
+ * (~1,040 tokens) Sonnet 5 identified the same 28 of 32 of Chris's scans as the full picture, every miss shared
+ * (10-22, scripts/_firstread-size-owner.mjs, docs/REPORT-CARD-2026-10-21.md §13), ~15% off a scan's cost. 768 px
+ * started guessing numbers where the full read said unknown, so not smaller. Only the first read shrinks: the
+ * second look's crops, the pattern look and the picture tiebreak keep the full photo for fine print.
+ */
+export const FIRST_READ_MAX_EDGE = 1024;
+
+/** The first read's picture: the photo shrunk to FIRST_READ_MAX_EDGE on its long edge (never enlarged), as JPEG; the photo itself when sharp cannot read it. */
+export async function firstReadPicture(base64Image: string, mediaType: string): Promise<{ base64: string; mediaType: ImageMediaType }> {
+  try {
+    const sharp = (await import("sharp")).default;
+    const input = Buffer.from(base64Image, "base64");
+    const meta = await sharp(input).metadata();
+    const long = Math.max(meta.width ?? 0, meta.height ?? 0);
+    if (!long || long <= FIRST_READ_MAX_EDGE) return { base64: base64Image, mediaType: normalizeMediaType(mediaType) };
+    const out = await sharp(input)
+      .rotate()
+      .resize({ width: FIRST_READ_MAX_EDGE, height: FIRST_READ_MAX_EDGE, fit: "inside", withoutEnlargement: true })
+      .jpeg({ quality: 88 })
+      .toBuffer();
+    return { base64: out.toString("base64"), mediaType: "image/jpeg" };
+  } catch (err) {
+    console.warn("first read picture: resize failed, sending the photo as is:", err instanceof Error ? err.message : err);
+    return { base64: base64Image, mediaType: normalizeMediaType(mediaType) };
+  }
+}
+
 async function firstLook(
   base64Image: string,
   mediaType: string,
@@ -828,6 +857,7 @@ async function firstLook(
   pocket = false,
   clock: BudgetClock = { startedAt: Date.now() },
 ): Promise<{ read: VisionCardRead; usage: VisionUsage }> {
+  const picture = await firstReadPicture(base64Image, mediaType);
   const response = await withinBudget((timeout) => getClient().messages.create({
     // Sonnet 5, was Opus 5 (09-02 A/B, all 64 prod photos, ab-vision.mjs →
     // backups/ab-vision-0902.json): identification IDENTICAL (name 64/64,
@@ -862,8 +892,8 @@ async function firstLook(
             type: "image",
             source: {
               type: "base64",
-              media_type: normalizeMediaType(mediaType),
-              data: base64Image,
+              media_type: picture.mediaType,
+              data: picture.base64,
             },
           },
           {
