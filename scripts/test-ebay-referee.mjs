@@ -6,7 +6,7 @@
  * finish). Each pin is a mistake the first prototype made, or a card the rule
  * must catch or must leave alone.
  */
-const { refereeMatcher, refereeQueries, summarizeAsks, refereeVerdict, EBAY_REFEREE } = await import(new URL("../src/lib/ebayReferee.ts", import.meta.url).href);
+const { refereeMatcher, refereeQueries, summarizeAsks, refereeVerdict, EBAY_REFEREE, trustedSeller, measureSellerFloor } = await import(new URL("../src/lib/ebayReferee.ts", import.meta.url).href);
 
 let failures = 0;
 function check(label, actual, expected = true) {
@@ -133,6 +133,27 @@ console.log("refereeVerdict (the 10-13 calibration cards)");
   check("nothing listed: none", refereeVerdict(500, { n: 0, nNm: 0, median: null, q75: null }).verdict, "none");
   check("only played copies listed: none", refereeVerdict(925, { n: 1, nNm: 0, median: null, q75: null }).verdict, "none");
   check("thresholds are the calibrated ones", [EBAY_REFEREE.minUsd, EBAY_REFEREE.overUpper, EBAY_REFEREE.minAsks, EBAY_REFEREE.absurd, EBAY_REFEREE.overMedian], [100, 1.5, 3, 100, 1.5]);
+}
+
+console.log("seller floor (TASKS C1.4, 10-22: measured beside the real reading, not applied)");
+{
+  check("floor is 95% positive and 20 feedbacks", [EBAY_REFEREE.sellerMinPct, EBAY_REFEREE.sellerMinScore], [95, 20]);
+  check("a 3-feedback seller at 0% (the $2,800 'NM' Rayquaza ex) is under the floor", trustedSeller({ pct: 0, score: 3 }), false);
+  check("an 82-feedback seller at 80% is under it too", trustedSeller({ pct: 80, score: 82 }), false);
+  check("a 19-feedback seller at 100% is under (too few feedbacks)", trustedSeller({ pct: 100, score: 19 }), false);
+  check("a 20-feedback seller at 95% is on the floor: kept", trustedSeller({ pct: 95, score: 20 }));
+  check("no seller on the summary: kept (older summaries)", [trustedSeller(null), trustedSeller(undefined)], [true, true]);
+  check("only one figure known: judged on that one", [trustedSeller({ pct: null, score: 5 }), trustedSeller({ pct: 99.8, score: null })], [false, true]);
+  const m = measureSellerFloor([
+    { verdict: "ok", floor: { asks: 6, dropped: 2, verdict: "high" } },
+    { verdict: "ok", floor: { asks: 4, dropped: 0, verdict: "ok" } },
+    { verdict: "check", floor: { asks: 3, dropped: 1, verdict: "check" } },
+    { verdict: "check" }, // a hand-only row: no measure
+    { verdict: "none", floor: { asks: 1, dropped: 1, verdict: "none" } },
+  ]);
+  check("run summary: asks, dropped, cards touched", [m.asks, m.dropped, m.cardsTouched], [14, 4, 3]);
+  check("... verdict counts with the floor on", m.verdicts, { high: 1, check: 1, ok: 1, none: 1 });
+  check("... flips keyed from>to", m.flips, { "ok>high": 1 });
 }
 
 if (failures) { console.log(`\n${failures} failing`); process.exit(1); }

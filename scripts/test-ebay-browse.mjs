@@ -11,7 +11,7 @@ process.env.EBAY_CLIENT_ID = "test-id";
 process.env.EBAY_CLIENT_SECRET = "test-secret";
 
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
-const { searchEbayAsks, fetchEbayComps, browsePriceFilter, isPlainFixedPrice } = await import(at("lib/server/ebay.ts"));
+const { searchEbayAsks, fetchEbayComps, browsePriceFilter, isPlainFixedPrice, sellerOf } = await import(at("lib/server/ebay.ts"));
 
 let failures = 0;
 function check(label, actual, expected = true) {
@@ -21,7 +21,7 @@ function check(label, actual, expected = true) {
 }
 
 const summaries = [
-  { itemId: "1", title: "Charizard 4/102 Base Set Holo Ungraded NM", price: { value: "300", currency: "USD" }, buyingOptions: ["FIXED_PRICE"] },
+  { itemId: "1", title: "Charizard 4/102 Base Set Holo Ungraded NM", price: { value: "300", currency: "USD" }, buyingOptions: ["FIXED_PRICE"], seller: { username: "cardshop", feedbackPercentage: "99.6", feedbackScore: 4821 } },
   { itemId: "2", title: "Charizard 4/102 Base Set Holo Ungraded", price: { value: "900", currency: "USD" }, buyingOptions: ["FIXED_PRICE", "BEST_OFFER"] },
   { itemId: "3", title: "Charizard 4/102 Base Set Holo", price: { value: "50", currency: "USD" }, buyingOptions: ["AUCTION"] },
   { itemId: "4", title: "Charizard 4/102 Base Set Holo NM", price: { value: "310", currency: "USD" } },
@@ -51,6 +51,8 @@ console.log("referee reader (searchEbayAsks)");
   const search = new URL(urls.find((u) => u.includes("item_summary/search")));
   check("Browse call carries the ungraded + fixed-price filter", search.searchParams.get("filter"), "buyingOptions:{FIXED_PRICE},conditionIds:{4000}");
   check("Best Offer and auction items are dropped, plain BIN kept", asks.map((a) => a.price), [300, 310]);
+  check("the seller's feedback rides along for the referee's floor (numbers; null when the summary has none)", asks.map((a) => a.seller), [{ pct: 99.6, score: 4821 }, null]);
+  check("a seller block with no usable figures reads as none", sellerOf({ seller: { username: "x", feedbackPercentage: "" } }), null);
 }
 
 console.log("live comps reader (fetchEbayComps)");

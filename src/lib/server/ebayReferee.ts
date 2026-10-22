@@ -1,7 +1,10 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { addDays, decodePrices, todayUtc } from "@/lib/priceSeries";
-import { EBAY_REFEREE, refereeable, refereeMatcher, refereeQueries, refereeVerdict, summarizeAsks, type RefereeCard, type RefereeVerdict } from "@/lib/ebayReferee";
+import {
+  EBAY_REFEREE, measureSellerFloor, refereeable, refereeMatcher, refereeQueries, refereeVerdict, summarizeAsks, trustedSeller,
+  type AskSeller, type RefereeCard, type RefereeVerdict, type SellerFloorMeasure,
+} from "@/lib/ebayReferee";
 import { isEbayConfigured, searchEbayAsks } from "@/lib/server/ebay";
 import { storedRaw } from "@/lib/server/checkedPrices";
 import { withDbRetry } from "@/lib/server/priceBulkWrite";
@@ -59,6 +62,7 @@ export interface RefereeRun {
   left: number;
   ms: number;
   skipped?: "unconfigured" | "budget";
+  sellerFloor?: SellerFloorMeasure;
 }
 
 /** Every $100+ printing of every game with its current price (about 4,500 on 10-13). */
@@ -172,8 +176,8 @@ export const askKey = (game: string, cardId: string, variant: string) => `${game
 export async function readOne(c: RefereeCandidate): Promise<{ calls: number; row: AskRow }> {
   const [q1, q2] = refereeQueries(c.card);
   const match = refereeMatcher(c.card);
-  const seen = new Map<string, { title: string; price: number }>();
-  const add = (list: { title: string; price: number }[]) => {
+  const seen = new Map<string, { title: string; price: number; seller: AskSeller | null }>();
+  const add = (list: { title: string; price: number; seller: AskSeller | null }[]) => {
     for (const l of list) if (match(l.title)) seen.set(`${l.title}|${l.price}`, l);
   };
   add(await searchEbayAsks(q1));
@@ -182,9 +186,13 @@ export async function readOne(c: RefereeCandidate): Promise<{ calls: number; row
     add(await searchEbayAsks(q2));
     calls++;
   }
-  const reading = summarizeAsks(c.card, [...seen.values()]);
+  const matched = [...seen.values()];
+  const reading = summarizeAsks(c.card, matched);
   const v = refereeVerdict(c.price, reading);
-  return { calls, row: { c, reading, verdict: v.verdict, reason: v.reason, query: q1 } };
+  // Measured beside the real reading: the same asks minus the sellers under the floor (lib/ebayReferee.ts trustedSeller).
+  const trusted = matched.filter((m) => trustedSeller(m.seller));
+  const floorVerdict = trusted.length === matched.length ? v.verdict : refereeVerdict(c.price, summarizeAsks(c.card, trusted)).verdict;
+  return { calls, row: { c, reading, verdict: v.verdict, reason: v.reason, query: q1, floor: { asks: matched.length, dropped: matched.length - trusted.length, verdict: floorVerdict } } };
 }
 
 interface AskRow {
@@ -193,7 +201,10 @@ interface AskRow {
   verdict: RefereeVerdict;
   reason: string;
   query: string;
+  /** The seller-floor measure for this card (readOne only; the hand-only rows have none). */
+  floor?: { asks: number; dropped: number; verdict: RefereeVerdict };
 }
+
 
 /** Upsert the readings; the manual columns are never touched here (an admin's call outlives the nightly read). */
 async function writeRows(rows: AskRow[], day: string): Promise<void> {
@@ -274,7 +285,10 @@ export async function runEbayReferee({ now = Date.now(), maxCalls = CALLS_PER_DA
   await saveCalls(day, calls);
   clearTrustMemo();
   verdicts.check += handOnly.length;
-  const run: RefereeRun = { candidates: cands.length, read: done.length, calls: calls - spent, verdicts, failed, left: queue.length - done.length - failed, ms: Date.now() - t0 };
+  const run: RefereeRun = {
+    candidates: cands.length, read: done.length, calls: calls - spent, verdicts, failed, left: queue.length - done.length - failed, ms: Date.now() - t0,
+    sellerFloor: measureSellerFloor(done),
+  };
   await db
     .prepare("INSERT INTO price_history_meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
     .run(META_KEY, JSON.stringify({ day, at: now, ...run }));

@@ -52,7 +52,62 @@ export const EBAY_REFEREE = {
   overMedian: 1.5,
   /** A reading older than this is no evidence (the rotation re-reads every card within about a week). */
   maxAgeDays: 10,
+  /**
+   * Seller floor (TASKS C1.4, 10-22, MEASURE ONLY so far): asks from sellers under this feedback share or this many
+   * feedbacks look shill-shaped (a $2,800 and a $3,399 "NM" Rayquaza ex from 3- and 82-feedback sellers at 0-80%).
+   * The nightly run counts what the floor would drop and which verdicts would flip; the stored verdict ignores it
+   * until the numbers say to turn it on.
+   */
+  sellerMinPct: 95,
+  sellerMinScore: 20,
 } as const;
+
+/** What the Browse summary says about the seller (missing on older summaries: then the ask is kept). */
+export interface AskSeller {
+  pct: number | null;
+  score: number | null;
+}
+
+/** The seller floor: false only when the summary SAYS the seller is under it. Pure. */
+export function trustedSeller(seller: AskSeller | null | undefined): boolean {
+  if (!seller) return true;
+  if (seller.pct != null && seller.pct < EBAY_REFEREE.sellerMinPct) return false;
+  if (seller.score != null && seller.score < EBAY_REFEREE.sellerMinScore) return false;
+  return true;
+}
+
+/**
+ * What the seller floor WOULD have done in a run, measured beside the real reading at no extra call (TASKS C1.4,
+ * 10-22). Nothing stored per card changes until the floor is turned on.
+ */
+export interface SellerFloorMeasure {
+  /** Matched asks the run read, and how many of them came from sellers under the floor. */
+  asks: number;
+  dropped: number;
+  /** Cards with at least one dropped ask. */
+  cardsTouched: number;
+  /** Cards whose verdict would change, by "from>to" (e.g. "ok>high": the floor removed the cheap shill asks). */
+  flips: Record<string, number>;
+  /** The verdict counts the run would have written with the floor on. */
+  verdicts: Record<RefereeVerdict, number>;
+}
+
+/** Fold the per-card measures (rows without one, like the hand-only rows, are skipped) into a run's summary. Pure. */
+export function measureSellerFloor(rows: readonly { verdict: RefereeVerdict; floor?: { asks: number; dropped: number; verdict: RefereeVerdict } }[]): SellerFloorMeasure {
+  const m: SellerFloorMeasure = { asks: 0, dropped: 0, cardsTouched: 0, flips: {}, verdicts: { high: 0, check: 0, ok: 0, none: 0 } };
+  for (const r of rows) {
+    if (!r.floor) continue;
+    m.asks += r.floor.asks;
+    m.dropped += r.floor.dropped;
+    if (r.floor.dropped > 0) m.cardsTouched++;
+    m.verdicts[r.floor.verdict]++;
+    if (r.floor.verdict !== r.verdict) {
+      const k = `${r.verdict}>${r.floor.verdict}`;
+      m.flips[k] = (m.flips[k] ?? 0) + 1;
+    }
+  }
+  return m;
+}
 
 /** One printing as the referee sees it. */
 export interface RefereeCard {

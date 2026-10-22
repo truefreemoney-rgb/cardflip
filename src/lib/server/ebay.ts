@@ -1,5 +1,6 @@
 import "server-only";
 import { buildComps, isComparable } from "@/lib/ebayComps";
+import type { AskSeller } from "@/lib/ebayReferee";
 import { ebaySearchUrl, ebaySoldSearchUrl } from "@/lib/listing";
 import { gameOf, type EbayComps, type EbayListing, type GradedInfo, type PokemonCard } from "@/lib/types";
 import { GAMES } from "@/lib/games";
@@ -113,6 +114,17 @@ interface ItemSummary {
   condition?: string;
   conditionId?: string;
   buyingOptions?: string[];
+  seller?: { username?: string; feedbackPercentage?: string; feedbackScore?: number };
+}
+
+/** The seller's feedback as the summary gives it (strings from eBay; null when absent), for the referee's seller floor. */
+export function sellerOf(item: { seller?: { feedbackPercentage?: string; feedbackScore?: number } }): AskSeller | null {
+  const s = item.seller;
+  if (!s) return null;
+  const pct = s.feedbackPercentage == null || s.feedbackPercentage === "" ? NaN : Number(s.feedbackPercentage);
+  const score = s.feedbackScore == null ? NaN : Number(s.feedbackScore);
+  if (!Number.isFinite(pct) && !Number.isFinite(score)) return null;
+  return { pct: Number.isFinite(pct) ? pct : null, score: Number.isFinite(score) ? score : null };
 }
 
 /** eBay's card conditions in 183454: 4000 = Ungraded, 2750 = Graded (a slab). */
@@ -213,7 +225,7 @@ export async function fetchEbayComps(
  * singles on ebay.com, USD only, up to 200, otherwise unfiltered (the referee's printing-aware matcher filters). One
  * Browse call.
  */
-export async function searchEbayAsks(query: string): Promise<{ title: string; price: number }[]> {
+export async function searchEbayAsks(query: string): Promise<{ title: string; price: number; seller: AskSeller | null }[]> {
   const token = await getAppToken(BROWSE_SCOPE);
   const url = new URL(`${EBAY_API}/buy/browse/v1/item_summary/search`);
   url.searchParams.set("q", query);
@@ -230,12 +242,12 @@ export async function searchEbayAsks(query: string): Promise<{ title: string; pr
   }
   if (!res.ok) throw new Error(`eBay search failed (${res.status})`);
   const json = (await res.json()) as { itemSummaries?: ItemSummary[] };
-  const out: { title: string; price: number }[] = [];
+  const out: { title: string; price: number; seller: AskSeller | null }[] = [];
   for (const item of json.itemSummaries ?? []) {
     const price = Number(item.price?.value);
     if (!item.title || !(price > 0) || (item.price?.currency && item.price.currency !== "USD")) continue;
     if (!isPlainFixedPrice(item)) continue;
-    out.push({ title: item.title, price });
+    out.push({ title: item.title, price, seller: sellerOf(item) });
   }
   return out;
 }
