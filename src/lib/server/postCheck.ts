@@ -3,7 +3,7 @@ import { getSetting, setSetting } from "@/lib/server/settings";
 import { activeChecks, checkKey } from "@/lib/server/checkedPrices";
 import { SLOTS, type Slot } from "@/lib/server/socialPublish";
 import { TIKTOK_SLOTS, tiktokKey } from "@/lib/socialTiktok";
-import { RAW_ONLY_TERMS } from "@/lib/listing";
+import { RAW_ONLY_TERMS, RAW_SOLD_QUERY } from "@/lib/listing";
 import { addDays } from "@/lib/priceSeries";
 import { etDay, etDayStart } from "@/lib/time";
 import type { GameId } from "@/lib/types";
@@ -70,7 +70,7 @@ const FINISH: Record<string, string> = { reverseHolofoil: " reverse holo", "1stE
 /** eBay sold, raw copies only, newest first: the card's name, number and set (and its finish when that is not the plain one). */
 export function postSoldUrl(c: { name: string; number: string; setName: string; variant: string }): string {
   const q = `${c.name} ${c.number} ${c.setName.replace(/\s*\(1st Edition\)/i, "")}${FINISH[c.variant] ?? ""} ${RAW_ONLY_TERMS}`;
-  return `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(q.replace(/\s+/g, " ").trim())}&LH_Sold=1&LH_Complete=1&_sop=13`;
+  return `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(q.replace(/\s+/g, " ").trim())}&_sacat=183454&${RAW_SOLD_QUERY}&_sop=13`;
 }
 
 interface StoredCard {

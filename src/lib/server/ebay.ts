@@ -111,6 +111,33 @@ interface ItemSummary {
   image?: { imageUrl?: string };
   thumbnailImages?: { imageUrl?: string }[];
   condition?: string;
+  conditionId?: string;
+  buyingOptions?: string[];
+}
+
+/** eBay's card conditions in 183454: 4000 = Ungraded, 2750 = Graded (a slab). */
+const CONDITION_UNGRADED = "4000";
+const CONDITION_GRADED = "2750";
+
+/**
+ * The Browse filter every price read uses (Chris 10-21: "STOP LOOKING AT SLABS",
+ * "only Buy It Now"): fixed-price listings in the asked-for condition. A title
+ * word filter lets slabs through (a seller who writes "PSA" nowhere), so the
+ * condition is eBay's own item specific, not the title. Auctions show a bid.
+ */
+export function browsePriceFilter(graded = false): string {
+  return `buyingOptions:{FIXED_PRICE},conditionIds:{${graded ? CONDITION_GRADED : CONDITION_UNGRADED}}`;
+}
+
+/**
+ * Buy It Now at the shown price only. eBay's filter keeps any listing that
+ * OFFERS fixed price, including ones that also take Best Offer; those sell
+ * below the ask by an amount nobody can see, so the ask is not a price.
+ */
+export function isPlainFixedPrice(item: { buyingOptions?: string[] }): boolean {
+  const opts = item.buyingOptions;
+  if (!opts || opts.length === 0) return true; // older summaries omit it
+  return opts.includes("FIXED_PRICE") && !opts.includes("BEST_OFFER") && !opts.includes("AUCTION");
 }
 
 /**
@@ -136,8 +163,9 @@ export async function fetchEbayComps(
   url.searchParams.set("q", query);
   url.searchParams.set("category_ids", CCG_SINGLES_CATEGORY);
   url.searchParams.set("limit", "100");
-  // An auction mid-flight shows a current bid, not what the card is worth.
-  url.searchParams.set("filter", "buyingOptions:{FIXED_PRICE}");
+  // An auction mid-flight shows a current bid, not what the card is worth;
+  // a raw card compared to slabs reads far too high (10-21).
+  url.searchParams.set("filter", browsePriceFilter(Boolean(grading)));
 
   const res = await fetch(url, {
     headers: {
@@ -164,6 +192,7 @@ export async function fetchEbayComps(
     if (!title || !Number.isFinite(value) || value <= 0) continue;
     // Mixed currencies would silently corrupt a USD average.
     if (item.price?.currency && item.price.currency !== "USD") continue;
+    if (!isPlainFixedPrice(item)) continue;
     if (!isComparable(title, card, grading, firstEdition)) continue;
 
     listings.push({
@@ -180,8 +209,9 @@ export async function fetchEbayComps(
 }
 
 /**
- * The raw asks for a search (the nightly eBay referee, lib/server/ebayReferee.ts): fixed-price CCG singles on ebay.com, USD
- * only, up to 200, unfiltered (the referee's printing-aware matcher filters). One Browse call.
+ * The raw asks for a search (the nightly eBay referee, lib/server/ebayReferee.ts): Ungraded, plain Buy It Now CCG
+ * singles on ebay.com, USD only, up to 200, otherwise unfiltered (the referee's printing-aware matcher filters). One
+ * Browse call.
  */
 export async function searchEbayAsks(query: string): Promise<{ title: string; price: number }[]> {
   const token = await getAppToken(BROWSE_SCOPE);
@@ -189,7 +219,7 @@ export async function searchEbayAsks(query: string): Promise<{ title: string; pr
   url.searchParams.set("q", query);
   url.searchParams.set("category_ids", CCG_SINGLES_CATEGORY);
   url.searchParams.set("limit", "200");
-  url.searchParams.set("filter", "buyingOptions:{FIXED_PRICE}");
+  url.searchParams.set("filter", browsePriceFilter(false));
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${token}`, "X-EBAY-C-MARKETPLACE-ID": MARKETPLACE },
     signal: AbortSignal.timeout(10000),
@@ -204,6 +234,7 @@ export async function searchEbayAsks(query: string): Promise<{ title: string; pr
   for (const item of json.itemSummaries ?? []) {
     const price = Number(item.price?.value);
     if (!item.title || !(price > 0) || (item.price?.currency && item.price.currency !== "USD")) continue;
+    if (!isPlainFixedPrice(item)) continue;
     out.push({ title: item.title, price });
   }
   return out;
@@ -218,6 +249,7 @@ interface ItemSale {
   image?: { imageUrl?: string };
   thumbnailImages?: { imageUrl?: string }[];
   condition?: string;
+  buyingOptions?: string[];
 }
 
 /**
@@ -243,7 +275,9 @@ export async function fetchEbaySoldComps(
   url.searchParams.set("limit", "100");
   // 90 days is the window eBay exposes; anything staler misprices a moving card.
   const since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
-  url.searchParams.set("filter", `lastSoldDate:[${since}..]`);
+  // Same rules as the live reads: ungraded, plain Buy It Now (an accepted Best
+  // Offer reports the ask, not the paid price).
+  url.searchParams.set("filter", `lastSoldDate:[${since}..],${browsePriceFilter(false)}`);
 
   const res = await fetch(url, {
     headers: {
@@ -271,6 +305,7 @@ export async function fetchEbaySoldComps(
     const value = Number(item.lastSoldPrice?.value);
     if (!title || !Number.isFinite(value) || value <= 0) continue;
     if (item.lastSoldPrice?.currency && item.lastSoldPrice.currency !== "USD") continue;
+    if (!isPlainFixedPrice(item)) continue;
     // Same filter as active listings — a sold bulk lot is just as misleading.
     if (!isComparable(title, card)) continue;
 

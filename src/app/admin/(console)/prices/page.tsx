@@ -7,7 +7,7 @@ import { askCounts, lastRefereeRun, listAsks, type AskListRow } from "@/lib/serv
 import { db } from "@/lib/db";
 import { listPriceReports, reportLabel, type PriceReportRow } from "@/lib/server/priceReports";
 import { MANUAL_BAND } from "@/lib/server/priceTrustSite";
-import { RAW_ONLY_TERMS } from "@/lib/listing";
+import { RAW_ONLY_TERMS, RAW_SOLD_QUERY } from "@/lib/listing";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +18,7 @@ function soldUrl(r: AskListRow): string {
   const finish = r.variant === "foil" || r.variant === "etched" ? " foil" : r.variant === "reverseHolofoil" ? " reverse holo" : r.variant.startsWith("1stEdition") ? " 1st edition" : "";
   // Rows from a hand call carry no referee query: search the card's name and set from its label instead of nothing.
   const query = r.query || r.label.split(" | ").slice(0, 2).join(" ");
-  return `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(`${query}${finish} ${RAW_ONLY_TERMS}`)}&LH_Sold=1&LH_Complete=1`;
+  return `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(`${query}${finish} ${RAW_ONLY_TERMS}`)}&_sacat=183454&${RAW_SOLD_QUERY}`;
 }
 
 type CatalogRun = {
@@ -87,7 +87,7 @@ function ReaderTable({ rows }: { rows: PriceReportRow[] }) {
       {rows.map((r) => {
         const l = reportLabel(r.path);
         const finish = r.variant === "foil" || r.variant === "etched" ? " foil" : r.variant === "reverseHolofoil" ? " reverse holo" : r.variant.startsWith("1stEdition") ? " 1st edition" : "";
-        const sold = `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(`${l.name} ${l.set.replace(/-/g, " ")}${finish} ${RAW_ONLY_TERMS}`)}&LH_Sold=1&LH_Complete=1`;
+        const sold = `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(`${l.name} ${l.set.replace(/-/g, " ")}${finish} ${RAW_ONLY_TERMS}`)}&_sacat=183454&${RAW_SOLD_QUERY}`;
         return (
           <li key={`${r.path}|${r.variant}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3">
             <a href={r.path} target="_blank" rel="noreferrer" className="font-medium text-white hover:underline">

@@ -979,8 +979,15 @@ function ebayQuery(card: PokemonCard, facts: ListingFacts = {}): string {
  * eBay minus-words that drop graded slabs from a raw card's search (Chris, 10-14: the "eBay sold" pages were full of PSA
  * slabs, a different market, so raw prices looked wrong next to them). Links only: the comps and referee filter titles.
  */
-export const RAW_ONLY_TERMS = "-psa -bgs -cgc -sgc -graded -slab";
+export const RAW_ONLY_TERMS = "-psa -bgs -cgc -sgc -tag -ace -graded -slab -gem -proxy -japanese";
 const rawOnly = (q: string, facts: ListingFacts) => (facts.grading || facts.sealed ? q : `${q} ${RAW_ONLY_TERMS}`);
+/**
+ * eBay's own filters for a raw card's SOLD search (Chris 10-21: "STOP LOOKING AT SLABS", "only Buy It Now"): the
+ * minus-words alone let slabs through, so Graded=No is eBay's item specific; LH_BIN drops auctions. Best Offer sales
+ * still show in the list (eBay has no filter) and are skipped by eye.
+ */
+export const RAW_SOLD_PARAMS: Record<string, string> = { LH_Sold: "1", LH_Complete: "1", LH_BIN: "1", Graded: "No" };
+export const RAW_SOLD_QUERY = Object.entries(RAW_SOLD_PARAMS).map(([k, v]) => `${k}=${v}`).join("&");
 
 /**
  * The eBay search a human would run for this card — same query the comps
@@ -1028,10 +1035,10 @@ export function ebaySoldSearchUrl(
   card: PokemonCard,
   facts: ListingFacts = {},
 ): string {
+  const raw = !facts.grading && !facts.sealed;
   const params = new URLSearchParams({
     _nkw: rawOnly(ebayQuery(card, facts), facts),
-    LH_Sold: "1",
-    LH_Complete: "1",
+    ...(raw ? RAW_SOLD_PARAMS : { LH_Sold: "1", LH_Complete: "1" }),
   });
   if (!facts.sealed) params.set("_sacat", CCG_CARDS_CATEGORY_ID);
   return `https://www.ebay.com/sch/i.html?${params.toString()}`;

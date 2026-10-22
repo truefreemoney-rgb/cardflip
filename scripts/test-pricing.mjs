@@ -266,11 +266,25 @@ console.log("\nA slab's grade replaces the condition flow:");
   check(
     "raw links leave slabs out, slab links do not",
     [
-      nkw(ebaySoldSearchUrl(card([]))).includes("-psa -bgs -cgc -sgc -graded -slab"),
+      nkw(ebaySoldSearchUrl(card([]))).includes("-psa -bgs -cgc -sgc -tag -ace -graded -slab -gem -proxy -japanese"),
       nkw(ebaySearchUrl(card([]))).includes("-psa"),
       nkw(ebaySoldSearchUrl(card([]), { grading: { company: "PSA", grade: "10" } })).includes("-psa"),
     ],
     [true, true, false],
+  );
+  // Chris 10-21: "STOP LOOKING AT SLABS" / "only Buy It Now" — a raw card's SOLD link uses eBay's own Graded=No item
+  // specific and the Buy It Now filter; a slab's link keeps auctions and its grade.
+  const sp = (u, k) => new URL(u).searchParams.get(k);
+  check(
+    "raw sold links = Graded:No + Buy It Now + sold; slab sold links keep the grade",
+    [
+      sp(ebaySoldSearchUrl(card([])), "Graded"),
+      sp(ebaySoldSearchUrl(card([])), "LH_BIN"),
+      sp(ebaySoldSearchUrl(card([])), "LH_Sold"),
+      sp(ebaySoldSearchUrl(card([]), { grading: { company: "PSA", grade: "10" } }), "Graded"),
+      sp(ebaySoldSearchUrl(card([]), { grading: { company: "PSA", grade: "10" } }), "LH_Sold"),
+    ],
+    ["No", "1", "1", null, "1"],
   );
 }
 
