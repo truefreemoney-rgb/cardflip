@@ -1,5 +1,25 @@
 ﻿# To test later
 
+## 10-22 8:35AM ET: review-backlog batches 3 + 4 (COMMIT ONLY 384126ec, e9f19a47 docs, 8f94890d; nothing visible by design)
+- Batch 3: apiFailure() for the cards / card / wishlist / price-checks / live-prices routes (JSON 401 or 500, never HTML); nav search reads the public game list from GET /api/catalog/games (revalidate 300); set card lists cached per set (seo:setcards:v1, 1 day); set standings use cardStory's median; admin Social* fetches via apiFetch (timeout); AdminNav re-syncs its group; scan_usage read JSON keeps the first read's pattern verdict (first) and the look's ball (lookBall). Batch 4: back-to-close stack (Done on "This copy" cannot close the camera; test:backstack 12); out of scans = Capture opens the paywall, no photo; fetchCurrentUser answer reused 2 s.
+- [ ] After push, phone: scan a card, open the "Near Mint · Holofoil" pill (This copy), tap Done -> back on the camera, NOT the category sheet or the listing page. Android Back from an open sheet closes the sheet only; a second Back closes the camera.
+- [ ] After push, phone with 0 scans left (trial account or Chris's gift set to 0): Capture goes to /pricing with no photo taken and no spinner left behind; Back from /pricing returns to the app, not a dead camera.
+- [ ] After push: /pricing network tab shows ONE /api/auth/me call (was up to 7).
+- [ ] After push: GET https://cardflip.io/api/catalog/games = JSON list of the public games; the nav search dropdown on / and /features lists the same games as /cards.
+- [ ] After push: /api/cards without a session -> JSON {"error":"Not signed in"} 401 (not HTML); a bad body on /api/wishlist -> JSON 400/500, never an HTML page.
+- [ ] After push, next scans: scan_usage read JSON has first + lookBall keys on rows where a pattern look ran (scripts/_scan-usage-peek.mjs); Chris's next Eevee 074 scan can then be measured.
+- [ ] After push: /cards/pokemon/base-set?page=2 is served from the set cache (second request fast; x-vercel-cache HIT on the page itself).
+
+## 10-22 8:30AM ET: pane checks with Chris's sign-in (admin console + app account, reads only)
+- [x] /admin/prices: no "checks recorded" list exists on that page (the 10-22 6:59am line assumed one); the 28 checks show on their card pages as "Checked against recent sales" (Raikou SL9 + Copycat sit in the Hand check list as referee rows, which is right). Readers flagged = 1 (Venusaur base-set $136.30 "too high", read by me 10-21: stands). Last run line = last night's 2,026 read / 3,054 calls (the budget trap, see 7:50am).
+- [x] /admin overview: Help chat tile "read the chats" -> /admin/robot, 0 "ET ET"; /admin/robot renders (0 chats in 7 days, nothing to expand).
+- [x] /admin/emails: one "sent" per person per mail: week Oct 18 = 22 sent / 22 people, cards Oct 15 = 17/17, scans Oct 20 = 24/24, scans Oct 13 = 5/5 (no repeats). The 9 preview iframes still load eagerly (admin #17, parked).
+- [x] /app/collection at 375px: chips Duplicates (24 of 45) + Missing Price present and pressable; sorts Newest / Price / Rarity / Name A-Z / Set / Recently sold present; 45 cards so "Show more" + Select all count wait for 60+ (phone list). Sylveon envelope sheet: the sheet opened but my text probe found no "Suggested Price" line -> still a phone check (TO-TEST 710/711).
+- [x] /app/wishlist at 375px: no stale-price note, "Legendary Collection · 86" on one line with an ellipsis, scrollWidth 375.
+- [x] /cards/magic at 375px: 400 set links, 0 overflow their box, 398 end in an ellipsis.
+- [x] /app/collection/insights: renders at 375px (value $3,477.73, movers); the "Magic headline = chart" check is STALE (no value chart on Insights any more).
+- [x] 8:21am: price_history_meta ebay_referee_last unchanged (day 10-22, 2,026 read) = today's 8:15am run skipped on budget as predicted; ebay_referee_2026-10-22 still 3,054.
+
 ## 10-22 8:25AM ET: review-backlog batch 2 (COMMIT ONLY ec1a5b6f scanner + cbbd3c71 server/public/auth/app; nothing visible by design)
 - SCHEMA on first boot after the push: cards.client_id (nullable) + partial index (user_id, client_id); card_removals index (user_id, how). The fingerprint changes, so the first process on prod runs the schema pass once (a few seconds); the db first-run path now fires only on "no such table".
 - [ ] After push: POST /api/cards from a real scan still 201 (Chris's phone scan, or scan_usage + cards rows grow); a second POST with the same clientId returns the same row (no duplicate in /app Inventory after a flaky-network scan).
@@ -42,7 +62,7 @@
 ## 10-22 ~6:59AM ET: 28 of the 106 cap-cut Pokémon prices FIXED on prod with TCGplayer NM-sales checks (report card §14; data write, no code)
 - [x] 3:55am curl: Rayquaza C DP47 $999.99, Giratina EX DE 124 $611.98, Rayquaza C SV 8 $399.50 all print with "Checked against recent sales" (invalidated by hand; the other 25 within 48 h).
 - [x] 7:40am 10-22 (scripts/_write-1022-check.mjs --prod, read only): all 43 checks dated 10-22 are on and bind after the 5:45am write (the two "off" lines, Raikou SL9 $699 vs $579.99 and Pikachu ex2-73 $500 vs $436.20, are in-band vouches by design: the series stays at TCGplayer's number).
-- [ ] /admin/prices lists the 28 new checks (Chris's sign-in).
+- [x] N/A 10-22 8:30am: /admin/prices has no checks list; the 28 show on their card pages (verified on three by curl).
 
 ## 10-22 ~6:52AM ET: the 106 cap-cut cards, measured + two blanks fixed (COMMIT ONLY code: price guard in-band check vouches; prod data: Raikou SL9 check, Typhlosion 1st keep)
 - Measured (prod, data/crash-2026-10-19.json): 15 of 106 stepped back up on the 10-22 point (217.50 -> 579.99 Raikou, 231.99 -> 507.49 Typhlosion 1st, ...); the guard's recovery rule waved 13 through; 91 still sit at their cut number (TCGplayer's own figure, nothing to do). The chart + 7d/30d % already start at the cap break (priceHistory.ts fromSeriesBreak), so the 'Down 60-80%' item is closed by code that shipped earlier.
@@ -609,7 +629,7 @@
 - [ ] Chris, phone, after push: 1. Open Inventory. 2. Tap a card's "What did you pay?" (cost) box. You should see a number keypad with a "." key, not the letter keyboard. Same for the sold-price box.
 
 ## 10-16: duplicate-email fix, audit #9 (PUSHED, live by 10-17 9:18am ET (90033b03), eb95dd75). Local: test:campaigns + test:digest green incl. two overlapping runs
-- [ ] After push: next Sunday 10-18 digest + 6:30pm ET week mail: /admin/emails log shows one "sent" per person, no repeats; `SELECT COUNT(*) FROM email_claims` > 0. (Mine.)
+- [x] PASS 10-22 8:30am (pane): week Oct 18 = 22 sent / 22 people, no repeats;  `SELECT COUNT(*) FROM email_claims` > 0. (Mine.)
 
 ## 10-16 ~9:30am ET: site-audit fixes (PUSHED, live by 10-17 9:18am ET (90033b03), ddea8db2..36c2e6a5; docs/AUDIT-2026-10-16.md)
 Mostly server guards, proven by local tests; these are the prod checks after the push.
@@ -635,7 +655,7 @@ Mostly server guards, proven by local tests; these are the prod checks after the
 
 ## 10-15 ~2:00pm ET: fixes found while working the open-tests list (in the 10-15 batch push)
 - [ ] Ad signup (A36): from cardflip.io/scan, Sign Up, finish: you land in the app with the SCANNER OPEN (it landed shut since 10-06). Close it, go to Inventory and back: it stays shut. (No new account for Chris and none made by me on prod: proven on local dev; on prod watch the next real ad signups reach a scan in the /admin funnel.)
-- [ ] Insights (A10): your Magic Insights headline equals the chart's last number; Opposition Agent shows its foil price there too. (Mine, pane.)
+- [x] STALE 10-22 8:30am: Insights has no value chart any more (page renders at 375px); Opposition Agent shows its foil price there too. (Mine, pane.)
 - [ ] /scan used visitor (A1): no flash of the Scan button before "Your free scan is used". (Mine, headless on prod.)
 - [ ] Failed scan message reads "Couldn't read this card — retake..." with no "(0% sure)".
 - [x] PASS 10-16 (curl 404) /api/dev/outline-dump answers 404 on cardflip.io. (Mine, curl.)
@@ -656,7 +676,7 @@ traffic. Tick when tested; note what you saw. Newest batch first.
 
 ## 10-14 ~11:35pm ET: Magic hub phone overflow + Yu-Gi-Oh! tile alt text (PUSHED, live by 10-17 9:18am ET (90033b03), 7528e5ec + the next commit)
 Found while ticking A22 in the pane at 375px: /cards/magic measured 386px wide (11px sideways scroll) because the Sets list's single phone column is auto-sized and the nowrap name "Teenage Mutant Ninja Turtles Source Material" widened it; /cards/pokemon was 375. Fix: grid-cols-1 on the list (minmax(0,1fr)); the same class change proved 375 live in the pane DOM. Also the homepage games strip Yu-Gi-Oh! tile alt text now drops "(Worldwide English)" like the visible name.
-- [ ] PROD after the push, phone: /cards/magic Sets list, no sideways scroll, long set names end in "…"; /cards/pokemon unchanged.
+- [x] PASS 10-22 8:30am (pane at 375px): 400 set links, 0 overflow, 398 end in an ellipsis, scrollWidth 375; /cards/pokemon unchanged.
 - [ ] PROD: homepage HTML has no "(Worldwide English)" anywhere (curl).
 ## 10-14 ~9:00pm ET: robot upgrade (Sonnet 5.5, objections sheet, escalation, 3 actions, thumbs, /admin/robot, replay test) + price-page links in the app (PUSHED 1eb76012 10-14 8:58pm ET after Chris approved the screenshots)
 Chris: "do them all and push" on the six robot ideas, then "if you can fit it without causing row and overlapping issues" on the card-page links, then "can i get screenshots before you push". Code: HELP_MODEL claude-sonnet-5-5, effort low, max_tokens 1500; OBJECTIONS sheet (10 lines) as a cached system block; rule: first unhappy money/limit message = heard + free path + offer the human, no second explanation; actions {{giveback}} (re-checks the last 15 min of scans with giveBackNoMatchScan, result line replaces the tag), {{resend_code}} (issueAndDeliver, only when unconfirmed), {{card:Name}} (button "Find <name> in Inventory" -> /app/collection?q=<name>, Inventory reads ?q= on mount); account facts now list the 8 newest cards + removals in 7 days; help_messages.rating + POST /api/help/chat/rate + Helpful/Not helpful under each robot reply; /admin/robot lists 7 days of chats (thumbs-down first, then stuck, then newest) with the thread, linked from the overview's Help chat tile; scripts/test-help-replay.mjs replays scripts/help-replays/*.json against the real model when ANTHROPIC_API_KEY is set (SKIPs otherwise; not in npm test). Search: "Want to wander by set? Browse the Card Prices pages." under the set tiles; card sheet (Search, Inventory, Watchlist): "Full price page →" beside MARKET -> the public card page. Tests: helpchat (pins updated + 14 new checks), apiauth, emailconfirmui green; tsc + eslint clean.
@@ -664,7 +684,7 @@ Chris: "do them all and push" on the six robot ideas, then "if you can fit it wi
 - [x] PASS 10-14 9:06pm ET: "my last scan found nothing, did it count against me?" -> explains the auto give-back, then "I checked: no scans in the last 15 minutes to give back." No {{ }} shown. Chat cleared after.
 - [x] PASS 10-14 9:35pm ET (pane: "where did my Sylveon ex go" named all three copies + the button). FOUND: the button value carried the set ("Sylveon ex (30th Celebration 153)"), so the Inventory filter would miss; fixed locally (name only in splitReply + prompt), NOT PUSHED, batch with the next push. Recheck after: the button reads "Find Sylveon ex in Inventory" and Inventory opens filtered.
 - [ ] PROD, phone: Helpful / Not helpful under every robot reply; tapping sticks (reload keeps it); /admin/robot shows that chat first with "1 not helpful".
-- [ ] PROD: /admin overview Help chat tile "read the chats" link -> /admin/robot; threads expand/collapse; times ET once (no "ET ET").
+- [x] PASS 10-22 8:30am (pane): link -> /admin/robot, 0 "ET ET"; 0 chats this week so nothing to expand.
 - [ ] PROD, phone: Search tab idle: the Card Prices pages line under the sets, nothing clipped; opened card: "Full price page →" sits right of MARKET on one line, opens the public page for that printing (308 to the exact set is fine).
 - [ ] PROD, phone: Inventory, open a card: same "Full price page →" link; Watchlist sheet too.
 - [ ] Local with a key some day: `npm run test:helpreplay` (Jenny replay, ~3 model calls) passes.
@@ -1044,7 +1064,7 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 - [x] (Chris 10-08 Inventory 2) Bulk delete including live cards: those stay, toast says how many.
 - [ ] Bulk Set condition / Set price on a few cards (price skips live/sold).
 - [ ] 60+ cards: "Show more" appears; Select all says the full count.
-- [ ] Duplicates and Missing price chips; Name A–Z and Set sorts.
+- [x] 10-22 8:30am (pane at 375px): Duplicates chip = 24 of 45 cards, Missing Price chip present; Name A–Z + Set in the sort list (the sort order itself = phone).
 - [x] (10-08 local pane 375px: no eBay anywhere in Collector Inventory text) Collector mode: Help chips and bulk bar never mention eBay.
 
 ### Set Completion
@@ -1169,7 +1189,7 @@ Prices from eBay's own calculator (ebay.com/shp/calc/rates) 10-11 and USPS Notic
 
 ## 10-16 push (s178, Chris's 9 items)
 - [ ] Search cards opens on the picture grid (new key cardflip.searchView.v2), list toggle still works. Pane: done locally.
-- [ ] Watchlist: no stale-price note on cards; set names stay on one line. Sitewide .truncate on <p>/h2/h3 now truncates (text-wrap-style fix). Glance at Inventory/Search tiles for anything that now cuts off badly.
+- [x] PASS 10-22 8:30am (pane at 375px): Watchlist: 0 stale notes, "Legendary Collection · 86" one line with ellipsis. Sitewide .truncate on <p>/h2/h3 now truncates (text-wrap-style fix). Glance at Inventory/Search tiles for anything that now cuts off badly.
 - [ ] Scanner: Open a Pack button gone. Pane: done locally.
 - [x] PASS 10-16 (Chris, phone) PHONE (camera): scan a card, tap the result card -> big view with picture, price, "Change", "Not this card?"; pull the handle down or tap Done closes it.
 - [ ] Card pages: Buy on eBay under the price + commission line; name pages (e.g. /pokemon/mewtwo-card-value) Buy under each card. customid card-page / name-page / cards-search.

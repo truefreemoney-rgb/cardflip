@@ -1,4 +1,4 @@
-# TO-TEST triage, 10-21 (TASKS A.4)
+﻿# TO-TEST triage, 10-21 (TASKS A.4)
 
 Open checks in docs/TO-TEST.md blocks dated 10-18 and earlier, sorted by a read-only subagent (Sonnet) and then worked by me
 ~4:15-4:45am ET. Line numbers = TO-TEST.md as of 10-21 ~3:45am ET (blocks added at the top later shift them by ~45; search
@@ -41,6 +41,17 @@ af757e38 ships (LESSONS 10-21 ~4:10am). Live checks use the id lookup or page GE
 - PASS 557-558 (now 597): logged out, 375px, headless (scripts/_navrows-check.mjs, ?heat=off): /, /features, /cards/pokemon all row 1 = Search | How It Works | Features | Card Prices, row 2 = Pricing | Log In | Get Started, nothing clipped, scrollWidth 375.
 - WAIT 349 (now 383): no card in Chris's Inventory shows the few-sales note today (Pokémon 42 + Magic 15 read); recheck when one does.
 - Note: the Watchlist page reprices by NAME search (searchCards per row), so opening it is a Pokémon name search until af757e38 ships; _uncapped-lines after: 5 over-cap lines, none of the 6 watched cards (base1-4, dp7-103, swshp-SWSH066, base4-4, gym2-3-1st).
+
+## Done 10-22 ~8:30am ET in the pane (Chris signed me into /admin; app account Christopher; reads only)
+- PASS 484-485 /admin/emails: one "sent" per person per mail (week Oct 18 22/22, cards Oct 15 17/17, scans Oct 20 24/24); the 9 preview iframes still eager (admin #17 parked).
+- PASS 517/519 /admin overview "read the chats" -> /admin/robot, 0 "ET ET"; /admin/robot renders with 0 chats this week.
+- PASS 353 Readers flagged row: Venusaur base-set holofoil $136.30 "1 too high · 3 d ago" (read 10-21, stands).
+- N/A 593-594 "/admin/prices lists the 28 checks": the page has no checks list; the checks show on card pages (curl-verified). 940/953/955/1011 /admin/prices counts: last run = last night's 2,026 read / 3,054 calls; New cards tile "last run 6 h ago · all steps fine · YGO 104 borrowing" (stand-ins list present).
+- PASS 511 /cards/magic at 375px: 400 set links, 0 overflow, 398 end in an ellipsis.
+- PASS 1172 Watchlist at 375px: 0 stale notes, set names one line with ellipsis, scrollWidth 375.
+- PASS (half) 898-899 Inventory at 375px: Duplicates chip 24 of 45, Missing Price chip, sorts Newest/Price/Rarity/Name A-Z/Set/Recently sold present; "Show more" + Select all count wait for 60+ cards; the sort order itself = phone.
+- STALE 490 Insights Magic headline vs chart: Insights has no value chart now (renders at 375px, $3,477.73, movers).
+- OPEN 562-564 Sylveon envelope sheet: opened, but "Suggested Price" text not found by my probe -> phone. 363 cookie replay needs a Sign Out (skip). 468 eBay comps = eBay budget (go easy). 751/783 Google Ads goals + 805/870 TikTok events = real events. 458 cookie bar GB = needs a GB address.
 
 ## PANE (37): needs Chris's signed-in browser, reads only
 280 Post card "Fix" inside 25% · 340 Ascended editor dropdown · 349 Inventory few-sales note · 353 Readers flagged row · 363 admin cookie replay (needs a Sign Out) · 444/475 Inventory tile image size · 458 cookie bar above tab bar (GB) · 468 eBay comps (owner, eBay budget) · 484-485 /admin/emails previews · 490 Insights Magic headline · 491/852 /scan used flag, no flash · 511 /cards/magic set names at 375px · 517, 519 robot links + /admin/robot · 520-521 Search "wander by set" + "Full price page" · 541-542 /admin/users removals · 557-558 nav rows at 375px · 562-564 Sylveon envelope postage · 587 Inventory pictures · 593-594, 597, 940, 953/955, 1011 /admin/prices counts, runs, stand-ins, eBay sold hrefs · 618 set logos · 751, 783 Google Ads goals · 805/870 TikTok events · 839 Retry on load failure · 898-899 Inventory 60+ cards, chips, sorts · 915 /admin/analytics, /admin/social · 970 scanner matched rate · 1004 card detail low "—" · 1042 value chart "All" pill · 1050 Watchlist Alerts label
