@@ -88,6 +88,12 @@ check("Rayquaza with no second source: the spike never came back", verdict(data(
   check("a series that jumps to its eBay-checked price is not flagged", verdict(d({ "1stEditionHolofoil": 700 }), { variant: "1stEditionHolofoil", exact: true }), null);
   check("... without the check the same jump is a spike", verdict(d(null), { variant: "1stEditionHolofoil", exact: true })?.[1]?.startsWith("spike"), true);
   check("... a check at another price vouches for nothing", verdict(d({ "1stEditionHolofoil": 450 }), { variant: "1stEditionHolofoil", exact: true })?.[1]?.startsWith("spike"), true);
+  // 10-22: a check vouches for any price inside its band (Shiny Raikou SL9: NM sales 699, series 217.50 cap-cut then 579.99 = a 2.7x step, inside the band).
+  const inBand = ser("holofoil", [...liquid(225, 45), ...liquid(698.99, 13), ...liquid(217.5, 6), 579.99]);
+  const e = (checked) => data("pokemon", [inBand], checked ? { checked } : {});
+  check("a step back inside the band of its check is not flagged (Raikou SL9)", verdict(e({ holofoil: 699 }), { variant: "holofoil", exact: true }), null);
+  check("... without the check the same step is a soft spike", verdict(e(null), { variant: "holofoil", exact: true }) !== null, true);
+  check("... a check more than 25% away vouches for nothing", verdict(e({ holofoil: 1200 }), { variant: "holofoil", exact: true }) !== null, true);
   check("... nor the OLD side of a move", verdict(d({ "1stEditionHolofoil": 700 }), { variant: "1stEditionHolofoil", exact: true, old: { back: 0, value: 700 } }) !== null, true);
 }
 // 10-02: flat is a NOTE, not a hide. Deoxys shows $500 with "Market hasn't updated this in 3 months"; judgeSeries (the hide) says fine.

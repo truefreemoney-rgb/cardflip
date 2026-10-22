@@ -7,7 +7,7 @@ import { variantRank } from "@/lib/server/priceHistory";
 import type { PriceFlag, PriceStale } from "@/lib/priceFlag";
 import { BACKUP_ORDER, backupRank, backupSourceLabel, recentMedian } from "@/lib/priceChain";
 import { EBAY_REFEREE, refereeVerdict, type AskReading } from "@/lib/ebayReferee";
-import { activeChecks, checkBinds, checkFor, checkKey, type CheckedPrice } from "@/lib/server/checkedPrices";
+import { activeChecks, checkBinds, checkFor, checkKey, isOffCheck, type CheckedPrice } from "@/lib/server/checkedPrices";
 import type { CardPrice, GameId, PokemonCard, PriceSource } from "@/lib/types";
 
 /**
@@ -176,11 +176,13 @@ export function judgeFull(data: TrustData, opts: JudgeOpts = {}): { flag: PriceF
     const others = data.series.filter((o) => o !== def && o !== s).map(lastIn);
     if (others.every((v) => v == null || v <= to)) anchorFor = lastIn(def);
   }
-  // A binding eBay sold check vouches for its own price, as a 'keep' does (10-21): the nightly writer puts the checked number
-  // into the series and the jump it makes there read as a spike (Dark Charizard 1st base5-4-1st: check $700, 16 sold, series
-  // $122 -> $700, page blank "looks off").
+  // A binding hand check vouches for a price inside its band (CHECKED_BAND), as a 'keep' does: the number stands by the 25%
+  // rule, so the guard has no say. Exact match only until 10-22 (10-21, Dark Charizard 1st base5-4-1st: check $700, series
+  // $122 -> $700 read as a spike; the nightly writer puts the checked number into the series). 10-22, Shiny Raikou SL9:
+  // TCGplayer NM sales $699, series $217.50 cap-cut then $579.99 = inside the band, yet the step read as a spike and the
+  // page went blank with the check recorded.
   const checkedUsd = data.checked?.[variant];
-  if (!opts.old && checkedUsd != null && Math.abs(to - checkedUsd) < 0.005) return NONE;
+  if (!opts.old && checkedUsd != null && !isOffCheck(to, checkedUsd)) return NONE;
   const verdict = priceTrust({ to, prices, siblings, refEur, refAltEur, vintage: isVintage(data.game === "pokemon" ? variant : "", data.released), old: opts.old != null, listingLowUsd, listingReferee: data.game === "mtg", ebay: ebayCall(data.asks?.[variant], to), anchorFor });
   if (verdict.ok) return NONE;
   // Stale (10-02): the number stands, with a note; nothing is hidden or left out.
@@ -501,6 +503,8 @@ export async function withPriceFlags(cards: PokemonCard[], day = todayUtc()): Pr
     const fix = checkFor(checks, game, c.id, p, day);
     if (fix || !isTrustedRow(p)) return fix;
     const held = checks.get(checkKey(game, c.id, p.variant));
+    // A row inside the band stands as TCGplayer's own number (the judge above lets the check vouch for it, no flag); only the
+    // row AT the check is marked as the check.
     return held && checkBinds(held, day) && Math.abs((p.market as number) - held.usd) < 0.005 ? held : undefined;
   };
   // A card with no TCGplayer row left (its line stopped) and a binding eBay sold check prints the check, as its page does
