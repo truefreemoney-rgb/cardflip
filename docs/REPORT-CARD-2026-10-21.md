@@ -241,3 +241,14 @@ The Entei SM219 miss in §9 had a cause worth measuring: TCGplayer sells stamped
 **Code (committed, NOT pushed):** stamped products are recognised by name and skipped in the price loop, so they can never price a plain card again (test added). After the push, the 7 stamp-only cards (Tropical Tidal Wave HGSS18 $1,400, Champions Festival XY91 $370, three SV prerelease promos, two Mega Evolution promos) stop getting a TCGplayer point: their price goes stale and then unsure, which is right, a Staff stamp is not the plain card. Making stamps their own catalog cards (like 1st Edition twins) is the real answer; parked under the feature freeze.
 
 **The other 528 doubles, measured (12:29am):** no further wrong price. In every case our number follows the right product. What the doubles are: 91 where the second product is a different print of the same card (Poké Ball / Master Ball patterns, which already price their own variant; Cosmos vs Cracked Ice holo promos like Latias HGSS10 $52.78 vs $212.26; Glossy Mew; "Detective Pikachu stamped"); 47 where the matcher also attached a DIFFERENT card (Wizards promos 1/8/9/19/32/37/50 carry a W-stamped or prerelease card, Shrouded Fable 001-008 carry the Basic Energies, the Lycanroc Trainer Kit's two half-decks are crossed); the rest are naming doubles (Basic Energy "- 001" vs "(Cosmos Holo)"). Harmless today because the right product sits first in TCGplayer's list, fragile tomorrow. The Cosmos vs Cracked Ice promos are the same "foil print = own price" family as Poké Ball patterns; parked with the stamps.
+
+## 11. One Piece: the 4 thin prize-promo prices (12:30am ET 10-22, TCGplayer sales, 0 eBay)
+
+| Card | Ours | TCGplayer | Verdict |
+|---|---|---|---|
+| Rebecca · October Championship 2024 Online Regional (OP05-091) | $8,000 | NM sale $8,000 (07-23), before it $4,000 (06-24); one copy listed at $13,000 | Stands |
+| Sanji · Championship 2024 Finalist Set Vol.2 (OP07-064) | $799.99 | market $799.99, 5 listings; the Vol.1 set's Sanji sold $600 (06-24) | Stands |
+| Nico Olvia · Online Regional Finalist 2025 Vol.1 (OP09-106) | $300 | NM sale $300 (09-02); one copy listed at $1,000 | Stands |
+| Trafalgar Law · Online Regional Finalist 2025 Vol.2 (OP07-047) | $300 | NM sale $300 (07-26); 3 listings from $249 | Stands |
+
+All four are TCGplayer's market from a real sale of the exact printing; no eBay needed. The other ~139 prize cards still have no price anywhere (PriceCharting or by hand later).
