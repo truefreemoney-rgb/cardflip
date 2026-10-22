@@ -41,6 +41,10 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
+  // Search Console 10-22 lists /home as a 404 (an old link somewhere): the front page is /.
+  async redirects() {
+    return [{ source: "/home", destination: "/", permanent: true }];
+  },
   // Card pictures (10-12, lib/pics.ts): cardflip.io/pics/* is our Blob store's cards/ folder, so the Firewall can
   // refuse other sites' hotlinks and rate-limit bulk copying (rules on the project's Firewall tab).
   async rewrites() {
