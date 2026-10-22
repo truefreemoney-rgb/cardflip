@@ -349,10 +349,11 @@ interface SendRow {
   sent_at: number;
 }
 
-async function sendHistory(): Promise<Map<string, SendRow[]>> {
+async function sendHistory(now = Date.now()): Promise<Map<string, SendRow[]>> {
+  // The caps look back a week at most, so two months of sends is plenty (the table grows for ever; review 10-19 admin #18).
   const rows = (await db
-    .prepare("SELECT user_id, campaign, sent_at FROM email_sends WHERE status = 'sent' AND user_id IS NOT NULL ORDER BY sent_at DESC")
-    .all()) as unknown as SendRow[];
+    .prepare("SELECT user_id, campaign, sent_at FROM email_sends WHERE status = 'sent' AND user_id IS NOT NULL AND sent_at > ? ORDER BY sent_at DESC")
+    .all(now - 60 * 24 * 60 * 60 * 1000)) as unknown as SendRow[];
   const out = new Map<string, SendRow[]>();
   for (const r of rows) out.set(r.user_id, [...(out.get(r.user_id) ?? []), r]);
   return out;
