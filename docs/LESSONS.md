@@ -213,3 +213,6 @@ The 10-16 listing cap was okayed on eBay sold reads that mixed played copies and
 
 ## 10-22 4:11PM ET: scans started Lightly Played (Chris, phone check 2)
 Cause: the editor's per-card Condition dropdown also saved itself as the scan default (scanPrefs), so one Lightly Played edit set every later scan. Fix 201a18b5: only the scanner's Options pick writes the default; key rotated to v2 so every phone resets to Near Mint once; the photo's condition strip shows only for Heavily Played / Damaged. Rule (Chris): the user picks the condition, the AI does not grade it unless the card is in real bad shape. Lesson: a 'remember my last pick' must only be written by the control that means 'from now on', never by a one-card edit.
+
+## 10-22 4:12PM ET: binder dividers read as graded slabs (Chris, phone check 2)
+Cause: slab was a bare boolean from the reader; rigid plastic near the card tripped it. Fix: slab counts only when the grading company's name was read off the label (slabGrader), prompt names dividers/boxes as not-slabs. Lesson: a refusal flag needs the evidence field beside it, not a yes/no.
