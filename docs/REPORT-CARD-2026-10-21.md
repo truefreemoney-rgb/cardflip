@@ -304,8 +304,8 @@ Feed note for me: the latestsales feed only returns 25 per page with paging when
 | Red Cliffs Armada, Portal Three Kingdoms (product 514) | $10.74 | market $10.74; NM sold $11.82 x2 (July) | Stands |
 | "Judge token" | - | not a catalog card I can name (the Sunday draft's "Official Judge Token" line); skipped | - |
 
-## 13. Scan cost: a smaller picture for the first read (1:40-1:55am ET 10-22, your scans only, testing key, $0.50 spent = the ceiling)
-Today the first read sends the photo as the phone took it (long edge 1,600 px; Claude bills it at about 2,450 picture tokens). Test: the same 32 of your own scans (20 Pokémon, 12 Magic, newest first), same Sonnet 5, same live prompt and schema, three sizes of the picture. Ground truth = the card you accepted at scan time. Script: scripts/_firstread-size-owner.mjs, raw results data/firstread-size-owner-2026-10-22-*.json.
+## 13. Scan cost: a smaller picture for the first read (1:25-1:35am ET 10-22, your scans only, testing key, $0.50 spent = the ceiling)
+Today the first read sends the photo as the phone took it (long edge 1,600 px; Claude bills it at about 2,450 picture tokens). Test: the same 32 of your own scans (20 Pokémon, 12 Magic, newest first), same Sonnet 5, same live prompt and schema, three sizes of the picture. Ground truth = the card you accepted at scan time. Script: scripts/_firstread-size-owner.mjs, raw results data/firstread-size-owner-2026-10-22-*.json (local, data/ is not in git).
 
 | Picture | Pokémon name / number right (20) | Magic name / number right (12 full, 11 small) | Picture tokens | First-read cost |
 |---|---|---|---|---|
