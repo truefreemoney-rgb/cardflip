@@ -1239,8 +1239,17 @@ export default function CollectionPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    setDetail(null);
-                    remove(card);
+                    // Asks first (Chris 10-22, phone check 3: "delete should give you an are you sure popup"); the
+                    // Undo toast still follows, so a slip is still recoverable.
+                    void confirmAction({
+                      message: `Delete ${card.cardName}${card.setName ? ` (${card.setName})` : ""} from your Inventory?`,
+                      confirmLabel: "Delete card",
+                      danger: true,
+                    }).then((yes) => {
+                      if (!yes) return;
+                      setDetail(null);
+                      remove(card);
+                    });
                   }}
                   className="inline-flex flex-1 items-center justify-center rounded-full border border-edge px-4 py-2.5 text-sm font-medium text-zinc-400 transition hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-300"
                 >
