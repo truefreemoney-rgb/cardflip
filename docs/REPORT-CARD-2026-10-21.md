@@ -252,3 +252,44 @@ The Entei SM219 miss in §9 had a cause worth measuring: TCGplayer sells stamped
 | Trafalgar Law · Online Regional Finalist 2025 Vol.2 (OP07-047) | $300 | NM sale $300 (07-26); 3 listings from $249 | Stands |
 
 All four are TCGplayer's market from a real sale of the exact printing; no eBay needed. The other ~139 prize cards still have no price anywhere (PriceCharting or by hand later).
+
+## 12. Condition discounts measured on TCGplayer's own sales (1:15-1:35am ET 10-22, your sign-in, 0 eBay; TASKS C "measure first")
+What we do today (listing.ts CONDITION_MULTIPLIER): Lightly Played 85%, Moderately Played 70%, Heavily Played 55%, Damaged 40% of the headline. Read: the last 100 sales (English, main printing, shipping included) of 12 vintage (1999-2006) and 10 modern (2021-2025) Pokémon cards worth $250-$900, median sale per condition, as a share of the NEAR MINT median sale.
+
+Modern (NM sold 44-86 times per card, the anchor is solid):
+
+| Condition | Sales median vs NM, 10 cards (middle value) | Range | Our table |
+|---|---|---|---|
+| Lightly Played | 89% | 62-96% | 85% |
+| Moderately Played | 70% | 47-90% | 70% |
+| Heavily Played | ~60% | 47-94% (few sales) | 55% |
+| Damaged | ~47% | 36-52% (few sales) | 40% |
+
+Modern checks out: the table is within a few points of what people pay. Nothing to change.
+
+Vintage (NM sold 0-6 times per card in four months; most vintage sales are played copies, so the comparison is against OUR headline, the number the app multiplies):
+
+| Card | Our headline | LP | MP | HP | Damaged |
+|---|---|---|---|---|---|
+| Charizard Base (NM sold 6x, median $941) | $600 | $500 (83%) | $357 (60%) | $249 (42%) | $196 (33%) |
+| Gengar Expedition | $700 | $649 (93%) | $503 (72%) | $346 (49%) | $268 (38%) |
+| Venusaur ex FRLG | $480 | $490 (102%) | $204 (43%) | $128 (27%) | $92 (19%) |
+| Rayquaza ex Dragon | $595.55 | $610 (102%) | $565 (95%) | $242 (41%) | $182 (31%) |
+| Blastoise ex FRLG | $609 | $658 (108%) | $440 (72%) | $200 (33%) | $119 (20%) |
+| Mew Expedition | $525 | $712 (136%) | $461 (88%) | $280 (53%) | $173 (33%) |
+| Arcanine ex Legend Maker (NM 4x $465) | $482 | $471 (98%) | - | $225 (47%) | $145 (30%) |
+| Umbreon ex Unseen Forces (NM 1x $752) | $500 | - | $550 (110%) | $500 (100%) | $300 (60%) |
+| Charizard Dragon (NM 1x $907) | $490 | - | $600 (122%) | - | $338 (69%) |
+| Tyranitar Aquapolis | $698 | - | $712 (102%) | $280 (40%) | $200 (29%) |
+| Our table | | 85% | 70% | 55% | 40% |
+
+(Charizard ex FRLG: no NM/LP sales at all; Lugia Aquapolis: the feed mixes in 1st Edition/graded copies at $2,000-$8,000, unusable.)
+
+What it says:
+- Vintage middle values vs our headline: LP ~100%, MP ~90%, HP ~43%, Damaged ~31%. So LP and MP copies sell for MORE than our table says (your Rayquaza MP $650-700 finding holds across the set), while HP and Damaged sell for LESS than our table.
+- The real cause is the headline, not the table: when a vintage card does sell Near Mint it goes for 35-55% above our headline (Charizard $941 vs $600, Gengar $1,505 vs $700, Charizard Dragon $907 vs $490, Umbreon ex $752 vs $500). TCGplayer's market price for these lags because NM copies sell a few times a season; played copies set the pace.
+- The spread per card is huge (MP 43% to 122% of the headline on the same table row), with 1-5 sales per condition. A "vintage table" of LP 100 / MP 85 / HP 45 / Damaged 30 would fit the middle but still miss single cards by 40% either way.
+
+Recommendation (your call, nothing changed): leave the table alone. If you want vintage closer, the better lever is the headline: TCGplayer publishes a market price PER CONDITION per product (the signed-in pricepoints feed), so a vintage card's LP/MP quote could come straight from TCGplayer's own LP/MP market instead of a multiplier. That is a build (feed + storage + a nightly read for ~3K vintage cards worth $50+), parked until you say.
+
+Feed note for me: the latestsales feed only returns 25 per page with paging when the call carries the TCGplayer sign-in (credentials include); without it every product reports 5 sales. Calls spent: 59, 1.5 s apart.
