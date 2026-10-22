@@ -9,6 +9,7 @@
 - [x] /cards/magic/the-list/page/10: one row, "Page 10 of 18", Previous + Next present.
 - [x] /cards/pokemon/base-set?page=2 second request x-vercel-cache HIT, 0.22 s.
 - [x] /opengraph-image 200 image/png 39 KB (five-game line is a look check in the pane, below).
+- [x] Pane 2:55-3:00pm (Chris signed in): /api/ebay/comps POST lc-86 variant reverseHolofoil -> searchUrl has reverse+holo; variant zzz -> without, 200 both. /admin/login -> /admin. /admin, /admin/analytics, /admin/prices, /pricing: no $NaN, no missing comma, no one-decimal price. /pricing fresh load = ONE /api/auth/me. /opengraph-image shows the five-game line. settings has NO social_slot:pending-alert rows (clean slot), alerted:* rows are today's from the 1pm false alarm (they expire with the day).
 - [ ] Phone sheet docs/PHONE-CHECKS-2026-10-22.md sent to Chris 2:52pm; his answer owed.
 
 ## 10-22 2:38PM ET (real clock): social posts read the eBay referee (PUSHED 2:35pm in d3c5f350; nothing visible by design)
