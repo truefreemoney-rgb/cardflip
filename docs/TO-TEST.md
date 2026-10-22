@@ -1,5 +1,10 @@
 ﻿# To test later
 
+## 10-22 ~6:59AM ET: 28 of the 106 cap-cut Pokémon prices FIXED on prod with TCGplayer NM-sales checks (report card §14; data write, no code)
+- [ ] Pages print the checked number + "Checked against recent sales (N sold)": Rayquaza C DP47 $999.99, Rayquaza DE 124 $611.98, pl3-8 $399.50 (invalidated by hand; the rest within 48 h).
+- [ ] 5:45am ET write keeps the 28 checked numbers (price_checked binds; tcg_usd notes TCGplayer's raw figure).
+- [ ] /admin/prices lists the 28 new checks (Chris's sign-in).
+
 ## 10-22 ~6:52AM ET: the 106 cap-cut cards, measured + two blanks fixed (COMMIT ONLY code: price guard in-band check vouches; prod data: Raikou SL9 check, Typhlosion 1st keep)
 - Measured (prod, data/crash-2026-10-19.json): 15 of 106 stepped back up on the 10-22 point (217.50 -> 579.99 Raikou, 231.99 -> 507.49 Typhlosion 1st, ...); the guard's recovery rule waved 13 through; 91 still sit at their cut number (TCGplayer's own figure, nothing to do). The chart + 7d/30d % already start at the cap break (priceHistory.ts fromSeriesBreak), so the 'Down 60-80%' item is closed by code that shipped earlier.
 - Blank 1, Raikou SL9 Call of Legends holofoil: TCGplayer NM sales 719 / 699 / 699 (Oct 2-6) -> check recorded on prod at 699 n=3 (scripts/_put-check.mjs --prod). Our 579.99 is inside the 25% band so it STANDS, but the guard only let an exact check vouch -> fixed in priceTrustSite.ts (isOffCheck band), test:sitetrust +3, test:checked / pricetrust / sitetrustroutes green, tsc + eslint clean.
@@ -308,6 +313,11 @@
 - [x] PASS 10-16 (curl: $939.50, no "looks off") 10-15: /cards/pokemon/crystal-guardians/charizard--ex14-4 shows $939.50 (hand keep POSTed 10-14 ~2:45pm ET; page copy was still "looks off" right after, cache).
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
+
+## 10-22 ~6:59AM ET: 28 of the 106 cap-cut Pokémon prices FIXED on prod with TCGplayer NM-sales checks (report card §14; data write, no code)
+- [ ] Pages print the checked number + "Checked against recent sales (N sold)": Rayquaza C DP47 $999.99, Rayquaza DE 124 $611.98, pl3-8 $399.50 (invalidated by hand; the rest within 48 h).
+- [ ] 5:45am ET write keeps the 28 checked numbers (price_checked binds; tcg_usd notes TCGplayer's raw figure).
+- [ ] /admin/prices lists the 28 new checks (Chris's sign-in).
 
 ## 10-22 ~6:52AM ET: the 106 cap-cut cards, measured + two blanks fixed (COMMIT ONLY code: price guard in-band check vouches; prod data: Raikou SL9 check, Typhlosion 1st keep)
 - Measured (prod, data/crash-2026-10-19.json): 15 of 106 stepped back up on the 10-22 point (217.50 -> 579.99 Raikou, 231.99 -> 507.49 Typhlosion 1st, ...); the guard's recovery rule waved 13 through; 91 still sit at their cut number (TCGplayer's own figure, nothing to do). The chart + 7d/30d % already start at the cap break (priceHistory.ts fromSeriesBreak), so the 'Down 60-80%' item is closed by code that shipped earlier.

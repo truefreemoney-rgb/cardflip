@@ -317,3 +317,16 @@ Today the first read sends the photo as the phone took it (long edge 1,600 px; C
 - Caveat for 768: where the full picture said "number unknown" (Fan Rotom), 768 guessed wrong numbers (083, 005). A wrong number is worse than none. 1,024 gave none / one wrong. So 1,024 is the safer size.
 - Money: the first read is about 40% of a scan's $0.021. At 1,024 px it drops from ~$0.008 to ~$0.0047, about $0.0035 a scan (15% of the scan); at 768 px about $0.0042 a scan (20%). On 500 scans a month that is $1.75-2.10 a month today, more as scans grow. Speed is unchanged (~3 s either way).
 - What the change would be: one server-side resize (sharp, long edge 1,024) of the picture handed to the FIRST read only. The second look's text-box and bottom-strip crops, the pattern look and the picture tiebreak keep reading the full photo, so nothing that needs fine print gets a smaller picture. About 10 lines in vision.ts plus a test. Your yes.
+
+## 14. The 106 cap-cut Pokémon prices, re-read on TCGplayer sales (6:59AM ET 10-22, your sign-in, 0 eBay)
+The 10-16/10-17 listing cap cut 106 Pokémon prices (data/crash-2026-10-19.json). Today 15 of them stepped back up on their own; two of those went blank behind the guard (Raikou SL9, Typhlosion 1st; both fixed, and the guard now lets a check vouch for any price inside its 25% band, code held for the push). Then every one of the 106 was read against TCGplayer's latest Near Mint sales of the exact printing (106 feed calls, 1.5 s apart):
+
+| Evidence | Cards | Result |
+|---|---|---|
+| 3+ NM sales, cut price under 75% of the NM median | 29 | WRONG: ours sat at 15-55% of what NM copies sell for (Rayquaza C DP47 ours 217.50 vs NM 1,074 / 1,000 / 491; Shiny Raikou 217.50 vs 699; Rayquaza Dragons Exalted 124 210.25 vs 612; Charizard Platinum Arceus 8? no: pl3-8 101.49 vs 399.50 ...). 28 FIXED with a check at the NM median (scripts/_put-check.mjs --prod, 27 tonight + Raikou earlier); HGSS11 skipped (NM 81 / 68 / 250, no agreement). |
+| 3+ NM sales, inside the band | 1 | stands |
+| fewer than 3 NM sales | 76 | unsure, left at the cut number (mostly -60 cards; LP/MP sales only) |
+
+What it says: the listing cap took the LOWEST LISTING as the price for these cards, and on vintage cards the lowest listing is a damaged or heavily played copy. The checks hold 30 days; the nightly writer keeps the checked number while TCGplayer's own number stays more than 25% off it. Pages show "Checked against recent sales (N sold)". ISR-cached pages refresh within 48 h (three invalidated by hand: Rayquaza C, Rayquaza DE, pl3-8).
+
+Follow-up (your call): the 76 thin ones could be read against LP sales x 1/0.85 or left; and the cap itself (pokemonListingCap) should never take a lowest listing on a vintage card as the market. Noted in TASKS C.
