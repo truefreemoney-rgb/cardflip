@@ -13,7 +13,7 @@
  * off writes nothing.
  */
 import assert from "node:assert/strict";
-import { DATA_FROM, FLOOR, LEAD_DAYS, MIN_DAYS, MIN_POSTS, PRIOR_WEIGHT, SITE_WEIGHT, NO_REPEAT_DAYS, PICTURE_PRIOR, USAGE_DAYS, POOL_KINDS, SCORE_CAP, SCORED_KINDS, formatWeights, gameFor, rotate, scoreKinds, step, weights } from "../src/lib/socialOptimize.ts";
+import { DATA_FROM, FLOOR, LEAD_DAYS, MIN_DAYS, MIN_POSTS, PRIOR_WEIGHT, SITE_WEIGHT, NO_REPEAT_DAYS, PICTURE_PRIOR, USAGE_DAYS, POOL_KINDS, SCORE_CAP, SCORED_KINDS, VIDEO_WEEK, formatWeights, inVideoWeek, gameFor, rotate, scoreKinds, step, weights } from "../src/lib/socialOptimize.ts";
 import { ANGLE_GAMES, angleCycle } from "../src/lib/socialPlan.ts";
 
 const NOW = Date.parse("2026-10-20T16:00:00Z"); // noon Eastern
@@ -255,5 +255,22 @@ assert.deepEqual([s.entry, s.report.picks], [null, null]);
 assert.match(s.report.why, /^Switched off: the schedule stays as it stands \(set spotlight at 7am, weekly gains at 1pm, all-games jumps at 7pm\)\. Scores/);
 // Deterministic: the same day and numbers give the same entry.
 assert.deepEqual(step({ posts, now: NOW, day: "2026-10-21", off: false, yesterday: yday, recent: [] }).entry, step({ posts, now: NOW + 1000, day: "2026-10-21", off: false, yesterday: yday, recent: [] }).entry);
+
+// ---- Video week (10-22): no picture draw on those days, on every site; the sentence says so; outside it nothing changes ----
+assert.deepEqual(VIDEO_WEEK, { from: "2026-10-24", to: "2026-10-30" });
+assert.deepEqual(["2026-10-23", "2026-10-24", "2026-10-30", "2026-10-31"].map(inVideoWeek), [false, true, true, false]);
+{
+  // A picture-favouring world: the picture scores far above the video, so a draw outside the week picks it somewhere.
+  const picFormats = [{ format: "video", posts: 20, score: 0.5 }, { format: "picture", posts: 20, score: 2 }];
+  const inWeek = ["2026-10-24", "2026-10-25", "2026-10-26", "2026-10-27", "2026-10-28", "2026-10-29", "2026-10-30"].map((day) => rotate({ ...base, formats: picFormats, day }));
+  assert.ok(inWeek.every((d) => [d.morning.format, d.midday.format, d.evening.format].every((f) => f === "video")), "video week: every slot is the video");
+  const outside = ["2026-10-20", "2026-10-21", "2026-10-22", "2026-10-23", "2026-10-31", "2026-11-01", "2026-11-02", "2026-11-03"].map((day) => rotate({ ...base, formats: picFormats, day }));
+  assert.ok(outside.some((d) => d.morning.format === "picture" || d.evening.format === "picture"), "outside the week the picture still draws");
+  const sv = step({ posts, now: NOW, day: "2026-10-25", off: false, yesterday: yday, recent: [] });
+  assert.match(sv.report.why, /Video week \(2026-10-24 to 2026-10-30\): every slot is the video on every site, no picture/);
+  assert.equal(sv.entry.morningFormat, undefined);
+  assert.equal(sv.entry.eveningFormat, undefined);
+  assert.doesNotMatch(step({ posts, now: NOW, day: "2026-10-21", off: false, yesterday: yday, recent: [] }).report.why, /Video week/);
+}
 
 console.log("test-social-optimize: ok");

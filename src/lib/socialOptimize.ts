@@ -102,6 +102,17 @@ export const LEAD_DAYS = 1;
  * is the picture, never both 7am and 7pm on one day, and 1pm is always the video.
  */
 export const PICTURE_PRIOR = 0.2;
+/**
+ * Video week (Chris 10-22 "go"): for these Eastern days every open slot posts the video, no picture draw, on every site.
+ * The picture scored 0.75 against the video's 1.09 (293 posts) yet still took about two open slots in five by its share,
+ * and a kind's format and its slot are tangled in those scores (a picture only ever at 7am or 7pm). A week with no pictures
+ * is read against the week before it, per site, on 10-31; if the video wins the picture's share drops for good, if not the
+ * pictures come back as they are. Rendering costs nothing extra: the night render makes every slot's video for TikTok anyway.
+ */
+export const VIDEO_WEEK = { from: "2026-10-24", to: "2026-10-30" } as const;
+export function inVideoWeek(day: string): boolean {
+  return day >= VIDEO_WEEK.from && day <= VIDEO_WEEK.to;
+}
 
 const DAY_MS = 86_400_000;
 
@@ -362,8 +373,9 @@ export function rotate(input: RotateInput): DayPicks {
       kind = [...cands].sort((a, b) => deficit(b) - deficit(a) || (scoreOfKind(b) ?? 0) - (scoreOfKind(a) ?? 0) || orderOf(a) - orderOf(b))[0];
     }
     chosen.push(kind);
-    // The format: 1pm is always the video (the file every site posts); never the picture in both 7am and 7pm on one day.
-    const format: PostFormat = slot === "midday" || pictureDrawn ? "video" : (draw(["video", "picture"] as unknown as ScoredKind[], fw, seeded(input.day, `${slot}:format`)) as unknown as PostFormat);
+    // The format: 1pm is always the video (the file every site posts); never the picture in both 7am and 7pm on one day;
+    // none at all in the video week.
+    const format: PostFormat = slot === "midday" || pictureDrawn || inVideoWeek(input.day) ? "video" : (draw(["video", "picture"] as unknown as ScoredKind[], fw, seeded(input.day, `${slot}:format`)) as unknown as PostFormat);
     if (format === "picture") pictureDrawn = true;
     picks[slot] = { kind, game: gameFor(kind, input.day, input.games), format };
   }
@@ -422,7 +434,8 @@ export function step(input: { posts: ScoredPost[]; now: number; day: string; off
     return { report: { ...base, picks: null, why: `Switched off: the schedule stays as it stands (${stay}). ${scoreLine(scores, w, formats)}` }, entry: null };
   }
   const picks = rotate({ day: input.day, scores, games, formats, yesterday: input.yesterday, recent: input.recent, used: input.used, pool: input.pool });
-  const why = `${input.day}: ${describePick(picks.morning)} at 7am, ${describePick(picks.midday)} at 1pm, ${describePick(picks.evening)} at 7pm. Never-scored styles first (least-used), then each style gets slots in proportion to its score; the pick is the one furthest behind its share (never a kind posted ${NO_REPEAT_DAYS === 1 ? "the day before" : `in the last ${NO_REPEAT_DAYS} days`}). ${scoreLine(scores, w, formats)}`;
+  const videoWeek = inVideoWeek(input.day) ? ` Video week (${VIDEO_WEEK.from} to ${VIDEO_WEEK.to}): every slot is the video on every site, no picture, to read the format apart from the slot.` : "";
+  const why = `${input.day}: ${describePick(picks.morning)} at 7am, ${describePick(picks.midday)} at 1pm, ${describePick(picks.evening)} at 7pm.${videoWeek} Never-scored styles first (least-used), then each style gets slots in proportion to its score; the pick is the one furthest behind its share (never a kind posted ${NO_REPEAT_DAYS === 1 ? "the day before" : `in the last ${NO_REPEAT_DAYS} days`}). ${scoreLine(scores, w, formats)}`;
   const entry: StandingEntry = {
     from: input.day,
     morning: picks.morning.kind,

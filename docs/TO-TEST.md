@@ -1329,3 +1329,9 @@ pm run replay:scans (or SELECT read FROM scan_usage ORDER BY at DESC LIMIT 1): t
 - [ ] After push: scan the glare Fan Rotom (PRE 085) on the phone: lands as Prismatic Evolutions 085, not Ascended Heroes; the scan log shows secondLook "no-number".
 - [ ] After push: a Lorcana D23/promo card scan reads number 2 / P1 (any promo with the "1TFC • EN" line).
 - [ ] After push: an ordinary Pokémon scan with a readable number is unchanged (no second look = no extra cost); scan_usage cost per scan for a no-number scan rises ~$0.003.
+
+## 10-22 ~7:35pm ET: social VIDEO WEEK 10-24..10-30 (COMMITTED, not pushed; Chris "go" on E8)
+- lib/socialOptimize.ts VIDEO_WEEK + inVideoWeek: rotate() never draws the picture on those days; step() why line names the week. test:socialoptimize +6, tsc + eslint clean.
+- [ ] After push, the 10-23 evening run (before the 9:15pm render): /admin/social change line for 10-24 reads "Video week (2026-10-24 to 2026-10-30): every slot is the video..." and the social_schedule entry for 10-24 has no morningFormat/eveningFormat.
+- [ ] 10-24 7am + 7pm: Bluesky/X/Facebook/Instagram/Threads posts are the MP4, not the PNG (admin posts list, format = video).
+- [ ] 10-31: verdict, per site, video week vs 10-17..10-23; log in LESSONS/TASKS; set the picture's share from the result.
