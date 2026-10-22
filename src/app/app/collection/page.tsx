@@ -54,6 +54,7 @@ import { priceFlagLeftOut } from "@/lib/priceFlag";
 import { saleBreakdown, saleNet } from "@/lib/profit";
 import { toast } from "@/components/Toaster";
 import { etDate } from "@/lib/time";
+import LiveDot from "@/components/LiveDot";
 import { TAP_10, TAP_8 } from "@/lib/tap";
 
 /**
@@ -730,10 +731,7 @@ export default function CollectionPage() {
     ];
     const status = live ? (
       <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-300">
-        <span className="relative flex h-1.5 w-1.5">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
-        </span>
+        <LiveDot />
         Live on eBay
       </span>
     ) : ended ? (
@@ -763,10 +761,7 @@ export default function CollectionPage() {
     // under the two prices, the same shape as the Verify bar, instead of a chip squeezed into the market cell.
     const statusBar = live ? (
       <div className="flex w-full items-center justify-center gap-2 rounded-full bg-emerald-500/15 px-4 py-2.5 text-sm font-semibold text-emerald-300">
-        <span className="relative flex h-2 w-2">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-        </span>
+        <LiveDot size="md" />
         Live on eBay
       </div>
     ) : ended ? (
@@ -3012,10 +3007,7 @@ export default function CollectionPage() {
                 <span className="pointer-events-none absolute bottom-2 left-2 block">
                   {live ? (
                     <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-black/70 px-2.5 py-1 text-[11px] font-semibold text-emerald-300 backdrop-blur">
-                      <span className="relative flex h-2 w-2">
-                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-                        <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-                      </span>
+                      <LiveDot size="md" />
                       Live
                     </span>
                   ) : ended ? (
@@ -3511,10 +3503,7 @@ export default function CollectionPage() {
                       title="Live on eBay — flips to Sold on its own once eBay reports the order"
                       className={`${slotBase} sm:col-start-1 border-emerald-400/40 bg-emerald-400/15 font-semibold text-emerald-300`}
                     >
-                      <span className="relative mr-1.5 flex h-1.5 w-1.5">
-                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-                        <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                      </span>
+                      <LiveDot className="mr-1.5" />
                       Live
                     </span>
                   )}

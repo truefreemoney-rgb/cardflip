@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import LiveDot from "@/components/LiveDot";
 import HoloCard from "@/components/HoloCard";
 import { netAfterFees, salePostage } from "@/lib/fees";
 import { displayCardNumber } from "@/lib/games";
@@ -44,10 +45,7 @@ export default function ListedPanel({ item, onNext }: Props) {
 
       <div className="flex flex-col items-center gap-2">
         <span className="inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-ebay/15 px-3.5 py-1 text-xs font-semibold text-sky-300">
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400 opacity-60" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-sky-400" />
-          </span>
+          <LiveDot size="md" color="sky" />
           Live on eBay
         </span>
         <h2 className="font-display text-2xl font-semibold leading-tight text-white">{card.name}</h2>
