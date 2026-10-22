@@ -1,13 +1,15 @@
-// READ ONLY (prod): one SELECT / WITH statement, refused otherwise. node scripts/_sql-ro.mjs "SELECT ..."
+// Read-only SELECT on prod (Turso) or the local db: node scripts/_sql-ro.mjs [--prod] "SELECT ..." ["SELECT ..."]
+// Refuses anything that is not a single SELECT/PRAGMA statement.
 import fs from "node:fs";
 import { createClient } from "@libsql/client";
-const sql = (process.argv[2] ?? "").trim();
-if (!/^(select|with)\b/i.test(sql) || /;\s*\S/.test(sql) || /\b(insert|update|delete|drop|alter|replace|create|attach|pragma|vacuum)\b/i.test(sql)) {
-  console.error("refused: one SELECT/WITH only");
-  process.exit(2);
+const prod = process.argv.includes("--prod");
+const sqls = process.argv.slice(2).filter((a) => a !== "--prod");
+const c = prod
+  ? (() => { const cfg = JSON.parse(fs.readFileSync(".env.migration.json", "utf8").replace(/^﻿/, "")); return createClient({ url: cfg.dbUrl, authToken: cfg.dbToken }); })()
+  : createClient({ url: "file:data/cardflip.db" });
+for (const sql of sqls) {
+  if (!/^\s*(select|pragma|with)\b/i.test(sql) || /;\s*\S/.test(sql)) throw new Error(`refused (read-only): ${sql}`);
+  const r = await c.execute(sql);
+  console.log(`-- ${sql.slice(0, 120)}\n${r.rows.length} row(s)`);
+  for (const row of r.rows.slice(0, 200)) console.log(JSON.stringify(row));
 }
-const cfg = JSON.parse(fs.readFileSync(".env.migration.json", "utf8").replace(/^﻿/, ""));
-const c = createClient({ url: cfg.dbUrl, authToken: cfg.dbToken });
-const rows = (await c.execute(sql)).rows;
-for (const r of rows.slice(0, 200)) console.log(JSON.stringify(r));
-console.log(`${rows.length} rows`);
