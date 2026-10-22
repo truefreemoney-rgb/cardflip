@@ -792,11 +792,24 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
   return report;
 }
 
+/** A failed slot waits this long for a later ping to make it good before Chris is mailed (10-22). */
+export const FAILURE_MAIL_GRACE_MS = 10 * 60_000;
+
 /**
  * Email Chris the day a site that USED to post starts failing (09-29:
  * Facebook's token died 09-28 and nobody noticed for a day; the board line
  * is not an alert). A site that never posted (Pinterest on Trial access) is
  * a known state, not news. One mail per site per Eastern day.
+ *
+ * 10-22: the mail no longer goes on the first failure. On 10-22 the GitHub
+ * backstop ping timed out on all five sites at 1:03pm and mailed "Social
+ * Post Failed", then the Vercel cron posted the slot fine at 1:05pm: a false
+ * alarm. Now a failure is only NOTED (a pending record per site); the next
+ * run of the publisher, at least FAILURE_MAIL_GRACE_MS later, mails it if
+ * that slot is still unposted on that site, and quietly drops it if a later
+ * ping landed the post. With the Vercel cron at :05 and the GitHub backstop
+ * at :20 the verdict comes 15 minutes after the first failure; if no backstop
+ * ping comes, the next slot's run (hours later) still sends it.
  */
 export async function alertFailures(
   report: PublishReport,
@@ -804,17 +817,43 @@ export async function alertFailures(
     get?: (k: string) => Promise<string | null>;
     set?: (k: string, v: string) => Promise<void>;
     send?: (failures: Array<{ label: string; error: string }>) => Promise<void>;
+    now?: number;
   } = {},
 ): Promise<string[]> {
   const get = deps.get ?? getSetting;
   const set = deps.set ?? setSetting;
+  const now = deps.now ?? Date.now();
+  const pendingKey = (site: string) => `${SLOT_PREFIX}pending-alert:${site}`;
   const failures: Array<{ site: string; label: string; error: string }> = [];
   for (const s of report.sites) {
-    if (s.status !== "failed") continue;
+    const alertedKey = `${SLOT_PREFIX}alerted:${s.site}`;
+    // 1. A pending failure from an earlier ping: made good, still broken, or too soon to say.
+    let pending: { etDay: string; slot: Slot; at: number; label: string; error: string } | null = null;
+    try {
+      pending = JSON.parse((await get(pendingKey(s.site))) || "null");
+    } catch {
+      pending = null;
+    }
+    if (pending) {
+      const stale = pending.etDay !== report.etDay;
+      const landed = s.status === "posted" || (await get(`${SLOT_PREFIX}${s.site}:${pending.slot}`)) === report.etDay;
+      if (stale || landed) {
+        await set(pendingKey(s.site), "");
+      } else if (now - pending.at >= FAILURE_MAIL_GRACE_MS) {
+        await set(pendingKey(s.site), "");
+        if ((await get(alertedKey)) !== report.etDay) {
+          const fresh = s.status === "failed" ? s.posts.find((p) => p.error)?.error ?? s.reason : null;
+          failures.push({ site: s.site, label: pending.label, error: fresh ?? pending.error });
+        }
+        continue;
+      } else continue; // inside the grace window: wait for the next ping
+    }
+    // 2. A new failure on a site that used to post: note it, mail later.
+    if (s.status !== "failed" || !report.slot) continue;
     if (!(await get(`${LAST_POST_PREFIX}${s.site}`))) continue;
-    const key = `${SLOT_PREFIX}alerted:${s.site}`;
-    if ((await get(key)) === report.etDay) continue;
-    failures.push({ site: s.site, label: s.label, error: s.posts.find((p) => p.error)?.error ?? s.reason ?? "unknown error" });
+    if ((await get(alertedKey)) === report.etDay) continue;
+    const error = s.posts.find((p) => p.error)?.error ?? s.reason ?? "unknown error";
+    await set(pendingKey(s.site), JSON.stringify({ etDay: report.etDay, slot: report.slot, at: now, label: s.label, error }));
   }
   if (failures.length === 0) return [];
   if (deps.send) await deps.send(failures);

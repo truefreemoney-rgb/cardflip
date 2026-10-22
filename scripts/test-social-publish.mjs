@@ -368,24 +368,43 @@ check("empty caption still has a title", pin.pinterestFields("").title, "CardFli
 delete process.env.PINTEREST_APP_ID;
 delete process.env.PINTEREST_APP_SECRET;
 
-// --- failure alert (09-29: Facebook's token died and nobody heard for a day) ---
+// --- failure alert (09-29: Facebook's token died and nobody heard for a day; 10-22: a later ping gets 10 min to make it good first) ---
 {
-  const { alertFailures } = await import(at("lib/server/socialPublish.ts"));
+  const { alertFailures, FAILURE_MAIL_GRACE_MS, SLOT_PREFIX } = await import(at("lib/server/socialPublish.ts"));
   const store = new Map([[`${LAST_POST_PREFIX}facebook`, "2026-09-28"]]);
   const sent = [];
-  const deps = { get: async (k) => store.get(k) ?? null, set: async (k, v) => void store.set(k, v), send: async (f) => void sent.push(f) };
+  const T0 = Date.parse("2026-09-29T17:05:00Z");
+  const deps = (now) => ({ get: async (k) => store.get(k) ?? null, set: async (k, v) => void store.set(k, v), send: async (f) => void sent.push(f), now });
   const rep = {
     etDay: "2026-09-29",
+    slot: "midday",
     sites: [
       { site: "facebook", label: "Facebook", status: "failed", posts: [{ id: "a", title: "A", error: "Session has expired" }] },
       { site: "pinterest", label: "Pinterest", status: "failed", posts: [{ id: "a", title: "A", error: "Trial access" }] },
       { site: "x", label: "X", status: "posted", posts: [{ id: "a", title: "A", uri: "u" }] },
     ],
   };
-  check("alert: a site that used to post is mailed; never-posted Pinterest is not", await alertFailures(rep, deps), ["facebook"]);
+  check("alert: the first failure is only noted, no mail yet", [await alertFailures(rep, deps(T0)), sent.length, !!store.get(`${SLOT_PREFIX}pending-alert:facebook`)], [[], 0, true]);
+  check("alert: never-posted Pinterest is not even noted", store.get(`${SLOT_PREFIX}pending-alert:pinterest`) ?? null, null);
+  check("alert: a ping inside the grace window still waits", [await alertFailures(rep, deps(T0 + FAILURE_MAIL_GRACE_MS - 1)), sent.length], [[], 0]);
+  check("alert: still failed after the grace = mailed", await alertFailures(rep, deps(T0 + FAILURE_MAIL_GRACE_MS)), ["facebook"]);
   check("alert: the mail carries the error", sent[0]?.[0]?.error, "Session has expired");
-  check("alert: once per site per day", await alertFailures(rep, deps), []);
-  check("alert: again the next day", await alertFailures({ ...rep, etDay: "2026-09-30" }, deps), ["facebook"]);
+  check("alert: once per site per day (a new failure after the mail is not noted again)", [await alertFailures(rep, deps(T0 + 20 * 60_000)), await alertFailures(rep, deps(T0 + 40 * 60_000)), sent.length], [[], [], 1]);
+  // The false alarm of 10-22: the slot lands on a later ping, so the pending note is dropped and nothing is mailed.
+  const store2 = new Map([[`${LAST_POST_PREFIX}facebook`, "2026-09-28"]]);
+  const sent2 = [];
+  const deps2 = (now) => ({ get: async (k) => store2.get(k) ?? null, set: async (k, v) => void store2.set(k, v), send: async (f) => void sent2.push(f), now });
+  await alertFailures(rep, deps2(T0));
+  const okRep = { ...rep, sites: [{ site: "facebook", label: "Facebook", status: "posted", posts: [{ id: "a", title: "A", uri: "u" }] }] };
+  check("alert: the slot posted on the next ping = note dropped, no mail", [await alertFailures(okRep, deps2(T0 + 2 * 60_000)), store2.get(`${SLOT_PREFIX}pending-alert:facebook`) || null, sent2.length], [[], null, 0]);
+  await alertFailures(rep, deps2(T0 + 60 * 60_000));
+  store2.set(`${SLOT_PREFIX}facebook:midday`, "2026-09-29"); // a later ping of the same slot landed it (status "skipped" on this run)
+  const skippedRep = { ...rep, sites: [{ site: "facebook", label: "Facebook", status: "skipped", reason: "already posted", posts: [] }] };
+  check("alert: the slot key says it landed = dropped too", [await alertFailures(skippedRep, deps2(T0 + 80 * 60_000)), sent2.length], [[], 0]);
+  // A note left from yesterday never mails today.
+  store2.set(`${SLOT_PREFIX}pending-alert:facebook`, JSON.stringify({ etDay: "2026-09-28", slot: "evening", at: 0, label: "Facebook", error: "old" }));
+  check("alert: a stale note from another day is dropped", [await alertFailures({ ...okRep, etDay: "2026-09-29" }, deps2(T0 + 90 * 60_000)), sent2.length], [[], 0]);
+  check("alert: again the next day", [await alertFailures({ ...rep, etDay: "2026-09-30" }, deps(T0 + 86_400_000)), await alertFailures({ ...rep, etDay: "2026-09-30" }, deps(T0 + 86_400_000 + FAILURE_MAIL_GRACE_MS))], [[], ["facebook"]]);
 }
 
 // --- CI / prod-smoke alert (lib/server/opsAlert.ts, 09-29) — lives here for the harness ---

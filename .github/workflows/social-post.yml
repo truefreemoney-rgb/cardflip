@@ -38,12 +38,16 @@ on:
     - cron: "15 16 * * *" # 12:15pm EDT
     - cron: "30 16 * * *" # 11:30am EST
     - cron: "15 17 * * *" # 12:15pm EST
-    - cron: "5 11 * * *"  # 7am EDT (backstop; Vercel posts first)
-    - cron: "5 12 * * *"  # 7am EST
-    - cron: "5 17 * * *"  # 1pm EDT
-    - cron: "5 18 * * *"  # 1pm EST
-    - cron: "5 23 * * *"  # 7pm EDT
-    - cron: "5 0 * * *"   # 7pm EST
+    # 10-22: the backstop pings sit 15 minutes AFTER the Vercel :05 cron. On
+    # 10-22 the 1:03pm backstop (GitHub ran it early) timed out on every site
+    # and mailed a failure, then Vercel posted the slot at 1:05pm: a false
+    # alarm. Now Vercel posts first; a backstop that lands after it is a no-op.
+    - cron: "20 11 * * *" # 7:20am EDT (backstop; Vercel posts at 7:05)
+    - cron: "20 12 * * *" # 7:20am EST
+    - cron: "20 17 * * *" # 1:20pm EDT
+    - cron: "20 18 * * *" # 1:20pm EST
+    - cron: "20 23 * * *" # 7:20pm EDT
+    - cron: "20 0 * * *"  # 7:20pm EST
     - cron: "0 0 * * *"   # 8pm EDT: the night render, tomorrow's TikTok videos (7pm EST: waits for 8pm)
     - cron: "0 1 * * *"   # 8pm EST (9pm EDT: a re-check that finds it done)
   workflow_dispatch:
@@ -93,7 +97,7 @@ jobs:
     # TikTok dispatch (that is the `tiktok` job) and not the night pings.
     if: >-
       github.event_name == 'workflow_dispatch' && inputs.tiktok != '1' && (inputs.video == '1' || inputs.render_only == '1' || inputs.slot == 'midday' || inputs.slot == '')
-      || contains(fromJSON('["30 14 * * *","30 15 * * *","15 16 * * *","30 16 * * *","15 17 * * *","5 17 * * *","5 18 * * *"]'), github.event.schedule)
+      || contains(fromJSON('["30 14 * * *","30 15 * * *","15 16 * * *","30 16 * * *","15 17 * * *","20 17 * * *","20 18 * * *"]'), github.event.schedule)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

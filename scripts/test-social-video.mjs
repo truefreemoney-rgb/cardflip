@@ -318,7 +318,10 @@ globalThis.fetch = realFetch;
   check("Vercel checks the video at 12:40pm Eastern, both DST hours (video at 1pm since 09-27)", at("/api/cron/social-video"), ["40 16 * * *", "40 17 * * *"]);
   const wf = readFileSync(new URL("../.github/workflows/social-post.yml", import.meta.url), "utf8");
   check("workflow renders from 10:30am Eastern", wf.includes('cron: "30 14 * * *"'), true);
-  check("the 1pm pings also render (backstop), the 7am ones do not", [wf.includes('"5 17 * * *","5 18 * * *"]'), wf.includes('"5 11 * * *","5 12 * * *"]')], [true, false]);
+  check("the 1pm pings also render (backstop), the 7am ones do not", [wf.includes('"20 17 * * *","20 18 * * *"]'), wf.includes('"20 11 * * *","20 12 * * *"]')], [true, false]);
+  // 10-22: every GitHub post ping sits after the Vercel :05 cron (a 1:03pm backstop timed out and mailed a false alarm before Vercel posted at 1:05).
+  check("GitHub backstop pings come 15 min after Vercel's :05 posts", ["20 11", "20 12", "20 17", "20 18", "20 23", "20 0"].map((m) => wf.includes(`cron: "${m} * * *"`)), [true, true, true, true, true, true]);
+  check("no GitHub post ping at :05 any more", /cron: "5 (0|11|12|17|18|23) \* \* \*"/.test(wf), false);
   check("workflow has a render-only dispatch input", wf.includes("render_only:") && wf.includes("inputs.render_only != '1'"), true);
 }
 
