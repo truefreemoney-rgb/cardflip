@@ -1,5 +1,11 @@
 ﻿# To test later
 
+## 10-22 2:00PM ET: social failure mail waits for a later ping; GitHub backstop pings at :20 (COMMIT ONLY f93afc8c; nothing visible by design)
+- 10-22 1:03pm: the GitHub backstop ping timed out on all five sites and mailed "Social Post Failed", then the Vercel 1:05pm cron posted the slot. alertFailures now only NOTES a failure (settings key social_slot:pending-alert:<site>); the next publisher run 10+ min later mails it if that slot is still unposted on the site, drops it if a later ping landed the post. social-post.yml post pings moved from :05 to :20 (7:20am / 1:20pm / 7:20pm ET, both DST hours); the video job's 1pm list follows. test:socialpublish + test:socialvideo green.
+- [ ] After push, first slot (7pm or 7am): GitHub Actions social-post runs at :20 (ET), not :03-:05; its post job reports every site "already posted" (repeat), no mail.
+- [ ] After push, pane (signed in): SELECT key, value FROM settings WHERE key LIKE 'social_slot:pending-alert:%' -> empty after a clean slot (a note only lives between a failure and the next run).
+- [ ] After push: the next genuine failure (a token dies) mails ONE "Social Post Failed on <site>" at the next run after 10 min, not two mails and not at :05.
+
 ## 10-22 1:55PM ET: set pager = one row + five-game share image (COMMIT ONLY c97fd5c1 + the pager redo, VISIBLE: share image PASSED by Chris 1:55pm; the one-row pager PASSED by Chris 2:00pm; every visible change in the held batch is approved)
 - SetPageView Pager: ONE row that never wraps: "‹ Previous" | "Page 10 of 18" | "Next ›" (44px buttons, the end buttons grey out on page 1 / last). Chris 1:50pm on the first/last/window pills: "looks like shit" (they wrapped to two rows on the phone) -> redone. opengraph-image: "Scan. Price. List your cards." + "Pokémon · Magic · Lorcana · Yu-Gi-Oh! · One Piece"; alt names the five games. Review 10-19 public #19, #20, #29.
 - [ ] After push: /cards/magic/the-list/page/10 on the phone shows one row "‹ Previous · Page 10 of 18 · Next ›"; page 1 has Previous greyed; the last page has Next greyed; a 1-page set shows no pager.
