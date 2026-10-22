@@ -147,3 +147,43 @@ eBay sold read the new way: Graded: No, Buy It Now, and every listing counts as 
 | Venusaur · Base Set 15/102 holo (reader: "too high", 10-19) | $136.30 | $167.66 (218 listings) | plain Buy It Now only: $53.50 (no condition), $53.34 (MP), $100 (LP); the other 8 were Best Offer = out. One clean sale is not a read | **Stands by the TCGplayer-first rule** (19% under TCGplayer; eBay has too little clean data to argue) |
 
 All six post cards marked "Looks right" on prod (scripts/_post-check-mark.mjs, the same write as the button). The reader flag itself stays open on /admin/prices (resolving it needs the admin sign-in); nothing to fix.
+
+## 7. The 47 hand-set prices re-read TCGplayer-first (12:40-1:05am ET 10-22, your sign-in, read only)
+
+Each of these was set from eBay sold on 10-18..10-21 (before tonight's rules). With your TCGplayer sign-in I pulled each card's last 25 TCGplayer sales and kept Near Mint sales of our exact finish. Nothing has been changed yet.
+
+**Verdict A: TCGplayer should win back these 27** (its Near Mint sales sit well above our eBay number; "retire" = the hand-set price is switched off and the card goes back to TCGplayer's market from the next nightly write).
+
+| Card | Ours (eBay) | TCGplayer NM sales | TCGplayer market |
+|---|---|---|---|
+| Mewtwo ex · Ruby & Sapphire 101 | $250 | 3 sales, median $999.69, last $1,167 (10-12) | $746.79 |
+| Charizard GX · Burning Shadows 150 rainbow | $350 | 8 sales, median $950 | $840.75 |
+| Crystal Celebi · Skyridge 145 reverse | $489.99 | no NM sale; MP $775, LP $699, HP $650-700 (all above ours) | $775 |
+| Rocket's Suicune ex · TRR 105 | $400 | NM $1,349.99; LP $650; MP $300-475 | $500 |
+| Gyarados · HGSS 123 reverse | $170 | 1 sale $499.99 (09-18) | $369.59 |
+| Charizard · Secret Wonders 3 reverse | $200 | 1 sale $441.24 (10-12); LP $240 | $310.62 |
+| Rocket's Sneasel ex · TRR 103 | $260 | 2 sales $399 / $420 | $386.33 |
+| Lugia GX · Lost Thunder 227 | $245 | 1 real sale $499.97; LP $203-245 | $326.25 |
+| Typhlosion ex · Sandstorm 99 | $200 | 4 sales, median $275, last $299.99 (10-22) | $259.63 |
+| Spectacular Spider-Man 238 textured foil | $174 | 16 sales, median $249.73 | $250.59 |
+| Zapdos ex · FRLG 116 | $135 | 5 sales, median $268.96 | $260.97 |
+| Suicune & Entei LEGEND top · Unleashed 94 | $125 | 1 sale $340; LP $141-200 | $305.95 |
+| Rare Candy · Plasma Blast 105 | $122 | 4 sales, median $195, last $310 (10-18) | $231.25 |
+| Scyther ex · Ruby & Sapphire 102 | $115 | 6 sales, median $175 | $180.86 |
+| Keldeo-EX · Boundaries Crossed 142 | $100 | 1 sale $155; LP $75-100 | $140.65 |
+| Suicune & Entei LEGEND bottom · Unleashed 95 | $90 | 3 sales, median $213.98 | $210.25 |
+| Venusaur · Base Set 15 | $75 | no NM sale; LP $93-95 (above ours) | $167.66 |
+| Hitmonchan ex · Ruby & Sapphire 98 | $70 | 2 sales $199.99; LP $100-120 | $125.32 |
+| Scraggy · McDonald's 2016 7/12 | $65 | 1 sale $199.99; LP $140 | $144.99 |
+| Lightning Energy · Call of Legends 91 | $50 | 3 sales, median $220.50 | $116 |
+| Metagross δ · Delta Species 11 | $48 | 2 sales $127.84 / $199.99 | $175.94 |
+| Pikachu · POP Series 4 13 | $45 | no NM sale; LP $90, MP $70 | $101.47 |
+| Blaziken · Ruby & Sapphire 3 | $40.64 | 3 sales, median $179.99 | $101.02 |
+| Minun · HGSS17 promo | $23.33 | 2 sales $79.95 / $79.99 | $79.97 |
+| Scapegoat · Retro Pack RP01-EN090 | $12.74 (eBay asks, 0 sales) | LP $160-185, MP $80 | $181.85 |
+| Dark Magician · Retro Pack RP01-EN003 | $11.50 (asks) | NM $69.80, LP $149.99 | $147.50 |
+| Elemental Hero Knospe · PP02-EN005 | $4.24 (asks) | LP $100, MP $96 | $103.38 |
+
+**Verdict B: keep our number on these 20** (TCGplayer has no usable Near Mint data for the exact printing, or its sales agree with ours): Charizard 1st Edition $4,000 (no 1st Ed sale in the last 25, only unlimited); Mickey Best in Town Iconic $3,000 (no TCGplayer sales, 14 asks from $2,449); Rocket's Mewtwo Best of Game $1,000 (2 NM sales $899.99, LP $645-1,200: ours fits); Rocket's Mewtwo ex $750 (1 NM sale $900, 17% off); Milotic ex $530 (1 NM sale $799.99 two months ago: one sale is not a read, flag); Raigeki LOB 1st $107 (no 1st Ed sales); Kingdra δ reverse $92 (no reverse NM sale; TCGplayer's $289 looks wrong); Mewtwo Legends Awakened reverse $55 (thin, one $959 outlier); Torchic 017 $25 (NM sales $26); Genex Ally Axel $2, Tower of Babel $1.50, Bujingi Crane $1.25, Red-Eyes RP01 $15 (TCGplayer's five- and six-figure numbers are junk, no sales); and 7 where my product match was wrong so I have no read: Mewtwo DP28, Pikachu Wizards promo 1, King Dragun Ultimate, Ancient Gear Beast Ultimate, Sengenjin, Elemental HERO Heat, Hecatrice (these need a by-hand product lookup; later).
+
+Why the eBay numbers were low: those reads mixed in played copies and Best Offer sales (both excluded as of tonight), so they landed near TCGplayer's LP price, not NM.
