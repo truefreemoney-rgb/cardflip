@@ -736,7 +736,7 @@ export default function CollectionPage() {
         Live on eBay
       </span>
     ) : ended ? (
-      <span className="rounded-full bg-amber-400/10 px-3 py-1 text-xs font-semibold text-amber-300">Auction ended</span>
+      <span className="rounded-full bg-amber-400/10 px-3 py-1 text-xs font-semibold text-amber-300">Listing Ended</span>
     ) : sold ? (
       <span className="rounded-full bg-sky-400/10 px-3 py-1 text-xs font-semibold text-sky-300">Sold</span>
     ) : null; // Drafts: the Verify pill / "Verified" tick lives in the Market Price box (Chris 10-22), not a chip.
@@ -897,7 +897,7 @@ export default function CollectionPage() {
             <div className="mt-3 rounded-xl border border-edge bg-surface-1 p-3">
               <p className="flex items-center justify-between gap-2 text-xs font-semibold text-white">
                 <span>How to ship it · {shipLabel(card.shippingMethod)}</span>
-                <button type="button" onClick={() => setShipHelpFor(card.id)} className="text-[11px] font-medium text-brand-300 underline-offset-2 hover:underline">
+                <button type="button" onClick={() => setShipHelpFor(card.id)} className={`${TAP_10} text-[11px] font-medium text-brand-300 underline-offset-2 hover:underline`}>
                   Both ways
                 </button>
               </p>
@@ -1600,7 +1600,7 @@ export default function CollectionPage() {
       return;
     }
     setCards((prev) => prev.map((c) => (c.id === card.id ? res.card : c)));
-    toast(`${card.cardName} — auction ended`);
+    toast(`${card.cardName} — listing ended`);
   }
 
   // Delete with Undo: the row leaves the list at once, but the server delete
@@ -2996,7 +2996,7 @@ export default function CollectionPage() {
                       Live
                     </span>
                   ) : ended ? (
-                    <span className="rounded-full border border-white/10 bg-black/70 px-2.5 py-1 text-[11px] font-semibold text-amber-300 backdrop-blur">Auction ended</span>
+                    <span className="rounded-full border border-white/10 bg-black/70 px-2.5 py-1 text-[11px] font-semibold text-amber-300 backdrop-blur">Listing Ended</span>
                   ) : draft && !card.verifiedAt ? (
                     <span className="rounded-full bg-amber-400/90 px-2.5 py-1 text-[11px] font-semibold text-black shadow">Verify match</span>
                   ) : card.matchDoubt ? (
