@@ -1166,3 +1166,8 @@ pm run replay:scans (or SELECT read FROM scan_usage ORDER BY at DESC LIMIT 1): t
 - [ ] After push: next nightly Pokémon write logs no price for the stamped product ids (201942 Entei Staff etc.); Entei SM219 / Rillaboom SWSH006 / Charizard SWSH066 pages show the plain price; the 15 checked prices can then be retired (they agree with the raw feed now) = run scripts/_checks-named.mjs and retire the ones whose TCG number matches within 10%.
 - [ ] After push: the 7 stamp-only cards (hgssp-HGSS18, xyp-XY91, svp-133/134/135, mep-002/004) get no new point; confirm they show stale/unsure rather than the stamp price within a week.
 - [x] 12:29am: the 528 non-stamp doubles measured (scripts/_dup-products-names.mjs): our price follows the right product in every case; 47 foreign-card mappings (Wizards promos + W-stamped cards, Shrouded Fable 001-008 + Basic Energies, Lycanroc kit halves) are harmless today, fragile; Cosmos vs Cracked Ice promo holos = own-print family, parked.
+
+## 10-22 ~12:33am ET: card-page checked badge wording -> "Checked against recent sales" (COMMIT ONLY, VISIBLE copy, shot + Chris's yes before push)
+- page.tsx one line: fixes from TCGplayer sales are no longer labelled eBay. Same badge, same place.
+- [ ] Before push: phone-width shot of a checked card page (Entei SM219) via SendUserFile; Chris's yes.
+- [ ] After push: curl the Entei SM219 page: "Checked against recent sales (11 sold)."
