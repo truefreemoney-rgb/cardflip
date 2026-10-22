@@ -4,6 +4,7 @@
 - The scan page and the card editor now tell /api/ebay/comps which printing is being quoted (reverse holo, Poke Ball / Master Ball pattern, Magic foil); the Browse search adds its words, the title filter requires them, the day cache keys on it (prefix ebaycomps:v2 = one day of misses after the push, then one call per card+printing per day).
 - [ ] After push, phone: scan a reverse holo (or a Poke Ball pattern) card -> the "eBay sellers asking" chip, if it shows, is in the printing's own range, and "Check on eBay" opens a search whose words include "reverse holo" / "poke ball".
 - [ ] After push, pane (signed in): POST /api/ebay/comps with {card: <a card with a reverseHolofoil row>, variant: "reverseHolofoil"} -> searchUrl contains reverse+holo; the same with variant: "zzz" -> searchUrl without it (treated as any printing), no 500.
+- [ ] After push, phone: on a scanned card with two printings, open This copy and switch the printing (e.g. Normal -> Reverse Holofoil): the eBay asking chip goes to loading and comes back (re-pulled for that printing, commit aad451a1), not left as the old number.
 - [ ] After push, next day: card_cache rows with key LIKE 'ebaycomps:v2:%' exist and the old v1 rows age out with the 24 h sweep (no growth beyond one row per card+grade+edition+printing).
 
 ## 10-22 8:35AM ET: review-backlog batches 3 + 4 (COMMIT ONLY 384126ec, e9f19a47 docs, 8f94890d; nothing visible by design)
