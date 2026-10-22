@@ -223,7 +223,7 @@ Net: nothing on the hand list moves. The two cards the asks referee called "too 
 
 Worth a glance later, not acted on (one or two sales, inside or near the band): Torchic ☆ TRR $6,500 vs 4 NM sales median $9,500 (last $4,000); Machamp Stormfront $145 vs 4 sales ~$200; Reshiram Legendary Treasures $290 vs 5 sales ~$345.
 
-## 10. Found while sweeping: Staff-stamped promos priced the plain card (12:25-12:55am ET 10-22)
+## 10. Found while sweeping: Staff-stamped promos priced the plain card (12:20-12:28am ET 10-22)
 
 The Entei SM219 miss in §9 had a cause worth measuring: TCGplayer sells stamped copies of a promo as separate products ("[Staff]" prerelease stamps, Worlds placement stamps like "[Champion]" or "[Top 32]"), our catalog has the plain card only, and the product matcher mapped both products to it. The nightly price write takes the first product it meets, so whichever stamp came first in TCGplayer's list priced the plain card.
 

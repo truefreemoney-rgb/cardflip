@@ -139,7 +139,7 @@
 - Tested: test:authroutes (+6), test:auth/emailverify/google/xauth/waitlist/emailtypo/emailconfirmui/attribution green; tsc + eslint clean. Firewall: /api/geo%2f, /api/auth/forgot%2F, /api/auth/logout%5C, /api/auth/login%2F, /api/auth/me%2f%2f -> 403 (x-vercel-mitigated: deny); /api/auth/me, /api/geo, / -> 200. 16 accounts deleted (scripts/_delete-probes-1021.mjs, 0 left). No sign-ups after 12:55am ET.
 - LIVE 12:10am ET after 12cc1326 (dpl_GAFqFy4H READY 1:07am): admin@cardflip.io. -> 400 "Enter a valid email.", a-check@example.org -> 400 "Please use your real email address.". Remaining: POST /api/auth/signup with admin@cardflip.io. and with a@example.org -> 400 "Please use your real email address." (or the invalid-address message); a gmail address still reaches the code step (do NOT finish it). prod-smoke green (it signs in with @example.com, sign-in is untouched). Tomorrow: /admin/errors has no "Cannot find module ...%2f" lines; /admin Users has no new probe rows. Weekly: refresh the Tor list (scripts/_fw-tor-api.mjs).
 
-## 10-21 ~12:55am ET: nightly Pokémon refresh keeps a pattern card's no-sale / missing printings (3e25968f), not visible
+## 10-21 ~12:30am ET: nightly Pokémon refresh keeps a pattern card's no-sale / missing printings (3e25968f), not visible
 - Tested: test:patterncleanup 8 pass; tsc + eslint clean.
 - After the first nightly run after push: the stopped pattern lines (scripts/_stopped-lines-measure.mjs) are still in price_series; the Pokémon refresh result in /admin shows no error.
 ## 10-21 ~12:50am ET: blank Pokémon card pages print the last recorded price (dated, noted), COMMIT ONLY, VISIBLE, Chris YES 10-21 ~1am ET (ships with the next push)
@@ -1161,7 +1161,7 @@ pm run replay:scans (or SELECT read FROM scan_usage ORDER BY at DESC LIMIT 1): t
 - [ ] Card page for Entei SM219 (SM Black Star Promos) shows $22.17 with the checked-price badge; the nightly write does not push it back to ~$205 (the check holds while the raw feed is >band away).
 - [ ] Find why the raw TCGplayer feed carried ~$205 for smp-SM219 (product mapping in pokemonPriceRefresh / tcgcsv group for SM promos); if it is a mapping slip, other SM promos may share it: list SM promos whose TCGplayer price is >5x their Cardmarket EUR.
 
-## 10-22 ~12:55am ET: stamped promo products never price the plain card (COMMITTED, not pushed; 15 prices fixed on prod already)
+## 10-22 ~12:28am ET: stamped promo products never price the plain card (COMMITTED, not pushed; 15 prices fixed on prod already)
 - tcgplayerProductStamp (lib/tcgcsv.ts) + skip in refreshPokemonPricesFromTcgcsv; test:pricehistory +2, tsc + eslint clean. The 15 wrong prices (report card §10) were fixed on prod via scripts/_fix-price-tcg.mjs (checked prices, the check holds against the raw feed until the code ships).
 - [ ] After push: next nightly Pokémon write logs no price for the stamped product ids (201942 Entei Staff etc.); Entei SM219 / Rillaboom SWSH006 / Charizard SWSH066 pages show the plain price; the 15 checked prices can then be retired (they agree with the raw feed now) = run scripts/_checks-named.mjs and retire the ones whose TCG number matches within 10%.
 - [ ] After push: the 7 stamp-only cards (hgssp-HGSS18, xyp-XY91, svp-133/134/135, mep-002/004) get no new point; confirm they show stale/unsure rather than the stamp price within a week.
