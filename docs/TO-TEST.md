@@ -2,7 +2,7 @@
 
 ## 10-22 6:03PM ET (real clock): PUSHED fb6b91f9 (31 commits, d3c5f350 -> fb6b91f9) on Chris "make the push when you can"; CI + Production smoke runs noted below
 Visible (all passed by Chris from shots before the push): Seller price pill B (Verify bar / green Verified band / Listing Ended band under the two prices), Collector pill D, "Listing Ended" wording, 44px Save on You paid.
-- [ ] CI run green + Production smoke green (ids below once they finish); if red, read the run, fix, push again.
+- [x] 6:15pm ET: CI 39861950928 GREEN on fb6b91f9 (the twin run 39862020072 on the same commit was still finishing), Production smoke 39862076443 GREEN.
 - [ ] Phone, Seller mode (Chris): open a draft card from Inventory -> Market and eBay Suggested Price side by side, yellow "Verify This Is Your Card" bar under them; tap it -> same as "Yes, This Is My Card"; a verified draft shows the green "✓ Verified" band; an ended listing the amber "Listing Ended" band; a live one the green "Live on eBay" band with the dot.
 - [ ] Phone, Collector mode: the D pill is unchanged (price, yellow Verify to its right, hint line).
 - [ ] Phone: Pokémon on, scan a Magic card, Switch to Magic = instant, ONE read, counter down by one (one-read wrong-game switch 10407ada).
@@ -12,7 +12,7 @@ Visible (all passed by Chris from shots before the push): Seller price pill B (V
 - [ ] 5:45am 10-23: Pokémon listing cap OFF takes effect (first write after the push); referee seller-floor measure in the 8:15am run (then Chris's yes to turn it on); 1,024 px first read on the next scans.
 - [ ] Bot Watch: next hourly run, a blocked block mails "handled", not Failed (badfa3d9).
 - [ ] Social: next slot's GitHub backstop runs at :20 ET (the :20 schedule was already live on main; the 7:20pm ET run tonight is the first to watch); the failure mail waits 10 min for a later ping (f93afc8c); robots.ts lists ExaSearchBot (curl robots.txt).
-- [ ] /admin/analytics "Left over every month" prints -$199.88 (not $-199.88); /admin/errors caption "newest 200 shown".
+- [x] 6:14pm ET pane, deploy live: /admin/analytics 'Left over every month' = -$199.88, no '$-' anywhere; /admin/errors caption 'newest 200 shown'.
 - [ ] Reduced motion (phone Settings > Accessibility > Reduce Motion): Live dots show a plain dot, no frozen ring (LiveDot).
 - [ ] Sealed draft sheet: no "Card value ... tracked-mailer postage" line; Mark as Sold note says "It stays in Inventory".
 
