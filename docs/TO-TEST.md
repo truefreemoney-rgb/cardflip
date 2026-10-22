@@ -1,5 +1,9 @@
 ﻿# To test later
 
+## 10-22 ~2:05am ET: Search Console mail 'Blocked by robots.txt' = 1 URL, the Apple touch icon (/apple-icon?hash), crawled before the 10-16 robots fix; Validate fix pressed in the pane (Validation started 10/22)
+- [ ] Google's validation mail: Passed (days to 2 weeks). If it fails, curl https://cardflip.io/robots.txt and check the /app rule still reads /app$ + /app/.
+- Index report 10-22 (to 10/15): indexed 21.3K (was 16,922 on 10-16), Discovered-not-indexed 53,236, noindex 1,244 by design, 5xx 3, 404 2 (/home, /&).
+
 ## 10-22 ~1:50am ET: first vision read gets a 1,024 px picture (COMMIT ONLY, not visible; Chris "build it" after the §13 measure)
 - vision.ts firstReadPicture: the photo shrinks to 1,024 px on its long edge (JPEG q88) for the FIRST read only; second look crops, pattern look and tiebreak keep the full photo; unreadable bytes go as sent. test:firstreadsize (6 checks, in npm test), vision-schema / budget / patternlook green, tsc + eslint clean.
 - [ ] After push: scan_usage first-read rows show input_tokens ~1,400 lower than before (scripts/_scan-cost.mjs: cost per scan toward ~$0.018); no rise in "Not this card?" corrections over the first week; a few of my own scans read right (Pokémon + Magic).
@@ -293,6 +297,10 @@
 - [x] PASS 10-16 (curl: $939.50, no "looks off") 10-15: /cards/pokemon/crystal-guardians/charizard--ex14-4 shows $939.50 (hand keep POSTed 10-14 ~2:45pm ET; page copy was still "looks off" right after, cache).
 - [x] PASS 10-16 (curl: no $968.91, no self-link) Card page "Other printings" strip: on /cards/pokemon/base-set/charizard--base1-4 it lists the page's own card and shows the HIDDEN $968.91 (seen 10-14 ~2:45pm ET). Fix = strip honours hides + skips self; recheck after the fix is pushed.
 # To test later
+
+## 10-22 ~2:05am ET: Search Console mail 'Blocked by robots.txt' = 1 URL, the Apple touch icon (/apple-icon?hash), crawled before the 10-16 robots fix; Validate fix pressed in the pane (Validation started 10/22)
+- [ ] Google's validation mail: Passed (days to 2 weeks). If it fails, curl https://cardflip.io/robots.txt and check the /app rule still reads /app$ + /app/.
+- Index report 10-22 (to 10/15): indexed 21.3K (was 16,922 on 10-16), Discovered-not-indexed 53,236, noindex 1,244 by design, 5xx 3, 404 2 (/home, /&).
 
 ## 10-22 ~1:50am ET: first vision read gets a 1,024 px picture (COMMIT ONLY, not visible; Chris "build it" after the §13 measure)
 - vision.ts firstReadPicture: the photo shrinks to 1,024 px on its long edge (JPEG q88) for the FIRST read only; second look crops, pattern look and tiebreak keep the full photo; unreadable bytes go as sent. test:firstreadsize (6 checks, in npm test), vision-schema / budget / patternlook green, tsc + eslint clean.
