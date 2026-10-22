@@ -1,5 +1,10 @@
 ﻿# To test later
 
+## 10-22 3:50PM ET: social posts read the eBay referee (COMMIT ONLY; nothing visible by design)
+- lib/server/social.ts freshSeries: ebayCall(ebay_asks row) joins priceTrust for every pooled card (chunked reads of 400, advisory). Referee "high" (no Cardmarket agreement) = skipped from every post kind; manual keep = posts; manual hide = never. test:social +3 fixtures (col1-40/41/42).
+- [ ] After push, next 7am/1pm/7pm: Vercel log line "social: price guard skipped N <game> cards (... ebay asks: ...)" appears when the pool has referee-high cards; the posted cards are none of /admin/prices hidden ones.
+- [ ] After push: a card with manual=keep in ebay_asks (e.g. Misty Rainforest SPG 116 foil) can still appear in a Magic most-valuable post.
+
 ## 10-22 3:15PM ET: ExaSearchBot denied (firewall v37 LIVE now; robots.ts in the held batch)
 - [ ] 10-23: Vercel Observability > ISR writes on /cards/* for 10-22 vs 10-21 drop by ~1K/day; firewall rule "AI crawlers" shows ExaSearchBot denies.
 - [ ] After push: curl -s https://cardflip.io/robots.txt | grep -A1 ExaSearchBot -> Disallow: /

@@ -9,6 +9,7 @@ import { tiktokKey } from "@/lib/socialTiktok";
 import type { VideoCard } from "@/lib/socialVideo";
 import type { GameId } from "@/lib/types";
 import { activeChecks, checkBinds, checkedCardIds } from "@/lib/server/checkedPrices";
+import { ebayCall, readEbayAsks, type EbayAsksRow } from "@/lib/server/priceTrustSite";
 import { ANGLE_KINDS, GENERAL_TAGS, MAX_TAGS, JUMP_MIN_PCT, MIXED_GAMES, MIXED_PER_GAME, PLAN_TAGS, POST_GAME_NAMES, POST_GAME_ORDER, angleGameOrder, countWord, dayPlan, freshJumpsOn, gamesTags, jumpsOn, listNames, otherGameNames, questionFor, riserSetsOn, type AngleKind } from "@/lib/socialPlan";
 
 /**
@@ -60,6 +61,19 @@ const MTG_POOL_MIN_USD = MOVER_MIN_PRICE / 2;
 const MTG_POOL_CAP = 20000;
 /** A band read (sleepers) wants three cards from the collectible end of $1–$5, not the whole band: the dearest this many (10-03, the band was 13k rows and 2.2 s). */
 const MTG_BAND_CAP = 5000;
+/** The eBay referee rows for a pool, read in chunks (the pool can be thousands of cards; the IN list stays under SQLite's limit). Advisory: a failed read is no say. */
+async function socialAsks(game: GameId, cardIds: string[], day: string): Promise<Map<string, Record<string, EbayAsksRow>>> {
+  const out = new Map<string, Record<string, EbayAsksRow>>();
+  for (let i = 0; i < cardIds.length; i += 400) {
+    try {
+      for (const [id, rows] of await readEbayAsks(game, cardIds.slice(i, i + 400), day)) out.set(id, rows);
+    } catch {
+      // no referee say for this chunk
+    }
+  }
+  return out;
+}
+
 /** The price guard logs a run's skipped cards once per game and day (freshSeries runs several times per run). */
 const guardLogged = new Set<string>();
 
@@ -310,6 +324,10 @@ async function loadFreshSeries(game: GameId, day: string, days: number, band?: [
     }
     card.series.push({ variant: r.variant, prices, todayIdx, to });
   }
+  // 10-22 (Chris: the "cheap version" of an eBay catch before posts): the nightly eBay referee's say (ebay_asks, no
+  // live reads) and an admin's binding keep/hide join the guard here exactly as on the card pages (priceTrustSite), so a
+  // price the referee calls far above every ask never reaches a post, and a card Chris checked and kept is never dropped.
+  const asks = await socialAsks(game, [...cards.keys()], day);
   const out = new Map<string, FreshCard>();
   const unverified = new Map<string, number>();
   const skipped: { id: string; reason: string }[] = [];
@@ -326,6 +344,7 @@ async function loadFreshSeries(game: GameId, day: string, days: number, band?: [
       refEur: card.refEur,
       refAltEur: card.refAlt,
       vintage,
+      ebay: ebayCall(asks.get(cardId)?.[pref.variant], to),
     });
     if (!trust.ok) {
       skipped.push({ id: cardId, reason: trust.reason });

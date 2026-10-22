@@ -184,11 +184,24 @@ for (let n = 1; n <= 5; n++) await put(`tcgp-sealed-${n}`, "pokemon", "normal", 
 await db.prepare("INSERT INTO en_cards (id, name, set_id, set_name, local_id, image_url, synced_at) VALUES ('sm3-150', 'Charizard GX', 'sm3', 'Burning Shadows', '150', 'https://assets.tcgdex.net/en/sm3/150/low.webp', 0)").run();
 await put("sm3-150", "pokemon", "psa10", "ebay", "USD", liquid(2079));
 
-const junk = new Set(["col1-20", "col1-SL1", "col1-30", "base4-5"]);
+// 10-22 (the cheap eBay catch before posts): the nightly referee's rows join the guard. A liquid $400 card with no second
+// source, where the referee read 8 Near Mint asks at a $45 upper quartile = "high": never posts (a Cardmarket agreement
+// would outrank the asks, exactly as on the card pages). A $350 card the referee also
+// calls high, but Chris checked on eBay sold and KEPT at $350: posts (the keep is binding). A $250 card with a HIDE: never.
+const ask = (id, variant, price, { nNm = 8, median = 40, q75 = 45, manual = null, manualPrice = null } = {}) =>
+  db.prepare("INSERT INTO ebay_asks (card_id, game, variant, price_usd, n, n_nm, median_usd, q75_usd, vintage, verdict, reason, label, query, day, manual, manual_price, manual_day) VALUES (?, 'pokemon', ?, ?, ?, ?, ?, ?, 0, 'high', 'test', '', '', ?, ?, ?, ?)")
+    .run(id, variant, price, nNm, nNm, median, q75, PIN, manual, manualPrice, manual ? PIN : null);
+await real("col1-40", "Referee junk", "40", "col1", "Call of Legends", liquid(400));
+await ask("col1-40", "holofoil", 400);
+await real("col1-41", "Pikachu kept", "41", "col1", "Call of Legends", liquid(350), { eur: 290 });
+await ask("col1-41", "holofoil", 350, { manual: "keep", manualPrice: 350 });
+await real("col1-42", "Pikachu hidden", "42", "col1", "Call of Legends", liquid(250), { eur: 210 });
+await ask("col1-42", "holofoil", 250, { nNm: 0, median: null, q75: null, manual: "hide", manualPrice: 250 });
+const junk = new Set(["col1-20", "col1-SL1", "col1-30", "base4-5", "col1-40", "col1-42"]);
 const guardSpot = await setSpotlight("pokemon", PIN);
 check("the pinned set with junk in it does not qualify: Call of Legends, not Legendary Collection (and never 'tcgp-sealed')", guardSpot?.setId, "col1");
-check("its top five: the Cardmarket-agreed Pikachu, Umbreon $198, then the liquid three; no spike, no stuck $500, no 13x", guardSpot?.cards.map((c) => c.cardId), ["col1-31", "col1-22", "col1-3", "col1-2", "col1-1"]);
-check("the printed prices are the tested ones", guardSpot?.cards.map((c) => c.to), [300, 198.26, 60, 40, 30]);
+check("its top five: the eBay-kept Pikachu, the Cardmarket-agreed Pikachu, Umbreon $198, then two liquid; no referee-high, no hide, no spike, no stuck $500, no 13x", guardSpot?.cards.map((c) => c.cardId), ["col1-41", "col1-31", "col1-22", "col1-3", "col1-2"]);
+check("the printed prices are the tested ones", guardSpot?.cards.map((c) => c.to), [350, 300, 198.26, 60, 40]);
 check("the pinned set is used again once its fifth card is clean (Cardmarket agrees)", await (async () => { await db.prepare("UPDATE price_series SET prices = '[120]' WHERE card_id = 'base4-5' AND source = 'cardmarket'").run(); const id = (await setSpotlight("pokemon", PIN))?.setId; await db.prepare("UPDATE price_series SET prices = '[20]' WHERE card_id = 'base4-5' AND source = 'cardmarket'").run(); return id; })(), "base4");
 
 // The night-rendered 7am video names the day's set (10-01: the pool changed size overnight and the sites posted another set).
