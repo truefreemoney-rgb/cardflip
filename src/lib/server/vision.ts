@@ -139,6 +139,9 @@ export const CARD_READ_SCHEMA = {
       description:
         "true when the card is sealed inside a graded slab: a rigid clear plastic holder with a printed grading label across the top (PSA, CGC, BGS, SGC, ACE and the like, showing a company name, a grade number and a cert number). Only true when you can actually see that printed grading label. false for a raw card, sleeved or not, and for a card in a toploader, card saver, or one-touch magnetic holder (rigid plastic with NO grading label). false or null when the photo is too blurry or cropped to see a label.",
     },
+    slabGrader: nullableString(
+      "The grading company's name exactly as printed on the slab label (PSA, CGC, BGS, Beckett, SGC, ACE, TAG). Null when no printed grading label is visible; then slab is false. A binder page, binder divider or tab, card box, toploader or sleeve never has one.",
+    ),
     firstEdition: {
       anyOf: [{ type: "boolean" }, { type: "null" }],
       description:
@@ -168,6 +171,7 @@ export const CARD_READ_SCHEMA = {
     "confidence",
     "kind",
     "slab",
+    "slabGrader",
     "firstEdition",
     "copyrightYear",
   ],
@@ -325,6 +329,9 @@ export const YUGIOH_READ_SCHEMA = {
   ...CARD_READ_SCHEMA,
   properties: {
     ...CARD_READ_SCHEMA.properties,
+    slabGrader: nullableString(
+      "The grading company's name exactly as printed on the slab label (PSA, CGC, BGS, Beckett, SGC, ACE, TAG). Null when no printed grading label is visible; then slab is false. A binder page, binder divider or tab, card box, toploader or sleeve never has one.",
+    ),
     firstEdition: {
       anyOf: [{ type: "boolean" }, { type: "null" }],
       description:
@@ -458,8 +465,10 @@ setName is optional — the set code is what identifies the printing.
 
 If the card sits inside a graded slab (a rigid plastic holder with a grading
 label across the top: PSA, CGC, BGS, SGC, ACE), say so in "slab" and still
-read the card underneath as usual. A toploader, card saver or magnetic
-one-touch holder is NOT a slab: no printed grading label means slab is false.
+read the card underneath as usual, and put the company name in "slabGrader".
+A toploader, card saver or magnetic one-touch holder is NOT a slab, and neither
+is a card in a binder page, next to a binder divider or tab, or in a card box:
+no printed grading label means slab is false and slabGrader null.
 
 Two things that are not playable cards come out of the same packs and must
 be called out in "kind": tokens (type line "Token Creature — …", collector
@@ -642,6 +651,16 @@ export async function analyzeCardImageWithUsage(
 export const PATTERN_SET_CODES = new Set(["PRE", "ASC", "BLK", "WHT"]);
 
 /** Foil seen, symbol not placed, on a set that sells patterns: worth one focused look. */
+/** The grading company off the slab label, or null when the text is not a grader we know (a divider, a sleeve brand, nothing). */
+export function slabGraderOf(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const s = raw.trim().toUpperCase();
+  if (!s) return null;
+  const known: [RegExp, string][] = [[/\bPSA\b/, "PSA"], [/\bCGC\b/, "CGC"], [/\bBGS\b|BECKETT/, "BGS"], [/\bSGC\b/, "SGC"], [/\bACE\b/, "ACE"], [/\bTAG\b/, "TAG"]];
+  for (const [re, name] of known) if (re.test(s)) return name;
+  return null;
+}
+
 export function needsPatternLook(read: Pick<VisionCardRead, "setCode" | "foilPattern" | "patternBall" | "slab" | "kind">, game: GameId): boolean {
   if (game !== "pokemon") return false;
   if (read.slab || (read.kind && read.kind !== "card")) return false;
@@ -941,7 +960,9 @@ async function firstLook(
     setCode: parsed.setCode?.trim().toUpperCase() || null,
     artStyle: parsed.artStyle === "standard" || parsed.artStyle === "full-art" ? parsed.artStyle : null,
     kind: parsed.kind === "token" || parsed.kind === "art" || parsed.kind === "card" ? parsed.kind : null,
-    slab: typeof parsed.slab === "boolean" ? parsed.slab : null,
+    // A slab needs its label read (Chris 10-22: binder dividers came up as slabs): a bare "true" with no grader is not one.
+    slab: typeof parsed.slab === "boolean" ? parsed.slab && slabGraderOf(parsed.slabGrader) != null : null,
+    slabGrader: slabGraderOf(parsed.slabGrader),
     firstEdition: typeof parsed.firstEdition === "boolean" ? parsed.firstEdition : null,
     corners: asWear(parsed.corners),
     edges: asWear(parsed.edges),
