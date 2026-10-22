@@ -1,5 +1,10 @@
 ﻿# To test later
 
+## 10-22 12:05PM ET: one money formatter (COMMIT ONLY f554d807; only push banners + alert mails change text)
+- formatMoney moved to lib/money.ts; admin money / PostCheckRow / AnalyticsCharts / campaignData / plan prices call it (same "$1,234.56" as before). Push banners and the watchlist / card-alert mails now group thousands ("$1,500.00", was "$1500.00").
+- [ ] After push: /admin overview, /admin/analytics (USD axis + tiles), /admin/prices post cards, /pricing plan prices all print the same "$X,XXX.XX" as before (no "$NaN", no missing cents).
+- [ ] After push, next wishlist dip or card alert over $1,000 (Chris's own watchlist is fine): the banner / mail says "$1,574.99", not "$1574.99".
+
 ## 10-22 12:15PM ET: eBay comps know the printing (COMMIT ONLY 5d30fb0a; nothing visible by design)
 - The scan page and the card editor now tell /api/ebay/comps which printing is being quoted (reverse holo, Poke Ball / Master Ball pattern, Magic foil); the Browse search adds its words, the title filter requires them, the day cache keys on it (prefix ebaycomps:v2 = one day of misses after the push, then one call per card+printing per day).
 - [ ] After push, phone: scan a reverse holo (or a Poke Ball pattern) card -> the "eBay sellers asking" chip, if it shows, is in the printing's own range, and "Check on eBay" opens a search whose words include "reverse holo" / "poke ball".
