@@ -1,5 +1,11 @@
 ﻿# To test later
 
+## 10-22 12:15PM ET: eBay comps know the printing (COMMIT ONLY 5d30fb0a; nothing visible by design)
+- The scan page and the card editor now tell /api/ebay/comps which printing is being quoted (reverse holo, Poke Ball / Master Ball pattern, Magic foil); the Browse search adds its words, the title filter requires them, the day cache keys on it (prefix ebaycomps:v2 = one day of misses after the push, then one call per card+printing per day).
+- [ ] After push, phone: scan a reverse holo (or a Poke Ball pattern) card -> the "eBay sellers asking" chip, if it shows, is in the printing's own range, and "Check on eBay" opens a search whose words include "reverse holo" / "poke ball".
+- [ ] After push, pane (signed in): POST /api/ebay/comps with {card: <a card with a reverseHolofoil row>, variant: "reverseHolofoil"} -> searchUrl contains reverse+holo; the same with variant: "zzz" -> searchUrl without it (treated as any printing), no 500.
+- [ ] After push, next day: card_cache rows with key LIKE 'ebaycomps:v2:%' exist and the old v1 rows age out with the 24 h sweep (no growth beyond one row per card+grade+edition+printing).
+
 ## 10-22 8:35AM ET: review-backlog batches 3 + 4 (COMMIT ONLY 384126ec, e9f19a47 docs, 8f94890d; nothing visible by design)
 - Batch 3: apiFailure() for the cards / card / wishlist / price-checks / live-prices routes (JSON 401 or 500, never HTML); nav search reads the public game list from GET /api/catalog/games (revalidate 300); set card lists cached per set (seo:setcards:v1, 1 day); set standings use cardStory's median; admin Social* fetches via apiFetch (timeout); AdminNav re-syncs its group; scan_usage read JSON keeps the first read's pattern verdict (first) and the look's ball (lookBall). Batch 4: back-to-close stack (Done on "This copy" cannot close the camera; test:backstack 12); out of scans = Capture opens the paywall, no photo; fetchCurrentUser answer reused 2 s.
 - [ ] After push, phone: scan a card, open the "Near Mint · Holofoil" pill (This copy), tap Done -> back on the camera, NOT the category sheet or the listing page. Android Back from an open sheet closes the sheet only; a second Back closes the camera.
