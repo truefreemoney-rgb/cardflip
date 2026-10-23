@@ -29,3 +29,7 @@ Mox Ruby Beta #265 $6,400: TCG NM $6,400 (10-14), NM $9,000 (07-04) -> STANDS
 Time Walk Unl #84 $5,719.99 (TCG stale 88d; CM EUR 2,530 = outlier): TCG LP $5,720 (07-27), MP $4,100 x2 -> STANDS
 Ancestral Recall Unl #48 $4,999.95 (stale 98d): TCG NM $5,500 (08-06), NM $5,495, LP $5,000 -> STANDS (band)
 Mox Jet Beta #263 $4,000: TCG LP $4,495 (09-30), NM $7,989 (06-26); eBay US sold BIN ungraded 1 hit $4,600 (08-04, pre-owned) -> STANDS (band). eBay reads 16 of 20 today.
+
+== 10-23 ~2:55PM ET: C10 blank YGO queue (asking-only >$20, no sale on any edition; 237 rows, data/ygo-stale-2026-10-23.json) ==
+Top of the queue = tournament prize cards (SJC/SJCS/YCSW, asks $13k-$200k) + Magnificent Monsters Grand Master Rares: not priceable from ungraded eBay sold, stay UNSURE (blank).
+Kuriboh - Multiply! MAMO-EN002 GMR 1st (ygo-714612-1st): eBay US sold ungraded 3 (09-05 $15,000 BIN, 09-08 $17,500 offer, 09-08 $20,000 BIN) but TCGplayer cheapest listing now $9,700 (median ask $10,999.99) = falling since Sept -> UNSURE, no write. eBay reads 17 of 20 today; rest of the MAMO GMRs skipped (same shape).
