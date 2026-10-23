@@ -13,13 +13,16 @@ if (!company || !/^\d+$/.test(asn ?? "") || !ja4s.length) throw new Error('usage
 const NAME = `Scrapers: ${company} proxy fingerprints (deny)`;
 const active = await (await fetch(`${base}/active?${qs}`, { headers })).json();
 const old = (active.rules ?? []).find((r) => r.name === NAME);
+// Re-running ADDS fingerprints to the rule (10-23: a plain replace dropped the 10-21 pair for a day).
+const had = old ? old.conditionGroup.flatMap((g) => g.conditions.filter((c) => c.type === "ja4_digest").flatMap((c) => c.value)) : [];
+const allJa4s = [...new Set([...had, ...ja4s])];
 const value = {
   name: NAME,
   description: `Scraper on ${company} AS${asn}, fake browser name; its JA4s only (10-21).`,
   active: true,
   conditionGroup: [{ conditions: [
     { type: "geo_as_number", op: "eq", value: asn },
-    { type: "ja4_digest", op: "inc", value: ja4s },
+    { type: "ja4_digest", op: "inc", value: allJa4s },
   ] }],
   action: { mitigate: { action: "deny", rateLimit: null, redirect: null, actionDuration: null } },
 };
