@@ -42,6 +42,19 @@ export const VIDEO_PREFIX = "social_video:";
 export function videoKey(game: GameId, kind: PostKind, day: string): string {
   return `${VIDEO_PREFIX}${game}:${kind}:${day}`;
 }
+/** The game and kind a videoKey() names, or null for any other string. */
+export function parseVideoKey(key: string | null | undefined): { game: GameId; kind: PostKind; day: string } | null {
+  const m = key?.match(/^social_video:([a-z]+):([a-z]+):(\d{4}-\d{2}-\d{2})$/);
+  return m ? { game: m[1] as GameId, kind: m[2] as PostKind, day: m[3] } : null;
+}
+/**
+ * A hand-made video claiming a slot (10-23, the Blender "Guess the Price" clip): the settings row holds the videoKey()
+ * of a row whose VideoSpec.hand carries the exact text. The publisher posts that instead of the slot's drafts, whatever
+ * the day plan says, so no plan entry, draft or card pick is needed (scripts/_register-hand-video.mjs writes both rows).
+ */
+export function handKey(slot: "morning" | "midday" | "evening", day: string): string {
+  return `${VIDEO_PREFIX}hand:${slot}:${day}`;
+}
 
 /**
  * One card as the video showed it (09-26: the exact list the render job
@@ -141,6 +154,25 @@ export interface VideoSpec {
   plan?: string;
   /** Head to head (10-03): which of the two frozen cards the video crowned (0 = the first), so the rebuilt verdict matches the screen. */
   winner?: 0 | 1;
+  /**
+   * A hand-made video (10-23, the Blender "Guess the Price" clip): the text goes out exactly as written here instead
+   * of being rebuilt from the cards (a guess post must not print the price). Registered by hand
+   * (scripts/_register-hand-video.mjs); the publisher swaps the draft's title, captions and tags for these.
+   */
+  hand?: HandText;
+}
+
+export interface HandText {
+  title: string;
+  caption: string;
+  shortCaption: string;
+  hashtags: string[];
+}
+
+function isHandText(v: unknown): v is HandText {
+  if (!v || typeof v !== "object") return false;
+  const h = v as Record<string, unknown>;
+  return typeof h.title === "string" && typeof h.caption === "string" && typeof h.shortCaption === "string" && Array.isArray(h.hashtags) && h.hashtags.every((t) => typeof t === "string");
 }
 
 export function parseVideoSpec(raw: string | null | undefined): VideoSpec | null {
@@ -163,6 +195,7 @@ export function parseVideoSpec(raw: string | null | undefined): VideoSpec | null
       leads,
       plan: typeof v.plan === "string" ? v.plan : undefined,
       winner: v.winner === 0 || v.winner === 1 ? v.winner : undefined,
+      hand: isHandText(v.hand) ? v.hand : undefined,
     };
   } catch {
     return null;

@@ -73,3 +73,5 @@ scripts/.don-sheets/
 .outline-dumps/
 .cond-backup-*.json
 .ebay-asks-*.json
+
+__pycache__/

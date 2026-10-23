@@ -140,6 +140,29 @@ r = await publishSocial({ day: THU, now: clock(17), origin: "http://x", slot: "m
 check("posted caption uses the frozen $999, not the fresh $15", textSite.posts[0].text.includes("$999"), true);
 check("posted caption never mentions the fresh price", textSite.posts[0].text.includes("$15.00"), false);
 
+// 10-23: a hand-made video (the Blender "Guess the Price" clip) claims a slot: its own text goes out as written, the
+// slot's planned kind and its drafts are skipped, the video is the row's, the price is never printed.
+console.log("hand-made video");
+const { handKey } = await import(at("lib/socialVideo.ts"));
+const handSpec = { url: "https://cardflip.io/social/hand/guess-test.mp4", bytes: 7, mime: "video/mp4", width: 1080, height: 1920, seconds: 7, renderedAt: 3, kind: "guess",
+  cards: [{ cardId: "sv1-2", name: "Miraidon ex", number: "81", setName: "Scarlet & Violet", variant: "normal", from: 10, to: 15, pct: 50 }],
+  hand: { title: "Guess the price: Miraidon ex", caption: "Guess what this card is worth today. Drop your number below.\n\nScan a card, see what it's worth. cardflip.io", shortCaption: "Guess what this card is worth today.\n\nScan a card, see what it's worth. cardflip.io", hashtags: ["PokemonTCG", "Pokemon"] } };
+await setSetting(videoKey("pokemon", "guess", THU), JSON.stringify(handSpec));
+await setSetting(handKey("midday", THU), videoKey("pokemon", "guess", THU));
+const handText = fakeSite("handtext");
+const handVid = fakeSite("handvid", { postsVideo: true });
+videoFetches.length = 0;
+r = await publishSocial({ day: THU, now: clock(17), origin: "http://x", slot: "midday", force: true, sites: [handText, handVid], fetchImage, fetchVideo });
+check("the hand post goes out as written, as kind guess", [handText.posts[0].text.startsWith("Scan a card, see what it's worth. cardflip.io\n\nGuess what this card is worth today."), r.sites[0].posts[0].id], [true, "hand-midday-" + THU]);
+check("never prints the price", /\$\d/.test(handText.posts[0].text), false);
+check("its own tags lead the tag line (fillTags may top the list up)", /\n\n#PokemonTCG #Pokemon\b/.test(handText.posts[0].text), true);
+check("the video site posts the hand MP4", [handVid.posts[0].video?.url ?? null, videoFetches.includes("https://cardflip.io/social/hand/guess-test.mp4")], ["https://cardflip.io/social/hand/guess-test.mp4", true]);
+await setSetting(handKey("midday", THU), "");
+await setSetting(videoKey("pokemon", "guess", THU), "");
+const afterHand = fakeSite("afterhand");
+r = await publishSocial({ day: THU, now: clock(17), origin: "http://x", slot: "midday", force: true, sites: [afterHand], fetchImage, fetchVideo });
+check("pointer cleared: the slot is back to its planned post", afterHand.posts[0].text.includes("$999"), true);
+
 console.log("adapters (fetch stubbed)");
 const realFetch = globalThis.fetch;
 const calls = [];

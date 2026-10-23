@@ -34,7 +34,7 @@ import { ensureSchedule } from "@/lib/server/socialSchedule";
 import { tagsOn } from "@/lib/socialTags";
 import { draftCampaign } from "@/lib/attribution";
 import { BoardConflictError, COMPLETED_TITLE, isCompletedSection, loadBoard, saveBoard } from "@/lib/server/board";
-import { parseVideoSpec, videoKey, type LeadCard, type VideoCard, type VideoSpec } from "@/lib/socialVideo";
+import { handKey, parseVideoKey, parseVideoSpec, videoKey, type LeadCard, type VideoCard, type VideoSpec } from "@/lib/socialVideo";
 import type { GameId } from "@/lib/types";
 
 /**
@@ -414,6 +414,31 @@ export function planTag(slot: Slot, day: string): string {
   return [game ? `${kind}@${game}` : kind, kind === "movers" && p.mixedMovers ? "mixed" : "", kind !== "games" && p.alsoScans ? "also" : "", kind === "set" && p.set ? `set=${p.set}` : "", kind === "games" && jumpsOn(day) ? "jumps" : "", kind === "set" && jumpsOn(day) ? "lead" : ""].filter(Boolean).join("+");
 }
 
+/**
+ * The hand-made post claiming a slot today (lib/socialVideo.ts handKey), as a draft: the row's VideoSpec.hand text,
+ * its frozen cards for the no-repeat list, and the video the row names (videoOf finds it under the same key). The
+ * picture fallback is a sibling draft's, only reached if the MP4 fetch fails. null = no hand video for the slot.
+ */
+export async function handPostFor(slot: Slot, day: string, fallbackImagePath?: string): Promise<SocialPost | null> {
+  const key = await getSetting(handKey(slot, day));
+  const named = parseVideoKey(key);
+  if (!named || named.day !== day) return null;
+  const spec = parseVideoSpec(await getSetting(key as string));
+  if (!spec?.hand) return null;
+  return {
+    id: `hand-${slot}-${day}`,
+    kind: named.kind,
+    game: named.game,
+    day,
+    title: spec.hand.title,
+    caption: spec.hand.caption,
+    shortCaption: spec.hand.shortCaption,
+    hashtags: spec.hand.hashtags,
+    imagePath: fallbackImagePath ?? `/api/social/image?kind=games&game=${named.game}&day=${day}`,
+    cardIds: spec.cards?.map((c) => c.cardId) ?? [],
+  };
+}
+
 /** The MP4 registered for a draft by the render job, or null (picture post). */
 export async function videoFor(d: Pick<SocialPost, "game" | "kind" | "day">): Promise<VideoSpec | null> {
   return parseVideoSpec(await getSetting(videoKey(d.game, d.kind, d.day)));
@@ -598,6 +623,12 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
   // today falls through FALLBACK_KINDS so the slot still posts (never skip).
   const plan: Array<{ slot: Slot; kind: PostKind; drafts: SocialPost[] }> = [];
   for (const s of due) {
+    // A hand-made video claiming the slot (10-23, the Blender "Guess the Price" clip) posts as written, whatever the plan says.
+    const hand = await handPostFor(s, day, all[0]?.imagePath);
+    if (hand) {
+      plan.push({ slot: s, kind: hand.kind, drafts: [hand] });
+      continue;
+    }
     const own = slotKind(s, day);
     for (const kind of [own, ...FALLBACK_KINDS.filter((k) => k !== own)]) {
       const drafts = await draftsForKind(kind);
