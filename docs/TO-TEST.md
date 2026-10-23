@@ -1,5 +1,12 @@
 ﻿# To test later
 
+## 10-23 10:30AM ET: PUSHED ea7af0d9 (Turso rows written cut + slow-day picture timeouts)
+- [ ] Tomorrow 10-24 (and each day through 10-27): Turso Analytics "Rows Written" for 10-24 UTC is ~400-700k, down from ~2.2M/day (Chris reads the dashboard; October bill 31.9M written = $7 over, 18.2B read = $16 over, reads already low since 10-17). Target: under ~800k/day = back to the $4.99 plan.
+- [ ] Tonight's 2am catalog log (backups/catalog-sync.log): mtg_cards ~2,664 then near 0 changed with "N relabelled", tcg_cards price-only count, cardmarket_map "N new or moved, M removed" (not 30k written). No "remote count < local" error.
+- [ ] 10-24 5-6am ET price crons: CI-green writes still land (Pokémon/Magic/TCG pages show today's prices; /admin price run strip green). The series write is now ON CONFLICT DO UPDATE (rowid kept).
+- [ ] Morning slot rerun 10-23 ~10:40am: posted "Set spotlight: Dragon" on the 5 automatic sites (picture route now 120 s, fetch 115 s).
+- [ ] Vegas Blackout: Chris erases Oct 16 (UTC) usage (~$5).
+
 ## 10-23 9:45AM ET: HELD 02564b51 (L0: slow Turso no longer costs a slot)
 - [ ] After the push: `gh workflow run social-post.yml -f slot=morning`; the run log shows HTTP 200 + a per-site report within ~5 min, and the Vercel log line "build ran past 90 s, posting the build stored N min ago" if Turso is still slow (today's store = 8:05am, good until 2:05pm). /admin overview loses "No post yet today". If the run hits 285 s instead: /admin/social shows a crash "publisher ran out of time" and a mail lands (no more silent 504).
 - [ ] 1:05pm slot (hand Blender Guess clip) posts on the 5 automatic sites even with Turso slow.
