@@ -4,7 +4,7 @@
 - [ ] Tomorrow 10-24 (and each day through 10-27): Turso Analytics "Rows Written" for 10-24 UTC is ~400-700k, down from ~2.2M/day (Chris reads the dashboard; October bill 31.9M written = $7 over, 18.2B read = $16 over, reads already low since 10-17). Target: under ~800k/day = back to the $4.99 plan.
 - [ ] Tonight's 2am catalog log (backups/catalog-sync.log): mtg_cards ~2,664 then near 0 changed with "N relabelled", tcg_cards price-only count, cardmarket_map "N new or moved, M removed" (not 30k written). No "remote count < local" error.
 - [ ] 10-24 5-6am ET price crons: CI-green writes still land (Pokémon/Magic/TCG pages show today's prices; /admin price run strip green). The series write is now ON CONFLICT DO UPDATE (rowid kept).
-- [ ] Morning slot rerun 10-23 ~10:40am: posted "Set spotlight: Dragon" on the 5 automatic sites (picture route now 120 s, fetch 115 s).
+- [x] PASS 10-23 10:43am ET: morning slot rerun (run 39971348930) HTTP 200, posted "Biggest price jumps this week" (all-games, the day build finished inside its 90 s budget) on Bluesky, X, Facebook, Instagram, Threads. CI 39969026438 e2e job was cancelled at its timeout in "playwright install" (GitHub download, not code; checks job green), rerun --failed at 10:38am.
 - [ ] Vegas Blackout: Chris erases Oct 16 (UTC) usage (~$5).
 
 ## 10-23 9:45AM ET: HELD 02564b51 (L0: slow Turso no longer costs a slot)
