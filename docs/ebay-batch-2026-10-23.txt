@@ -1,0 +1,14 @@
+10-23 eBay batch (pane, ungraded BIN sold, newest first):
+1. bw7-146 White Kyurem-EX holo: TCG 543.39; sold 420LP,375LP,545,90MP,200LP,750,212,100MP,280,268LP,140MP,270 -> median of 8 (no MP) 327.50 => FIX 327.50
+2. hgssp-HGSS02 Lugia promo holo: TCG 548.79; sold 100?,850swirl,780swirl,400LP,425,300LP,300,460LP,999error,275,299,400swirl,220,200 -> median of 9 plain = 300 => FIX 300
+3. bw4-95 Reshiram-EX FA: TCG 443.65; sold 140LP,190,140MP,125MP,135,46dmg,140MP,219,225,100,200LP,170,120LP -> median of 8 (no MP/dmg) = 180 => FIX 180
+4. hgss3-88 Kyogre&Groudon LEGEND bottom: TCG 422.20; sold 285LP,230,280LP,499,210,170,200,220,240,399,196 (+0-45 DM/damaged 9/30 left out) -> median 230 => FIX 230
+5. hgss2-90 Entei&Raikou LEGEND top: TCG 312.65; sold 75HP,88MP,120,45,95auto,125,225,80,199pair,380pair,110,75,62,200,110 -> median of 10 plain = 110 => FIX 110
+6. xyp-XY166 M Gengar-EX promo: TCG 271.68; sold (5 days) 400,166,175,160,300,115,61HP,570,170,58HP,166LP,75,190,205,100,300 -> median of 14 = 182.50 => FIX 182.50
+7. bw8-131 Victini-EX FA: TCG 201.35; sold 168,191,200,90LP,175,208,55?,45?,201,70LP,120,300,125,90 -> median of 12 = 171.50, within 25% => STANDS (keep)
+8. bw9-64 Umbreon PF reverse holo: TCG 158.66; sold 85HP,55MP,60dmg,188,225,399,350,400,99,135,20?,50dmg,55dmg,50?,400 -> median of 10 plain = 206.50, ours 23% UNDER => STANDS (keep)
+9. xyp-XY95 Pikachu promo: TCG 214.20; sold 40HP,103,85LP,120,200,128,200,69,85,70MP,86,239,125,45,207,100 -> median of 14 = 111.50 => FIX 111.50
+10. xyp-XY69 Rayquaza EX shiny promo: TCG 219.44; sold (4 days) 170LP,75,200,180,125,150,113,120,30,25,22MP,49,30,35,25HP,27dmg -> median of 12 = 94 => FIX 94
+11. xyp-XY168 M Garchomp-EX promo: TCG 108.19; sold 40HP,185SGC,65,20jumbo,35HP,27jumbo,85LP,70,70LP,46MP,45,45,46MP,10jumbo,140,35dmg -> median of 7 plain = 70 => FIX 70
+12. hgssp-HGSS11 Latios promo: TCG 106; sold 110swirl,24.56,78LP,95,40LP,20,400error,150swirl,24.56,55,75,25,25,30,40,240pair -> median of 11 plain = 30 => FIX 30
+TOTAL: 12 eBay reads (8 left today), 10 FIXES + 2 STAND; plus 19 keeps by the exact-printing test.
