@@ -1,5 +1,9 @@
 ﻿# To test later
 
+## 10-23 2:32PM ET: PUSHED 316bc721 (35de77ce no-op backstops answer before building; no render over a hand clip)
+- [ ] 7:20pm ET GitHub backstop (social-post schedule): run is GREEN, post job says every site "already posted" within seconds (no day build), NO "publisher crashed" mail to support@.
+- [ ] 10-24 12:40pm ET video check: no hand clip that day = renders as normal (green); on a hand-clip day it stops early instead of the red "not enough dips" render (today's 3 red social-post runs 15:46/17:07/17:40 UTC were that).
+
 ## 10-23 10:30AM ET: PUSHED ea7af0d9 (Turso rows written cut + slow-day picture timeouts)
 - [ ] Tomorrow 10-24 (and each day through 10-27): Turso Analytics "Rows Written" for 10-24 UTC is ~400-700k, down from ~2.2M/day (Chris reads the dashboard; October bill 31.9M written = $7 over, 18.2B read = $16 over, reads already low since 10-17). Target: under ~800k/day = back to the $4.99 plan.
 - [ ] Tonight's 2am catalog log (backups/catalog-sync.log): mtg_cards ~2,664 then near 0 changed with "N relabelled", tcg_cards price-only count, cardmarket_map "N new or moved, M removed" (not 30k written). No "remote count < local" error.

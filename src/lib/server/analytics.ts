@@ -363,7 +363,8 @@ export async function getAnalytics(window: Window, realNow = Date.now()): Promis
     m({ table: "scan_pack_purchases", ts: "created_at", agg: `COUNT(*) * ${PRICING.pack.price}` }),
     m({ table: "wishlist_items", ts: "added_at", agg: "COUNT(*)" }),
     m({ table: "help_messages", ts: "created_at", agg: "COUNT(*)", where: "role = 'user'" }),
-    m({ table: "error_events", ts: "at", agg: "COUNT(*)" }),
+    // Errors only: the log also holds console.warn notes (price-guard skips etc.), which read as a +2747% "errors" spike 10-23.
+    m({ table: "error_events", ts: "at", agg: "COUNT(*)", where: "level = 'error'" }),
     funnel(since, now + 1),
     activeFunnel(since, now + 1),
     rows<{ path: string; views: number; visitors: number }>(
