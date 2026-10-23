@@ -1,5 +1,10 @@
 ﻿# To test later
 
+## 10-23 ~5:55PM ET: PUSHED 62c9c5b9 on Chris "push whatever you need fix it" (late render pings never fail; hand-clip skip; email clicks addd8506 went with it before his shot yes)
+- [x] PASS ~5:47pm ET: hand dispatch 40029128215 (slot=midday) GREEN: video job "a hand-made video owns the 2026-10-23 midday slot, nothing to do" in 1 s, post job HTTP 200; no failure mail. CI on 62c9c5b9 GREEN (e2e + checks).
+- [ ] 10-24: NO "Run failed: social-post" mail all day, however late GitHub delivers the 10:30am-1:20pm pings. A day whose planned kind is thin shows a yellow warning in the run, not red.
+- [ ] Chris still owes a look at docs/shots/emails-clicked-tile-phone.jpg (pushed on his "push whatever you need").
+
 ## 10-23 ~2:51PM ET: HELD addd8506 weekly mail clicks (utm_source=email) + /admin/emails "Clicked" tile (shot sent, needs Chris's yes before the push)
 - [ ] After the push: /admin/emails "Send Test To Me" is an untagged preview (by design); the first real send (Sun 10-25 6:30pm week mail) has tagged links: open one link from the owner's copy-less log? (owner gets none) -> instead check a sent row's rendered links via a dry run, or wait for Mon 10-26: /admin/emails "Clicked" on "This week in cards" > 0 if anyone clicked, and /admin analytics visitor sources list "Email".
 
