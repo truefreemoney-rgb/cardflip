@@ -48,7 +48,8 @@ import { ANGLE_KINDS, POST_GAME_NAMES, dayPlan, fanOrder, isAngleKind, jumpsOn, 
  * other prices than its caption names. No current video row = the live list.
  */
 export const dynamic = "force-dynamic";
-export const maxDuration = 30;
+// 10-23: with Turso slow the set spotlight took 92 s, so every site's picture failed at 30 s. A healthy render is seconds.
+export const maxDuration = 120;
 
 const BG = "#0a0b11";
 const MUTED = "#a1a1aa";

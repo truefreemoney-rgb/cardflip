@@ -404,7 +404,8 @@ export const BUILD_BUDGET_MS = 90_000;
 export const BUILD_CACHE_MAX_AGE_MS = 18 * 60 * 60_000;
 
 async function defaultFetchImage(url: string, headers?: Record<string, string>): Promise<Buffer> {
-  const res = await fetch(url, { cache: "no-store", headers, signal: AbortSignal.timeout(25_000) });
+  // Just under the image route's own 120 s (10-23: a 92 s render on a slow Turso day failed every site at 25 s).
+  const res = await fetch(url, { cache: "no-store", headers, signal: AbortSignal.timeout(115_000) });
   if (!res.ok) throw new Error(`image ${res.status}`);
   return Buffer.from(await res.arrayBuffer());
 }
