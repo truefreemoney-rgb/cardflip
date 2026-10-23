@@ -342,6 +342,9 @@ globalThis.fetch = realFetch;
   // 10-23: a hand-made 1pm clip is the day's video; the 12:40 check dispatched a render anyway and it hung 15 min.
   const vr = readFileSync(new URL("../src/app/api/cron/social-video/route.ts", import.meta.url), "utf8");
   check("the 12:40 check stops at a hand-made 1pm video, before any dispatch", vr.indexOf("handPostFor(VIDEO_SLOT, day)") > 0 && vr.indexOf("handPostFor(VIDEO_SLOT, day)") < vr.indexOf("/dispatches"), true);
+  // 10-23 3:27pm: the 1:20pm GitHub backstop ran 2 h late, its video job rendered the planned dips over the hand clip and failed.
+  const sv = readFileSync(new URL("./social-video.mjs", import.meta.url), "utf8");
+  check("the GitHub render's --skip-if-done stops at a hand-made 1pm video, before the registered-row check", sv.indexOf("handPostFor(VIDEO_SLOT, day)") > 0 && sv.indexOf("handPostFor(VIDEO_SLOT, day)") < sv.indexOf("await sharedMidday(day)"), true);
   const wf = readFileSync(new URL("../.github/workflows/social-post.yml", import.meta.url), "utf8");
   check("workflow renders from 10:30am Eastern", wf.includes('cron: "30 14 * * *"'), true);
   check("the 1pm pings also render (backstop), the 7am ones do not", [wf.includes('"20 17 * * *","20 18 * * *"]'), wf.includes('"20 11 * * *","20 12 * * *"]')], [true, false]);

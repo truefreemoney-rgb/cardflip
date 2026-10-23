@@ -69,7 +69,7 @@ const { dayPlan, jumpsOn, POST_GAME_NAMES, POST_GAME_ORDER, countWord, isAngleKi
 const ALL_GAMES_OUTRO = { games: POST_GAME_ORDER.map((g) => POST_GAME_NAMES[g]) };
 const { fallbackArtUrl } = await import(at("lib/cardArt.ts"));
 const { TIMELINE, VIDEO_W: W, VIDEO_H: H, videoSeconds } = await import(at("lib/socialVideo.ts"));
-const { eastern, VIDEO_SLOT } = await import(at("lib/server/socialPublish.ts"));
+const { eastern, handPostFor, VIDEO_SLOT } = await import(at("lib/server/socialPublish.ts"));
 const { TIKTOK_SLOTS } = await import(at("lib/socialTiktok.ts"));
 const { candidateKinds, planTag, readSlot, registerTiktokVideo, sharedMidday, sharedVideo, tiktokTargetDay, TIKTOK_GAME: game } = await import(at("lib/server/socialTiktok.ts"));
 const { slotKind, dayKinds, FALLBACK_KINDS } = await import(at("lib/server/socialPublish.ts"));
@@ -92,6 +92,9 @@ if (PACKAGE && !arg("--day")) {
 // The legacy (no-mode) render is the 1pm video, keyed by the kind the plan puts in the video slot that day (10-06: 1pm rotates with the rest, movers only when planned).
 const KIND = slotKind(VIDEO_SLOT, day);
 if (!PACKAGE && !ONLY.length && has("--skip-if-done")) {
+  // A hand-made clip owns the slot (10-23: the 1:20pm backstop ran 2 h late, rendered the planned dips video over the Blender
+  // clip, found no dips and mailed a failed run; the Vercel 12:40 check already stops here since 35de77ce).
+  if (await handPostFor(VIDEO_SLOT, day)) { console.log(`a hand-made video owns the ${day} midday slot, nothing to do`); process.exit(0); }
   const row = await sharedMidday(day);
   // A row from before rows carried a plan counts as current; one made under another plan is remade.
   if (row && (!row.plan || row.plan === planTag("midday", day))) { console.log(`video already registered for ${day}, nothing to do`); process.exit(0); }
