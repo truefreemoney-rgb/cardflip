@@ -50,6 +50,45 @@ out = run();
 assert.match(out, /rows short but only 0 changed: pushing all/, "remote short: full push");
 assert.equal(remoteCount(), localCount);
 
+// 10-23 (Turso rows written, $1 per million): rows go up in place, tcg prices take a two-column UPDATE,
+// and mtg prices (prod's own daily job) ride only on a row's first push. A 40-row stand-in mirror of each.
+{
+  const mirrorPath = path.join(dir, "mirror.db");
+  const mirror = new DatabaseSync(mirrorPath);
+  for (const t of ["mtg_cards", "tcg_cards"]) {
+    const ddl = local.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?").get(t).sql;
+    mirror.exec(ddl);
+    remote.exec(ddl);
+    const cols = local.prepare(`PRAGMA table_info(${t})`).all().map((c) => c.name);
+    const ins = mirror.prepare(`INSERT INTO ${t} (${cols.join(", ")}) VALUES (${cols.map(() => "?").join(", ")})`);
+    for (const r of local.prepare(`SELECT * FROM ${t} WHERE price_usd IS NOT NULL LIMIT 40`).all()) ins.run(...cols.map((c) => r[c] ?? null));
+  }
+  const runT = (table) =>
+    execFileSync(process.execPath, ["scripts/push-catalog.mjs", "--only", table], {
+      env: { ...process.env, TURSO_DATABASE_URL: `file:${remotePath.replace(/\\/g, "/")}`, TURSO_AUTH_TOKEN: "x", CATALOG_PUSH_STATE: statePath, CATALOG_PUSH_LOCAL: mirrorPath },
+      encoding: "utf8",
+    });
+  const [tcgId, mtgId] = [mirror.prepare("SELECT id FROM tcg_cards LIMIT 1").get().id, mirror.prepare("SELECT id FROM mtg_cards LIMIT 1").get().id];
+  const at = (t, id) => remote.prepare(`SELECT rowid AS rid, name, price_usd FROM ${t} WHERE id = ?`).get(id);
+
+  assert.match(runT("tcg_cards"), /pushing 40 changed of 40/, "tcg: first push sends every row");
+  assert.match(runT("mtg_cards"), /pushing 40 changed of 40/, "mtg: first push sends every row, prices included");
+  const tcg0 = at("tcg_cards", tcgId), mtg0 = at("mtg_cards", mtgId);
+  assert.ok(mtg0.price_usd != null, "a new mtg row arrives with its price");
+
+  mirror.exec(`UPDATE tcg_cards SET price_usd = 123.45, synced_at = synced_at + 1 WHERE id = '${tcgId}'`);
+  assert.match(runT("tcg_cards"), /pushing 1 changed of 40 rows \(remote has 40; 1 price-only/, "tcg: a price change goes up alone");
+  assert.deepEqual([at("tcg_cards", tcgId).price_usd, at("tcg_cards", tcgId).rid], [123.45, tcg0.rid], "…as a two-column update in place");
+
+  remote.exec(`UPDATE mtg_cards SET price_usd = 7.77 WHERE id = '${mtgId}'`); // prod's daily job priced it
+  mirror.exec(`UPDATE mtg_cards SET price_usd = 999, synced_at = synced_at + 1 WHERE id = '${mtgId}'`);
+  assert.match(runT("mtg_cards"), /no changed rows \(40 rows, 1 fingerprints relabelled\)/, "mtg: a price-only change is never pushed");
+  mirror.exec(`UPDATE mtg_cards SET name = 'Renamed', synced_at = synced_at + 1 WHERE id = '${mtgId}'`);
+  assert.match(runT("mtg_cards"), /pushing 1 changed of 40/, "mtg: a real change goes up");
+  assert.deepEqual([at("mtg_cards", mtgId).name, at("mtg_cards", mtgId).price_usd, at("mtg_cards", mtgId).rid], ["Renamed", 7.77, mtg0.rid], "…in place, keeping prod's price");
+  mirror.close();
+}
+
 remote.close();
 state.close();
 fs.rmSync(dir, { recursive: true, force: true });

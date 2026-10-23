@@ -55,8 +55,19 @@ const CATALOG_TABLES = [
   "tcgplayer_products",
   "tcg_cards",
 ];
+// Price columns (10-23, Turso rows written: $1 per million past the plan's 25M a month, October 31.9M).
+// mtg_cards prices belong to prod's own daily job (lib/server/mtgPriceRefresh.ts reads the same Scryfall
+// bulk, plus TCGplayer fills this push used to overwrite at 2am until 5am), so they ride only on a row's
+// first push. tcg_cards prices still come up (a card off TCGCSV has no other source), but a price-only
+// change is a two-column UPDATE: no index holds them, so it is one row written, where a REPLACE wrote the
+// table and every index twice.
+const PRICE_COLS = {
+  mtg_cards: { cols: ["price_usd", "price_usd_foil", "price_usd_etched", "price_eur", "price_eur_foil"], prodOwned: true },
+  tcg_cards: { cols: ["price_usd", "price_usd_foil"], prodOwned: false },
+};
 
-const local = new DatabaseSync(path.join(root, "data", "cardflip.db"), { readOnly: true });
+// CATALOG_PUSH_LOCAL: another mirror file (test hook).
+const local = new DatabaseSync(process.env.CATALOG_PUSH_LOCAL ?? path.join(root, "data", "cardflip.db"), { readOnly: true });
 const remote = createClient({ url, authToken });
 // What Turso already has, by row fingerprint (see the push loop). Its own file so the
 // mirror stays read-only here; deleting it just means one full push.
@@ -121,37 +132,68 @@ for (const table of CATALOG_TABLES) {
   const keyCols = localCols.filter((c) => c.pk > 0).sort((a, b) => a.pk - b.pk).map((c) => c.name);
   const keyOf = (r) => (keyCols.length ? keyCols.map((c) => String(r[c])).join("\u0001") : JSON.stringify(cols.map((c) => r[c] ?? null)));
   const hashCols = cols.filter((c) => c !== "synced_at");
-  const hashOf = (r) => crypto.createHash("sha1").update(JSON.stringify(hashCols.map((c) => r[c] ?? null))).digest("base64");
+  const priceCols = (PRICE_COLS[table]?.cols ?? []).filter((c) => cols.includes(c));
+  const prodOwned = Boolean(PRICE_COLS[table]?.prodOwned);
+  const restCols = hashCols.filter((c) => !priceCols.includes(c));
+  const sha = (list, r) => crypto.createHash("sha1").update(JSON.stringify(list.map((c) => r[c] ?? null))).digest("base64");
+  // v2 fingerprints keep the price columns apart (10-23), so a price-only change is told from a real one.
+  // A v1 fingerprint (one hash of every column but synced_at) that still matches is relabelled locally.
+  const hashOf = (r) => `v2:${sha(restCols, r)}|${sha(priceCols, r)}`;
+  const v1HashOf = (r) => sha(hashCols, r);
   const seen = new Map(state.prepare("SELECT k, h FROM pushed WHERE tbl = ?").all(table).map((s) => [s.k, s.h]));
   let rows = [];
+  const priceOnly = [];
+  const relabel = [];
   const all = [];
   for (const r of local.prepare(`SELECT ${colList} FROM ${table}`).iterate()) {
-    const k = keyOf(r), h = hashOf(r);
-    all.push({ r, k, h });
-    if (seen.get(k) !== h) rows.push(all[all.length - 1]);
+    const k = keyOf(r), h = hashOf(r), was = seen.get(k);
+    const row = { r, k, h };
+    all.push(row);
+    if (was === h) continue;
+    if (was === undefined) rows.push(row);
+    else if (!was.startsWith("v2:")) (was === v1HashOf(r) ? relabel : rows).push(row);
+    else if (was.split("|")[0] !== h.split("|")[0]) rows.push(row);
+    else (prodOwned ? relabel : priceOnly).push(row);
   }
+  const remember = state.prepare("INSERT OR REPLACE INTO pushed (tbl, k, h) VALUES (?, ?, ?)");
+  const rememberAll = (list) => {
+    state.exec("BEGIN");
+    for (const p of list) remember.run(table, p.k, p.h);
+    state.exec("COMMIT");
+  };
+  if (relabel.length && !dry) rememberAll(relabel);
+  // The price-only UPDATE joins on one key column; any other table sends those rows whole.
+  if (keyCols.length !== 1) rows.push(...priceOnly.splice(0));
   // Turso short of rows the state says it has (deleted there, or a restore): the state can't be
   // trusted for this table, so send every row once and rebuild it.
   if (localCount - remoteCount > rows.length) {
     console.log(`${table}: remote is ${localCount - remoteCount} rows short but only ${rows.length} changed: pushing all`);
     rows = all;
+    priceOnly.length = 0;
   }
-  if (rows.length === 0 && localCount <= remoteCount) {
-    console.log(`${table}: no changed rows (${localCount} rows)`);
+  if (rows.length + priceOnly.length === 0 && localCount <= remoteCount) {
+    console.log(`${table}: no changed rows (${localCount} rows${relabel.length ? `, ${relabel.length} fingerprints relabelled` : ""})`);
     continue;
   }
-  console.log(`${table}: pushing ${rows.length} changed of ${localCount} rows (remote has ${remoteCount})${dry ? " [dry run]" : ""}`);
+  console.log(
+    `${table}: pushing ${rows.length + priceOnly.length} changed of ${localCount} rows (remote has ${remoteCount}; ${priceOnly.length} price-only, ${relabel.length} relabelled)${dry ? " [dry run]" : ""}`,
+  );
   if (dry) continue;
 
-  const remember = state.prepare("INSERT OR REPLACE INTO pushed (tbl, k, h) VALUES (?, ?, ?)");
+  // An update in place on the key, never REPLACE (delete + insert = the table and every index written twice).
+  // prod-owned prices go up only with a row's first insert.
+  const setCols = cols.filter((c) => !keyCols.includes(c) && !(prodOwned && priceCols.includes(c)));
+  const upsertTail = !keyCols.length
+    ? null
+    : setCols.length
+      ? ` ON CONFLICT(${keyCols.join(", ")}) DO UPDATE SET ${setCols.map((c) => `${c} = excluded.${c}`).join(", ")}`
+      : ` ON CONFLICT(${keyCols.join(", ")}) DO NOTHING`;
   let stmts = [];
   let pending = [];
   const flush = async () => {
     if (stmts.length === 0) return;
     await remote.batch(stmts, "write");
-    state.exec("BEGIN");
-    for (const p of pending) remember.run(table, p.k, p.h);
-    state.exec("COMMIT");
+    rememberAll(pending);
     stmts = [];
     pending = [];
   };
@@ -159,7 +201,19 @@ for (const table of CATALOG_TABLES) {
     const chunk = rows.slice(i, i + ROWS_PER_STMT);
     const placeholders = chunk.map(() => `(${cols.map(() => "?").join(", ")})`).join(", ");
     const args = chunk.flatMap(({ r }) => cols.map((c) => r[c] ?? null));
-    stmts.push({ sql: `INSERT OR REPLACE INTO ${table} (${colList}) VALUES ${placeholders}`, args });
+    stmts.push({ sql: upsertTail ? `INSERT INTO ${table} (${colList}) VALUES ${placeholders}${upsertTail}` : `INSERT OR REPLACE INTO ${table} (${colList}) VALUES ${placeholders}`, args });
+    pending.push(...chunk);
+    if (stmts.length >= STMTS_PER_BATCH) await flush();
+  }
+  // Price-only rows: one UPDATE of the price columns, joined on the (single-column) key.
+  const [key] = keyCols;
+  for (let i = 0; i < priceOnly.length; i += ROWS_PER_STMT) {
+    const chunk = priceOnly.slice(i, i + ROWS_PER_STMT);
+    const width = priceCols.length + 1;
+    const placeholders = chunk.map(() => `(${Array(width).fill("?").join(", ")})`).join(", ");
+    const args = chunk.flatMap(({ r }) => [r[key], ...priceCols.map((c) => r[c] ?? null)]);
+    const set = priceCols.map((c, j) => `${c} = v.column${j + 2}`).join(", ");
+    stmts.push({ sql: `UPDATE ${table} SET ${set} FROM (VALUES ${placeholders}) AS v WHERE ${table}.${key} = v.column1`, args });
     pending.push(...chunk);
     if (stmts.length >= STMTS_PER_BATCH) await flush();
   }

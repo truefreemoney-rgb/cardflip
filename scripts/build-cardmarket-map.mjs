@@ -98,13 +98,25 @@ if (!process.argv.includes("--write-db")) fs.writeFileSync(`src/data/cardmarket-
 if (process.argv.includes("--write-db")) {
   const ids = Object.entries(map);
   await c.execute("CREATE TABLE IF NOT EXISTS cardmarket_map (game TEXT NOT NULL, card_id TEXT NOT NULL, product_id INTEGER NOT NULL, PRIMARY KEY (game, card_id))");
-  const stmts = [{ sql: "DELETE FROM cardmarket_map WHERE game = ?", args: [game] }];
-  for (let i = 0; i < ids.length; i += 400) {
-    const part = ids.slice(i, i + 400);
-    stmts.push({ sql: `INSERT INTO cardmarket_map (game, card_id, product_id) VALUES ${part.map(() => "(?, ?, ?)").join(", ")}`, args: part.flatMap(([id, pid]) => [game, id, pid]) });
+  // Only the difference (10-23, Turso rows written): the nightly run deleted and re-inserted all ~31k rows,
+  // ~120k rows written a night for a map that barely moves. Gone ids are deleted, new or moved ones upserted.
+  const have = new Map((await c.execute({ sql: "SELECT card_id, product_id FROM cardmarket_map WHERE game = ?", args: [game] })).rows.map((r) => [String(r.card_id), Number(r.product_id)]));
+  const changed = ids.filter(([id, pid]) => have.get(id) !== Number(pid));
+  const gone = [...have.keys()].filter((id) => !(id in map));
+  const stmts = [];
+  for (let i = 0; i < gone.length; i += 400) {
+    const part = gone.slice(i, i + 400);
+    stmts.push({ sql: `DELETE FROM cardmarket_map WHERE game = ? AND card_id IN (${part.map(() => "?").join(", ")})`, args: [game, ...part] });
   }
-  await c.batch(stmts, "write");
-  console.log(`cardmarket_map: ${ids.length} ${game} rows written`);
+  for (let i = 0; i < changed.length; i += 400) {
+    const part = changed.slice(i, i + 400);
+    stmts.push({
+      sql: `INSERT INTO cardmarket_map (game, card_id, product_id) VALUES ${part.map(() => "(?, ?, ?)").join(", ")} ON CONFLICT(game, card_id) DO UPDATE SET product_id = excluded.product_id`,
+      args: part.flatMap(([id, pid]) => [game, id, pid]),
+    });
+  }
+  if (stmts.length) await c.batch(stmts, "write");
+  console.log(`cardmarket_map: ${ids.length} ${game} rows, ${changed.length} new or moved, ${gone.length} removed`);
 }
 console.log(JSON.stringify({ ...report, unpinned: report.unpinned.slice(0, 40) }, null, 1));
 process.exit(0);
