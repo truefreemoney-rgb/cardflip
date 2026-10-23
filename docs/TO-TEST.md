@@ -41,7 +41,7 @@ Visible (all passed by Chris from shots before the push): Seller price pill B (V
 - [ ] After push: a card with manual=keep in ebay_asks (e.g. Misty Rainforest SPG 116 foil) can still appear in a Magic most-valuable post.
 
 ## 10-22 2:27PM ET (real clock): ExaSearchBot denied (firewall v37 LIVE now; robots.ts in the held batch)
-- [ ] 10-23: Vercel Observability > ISR writes on /cards/* for 10-22 vs 10-21 drop by ~1K/day; firewall rule "AI crawlers" shows ExaSearchBot denies.
+- [~] 10-23 8:05am ET: firewall AI-crawlers rule = 495 denies in the last 24 h (the metrics API cannot split by UA; the rule groups Meta + Exa); the pane deny-by-rule read also shows DoS mitigation 1,009, Wave fingerprints 811, country gate 716, OAI rate limit 631, bot-watch 409. ISR writes 10-22 vs 10-21 still to read on the Observability page.
 - [x] 5:57pm ET: ExaSearchBot in robots.txt's turned-away group (same as the 2:50pm check). After push: curl -s https://cardflip.io/robots.txt | grep -A1 ExaSearchBot -> Disallow: /
 
 ## 10-22 1:55PM ET: social failure mail waits for a later ping; GitHub backstop pings at :20 (COMMIT ONLY f93afc8c; nothing visible by design)
