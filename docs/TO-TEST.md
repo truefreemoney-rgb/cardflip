@@ -1,6 +1,7 @@
 ﻿# To test later
 
-## 10-23 ~3:50PM ET: HELD C10 YGO unsold Unlimited takes its 1st Edition sale (tcgPriceRefresh yugiohGroupPoints + sync-yugioh)
+## 10-23 ~4:00PM ET: PUSHED b384ccbd (with 7673a246 analytics errors-only tile) C10 YGO unsold Unlimited takes its 1st Edition sale (tcgPriceRefresh yugiohGroupPoints + sync-yugioh)
+- [ ] /admin/analytics (7 days): "Server errors" reads the error count only (~80s, not ~480); /admin/errors "Errors" filter count agrees roughly.
 - [ ] First 5:45am YGO price write after the push: re-run `node scripts/_ygo-stale-why.mjs` -> the "base: asking only" bucket drops by ~149 (343 -> ~194) and the suspect (3x+) count drops from 75. Spot-check on cardflip.io/api/search-card?game=yugioh&name=...: Penguin Soldier BP01-EN057 base ~$0.55 (was $450.85), Bujingi Turtle MP14-EN071 base ~$0.23 (was $19.97), D/D Savant Nikola TDIL-EN011 ~$0.13 (was $39.87), Gillagillancer MP14-EN187 ~$0.11 (was $50.62). A sold Unlimited (e.g. LOB Dark Magician) unchanged.
 - [ ] 2am catalog log after the push: sync-yugioh price-only count spikes once (~150 base rows), then back to normal.
 

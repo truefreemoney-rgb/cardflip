@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { GAMES } from "@/lib/games";
 import { PLAN_NAME, PRICE, SCANS } from "@/lib/pricing";
+import { emailUrl } from "@/lib/attribution";
 import { SITE_URL } from "@/lib/siteUrl";
 import { ET_ZONE } from "@/lib/time";
 import {
@@ -387,21 +388,38 @@ export async function candidates(id: CampaignId, now = Date.now()): Promise<Cand
   return out;
 }
 
+/**
+ * Every cardflip.io link but the Stop link carries utm_source=email + the mail id, so a click shows up in page_views
+ * (src 'email', camp = id) and /admin/emails can count it (10-23: clicks were not measurable). Pure.
+ */
+export function tagMailLinks(m: RenderedMail, id: CampaignId): RenderedMail {
+  const tag = (url: string) => (url === m.unsubUrl || !url.startsWith(SITE_URL) ? url : emailUrl(url, id));
+  return {
+    ...m,
+    html: m.html.replace(/href="([^"]+)"/g, (whole, u: string) => {
+      const plain = u.replace(/&amp;/g, "&");
+      const next = tag(plain);
+      return next === plain ? whole : `href="${next.replace(/&/g, "&amp;")}"`;
+    }),
+    text: m.text.replace(/https?:\/\/\S+/g, tag),
+  };
+}
+
 /** The mail for one person, or null when there is nothing to say to them (owner/legacy tiers on Tuesday). */
 export async function buildMail(id: CampaignId, user: User, unsubUrl: string, now: number, shared: { week?: WeekFacts; five?: MailCard[] } = {}): Promise<{ mail: RenderedMail; facts: ScansFacts | CardsFacts | WeekFacts } | null> {
   const first = user.name ?? "";
   if (id === "scans") {
     const f = await scansFacts(user, now);
-    return f ? { mail: renderScans(f, first, unsubUrl), facts: f } : null;
+    return f ? { mail: tagMailLinks(renderScans(f, first, unsubUrl), id), facts: f } : null;
   }
   if (id === "cards") {
     const f = await cardsFacts(user, now, shared);
-    return f.cards.length ? { mail: renderCards(f, first, unsubUrl), facts: f } : null;
+    return f.cards.length ? { mail: tagMailLinks(renderCards(f, first, unsubUrl), id), facts: f } : null;
   }
   const f = shared.week ?? (await weekFacts(now, false, true));
   if (!f) return null;
   shared.week = f;
-  return { mail: renderWeek(f, first, unsubUrl), facts: f };
+  return { mail: tagMailLinks(renderWeek(f, first, unsubUrl), id), facts: f };
 }
 
 /* ------------------------------------------------------------------ */
@@ -480,6 +498,8 @@ export interface CampaignOverview {
     eligible: number;
     dueNext: number;
     sent: number;
+    /** People who came to the site from this mail, one per person per day (page_views src 'email', tagged links from 10-23). */
+    clicks: number;
     variants: Array<{ key: VariantKey; label: string; count: number | null; preview: RenderedMail }>;
   }>;
   log: Array<{ email: string; campaign: string; status: string; error: string | null; sentAt: number }>;
@@ -489,6 +509,10 @@ export interface CampaignOverview {
 export async function campaignOverview(now = Date.now()): Promise<CampaignOverview> {
   const sentRows = (await db.prepare("SELECT campaign, COUNT(*) AS n FROM email_sends WHERE status = 'sent' GROUP BY campaign").all()) as unknown as Array<{ campaign: string; n: number }>;
   const sent = new Map(sentRows.map((r) => [r.campaign, Number(r.n)]));
+  const clickRows = (await db
+    .prepare("SELECT camp, COUNT(DISTINCT day || '|' || visitor) AS n FROM page_views WHERE src = 'email' GROUP BY camp")
+    .all()) as unknown as Array<{ camp: string; n: number }>;
+  const clicks = new Map(clickRows.map((r) => [r.camp, Number(r.n)]));
   const log = (await db
     .prepare("SELECT email, campaign, status, error, sent_at FROM email_sends ORDER BY sent_at DESC LIMIT 100")
     .all()) as unknown as Array<{ email: string; campaign: string; status: string; error: string | null; sent_at: number }>;
@@ -517,7 +541,7 @@ export async function campaignOverview(now = Date.now()): Promise<CampaignOvervi
       }
       variants.push({ key, label, count: id === "scans" ? (counts.get(v) ?? 0) : null, preview });
     }
-    campaigns.push({ id, label: CAMPAIGN_LABEL[id], when: CAMPAIGN_WHEN[id].label, eligible: list.length, dueNext: due.length, sent: sent.get(id) ?? 0, variants });
+    campaigns.push({ id, label: CAMPAIGN_LABEL[id], when: CAMPAIGN_WHEN[id].label, eligible: list.length, dueNext: due.length, sent: sent.get(id) ?? 0, clicks: clicks.get(id) ?? 0, variants });
   }
   return {
     on: await campaignsOn(),

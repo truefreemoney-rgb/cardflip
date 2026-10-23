@@ -38,7 +38,7 @@ export default async function AdminEmailsPage() {
             </div>
             <SendNowButton id={c.id} label={c.label} on={o.on} />
           </div>
-          <div className="grid grid-cols-3 gap-2 border-b border-edge px-3 py-2.5 text-center text-sm">
+          <div className="grid grid-cols-4 gap-2 border-b border-edge px-3 py-2.5 text-center text-sm">
             <div>
               <p className="font-semibold tabular-nums text-white">{num(c.eligible)}</p>
               <p className="text-xs text-zinc-500">Could get it</p>
@@ -50,6 +50,10 @@ export default async function AdminEmailsPage() {
             <div>
               <p className="font-semibold tabular-nums text-white">{num(c.sent)}</p>
               <p className="text-xs text-zinc-500">Sent so far</p>
+            </div>
+            <div>
+              <p className="font-semibold tabular-nums text-white">{num(c.clicks)}</p>
+              <p className="text-xs text-zinc-500">Clicked</p>
             </div>
           </div>
           {c.variants.map((v) => (

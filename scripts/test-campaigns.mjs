@@ -24,7 +24,7 @@ console.error = () => {};
 console.warn = () => {};
 
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
-const { sweepCampaigns, capBlocks, renderScans, renderWeek, campaignDueOn, inSendHour, sendCampaignTest, SIGNUP_CUTOFF, SAME_GAP_DAYS } = await import(at("lib/server/campaigns.ts"));
+const { sweepCampaigns, capBlocks, renderScans, renderWeek, tagMailLinks, campaignDueOn, inSendHour, sendCampaignTest, SIGNUP_CUTOFF, SAME_GAP_DAYS } = await import(at("lib/server/campaigns.ts"));
 const { createUser, OWNER_EMAIL: OWNER } = await import(at("lib/server/users.ts"));
 const { PRICE, SCANS, PLAN_NAME } = await import(at("lib/pricing.ts"));
 const { db } = await import(at("lib/db.ts"));
@@ -161,6 +161,15 @@ check("week body shows the averages its subject names", /HOW EACH GAME MOVED/i.t
 // 10-21: a "Few recent sales" price was the Yu-Gi-Oh! week pick (Amazoness Chain Master Retro Pack $104.29 -> $199.99).
 const young = readFileSync(new URL("../src/lib/server/campaignData.ts", import.meta.url), "utf8").match(/async function youngGameMovers[\s\S]*?\n}\n/)?.[0] ?? "";
 check("young-game movers skip flagged and few-sales prices", /v\.flag \|\| v\.stale\?\.few/.test(young), true);
+
+// 10-23: clicks were not measurable; every site link but Stop carries utm_source=email + the mail id.
+const stop = "https://cardflip.io/api/digest/unsubscribe?t=abc&x=1";
+const tagged = tagMailLinks(renderScans({ variant: "trial_left", left: 3, included: 5, nextCreditAt: null, plan: null, tip: null }, "Ash", stop), "scans");
+check("mail buttons carry the email tag (html escaped, text plain)",
+  [tagged.html.includes('href="https://cardflip.io/scan?utm_source=email&amp;utm_medium=email&amp;utm_campaign=scans"'), tagged.text.includes("https://cardflip.io/scan?utm_source=email&utm_medium=email&utm_campaign=scans")], [true, true]);
+check("the Stop link is never tagged", [tagged.html.includes(`href="${stop}"`), tagged.text.includes(`Stop these emails: ${stop}`)], [true, true]);
+const outside = tagMailLinks({ subject: "", text: "see https://example.com/a", html: '<a href="https://example.com/a">x</a>', unsubUrl: stop }, "week");
+check("links off cardflip.io stay as they are", [outside.text, outside.html], ["see https://example.com/a", '<a href="https://example.com/a">x</a>']);
 
 console.log(failures ? `\n${failures} FAILED` : "\nall passed");
 process.exit(failures ? 1 : 0);

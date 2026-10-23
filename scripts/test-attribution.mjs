@@ -74,6 +74,8 @@ const uaTable = [
 ];
 for (const [ua, want] of uaTable) check(`no tag, no referrer, user agent …${ua.slice(-40)} -> ${want}`, A.classifySource("", "", ua), want);
 console.log("Google Ads (10-06): its own source, from the tag or an untagged click id");
+check("email tag (10-23 weekly mails)", [A.classifySource("email", ""), A.cleanSource("email"), A.sourceLabel("email"), A.emailUrl("https://cardflip.io/app/collection?x=1", "Cards")],
+  ["email", "email", "Email", "https://cardflip.io/app/collection?x=1&utm_source=email&utm_medium=email&utm_campaign=cards"]);
 check("googleads tag", [A.classifySource("googleads", "google.com"), A.classifySource("google-ads", ""), A.cleanSource("googleads"), A.sourceLabel("googleads")], ["googleads", "googleads", "googleads", "Google Ads"]);
 check("sourceParam: utm wins, then gclid/gbraid/wbraid, then ttclid, else null",
   ["?utm_source=bluesky&gclid=x", "?gclid=abc", "?wbraid=1", "?ttclid=z", "?q=1"].map((s) => A.sourceParam(new URLSearchParams(s))),

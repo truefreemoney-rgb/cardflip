@@ -57,6 +57,15 @@ export function trackedUrl(site: UtmSite, campaign: string, origin = SITE_ORIGIN
   return `${origin}/?${params.toString()}`;
 }
 
+/** A weekly mail's link, tagged so the visit ping counts the click (10-23): utm_source=email, the campaign = the mail id. */
+export function emailUrl(url: string, campaign: string): string {
+  const u = new URL(url);
+  u.searchParams.set("utm_source", "email");
+  u.searchParams.set("utm_medium", "email");
+  u.searchParams.set("utm_campaign", clean(campaign) || "mail");
+  return u.toString();
+}
+
 /**
  * Where a short link goes, as a path + query for a 302 (the proxy), or null
  * when the path is not a short link. No campaign = the profile link ("bio").
@@ -79,6 +88,7 @@ const UTM_ALIASES: Record<string, string> = {
   pinterest: "pinterest", pin: "pinterest",
   // Google Ads (10-06): the tracking template tags utm_source=googleads; an untagged ad click still carries gclid.
   googleads: "googleads", "google-ads": "googleads", adwords: "googleads",
+  email: "email",
   google: "search", bing: "search", duckduckgo: "search", yahoo: "search", ecosia: "search", brave: "search",
 };
 
@@ -133,7 +143,7 @@ export function classifySource(utmSource: unknown, refHost: unknown, userAgent?:
   return `other:${host}`;
 }
 
-const SOURCE_OK = /^(direct|search|googleads|bluesky|x|facebook|instagram|threads|tiktok|pinterest|other:[a-z0-9._-]{1,80})$/;
+const SOURCE_OK = /^(direct|search|googleads|email|bluesky|x|facebook|instagram|threads|tiktok|pinterest|other:[a-z0-9._-]{1,80})$/;
 
 /** A stored/sent source, or "" when it is not one we classify to. */
 export function cleanSource(v: unknown): string {
@@ -145,7 +155,7 @@ export function cleanSource(v: unknown): string {
 export function sourceLabel(src: string): string {
   const fixed: Record<string, string> = {
     bluesky: "Bluesky", x: "X", facebook: "Facebook", instagram: "Instagram", threads: "Threads", tiktok: "TikTok",
-    pinterest: "Pinterest", search: "Search engines", googleads: "Google Ads", direct: "Direct", unknown: "Not recorded",
+    pinterest: "Pinterest", search: "Search engines", googleads: "Google Ads", email: "Email", direct: "Direct", unknown: "Not recorded",
   };
   if (fixed[src]) return fixed[src];
   return src.startsWith("other:") ? src.slice(6) : src || fixed.unknown;
