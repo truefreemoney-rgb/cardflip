@@ -1,7 +1,7 @@
 ﻿# To test later
 
 ## 10-23 ~7:45AM ET: HELD e5010ec9 (hand-made 1pm video) + the 18 earlier held commits; NEEDS THE PUSH BEFORE 12:40PM ET for today's 1pm
-- [ ] After the push: https://cardflip.io/social/hand/guess-2026-10-23.mp4 serves (200, video/mp4, 7.27 MB). Rows already on prod: social_video:pokemon:guess:2026-10-23 (hand text) + social_video:hand:midday:2026-10-23 (pointer).
+- [x] 7:38am ET: PUSHED 779a7dce (20 commits, fb6b91f9 -> 779a7dce) on Chris 'push'; CI GREEN; Production smoke: first run red on 'login route answers' (15 s timeout at 7:38:51, deploy window; my own curls saw 40 s and 243 s for a wrong-password 401 until ~7:45, then 0.8 s; rate_limits has only 163 rows so the sweep DELETE is not it; the 5:59am smoke on the OLD build also went red once on 'featured stage cards' timeout = Turso slow blips both times). Smoke rerun GREEN 7:50am. https://cardflip.io/social/hand/guess-2026-10-23.mp4 serves (200, video/mp4, 7,271,318 bytes). robots.txt lists ExaSearchBot. Rows already on prod: social_video:pokemon:guess:2026-10-23 (hand text) + social_video:hand:midday:2026-10-23 (pointer).
 - [ ] 12:40pm ET safety net (/api/cron/social-video) may still dispatch a render of the planned 1pm kind: harmless, the hand pointer wins at 1:05pm.
 - [ ] 1:05pm ET: Bluesky / X / Facebook / Instagram / Threads post the Blender Guess clip WITH music, caption "Guess what this Charizard is worth today..." + 7 PokÃ©mon tags, NO price in the text. Then scripts/_social-today.mjs -> send Chris one link per site (he posts the comments by hand). If the push did not land: the slot posts the normal plan (picture/video of the planned kind), nothing breaks.
 - [ ] After 1pm: 7pm slot unaffected (Magic Top 5 video registered).
@@ -14,7 +14,7 @@ Visible (all passed by Chris from shots before the push): Seller price pill B (V
 - [x] PASSED by Chris on the phone: Pokémon on, scan a Magic card, Switch to Magic = instant, ONE read, counter down by one (one-read wrong-game switch 10407ada).
 - [ ] Phone: scan chip label names the condition ("Lightly Played · Holofoil"); re-read text; slab needs its label; binder dividers are not slabs; Delete on the sheet asks first; scan condition = the seller's pick, photo warns only on HP/Damaged.
 - [ ] Phone, sealed row (none owned): skip; the local walk passed (TASKS B5).
-- [ ] 5:45am 10-23 Pokémon write: the 12 hand-mapped alternates get a TCGplayer price (Yveltal EX XY150a ~$231, M Lucario EX 55a ~$53, Guzzlord GX 63a ~$19.53, Reshiram BW004 ~$5.58...): scripts/.series-missing-tmp.mjs count 62 -> 50.
+- [x] 8:05am ET: missing count = 50 (was 62), the 12 hand-mapped alternates priced. 5:45am 10-23 Pokémon write: the 12 hand-mapped alternates get a TCGplayer price (Yveltal EX XY150a ~$231, M Lucario EX 55a ~$53, Guzzlord GX 63a ~$19.53, Reshiram BW004 ~$5.58...): scripts/.series-missing-tmp.mjs count 62 -> 50.
 - [ ] 5:45am 10-23: Pokémon listing cap OFF takes effect (first write after the push); referee seller-floor measure in the 8:15am run (then Chris's yes to turn it on); 1,024 px first read on the next scans.
 - [ ] Bot Watch: next hourly run, a blocked block mails "handled", not Failed (badfa3d9).
 - [ ] Social: next slot's GitHub backstop runs at :20 ET (the :20 schedule was already live on main; the 7:20pm ET run tonight is the first to watch); the failure mail waits 10 min for a later ping (f93afc8c); robots.ts lists ExaSearchBot (curl robots.txt).
