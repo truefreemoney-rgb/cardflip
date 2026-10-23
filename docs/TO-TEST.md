@@ -1,4 +1,10 @@
-# To test later
+﻿# To test later
+
+## 10-23 ~7:45AM ET: HELD e5010ec9 (hand-made 1pm video) + the 18 earlier held commits; NEEDS THE PUSH BEFORE 12:40PM ET for today's 1pm
+- [ ] After the push: https://cardflip.io/social/hand/guess-2026-10-23.mp4 serves (200, video/mp4, 7.27 MB). Rows already on prod: social_video:pokemon:guess:2026-10-23 (hand text) + social_video:hand:midday:2026-10-23 (pointer).
+- [ ] 12:40pm ET safety net (/api/cron/social-video) may still dispatch a render of the planned 1pm kind: harmless, the hand pointer wins at 1:05pm.
+- [ ] 1:05pm ET: Bluesky / X / Facebook / Instagram / Threads post the Blender Guess clip WITH music, caption "Guess what this Charizard is worth today..." + 7 PokÃ©mon tags, NO price in the text. Then scripts/_social-today.mjs -> send Chris one link per site (he posts the comments by hand). If the push did not land: the slot posts the normal plan (picture/video of the planned kind), nothing breaks.
+- [ ] After 1pm: 7pm slot unaffected (Magic Top 5 video registered).
 
 ## 10-22 6:03PM ET (real clock): PUSHED fb6b91f9 (31 commits, d3c5f350 -> fb6b91f9) on Chris "make the push when you can"; CI + Production smoke runs noted below
 Visible (all passed by Chris from shots before the push): Seller price pill B (Verify bar / green Verified band / Listing Ended band under the two prices), Collector pill D, "Listing Ended" wording, 44px Save on You paid.
@@ -1335,3 +1341,4 @@ pm run replay:scans (or SELECT read FROM scan_usage ORDER BY at DESC LIMIT 1): t
 - [ ] After push, the 10-23 evening run (before the 9:15pm render): /admin/social change line for 10-24 reads "Video week (2026-10-24 to 2026-10-30): every slot is the video..." and the social_schedule entry for 10-24 has no morningFormat/eveningFormat.
 - [ ] 10-24 7am + 7pm: Bluesky/X/Facebook/Instagram/Threads posts are the MP4, not the PNG (admin posts list, format = video).
 - [ ] 10-31: verdict, per site, video week vs 10-17..10-23; log in LESSONS/TASKS; set the picture's share from the result.
+
