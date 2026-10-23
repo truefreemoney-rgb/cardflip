@@ -1,6 +1,11 @@
 ﻿# To test later
 
+## 10-23 ~3:50PM ET: HELD C10 YGO unsold Unlimited takes its 1st Edition sale (tcgPriceRefresh yugiohGroupPoints + sync-yugioh)
+- [ ] First 5:45am YGO price write after the push: re-run `node scripts/_ygo-stale-why.mjs` -> the "base: asking only" bucket drops by ~149 (343 -> ~194) and the suspect (3x+) count drops from 75. Spot-check on cardflip.io/api/search-card?game=yugioh&name=...: Penguin Soldier BP01-EN057 base ~$0.55 (was $450.85), Bujingi Turtle MP14-EN071 base ~$0.23 (was $19.97), D/D Savant Nikola TDIL-EN011 ~$0.13 (was $39.87), Gillagillancer MP14-EN187 ~$0.11 (was $50.62). A sold Unlimited (e.g. LOB Dark Magician) unchanged.
+- [ ] 2am catalog log after the push: sync-yugioh price-only count spikes once (~150 base rows), then back to normal.
+
 ## 10-23 2:32PM ET: PUSHED 316bc721 (35de77ce no-op backstops answer before building; no render over a hand clip)
+- [x] PASS 10-23 ~3:00pm ET: origin/main = 316bc721; CI 40004157672 GREEN (e2e + checks).
 - [ ] 7:20pm ET GitHub backstop (social-post schedule): run is GREEN, post job says every site "already posted" within seconds (no day build), NO "publisher crashed" mail to support@.
 - [ ] 10-24 12:40pm ET video check: no hand clip that day = renders as normal (green); on a hand-clip day it stops early instead of the red "not enough dips" render (today's 3 red social-post runs 15:46/17:07/17:40 UTC were that).
 

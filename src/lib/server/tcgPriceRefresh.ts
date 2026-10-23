@@ -332,6 +332,48 @@ async function onePiecePoints(): Promise<{ points: TcgPoint[]; failed: number }>
   return { points, failed };
 }
 
+type YgoPriceRow = { productId: number; subTypeName?: string; marketPrice?: unknown; midPrice?: unknown };
+
+/**
+ * Pure: one tcgcsv Yu-Gi-Oh! group's price rows → points. Same split as scripts/sync-yugioh.mjs: the unstamped
+ * row takes Unlimited (or Limited, or any other subtype), the -1st twin 1st Edition. Exported for the test.
+ */
+export function yugiohGroupPoints(prices: YgoPriceRow[]): TcgPoint[] {
+  const byProduct = new Map<number, Record<string, number | null>>();
+  const sold = new Map<number, Set<string>>();
+  // Subtypes with only an asking price over ASKING_MAX_USD (10-13: 399 such Yu-Gi-Oh prices, Acrobat Monkey
+  // $20.16 against a 44c cheapest listing, a $5,000 Duel Terminal preview): blank, not the old price.
+  const asked = new Map<number, Set<string>>();
+  for (const p of prices) {
+    const entry = byProduct.get(p.productId) ?? {};
+    const sub = p.subTypeName ?? "";
+    const market = num(p.marketPrice);
+    entry[sub] = market ?? askingPrice(p.midPrice);
+    if (market != null) sold.set(p.productId, (sold.get(p.productId) ?? new Set()).add(sub));
+    if (entry[sub] == null && num(p.midPrice) != null) asked.set(p.productId, (asked.get(p.productId) ?? new Set()).add(sub));
+    byProduct.set(p.productId, entry);
+  }
+  const points: TcgPoint[] = [];
+  for (const [pid, priced] of byProduct) {
+    const first = priced["1st Edition"] ?? null;
+    const unlKey = priced["Unlimited"] != null ? "Unlimited" : "Limited";
+    const unl = priced[unlKey] ?? null;
+    const [otherKey, other] = Object.entries(priced).find(([k]) => !/^(1st Edition|Unlimited|Limited)$/.test(k)) ?? ["", null];
+    const s = sold.get(pid);
+    // An unstamped printing nobody has bought yet takes its own 1st Edition sales before any asking price
+    // (10-23 C10: 149 such rows froze on pre-10-13 asking prices, Penguin Soldier BP01 $450.85 against $0.55 sold).
+    const base =
+      (s?.has(unlKey) ? unl : null) ?? (s?.has(otherKey) ? other : null) ?? (s?.has("1st Edition") ? first : null) ?? unl ?? other;
+    const a = asked.get(pid);
+    // A 1st-only printing has no unstamped row in the catalog; planTcgRefresh walks catalog ids, so its point is dropped.
+    if (base != null) points.push({ id: `ygo-${pid}`, usd: base, foil: null });
+    else if (a && [...a].some((k) => k !== "1st Edition")) points.push({ id: `ygo-${pid}`, usd: null, foil: null, clear: true });
+    if (first != null) points.push({ id: `ygo-${pid}-1st`, usd: first, foil: null });
+    else if (a?.has("1st Edition")) points.push({ id: `ygo-${pid}-1st`, usd: null, foil: null, clear: true });
+  }
+  return points;
+}
+
 async function yugiohPoints(): Promise<{ points: TcgPoint[]; failed: number; backup?: string }> {
   const API = "https://tcgcsv.com/tcgplayer/2";
   let groups: { groupId: number }[];
@@ -349,32 +391,7 @@ async function yugiohPoints(): Promise<{ points: TcgPoint[]; failed: number; bac
   const worker = async () => {
     for (let g = queue.shift(); g; g = queue.shift()) {
       try {
-        const prices = listOf<{ productId: number; subTypeName?: string; marketPrice?: unknown; midPrice?: unknown }>(
-          await getJson(`${API}/${g.groupId}/prices`),
-        );
-        const byProduct = new Map<number, Record<string, number | null>>();
-        // Subtypes with only an asking price over ASKING_MAX_USD (10-13: 399 such Yu-Gi-Oh prices, Acrobat Monkey
-        // $20.16 against a 44c cheapest listing, a $5,000 Duel Terminal preview): blank, not the old price.
-        const asked = new Map<number, Set<string>>();
-        for (const p of prices) {
-          const entry = byProduct.get(p.productId) ?? {};
-          const sub = p.subTypeName ?? "";
-          entry[sub] = num(p.marketPrice) ?? askingPrice(p.midPrice);
-          if (entry[sub] == null && num(p.midPrice) != null) asked.set(p.productId, (asked.get(p.productId) ?? new Set()).add(sub));
-          byProduct.set(p.productId, entry);
-        }
-        // Same split as scripts/sync-yugioh.mjs: the unstamped row takes
-        // Unlimited (or Limited, or any other subtype), the -1st twin 1st Edition.
-        for (const [pid, priced] of byProduct) {
-          const first = priced["1st Edition"] ?? null;
-          const unl = priced["Unlimited"] ?? priced["Limited"] ?? null;
-          const other = Object.entries(priced).find(([k]) => !/^(1st Edition|Unlimited|Limited)$/.test(k))?.[1] ?? null;
-          const a = asked.get(pid);
-          if (unl != null || other != null) points.push({ id: `ygo-${pid}`, usd: unl ?? other, foil: null });
-          else if (a && [...a].some((s) => s !== "1st Edition")) points.push({ id: `ygo-${pid}`, usd: null, foil: null, clear: true });
-          if (first != null) points.push({ id: `ygo-${pid}-1st`, usd: first, foil: null });
-          else if (a?.has("1st Edition")) points.push({ id: `ygo-${pid}-1st`, usd: null, foil: null, clear: true });
-        }
+        points.push(...yugiohGroupPoints(listOf<YgoPriceRow>(await getJson(`${API}/${g.groupId}/prices`))));
       } catch (err) {
         failed++;
         console.warn(`yugioh prices group ${g.groupId}:`, err instanceof Error ? err.message : err);

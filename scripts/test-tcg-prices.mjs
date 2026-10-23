@@ -21,7 +21,7 @@ process.once("exit", () => {
   try { rmSync(work, { recursive: true, force: true }); } catch { /* libsql may still hold the file on Windows */ }
 });
 
-const { planTcgRefresh, onePieceNameVariant, matchLorcanaProducts } = await import("../src/lib/server/tcgPriceRefresh.ts");
+const { planTcgRefresh, onePieceNameVariant, matchLorcanaProducts, yugiohGroupPoints } = await import("../src/lib/server/tcgPriceRefresh.ts");
 const { upsertSeriesRows, readSeriesMap } = await import("../src/lib/server/priceBulkWrite.ts");
 const { getPriceHistory } = await import("../src/lib/server/priceHistory.ts");
 
@@ -148,4 +148,19 @@ const cleared = planTcgRefresh(
   "2026-10-13",
 );
 check("asking-only over $20 clears the held price, nothing else moves", [cleared.columns, cleared.upserts.length], [[{ id: "ygo-1", usd: null, foil: null }], 0]);
+
+// 10-23 C10: an unstamped printing nobody has bought takes its own 1st Edition sales before any asking price.
+const ygo = (rows) => Object.fromEntries(yugiohGroupPoints(rows).map((p) => [p.id, p.clear ? "clear" : p.usd]));
+check("unsold Unlimited over $20 asking takes the 1st Edition sale (Penguin Soldier: was a frozen $450.85)",
+  ygo([{ productId: 69708, subTypeName: "Unlimited", marketPrice: null, midPrice: 450.85 }, { productId: 69708, subTypeName: "1st Edition", marketPrice: 0.55, midPrice: 0.6 }]),
+  { "ygo-69708": 0.55, "ygo-69708-1st": 0.55 });
+check("unsold Unlimited under $20 asking still loses to the 1st Edition sale (Bujingi Turtle $19.97 vs $0.23)",
+  ygo([{ productId: 92621, subTypeName: "Unlimited", marketPrice: null, midPrice: 19.97 }, { productId: 92621, subTypeName: "1st Edition", marketPrice: 0.23, midPrice: 0.25 }]),
+  { "ygo-92621": 0.23, "ygo-92621-1st": 0.23 });
+check("a sold Unlimited keeps its own market",
+  ygo([{ productId: 1, subTypeName: "Unlimited", marketPrice: 43, midPrice: 50 }, { productId: 1, subTypeName: "1st Edition", marketPrice: 1208, midPrice: 1300 }]),
+  { "ygo-1": 43, "ygo-1-1st": 1208 });
+check("no sale anywhere: asking under $20 stands, over $20 clears",
+  ygo([{ productId: 2, subTypeName: "Unlimited", midPrice: 12 }, { productId: 3, subTypeName: "Unlimited", midPrice: 359.92 }]),
+  { "ygo-2": 12, "ygo-3": "clear" });
 console.log(`\ntcg prices: ${passed} checks pass`);

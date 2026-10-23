@@ -73,10 +73,12 @@ async function worker(queue) {
     try {
       const [products, prices] = await Promise.all([getJson(`${API}/${g.groupId}/products`), getJson(`${API}/${g.groupId}/prices`)]);
       const byProduct = new Map();
+      const sold = new Map();
       for (const p of prices) {
         if (!byProduct.has(p.productId)) byProduct.set(p.productId, {});
         // Asking-only (no market) over $20 is not a price (10-13, same rule as lib/server/mtgTcgplayerFill.ts ASKING_MAX_USD).
         byProduct.get(p.productId)[p.subTypeName] = p.marketPrice ?? (p.midPrice != null && p.midPrice <= 20 ? p.midPrice : null);
+        if (p.marketPrice != null) sold.set(p.productId, (sold.get(p.productId) ?? new Set()).add(p.subTypeName));
       }
       for (const p of products) {
         const number = ext(p, "Number").trim().toUpperCase();
@@ -95,12 +97,17 @@ async function worker(queue) {
           image: bigImage(p.imageUrl),
         };
         const first = priced["1st Edition"] ?? null;
-        const unl = priced["Unlimited"] ?? priced["Limited"] ?? null;
-        const other = Object.entries(priced).find(([k]) => !/^(1st Edition|Unlimited|Limited)$/.test(k))?.[1] ?? null;
+        const unlKey = priced["Unlimited"] != null ? "Unlimited" : "Limited";
+        const unl = priced[unlKey] ?? null;
+        const [otherKey, other] = Object.entries(priced).find(([k]) => !/^(1st Edition|Unlimited|Limited)$/.test(k)) ?? ["", null];
+        const s = sold.get(p.productId);
+        // Same pick as lib/server/tcgPriceRefresh.ts yugiohGroupPoints: an unsold unstamped printing takes its own
+        // 1st Edition sales before any asking price (10-23 C10).
+        const basePrice = (s?.has(unlKey) ? unl : null) ?? (s?.has(otherKey) ? other : null) ?? (s?.has("1st Edition") ? first : null) ?? unl ?? other;
         // "-1st" on the id marks the stamped print (listing.ts isFirstEditionCard
         // reads it); variant keeps the name tag. Both priced → twins; a 1st-only
         // printing is one "-1st" row.
-        if (unl != null || (first == null && other != null)) rows.push({ ...base, id: `ygo-${p.productId}`, price: unl ?? other });
+        if (unl != null || (first == null && other != null)) rows.push({ ...base, id: `ygo-${p.productId}`, price: basePrice });
         if (first != null) rows.push({ ...base, id: `ygo-${p.productId}-1st`, price: first });
         if (first == null && unl == null && other == null) rows.push({ ...base, id: `ygo-${p.productId}`, price: null });
       }
