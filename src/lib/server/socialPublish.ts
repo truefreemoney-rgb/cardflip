@@ -22,6 +22,8 @@ import {
   isJump,
   setCaption,
   setShortCaption,
+  minutesSince,
+  readDraftsCache,
   storeDraftsCache,
   type FeaturedKind,
   type GameLead,
@@ -385,8 +387,20 @@ export interface PublishOptions {
   fetchImage?: (url: string, headers?: Record<string, string>) => Promise<Buffer>;
   /** Fetches a registered MP4 from Blob (test hook). */
   fetchVideo?: (url: string) => Promise<Buffer>;
+  /** How long the day's own build may take before the stored one posts instead (test hook; default BUILD_BUDGET_MS). */
+  buildBudgetMs?: number;
+  /** Builds a game's drafts (test hook; default socialDrafts). */
+  build?: typeof socialDrafts;
   now?: number;
 }
+
+/**
+ * 10-23: Turso scans ran 30-45 s each and the 7:05, 8:05 and 9:03 runs all hit the route's 300 s wall before a site
+ * was tried. Past this budget the day's last stored build (under BUILD_CACHE_MAX_AGE_MS old) posts instead; with none,
+ * the run waits for its own build as before. A healthy build is ~9 s, so a normal day never reads the cache.
+ */
+export const BUILD_BUDGET_MS = 90_000;
+export const BUILD_CACHE_MAX_AGE_MS = 6 * 60 * 60_000;
 
 async function defaultFetchImage(url: string, headers?: Record<string, string>): Promise<Buffer> {
   const res = await fetch(url, { cache: "no-store", headers, signal: AbortSignal.timeout(25_000) });
@@ -586,7 +600,22 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
     (
       await Promise.all(
         games.map(async (g) => {
-          const built = await socialDrafts(g, day, list);
+          const build = (opts.build ?? socialDrafts)(g, day, list);
+          if (cache) {
+            let timer: ReturnType<typeof setTimeout> | undefined;
+            const late = new Promise<"late">((resolve) => (timer = setTimeout(() => resolve("late"), opts.buildBudgetMs ?? BUILD_BUDGET_MS)));
+            const first = await Promise.race([build, late]);
+            clearTimeout(timer);
+            if (first === "late") {
+              const stored = await readDraftsCache(g, day);
+              if (stored && now - stored.at <= BUILD_CACHE_MAX_AGE_MS) {
+                console.warn(`social: ${g} ${day} build ran past ${Math.round((opts.buildBudgetMs ?? BUILD_BUDGET_MS) / 1000)} s, posting the build stored ${minutesSince(stored.at, now)} min ago`);
+                build.catch(() => {});
+                return stored.drafts;
+              }
+            }
+          }
+          const built = await build;
           // The build /admin/social shows until its next one (lib/server/social.ts cachedSocialDrafts); a failed write never costs the post.
           if (cache && !opts.dry) await storeDraftsCache(g, day, built, now).catch((err) => console.warn("social: drafts cache write failed", err instanceof Error ? err.message : err));
           return built;

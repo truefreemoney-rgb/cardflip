@@ -128,6 +128,19 @@ check("…with its game and format", (await db.prepare("SELECT game, format FROM
   const stale = await cachedSocialDrafts("pokemon", THU, { now: Date.now() + DRAFTS_CACHE_MAX_AGE_MS + 1 });
   const forced = await cachedSocialDrafts("pokemon", THU, { fresh: true });
   check("fresh cache = served as is; stale or ?fresh=1 = rebuilt and stored again", [fromCache.cached, fromCache.drafts[0].id, stale.cached, stale.drafts[0].id !== "marker", forced.cached, JSON.parse(await getSetting(`social_drafts:pokemon:${THU}`)).drafts[0].id !== "marker"], [true, "marker", false, true, false, true]);
+  // 10-23 (Turso slow, three runs hit the 300 s wall): past the build budget the day's stored build posts, when it is under 6 h old.
+  const { BUILD_CACHE_MAX_AGE_MS } = await import(at("lib/server/socialPublish.ts"));
+  const real = JSON.parse(await getSetting(`social_drafts:pokemon:${THU}`)).drafts;
+  const storeAt = async (when) => setSetting(`social_drafts:pokemon:${THU}`, JSON.stringify({ at: when, drafts: real.map((d) => (d.kind === "set" ? { ...d, title: "STORED" } : d)) }));
+  const late = fakeSite("late");
+  const slowBuild = async () => (await new Promise((r) => setTimeout(r, 60)), real.map((d) => (d.kind === "set" ? { ...d, title: "FRESH" } : d)));
+  const run = (budget) => publishSocial({ day: THU, now: clock(11), slot: "morning", origin: "http://x", sites: [late], fetchImage, dry: true, build: slowBuild, buildBudgetMs: budget });
+  await storeAt(clock(11) - 60 * 60_000);
+  const viaCache = await run(10);
+  const onTime = await run(5_000);
+  await storeAt(clock(11) - BUILD_CACHE_MAX_AGE_MS - 1);
+  const tooOld = await run(10);
+  check("a build past its budget posts the stored one (1 h old); an on-time build or a 6 h+ store = the fresh build", [viaCache, onTime, tooOld].map((x) => x.sites[0].posts[0]?.title), ["STORED", "FRESH", "FRESH"]);
 }
 
 r = await publishSocial({ day: THU, now: clock(12), origin: "http://x", sites: [bsky], fetchImage });

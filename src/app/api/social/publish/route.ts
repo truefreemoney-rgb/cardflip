@@ -22,6 +22,7 @@ import { refreshMetaTokens } from "@/lib/server/sites/meta";
 export const dynamic = "force-dynamic";
 // Video posts poll Meta/Bluesky/X processing for up to a few minutes; sites run in parallel.
 export const maxDuration = 300;
+const RUN_BUDGET_MS = 285_000;
 
 /** The schedule's own key (GitHub secret SOCIAL_POST_KEY), so CRON_SECRET never leaves Vercel. */
 function postKeyOk(req: NextRequest): boolean {
@@ -60,16 +61,24 @@ async function run(req: NextRequest) {
   const sites = onlySite ? SOCIAL_SITES.filter((s) => s.id === onlySite) : SOCIAL_SITES;
   if (onlySite && sites.length === 0) return NextResponse.json({ error: `unknown site ${onlySite}` }, { status: 400 });
   let report: Awaited<ReturnType<typeof publishSocial>>;
+  // 10-23: three runs hung to Vercel's 300 s kill (504, no row, no mail). Just before the wall the run records itself as a crash.
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const wall = new Promise<never>((_, reject) => (timer = setTimeout(() => reject(new Error(`publisher ran out of time (${RUN_BUDGET_MS / 1000} s, Vercel stops it at ${maxDuration} s)`)), RUN_BUDGET_MS)));
   try {
-    report = await publishSocial({
-      slot,
-      origin: req.nextUrl.origin,
-      sites,
-      force: q.get("force") === "1",
-      dry: q.get("dry") === "1",
-      day: rawDay && /^\d{4}-\d{2}-\d{2}$/.test(rawDay) ? rawDay : undefined,
-    });
+    report = await Promise.race([
+      publishSocial({
+        slot,
+        origin: req.nextUrl.origin,
+        sites,
+        force: q.get("force") === "1",
+        dry: q.get("dry") === "1",
+        day: rawDay && /^\d{4}-\d{2}-\d{2}$/.test(rawDay) ? rawDay : undefined,
+      }),
+      wall,
+    ]);
+    clearTimeout(timer);
   } catch (err) {
+    clearTimeout(timer);
     // The whole run fell over (10-02 9:51pm ET: a bare 500, no trace). Record it, mail Chris, and say why in the body.
     console.error("social publish crashed", err);
     const crash = await recordPublishCrash(err, { slot: slot ?? null });

@@ -48,7 +48,11 @@ check("db and mail both down: the record still comes back for the 500 body", (aw
 
 // Route files may only export handlers, so the wiring is read from the source.
 const route = readFileSync(new URL("../src/app/api/social/publish/route.ts", import.meta.url), "utf8");
-check("the route wraps publishSocial and records the crash", /try \{\s*report = await publishSocial\([\s\S]*?\} catch \(err\) \{[\s\S]*?recordPublishCrash\(err/.test(route), true);
+check("the route wraps publishSocial and records the crash", /try \{\s*report = await Promise\.race\(\[\s*publishSocial\([\s\S]*?wall,\s*\]\);[\s\S]*?\} catch \(err\) \{[\s\S]*?recordPublishCrash\(err/.test(route), true);
+// 10-23: three runs hung to Vercel's 300 s kill with no row and no mail; the wall rejects first, so the catch above records it.
+const budget = Number(route.match(/const RUN_BUDGET_MS = ([\d_]+);/)?.[1].replace(/_/g, ""));
+const maxDuration = Number(route.match(/export const maxDuration = (\d+);/)?.[1]);
+check("the run's own wall falls before Vercel's maxDuration", budget > 0 && budget < maxDuration * 1000, true);
 check("…and still answers 500", /status: 500/.test(route), true);
 const page = readFileSync(new URL("../src/app/admin/(console)/social/page.tsx", import.meta.url), "utf8");
 check("/admin/social shows the last crash", page.includes("recentPublishCrash()") && page.includes("The publisher crashed"), true);

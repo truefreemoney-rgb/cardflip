@@ -1645,12 +1645,22 @@ export function socialDrafts(game: GameId, day = todayUtc(), kinds: readonly Pos
  * the five angles trying their games), so the page reads the last build from
  * settings when it is under `maxAgeMs` old, and the publisher writes its
  * own build there at 7:05, 1:05 and 7:05 (it builds anyway). The publisher
- * itself never reads the cache: it posts prices as of the minute.
+ * posts prices as of the minute and reads the cache only when its own build
+ * runs past its budget (socialPublish.ts BUILD_BUDGET_MS, 10-23).
  */
 const DRAFTS_CACHE_PREFIX = "social_drafts:";
 export const DRAFTS_CACHE_MAX_AGE_MS = 20 * 60_000;
 export async function storeDraftsCache(game: GameId, day: string, drafts: SocialPost[], now = Date.now()): Promise<void> {
   await setSetting(`${DRAFTS_CACHE_PREFIX}${game}:${day}`, JSON.stringify({ at: now, drafts }));
+}
+/** The last stored build for a game's day, whatever its age; null when there is none or it does not parse. */
+export async function readDraftsCache(game: GameId, day: string): Promise<{ at: number; drafts: SocialPost[] } | null> {
+  try {
+    const row = JSON.parse((await getSetting(`${DRAFTS_CACHE_PREFIX}${game}:${day}`)) || "null") as { at?: number; drafts?: SocialPost[] } | null;
+    return row && typeof row.at === "number" && Array.isArray(row.drafts) ? { at: row.at, drafts: row.drafts } : null;
+  } catch {
+    return null;
+  }
 }
 /** Whole minutes since a timestamp, for the page's "built N min ago". */
 export function minutesSince(at: number, now = Date.now()): number {
@@ -1666,16 +1676,13 @@ export async function cachedSocialDrafts(
   // /admin/social), built on request and never cached: the cache holds what posts.
   if (opts.all) return { drafts: await socialDrafts(game, day, ALL_DRAFT_KINDS), at: now, cached: false };
   if (!opts.fresh) {
-    try {
-      const row = JSON.parse((await getSetting(`${DRAFTS_CACHE_PREFIX}${game}:${day}`)) || "null") as { at?: number; drafts?: SocialPost[] } | null;
-      if (row && typeof row.at === "number" && Array.isArray(row.drafts)) {
-        const old = now - row.at > (opts.maxAgeMs ?? DRAFTS_CACHE_MAX_AGE_MS);
-        // staleOk (10-07, Chris: the Social tab "still takes forever"): hand back an old build at once and let
-        // the caller rebuild it after the response, instead of a ~9 s-per-game build on most visits.
-        if (!old || opts.staleOk) return { drafts: row.drafts, at: row.at, cached: true, stale: old };
-      }
-    } catch {
-      /* an unreadable row is rebuilt */
+    // An unreadable row is rebuilt.
+    const row = await readDraftsCache(game, day);
+    if (row) {
+      const old = now - row.at > (opts.maxAgeMs ?? DRAFTS_CACHE_MAX_AGE_MS);
+      // staleOk (10-07, Chris: the Social tab "still takes forever"): hand back an old build at once and let
+      // the caller rebuild it after the response, instead of a ~9 s-per-game build on most visits.
+      if (!old || opts.staleOk) return { drafts: row.drafts, at: row.at, cached: true, stale: old };
     }
   }
   const drafts = await socialDrafts(game, day, opts.kinds);
