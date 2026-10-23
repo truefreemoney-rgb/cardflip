@@ -397,10 +397,11 @@ export interface PublishOptions {
 /**
  * 10-23: Turso scans ran 30-45 s each and the 7:05, 8:05 and 9:03 runs all hit the route's 300 s wall before a site
  * was tried. Past this budget the day's last stored build (under BUILD_CACHE_MAX_AGE_MS old) posts instead; with none,
- * the run waits for its own build as before. A healthy build is ~9 s, so a normal day never reads the cache.
+ * the run waits for its own build as before. A healthy build is ~9 s, so a normal day never reads the cache. Prices
+ * land once a day, so a morning build still holds the evening's prices.
  */
 export const BUILD_BUDGET_MS = 90_000;
-export const BUILD_CACHE_MAX_AGE_MS = 6 * 60 * 60_000;
+export const BUILD_CACHE_MAX_AGE_MS = 18 * 60 * 60_000;
 
 async function defaultFetchImage(url: string, headers?: Record<string, string>): Promise<Buffer> {
   const res = await fetch(url, { cache: "no-store", headers, signal: AbortSignal.timeout(25_000) });
@@ -596,9 +597,10 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
   // Only the kinds that post today are drafted (Chris 10-03: nothing extra); the
   // fallbacks are drafted only if a slot's own kind cannot be (never skip).
   const kinds = dayKinds(day);
-  const buildFor = async (list: PostKind[], cache: boolean): Promise<SocialPost[]> =>
-    (
-      await Promise.all(
+  let usedStored = false;
+  // One list per game, in `games` order.
+  const buildFor = async (list: PostKind[], cache: boolean): Promise<SocialPost[][]> =>
+      Promise.all(
         games.map(async (g) => {
           const build = (opts.build ?? socialDrafts)(g, day, list);
           if (cache) {
@@ -611,6 +613,7 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
               if (stored && now - stored.at <= BUILD_CACHE_MAX_AGE_MS) {
                 console.warn(`social: ${g} ${day} build ran past ${Math.round((opts.buildBudgetMs ?? BUILD_BUDGET_MS) / 1000)} s, posting the build stored ${minutesSince(stored.at, now)} min ago`);
                 build.catch(() => {});
+                usedStored = true;
                 return stored.drafts;
               }
             }
@@ -620,8 +623,7 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
           if (cache && !opts.dry) await storeDraftsCache(g, day, built, now).catch((err) => console.warn("social: drafts cache write failed", err instanceof Error ? err.message : err));
           return built;
         }),
-      )
-    ).flat();
+      );
   // Text must always match a registered video (09-26: a caption once named
   // "Mysterious Treasures" over Base Set 2 art, because the picture and the
   // video each computed the card list at a different moment). When a video
@@ -635,7 +637,8 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
         return spec?.cards?.length ? applyVideoCards(d, spec.cards, { winner: spec.winner }) : spec?.leads?.length ? applyGameLeads(d, spec.leads) : d;
       }),
     );
-  const all = await withVideoCards(await buildFor(kinds, true));
+  const mainByGame = await buildFor(kinds, true);
+  const all = await withVideoCards(mainByGame.flat());
   let fallbacks: SocialPost[] | null = null;
   async function draftsForKind(kind: PostKind): Promise<SocialPost[]> {
     // An angle draft carries the game the optimizer picked (guess@mtg, versus@yugioh); the per-game filter dropped it and
@@ -645,7 +648,18 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
         ? list.filter((d) => d.kind === kind).slice(0, 1)
         : games.map((g) => list.find((d) => d.game === g && d.kind === kind)).filter((d): d is SocialPost => Boolean(d));
     if (kinds.includes(kind)) return from(all);
-    fallbacks ??= await withVideoCards(await buildFor(FALLBACK_KINDS.filter((k) => !kinds.includes(k)), false));
+    // 10-23: the late path posted the stored build, then the fallback build alone ran 378 s (two Magic scans of ~300 s).
+    // The fallbacks are stored with the day's build, so a late run finds them there first.
+    if (usedStored) {
+      const stored = from(all);
+      if (stored.length > 0) return stored;
+    }
+    fallbacks ??= await (async () => {
+      const built = await buildFor(FALLBACK_KINDS.filter((k) => !kinds.includes(k)), false);
+      if (!opts.dry && !usedStored)
+        await Promise.all(games.map((g, i) => storeDraftsCache(g, day, [...mainByGame[i], ...built[i]], now).catch((err) => console.warn("social: drafts cache write failed", err instanceof Error ? err.message : err))));
+      return withVideoCards(built.flat());
+    })();
     return from(fallbacks);
   }
   // One draft per game per slot, of that slot's kind; a kind with no draft

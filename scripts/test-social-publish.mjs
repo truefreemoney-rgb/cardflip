@@ -140,7 +140,10 @@ check("…with its game and format", (await db.prepare("SELECT game, format FROM
   const onTime = await run(5_000);
   await storeAt(clock(11) - BUILD_CACHE_MAX_AGE_MS - 1);
   const tooOld = await run(10);
-  check("a build past its budget posts the stored one (1 h old); an on-time build or a 6 h+ store = the fresh build", [viaCache, onTime, tooOld].map((x) => x.sites[0].posts[0]?.title), ["STORED", "FRESH", "FRESH"]);
+  check("a build past its budget posts the stored one (1 h old); an on-time build or a too-old store = the fresh build", [viaCache, onTime, tooOld].map((x) => x.sites[0].posts[0]?.title), ["STORED", "FRESH", "FRESH"]);
+  // 10-23: the slot's own kind had no stored draft and the unbudgeted fallback build ran 378 s; a stored fallback posts instead.
+  await setSetting(`social_drafts:pokemon:${THU}`, JSON.stringify({ at: clock(11) - 60 * 60_000, drafts: real.map((d) => (d.kind === "set" ? { ...d, kind: "games", title: "STORED GAMES" } : d)) }));
+  check("late build, the slot's kind missing from the store: the stored fallback posts", (await run(10)).sites[0].posts[0]?.title, "STORED GAMES");
 }
 
 r = await publishSocial({ day: THU, now: clock(12), origin: "http://x", sites: [bsky], fetchImage });
