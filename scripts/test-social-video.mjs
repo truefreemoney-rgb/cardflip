@@ -339,6 +339,9 @@ globalThis.fetch = realFetch;
   const at = (path) => vercel.crons.filter((c) => c.path === path).map((c) => c.schedule).sort();
   check("Vercel posts at 7am/1pm/7pm Eastern, both DST hours", at("/api/social/publish"), ["5 0 * * *", "5 11 * * *", "5 12 * * *", "5 17 * * *", "5 18 * * *", "5 23 * * *"]);
   check("Vercel checks the video at 12:40pm Eastern, both DST hours (video at 1pm since 09-27)", at("/api/cron/social-video"), ["40 16 * * *", "40 17 * * *"]);
+  // 10-23: a hand-made 1pm clip is the day's video; the 12:40 check dispatched a render anyway and it hung 15 min.
+  const vr = readFileSync(new URL("../src/app/api/cron/social-video/route.ts", import.meta.url), "utf8");
+  check("the 12:40 check stops at a hand-made 1pm video, before any dispatch", vr.indexOf("handPostFor(VIDEO_SLOT, day)") > 0 && vr.indexOf("handPostFor(VIDEO_SLOT, day)") < vr.indexOf("/dispatches"), true);
   const wf = readFileSync(new URL("../.github/workflows/social-post.yml", import.meta.url), "utf8");
   check("workflow renders from 10:30am Eastern", wf.includes('cron: "30 14 * * *"'), true);
   check("the 1pm pings also render (backstop), the 7am ones do not", [wf.includes('"20 17 * * *","20 18 * * *"]'), wf.includes('"20 11 * * *","20 12 * * *"]')], [true, false]);

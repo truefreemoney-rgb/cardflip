@@ -594,6 +594,19 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
     for (const s of connected) report.sites.push({ site: s.id, label: s.label, status: "skipped", reason: "before the 7am window", posts: [] });
     return report;
   }
+  // Nothing owed, nothing built (10-23): the GitHub backstops land minutes to hours after Vercel's own ping, and with
+  // every connected site already holding every due slot they still built the whole day; a slow Turso turned two of
+  // them (11:46am, 1:07pm) into 285 s "publisher crashed" mails while both slots had posted.
+  if (!force && !opts.dry) {
+    const owes = async (s: SocialSite) => {
+      for (const d of due) if ((await getSetting(slotKey(s, d))) !== etDay) return true;
+      return false;
+    };
+    if (!(await Promise.all(connected.map(owes))).some(Boolean)) {
+      for (const s of connected) report.sites.push({ site: s.id, label: s.label, status: "skipped", reason: `${slot} slot already posted today`, posts: [] });
+      return report;
+    }
+  }
   const games = await socialGames();
   // Only the kinds that post today are drafted (Chris 10-03: nothing extra); the
   // fallbacks are drafted only if a slot's own kind cannot be (never skip).

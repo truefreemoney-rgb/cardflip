@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cronAuthError } from "@/lib/server/cronAuth";
-import { eastern } from "@/lib/server/socialPublish";
+import { eastern, handPostFor, VIDEO_SLOT } from "@/lib/server/socialPublish";
 import { middayVideo, packageSafetyNet, type NetReport } from "@/lib/server/socialTiktok";
 import { BOARD_REPO, ghHeaders } from "@/lib/server/boardRuns";
 
@@ -51,6 +51,9 @@ export async function GET(req: NextRequest) {
     }
   };
   if (registered && !force) return NextResponse.json({ day, registered: true, url: spec?.url, renderedAt: spec?.renderedAt, tiktok: await tiktok(false) });
+  // A hand-made video claiming the 1pm slot posts as written (10-23, the Blender clip): no render, and the 1pm TikTok
+  // is posted by hand. 10-23 12:40pm this dispatched a render anyway, which hung on a slow Turso to GitHub's 15 min cut.
+  if (!force && (await handPostFor(VIDEO_SLOT, day))) return NextResponse.json({ day, registered: true, hand: true, dispatched: false, tiktok: await tiktok(true) });
   if (dry) return NextResponse.json({ day, registered, stale: state === "stale", dispatched: false, dry: true, tiktok: await tiktok(true) });
   const token = process.env.GITHUB_TOKEN;
   if (!token) return NextResponse.json({ day, registered: false, dispatched: false, error: "GITHUB_TOKEN not configured" }, { status: 503 });

@@ -1,9 +1,14 @@
-# Lessons from tickets and comments
+﻿# Lessons from tickets and comments
 
 Chris (10-14): every support ticket and every social comment is a learning
 experience while the site is new and not fully tested. One entry each: what
 they said, what it taught, what changed, what is still open. Newest first.
 
+## 10-23 ~1:35pm ET · "whats going on with the auto social posts, i keep getting emails" (Chris)
+- What: three "social-publish Failed" mails (9:17am fetch failed, 11:51am and 1:10pm "publisher ran out of time"). The morning one was real (Turso slow, slot made good 10:43am). The 11:51 and 1:10 ones were GitHub backstop runs (11:46 = the 7:20/8:20 backstop, hours late; 1:07 = the 1:20pm backstop early) that had NOTHING to post (morning and midday already posted on all five sites) but built the whole day's drafts first; on a slow Turso that hit 285 s, and the crash alert I added this morning mailed it. Also a 12:40pm render-only run (/api/cron/social-video) dispatched although the hand-made Blender clip owns the 1pm slot; it hung 15 min and GitHub cancelled it.
+- Changed (held, needs the push before 7:05pm): the publisher answers "already posted" before any build when no connected site owes a due slot (test: nothing built); the 12:40 check stops at a hand-made 1pm video before dispatching (test pins the order).
+- Taught: a new alert needs the "is there anything to do?" check in front of it, or it turns harmless no-op runs into mail; check what a backstop does when everything already worked.
+- Open: Turso itself (scans 13-46 s today vs seconds normally); October bill ~$28 from early-October reads + rewrites, the write cut pushed ea7af0d9 (measure 10-24).
 ## 10-21 ~5:30pm ET · "everything is showing up lightly played" / "make the default near mint please" (Chris, scanning Near Mint cards)
 - What: the scan's condition came from the vision read of the photo and overwrote the starting condition. Since ~10-19 it graded harshly: 19 of Chris's 22 scans Lightly Played (before: 43 NM, 0 LP); first Booster buyer jporter1421 had 68 scans, 0 Near Mint (41 LP, 23 MP, 4 Damaged), all unlisted drafts priced down by the condition math.
 - Changed: ae3c1f32 (pushed) every scan keeps the starting condition (Near Mint unless the seller picks another in the scanner options); the photo's call is a hint in the editor only. Her 68 rows set to Near Mint on Chris's explicit word (scripts/_cond-to-nm.mjs, backup .cond-backup-jporter1421-*.json); her prices follow on her next Inventory visit (livePrices reprices unlocked drafts by condition).

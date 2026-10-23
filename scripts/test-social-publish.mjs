@@ -146,8 +146,13 @@ check("…with its game and format", (await db.prepare("SELECT game, format FROM
   check("late build, the slot's kind missing from the store: the stored fallback posts", (await run(10)).sites[0].posts[0]?.title, "STORED GAMES");
 }
 
-r = await publishSocial({ day: THU, now: clock(12), origin: "http://x", sites: [bsky], fetchImage });
-check("8am ping: morning already posted", [r.sites[0].reason, bsky.posts.length], ["morning slot already posted today", 1]);
+{
+  // 10-23: a backstop with nothing owed answers before the build (two 285 s crash mails on a slow Turso day).
+  let built = 0;
+  const counting = async (...a) => { built++; return (await import(at("lib/server/social.ts"))).socialDrafts(...a); };
+  r = await publishSocial({ day: THU, now: clock(12), origin: "http://x", sites: [bsky], fetchImage, build: counting });
+  check("8am ping: morning already posted, and nothing was built", [r.sites[0].reason, bsky.posts.length, built], ["morning slot already posted today", 1, 0]);
+}
 r = await publishSocial({ day: THU, now: clock(17), origin: "http://x", sites: [bsky], fetchImage });
 check("1pm: movers posted (midday=movers since 09-27)", [r.slot, bsky.posts.length, bsky.posts[1].alt.startsWith("Pokémon movers of the week.")], ["midday", 2, true]);
 check("no-repeat: the landed gains post's cards are remembered for the kind", Object.keys(JSON.parse((await getSetting("social_featured:pokemon:movers")) ?? "{}")).sort(), ["sv1-2", "sv1-4", "sv1-7"]);
