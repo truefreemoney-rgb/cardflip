@@ -85,7 +85,11 @@ await upsertSeriesRows([{ cardId: "xy0-26", game: "pokemon", variant: "normal", 
 const once = await db.prepare("SELECT tcg_usd, off_day FROM price_checked WHERE card_id = 'xy0-26'").get();
 check("one day back within 25% notes it, the check stays on (10-21 Base Set Charizard)", [once.tcg_usd, once.off_day], [47, null]);
 const NEXT = addDays(TODAY, 1);
+const rowidOf = async () => (await db.prepare("SELECT rowid AS r FROM price_series WHERE card_id = 'xy0-26' AND variant = 'normal' AND source = 'tcgplayer'").get()).r;
+const rowidBefore = await rowidOf();
 await upsertSeriesRows([{ cardId: "xy0-26", game: "pokemon", variant: "normal", source: "tcgplayer", currency: "USD", startDay: start, prices: encodePrices([42, 44, 45, 43, 43, 43, 47, 46]), updatedDay: NEXT }]);
+// 10-23: REPLACE deleted and re-inserted the row (a new rowid, every index rewritten: Turso bills each); the upsert updates it in place.
+check("the daily write updates the series row in place (same rowid)", await rowidOf(), rowidBefore);
 const off = await db.prepare("SELECT tcg_usd, off_day FROM price_checked WHERE card_id = 'xy0-26'").get();
 check("a second day back within 25% retires the check", [off.tcg_usd, off.off_day], [46, NEXT]);
 clearCheckedMemo();

@@ -34,8 +34,11 @@ export type { HistoryPoint, HistorySeries, HistoryStats } from "@/lib/priceHisto
 
 const SELECT_ROW =
   "SELECT start_day, prices FROM price_series WHERE card_id = ? AND variant = ? AND source = ?";
-const UPSERT_ROW = `INSERT OR REPLACE INTO price_series (card_id, game, variant, source, currency, start_day, prices, updated_day)
-   VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+// An update in place, not REPLACE (10-23: REPLACE rewrote the table row and both indexes twice; see priceBulkWrite.ts upsertSeriesRows).
+const UPSERT_ROW = `INSERT INTO price_series (card_id, game, variant, source, currency, start_day, prices, updated_day)
+   VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+   ON CONFLICT(card_id, variant, source) DO UPDATE SET
+     currency = excluded.currency, start_day = excluded.start_day, prices = excluded.prices, updated_day = excluded.updated_day`;
 
 /** The read-modify-write of one compact row, against db or an open tx. */
 async function recordPointOn(

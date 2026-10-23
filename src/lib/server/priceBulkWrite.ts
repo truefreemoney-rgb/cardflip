@@ -92,7 +92,12 @@ export interface SeriesUpsert {
   updatedDay: string;
 }
 
-/** Multi-row INSERT OR REPLACE, ~400 rows (3.2k params) per statement. A hand-checked printing keeps its checked price (checkedPrices.ts). */
+/**
+ * Multi-row upsert, ~400 rows (3.2k params) per statement. A hand-checked printing keeps its checked price (checkedPrices.ts).
+ * 10-23: an update in place, not INSERT OR REPLACE. REPLACE deleted and re-inserted every row, so the table and both
+ * indexes were written twice per series (~1.2M of Turso's ~2.2M rows written a day, $1 per million past the plan's 25M
+ * a month). The key and game never change for a series, so the update touches only the table row.
+ */
 export async function upsertSeriesRows(input: SeriesUpsert[]): Promise<void> {
   const rows = await correctSeriesUpserts(input);
   const PER_STMT = 400;
@@ -104,8 +109,10 @@ export async function upsertSeriesRows(input: SeriesUpsert[]): Promise<void> {
     await withDbRetry(() =>
       db
         .prepare(
-          `INSERT OR REPLACE INTO price_series (card_id, game, variant, source, currency, start_day, prices, updated_day)
-           VALUES ${values}`,
+          `INSERT INTO price_series (card_id, game, variant, source, currency, start_day, prices, updated_day)
+           VALUES ${values}
+           ON CONFLICT(card_id, variant, source) DO UPDATE SET
+             currency = excluded.currency, start_day = excluded.start_day, prices = excluded.prices, updated_day = excluded.updated_day`,
         )
         .run(...args),
     );
@@ -130,7 +137,15 @@ export async function upsertListingLows(rows: ListingLow[], day: string): Promis
     const values = slice.map(() => "(?, ?, ?, ?, ?)").join(", ");
     const args: (string | number)[] = [];
     for (const r of slice) args.push(r.cardId, r.game, r.variant, r.lowUsd, day);
-    await withDbRetry(() => db.prepare(`INSERT OR REPLACE INTO listing_lows (card_id, game, variant, low_usd, day) VALUES ${values}`).run(...args));
+    // In place (10-23, the price_series note above): the key never changes, only the low and its day.
+    await withDbRetry(() =>
+      db
+        .prepare(
+          `INSERT INTO listing_lows (card_id, game, variant, low_usd, day) VALUES ${values}
+           ON CONFLICT(card_id, variant, game) DO UPDATE SET low_usd = excluded.low_usd, day = excluded.day`,
+        )
+        .run(...args),
+    );
   }
 }
 
