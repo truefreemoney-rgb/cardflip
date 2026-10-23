@@ -1,7 +1,10 @@
 ﻿# To test later
 
+## 10-23 ~4:45PM ET: HELD addd8506 weekly mail clicks (utm_source=email) + /admin/emails "Clicked" tile (shot sent, needs Chris's yes before the push)
+- [ ] After the push: /admin/emails "Send Test To Me" is an untagged preview (by design); the first real send (Sun 10-25 6:30pm week mail) has tagged links: open one link from the owner's copy-less log? (owner gets none) -> instead check a sent row's rendered links via a dry run, or wait for Mon 10-26: /admin/emails "Clicked" on "This week in cards" > 0 if anyone clicked, and /admin analytics visitor sources list "Email".
+
 ## 10-23 ~4:00PM ET: PUSHED b384ccbd (with 7673a246 analytics errors-only tile) C10 YGO unsold Unlimited takes its 1st Edition sale (tcgPriceRefresh yugiohGroupPoints + sync-yugioh)
-- [ ] /admin/analytics (7 days): "Server errors" reads the error count only (~80s, not ~480); /admin/errors "Errors" filter count agrees roughly.
+- [x] PASS ~4:35pm ET: CI 40006000935 GREEN (e2e + checks) on b384ccbd; /admin/analytics 7 days "Server errors" = 81 (was 484), same as /admin/errors Errors 81.
 - [ ] First 5:45am YGO price write after the push: re-run `node scripts/_ygo-stale-why.mjs` -> the "base: asking only" bucket drops by ~149 (343 -> ~194) and the suspect (3x+) count drops from 75. Spot-check on cardflip.io/api/search-card?game=yugioh&name=...: Penguin Soldier BP01-EN057 base ~$0.55 (was $450.85), Bujingi Turtle MP14-EN071 base ~$0.23 (was $19.97), D/D Savant Nikola TDIL-EN011 ~$0.13 (was $39.87), Gillagillancer MP14-EN187 ~$0.11 (was $50.62). A sold Unlimited (e.g. LOB Dark Magician) unchanged.
 - [ ] 2am catalog log after the push: sync-yugioh price-only count spikes once (~150 base rows), then back to normal.
 
