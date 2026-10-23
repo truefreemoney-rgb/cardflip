@@ -345,6 +345,9 @@ globalThis.fetch = realFetch;
   // 10-23 3:27pm: the 1:20pm GitHub backstop ran 2 h late, its video job rendered the planned dips over the hand clip and failed.
   const sv = readFileSync(new URL("./social-video.mjs", import.meta.url), "utf8");
   check("the GitHub render's --skip-if-done stops at a hand-made 1pm video, before the registered-row check", sv.indexOf("handPostFor(VIDEO_SLOT, day)") > 0 && sv.indexOf("handPostFor(VIDEO_SLOT, day)") < sv.indexOf("await sharedMidday(day)"), true);
+  const posted = sv.indexOf("slot already posted (${s.id}), nothing to render`); process.exit(0)");
+  check("a late render ping stops once the 1pm slot is posted on any site", posted > 0 && posted < sv.indexOf("await sharedMidday(day)"), true);
+  check("a thin planned list is a warning, not a failed run (no mail per ping)", sv.includes("no 1pm video, the publisher posts its fallback`); process.exit(0)"), true);
   const wf = readFileSync(new URL("../.github/workflows/social-post.yml", import.meta.url), "utf8");
   check("workflow renders from 10:30am Eastern", wf.includes('cron: "30 14 * * *"'), true);
   check("the 1pm pings also render (backstop), the 7am ones do not", [wf.includes('"20 17 * * *","20 18 * * *"]'), wf.includes('"20 11 * * *","20 12 * * *"]')], [true, false]);

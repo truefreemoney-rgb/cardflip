@@ -95,6 +95,14 @@ if (!PACKAGE && !ONLY.length && has("--skip-if-done")) {
   // A hand-made clip owns the slot (10-23: the 1:20pm backstop ran 2 h late, rendered the planned dips video over the Blender
   // clip, found no dips and mailed a failed run; the Vercel 12:40 check already stops here since 35de77ce).
   if (await handPostFor(VIDEO_SLOT, day)) { console.log(`a hand-made video owns the ${day} midday slot, nothing to do`); process.exit(0); }
+  // A render ping that lands after the slot went out has nothing left to feed (10-23: GitHub delivered the 10:30am-1:20pm
+  // pings at 3:27, 3:57, 4:01, 4:26, 4:30 and 5:29pm, each one a failed run and a mail to Chris).
+  const { getSetting } = await import(at("lib/server/settings.ts"));
+  const { SOCIAL_SITES } = await import(at("lib/server/socialSites.ts"));
+  const { SLOT_PREFIX } = await import(at("lib/server/socialPublish.ts"));
+  for (const s of SOCIAL_SITES) {
+    if ((await getSetting(`${SLOT_PREFIX}${s.id}:${VIDEO_SLOT}`)) === day) { console.log(`the ${day} ${VIDEO_SLOT} slot already posted (${s.id}), nothing to render`); process.exit(0); }
+  }
   const row = await sharedMidday(day);
   // A row from before rows carried a plan counts as current; one made under another plan is remade.
   if (row && (!row.plan || row.plan === planTag("midday", day))) { console.log(`video already registered for ${day}, nothing to do`); process.exit(0); }
@@ -445,13 +453,17 @@ if (ONE_KIND) {
     process.exit(1);
   }
 } else if (!PACKAGE && !ONLY.length) {
-  // The 1pm video, exactly as it has always been made (a thin list for the planned kind is an error, not a fallback).
+  // The 1pm video, exactly as it has always been made (a thin list for the planned kind renders nothing).
   try {
     const drafts = REGISTER ? await socialDrafts(game, day) : [];
     const made = await makeSlot("midday", KIND, outFor("midday"), false);
     if (REGISTER) await register("midday", made, outFor("midday"), drafts);
   } catch (err) {
-    console.error(err instanceof Error ? err.message : err);
+    const msg = err instanceof Error ? err.message : String(err);
+    // No video is not a failed run: the publisher posts the slot's picture or its next kind (FALLBACK_KINDS). As a
+    // failure it mailed Chris once per render ping (10-23: "not enough dips", six mails). A GitHub warning shows in the run.
+    if (/^not enough /.test(msg)) { console.log(`::warning::${msg}: no 1pm video, the publisher posts its fallback`); process.exit(0); }
+    console.error(msg);
     process.exit(1);
   }
 } else {
