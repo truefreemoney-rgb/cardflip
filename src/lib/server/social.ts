@@ -43,7 +43,9 @@ export const CAP_PAUSES: Partial<Record<GameId, { from: string; settled: string;
   pokemon: { from: "2026-10-16", settled: "2026-10-23", end: "2026-10-30" },
   // 74d51974 (10-24): one cheap copy no longer caps a Magic price, ~1,164 printings rise back in the first 5am ET run
   // after the push. Dated for a push on 10-24 (first run 10-25); MOVE THESE DATES if the push lands later. Remove 11-02.
-  mtg: { from: "2026-10-25", settled: "2026-10-25", end: "2026-11-01" },
+  // From 10-24, not 10-25: the 10-14 entry ended 10-21, 3 days after its 10-18 lift, so a week-long look-back still
+  // straddled it (10-24: Flayer of Loyalties CMM 747 "+45% this week" = 10 -> 14.98 on 10-18, TCGplayer sales flat).
+  mtg: { from: "2026-10-24", settled: "2026-10-25", end: "2026-11-01" },
 };
 export const MOVER_LIMIT = 5;
 /** Below this the % swing is noise (a $1.83 common "up 69%" is not news; Chris 09-25, was $3). */
