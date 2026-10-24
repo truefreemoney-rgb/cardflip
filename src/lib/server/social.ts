@@ -33,10 +33,14 @@ export const MOVER_DAYS = 7;
  * (settled), and the last day a 7-day window can still reach back before settled (end); topMovers pauses that game's
  * moves from `from` through `end`. Magic 6f3fc80f (10-14); Pokémon d4c436e1 (10-16) + 12b63f06 (committed 10-17, first
  * in the 10-18 data: 528 drops that day). Same days as CAP_BREAK_DAYS in lib/priceOutliers.ts (pages, mail, alerts).
+ * A cap switched OFF settles a game again: its prices jump back the other way (pages, mail and alerts read that lift
+ * through capLiftDay; the movers only through this pause).
  */
 export const CAP_PAUSES: Partial<Record<GameId, { from: string; settled: string; end: string }>> = {
-  // Magic's entry (from 10-14, end 10-21) ran out on its own and was removed 10-22; Pokémon's ends 10-25, remove it then.
-  pokemon: { from: "2026-10-16", settled: "2026-10-18", end: "2026-10-25" },
+  // Magic's entry (from 10-14, end 10-21) ran out on its own and was removed 10-22.
+  // Pokémon's cap went OFF in the 10-23 write (POKEMON_CAP_ON, pushed 10-22): 1,388 $20+ prices rose 15%+ that day vs
+  // ~100 on a normal day (measured 10-24), so settled moved 10-18 -> 10-23 and the pause runs to 10-30; remove it then.
+  pokemon: { from: "2026-10-16", settled: "2026-10-23", end: "2026-10-30" },
 };
 export const MOVER_LIMIT = 5;
 /** Below this the % swing is noise (a $1.83 common "up 69%" is not news; Chris 09-25, was $3). */
@@ -542,7 +546,8 @@ export async function topMovers(
   // old uncapped number with the capped one, so no Magic "this week" move is real until the window is past it (Chris 10-16).
   // Empty = the callers' fallbacks run (Magic at today's price only); remove after 10-21.
   // Pokémon's 10-16/10-17 cap did the same (106 cards $20+ fell 60%+ in 4 days vs 4 a month earlier; the 10-19 7am
-  // "price drops" had Dragonair 1st Ed $198 -> $29): paused the same way until 10-25.
+  // "price drops" had Dragonair 1st Ed $198 -> $29): paused the same way, and on through 10-30 for the cap switching off
+  // on 10-23 (the same cards rose back).
   const pause = CAP_PAUSES[game];
   if (pause && day >= pause.from && day <= pause.end && addDays(day, -days) < pause.settled) return [];
   const [{ cards: series }, held] = await Promise.all([freshSeries(game, day, days, band), postHolds(game)]);

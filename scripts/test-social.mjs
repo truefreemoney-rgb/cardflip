@@ -670,6 +670,9 @@ check("Magic moves read again after the pause (10-22)", (await topMovers("mtg", 
 // Pokémon's 10-16/10-17 listing cap, same pause (10-19: the 7am "price drops" was all cap cuts, Dragonair 1st Ed $198 -> $29).
 check("Pokemon dips paused 10-19 (window spans the 10-17 cap)", (await topMovers("pokemon", "2026-10-19", { direction: "down" })).length, 0);
 check("Pokemon moves paused through 10-24 (second cap day 10-18)", (await topMovers("pokemon", "2026-10-24")).length, 0);
+// 10-24: the cap went OFF in the 10-23 write (1,388 $20+ prices rose 15%+ that day): the pause runs on to 10-30.
+check("Pokemon moves still paused 10-29 (window spans the 10-23 cap-off)", (await topMovers("pokemon", "2026-10-29")).length, 0);
+check("Pokemon 6-day fallback paused 10-28", (await topMovers("pokemon", "2026-10-28", { days: 6 })).length, 0);
 check("Pokemon 6-day fallback paused 10-23", (await topMovers("pokemon", "2026-10-23", { days: 6 })).length, 0);
 check("the pause never reaches back before the cap (09-10 Pokemon moves still read)", (await topMovers("pokemon", TODAY)).length > 0, true);
 
