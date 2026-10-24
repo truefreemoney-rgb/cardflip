@@ -1,7 +1,6 @@
 import "server-only";
 import { pageAllCards } from "@/lib/server/pageAll";
-import { askingPriceFor } from "@/lib/listing";
-import { shipMethodOf } from "@/lib/fees";
+import { marketForCondition } from "@/lib/listing";
 import { heldSeries, preferredVariants, usdSeries } from "@/lib/server/priceHistory";
 import { inventoryValueSeries } from "@/lib/server/inventoryValue";
 import { heldTrustOrOpen } from "@/lib/server/priceTrustSite";
@@ -12,8 +11,11 @@ import type { GameId } from "@/lib/types";
 /**
  * Collection insights (Tier 3 #17, 09-28): the stock-portfolio view of the
  * pile the seller holds. Everything comes from data we already keep — the
- * cards table, price_series through askingPriceFor (the same condition math
- * the live refresh uses) and inventoryValueSeries for the value line.
+ * cards table, price_series through marketForCondition (the market each
+ * Inventory row shows) and inventoryValueSeries for the value line. Market,
+ * not the eBay asking price (10-24, Chris's 1,844 Magic cards: Insights said
+ * $4,918.25 beside Inventory's Market Value $2,144.78, because the fee and
+ * postage cover lifts every $0.11 common to a $1+ ask).
  *
  * "Holding" = every unsold row (draft, live, ended). Sold rows only appear
  * in the split and the sold total. Rows without a catalog id have no series,
@@ -38,9 +40,9 @@ export interface InsightCard {
   imageUrl: string;
   kind: "card" | "sealed";
   quantity: number;
-  /** Today's asking price for one copy. */
+  /** Today's market price for one copy, in its condition. */
   price: number;
-  /** Asking price a week ago, null when the series has no reading. */
+  /** Market price a week ago, null when the series has no reading. */
   weekAgo: number | null;
 }
 
@@ -93,7 +95,6 @@ interface Row {
   ebay_ended_at: number | null;
   verified_at: number | null;
   price_locked: number;
-  shipping_method: string | null;
 }
 
 function onDay(series: { startDay: string; prices: (number | null)[] }, day: string): number | null {
@@ -107,7 +108,7 @@ const r2 = (n: number) => Math.round(n * 100) / 100;
 export async function collectionInsights(userId: string, game: GameId, now = Date.now()): Promise<Insights> {
   const rows = await pageAllCards<Row>(
     `SELECT id, card_name, set_name, image_url, kind, condition, status, price, sold_price, quantity,
-              catalog_card_id, variant, game, ebay_ended_at, verified_at, price_locked, shipping_method
+              catalog_card_id, variant, game, ebay_ended_at, verified_at, price_locked
        FROM cards WHERE user_id = ? AND game = ?`,
     [userId, game],
     ROW_CAP,
@@ -144,10 +145,10 @@ export async function collectionInsights(userId: string, game: GameId, now = Dat
     // A week ago from before the listing-cap break is the old uncapped number, not last week's market (lib/priceOutliers.ts).
     if (s && marketThen != null && lastWeek < (historyStart(s, r.game ?? undefined) ?? today)) marketThen = null;
     if (held && marketThen != null && marketThen > 0 && trust.flagOld(held, 7, marketThen)) marketThen = null;
-    // A hand-set price is the seller's number; otherwise today's market
-    // through the condition math, falling back to the stored price.
-    const price = r.price_locked ? r.price : marketNow != null && marketNow > 0 ? askingPriceFor(marketNow, r.condition, shipMethodOf(r)) : r.price;
-    const weekAgo = !r.price_locked && marketThen != null && marketThen > 0 ? askingPriceFor(marketThen, r.condition, shipMethodOf(r)) : null;
+    // Today's market through the condition math, as the Inventory row and its Market Value total count it;
+    // the stored price only where there is no market.
+    const price = marketNow != null && marketNow > 0 ? marketForCondition(marketNow, r.condition) : r.price;
+    const weekAgo = marketThen != null && marketThen > 0 ? marketForCondition(marketThen, r.condition) : null;
     cards.push({
       id: r.id,
       name: r.card_name,
@@ -212,10 +213,10 @@ export async function collectionInsights(userId: string, game: GameId, now = Dat
   unlistedVerified.value = r2(unlistedVerified.value);
 
   // The value line gives the 7 and 30 day change of the whole pile.
-  const line = await inventoryValueSeries(userId, game, 31, now);
+  const line = await inventoryValueSeries(userId, game, 31, now, {}, "market");
   const at = (day: string) => line.find((p) => p.day === day)?.value ?? null;
   // Both ends come from the line so the change agrees with the chart under
-  // it; the hero number above stays `holding` (hand-set prices included).
+  // it; the hero number above stays `holding` (rows with no catalog price included).
   const value = {
     now: line.length ? line[line.length - 1].value : holding,
     weekAgo: line.length ? at(addDays(today, -7)) : null,

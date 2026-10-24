@@ -203,7 +203,7 @@ export default function InsightsPage() {
               </div>
               <div className="mt-0.5 font-display text-4xl font-bold tracking-tight text-white">{formatMoney(data.holding)}</div>
               <p className="mt-1 text-xs text-zinc-500">
-                Asking price of every unsold copy at today&apos;s market, {data.split.live.count + data.split.draft.count + data.split.ended.count} copies.
+                Market price of every unsold copy today, {data.split.live.count + data.split.draft.count + data.split.ended.count} copies.
               </p>
               {(data.leftOut ?? 0) > 0 && (
                 <p className="mt-1 text-xs text-amber-300">

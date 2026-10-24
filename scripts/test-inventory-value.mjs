@@ -8,7 +8,9 @@
  * another user's cards and the other game never leak in. The site price guard
  * (priceTrustSite): a card whose market the rule flags contributes nothing on
  * any day of the line, and collection insights leave it out of holding, top and
- * movers (counted in leftOut) unless the seller typed its price.
+ * movers (counted in leftOut) unless the seller typed its price. Insights count
+ * each copy at marketForCondition, the Inventory Market Value's own number, not
+ * the asking price (10-24: $4,918.25 vs $2,144.78 on Chris's Magic).
  *
  * Same throwaway-db trick as test-cards.mjs.
  */
@@ -29,7 +31,7 @@ const { recordPoint } = await import(at("lib/server/priceHistory.ts"));
 const { inventoryValueSeries } = await import(at("lib/server/inventoryValue.ts"));
 const { collectionInsights } = await import(at("lib/server/insights.ts"));
 const { junkPrices, recordSeries } = await import("./lib/liquid-series.mjs");
-const { askingPriceFor } = await import(at("lib/listing.ts"));
+const { askingPriceFor, marketForCondition } = await import(at("lib/listing.ts"));
 const { addDays, todayUtc, DAY_MS } = await import(at("lib/priceSeries.ts"));
 const { db } = await import(at("lib/db.ts"));
 
@@ -75,6 +77,8 @@ await db.prepare("UPDATE cards SET quantity = 9 WHERE user_id = ?").run(bob.id);
 const pts = await inventoryValueSeries(alice.id, "pokemon", 10, now);
 const lpAt = (m) => askingPriceFor(m, "Lightly Played") * 2;
 const nmAt = (m) => askingPriceFor(m, "Near Mint");
+// Insights' basis: the market each Inventory row shows, condition applied, no fee or postage cover.
+const lpMarket = (m) => marketForCondition(m, "Lightly Played") * 2;
 const r2 = (n) => Math.round(n * 100) / 100;
 
 check("starts on the first series reading, one point a day to today", pts.map((p) => p.day), [day(5), day(4), day(3), day(2), day(1), day(0)]);
@@ -99,12 +103,12 @@ console.log("\nthe price guard");
   const names = [...ins.top.map((c) => c.name), ...ins.gainers.map((c) => c.name), ...ins.losers.map((c) => c.name)];
   check("insights: the flagged copy is left out and counted", [names.includes("Deoxys"), ins.leftOut], [false, 1]);
   check("insights: the seller-typed price of the same market still counts", ins.top.find((c) => c.name === "Typed")?.price, 480);
-  check("insights: holding = the LP pair + the typed price + the $1 old scan", ins.holding, r2(lpAt(150) + 480 + 1));
+  check("insights: holding = the LP pair at market + the typed price + the $1 old scan", ins.holding, r2(lpMarket(150) + 480 + 1));
   // A live listing whose market is flagged: the ask is the seller's own number even though the lock was never set.
   const listedJunk = await createCard(alice.id, { ...base, cardName: "Listed", condition: "Near Mint", catalogCardId: "junk-deoxys" });
   await db.prepare("UPDATE cards SET price = 420, status = 'listed' WHERE id = ?").run(listedJunk.id);
   const ins2 = await collectionInsights(alice.id, "pokemon", now);
-  check("insights: a live listing on a flagged market counts at its ask (holding, live split) and is not left out", [ins2.top.find((c) => c.name === "Listed")?.price, ins2.holding, ins2.leftOut], [420, r2(lpAt(150) + 480 + 1 + 420), 1]);
+  check("insights: a live listing on a flagged market counts at its ask (holding, live split) and is not left out", [ins2.top.find((c) => c.name === "Listed")?.price, ins2.holding, ins2.leftOut], [420, r2(lpMarket(150) + 480 + 1 + 420), 1]);
   check("... and it is in the live split at that ask", ins2.split.live, { count: 1, value: 420 });
   check("a seller with no flagged card has leftOut 0", (await collectionInsights(bob.id, "pokemon", now)).leftOut, 0);
 }
@@ -121,8 +125,9 @@ console.log("\na foil copy: the insights hero and the value line price the same 
   await db.prepare("UPDATE cards SET game = 'mtg', variant = 'foil', created_at = ? WHERE id = ?").run(msOn(2), foil.id);
   const line = await inventoryValueSeries(carol.id, "mtg", 10, now);
   const ins = await collectionInsights(carol.id, "mtg", now);
+  const marketLine = await inventoryValueSeries(carol.id, "mtg", 10, now, {}, "market");
   check("the value line prices the foil line", line.at(-1)?.value, r2(nmAt(40)));
-  check("insights hero = the line's last point (the foil, not the normal)", ins.holding, line.at(-1)?.value);
+  check("insights hero = the market line's last point (the foil at $40, not the normal, not the $53.57 ask)", [ins.holding, marketLine.at(-1)?.value], [40, 40]);
   check("insights' 7-day change starts from the same number", ins.value.now, ins.holding);
 }
 
