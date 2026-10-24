@@ -818,44 +818,75 @@ export async function deleteCards(ids: string[], userId: string): Promise<number
   return removed;
 }
 
+/** Categories belong to the game they are used in (10-24, Chris). A card row with no game is Pokémon's, as everywhere. */
+const CARD_GAME = "COALESCE(game, 'pokemon')";
+
 /** Folder management (09-08): categories are a text column, so a rename
  *  (or a merge into an existing name) is one UPDATE over the seller's rows.
- *  Returns how many cards moved. */
-export async function renameCategory(userId: string, from: string, to: string): Promise<number> {
-  const r = await db
-    .prepare("UPDATE cards SET category = ?, updated_at = ? WHERE user_id = ? AND category = ?")
-    .run(to, Date.now(), userId, from);
-  await db.prepare("DELETE FROM categories WHERE user_id = ? AND name = ?").run(userId, from);
-  await addCategory(userId, to);
+ *  With a game, only that game's cards move (the same name in another game is
+ *  another folder). Returns how many cards moved. */
+export async function renameCategory(userId: string, from: string, to: string, game?: GameId): Promise<number> {
+  const r = game
+    ? await db
+        .prepare(`UPDATE cards SET category = ?, updated_at = ? WHERE user_id = ? AND category = ? AND ${CARD_GAME} = ?`)
+        .run(to, Date.now(), userId, from, game)
+    : await db.prepare("UPDATE cards SET category = ?, updated_at = ? WHERE user_id = ? AND category = ?").run(to, Date.now(), userId, from);
+  await removeCreated(userId, from, game);
+  await addCategory(userId, to, game);
   return Number(r.changes ?? 0);
 }
 
-/** A category with no cards yet (09-08). Idempotent. */
-export async function addCategory(userId: string, name: string): Promise<void> {
+/** A category with no cards yet (09-08), made in `game`. Idempotent; the same name made in a second game shows in all of them. */
+export async function addCategory(userId: string, name: string, game?: GameId): Promise<void> {
   await db
-    .prepare("INSERT OR IGNORE INTO categories (user_id, name, created_at) VALUES (?, ?, ?)")
-    .run(userId, name, Date.now());
+    .prepare(
+      `INSERT INTO categories (user_id, name, created_at, game) VALUES (?, ?, ?, ?)
+       ON CONFLICT(user_id, name) DO UPDATE SET game = CASE WHEN categories.game IS excluded.game THEN categories.game ELSE NULL END`,
+    )
+    .run(userId, name, Date.now(), game ?? null);
 }
 
-/** Every category the seller has: created on purpose, or carried by a card. A→Z. */
-export async function listCategories(userId: string): Promise<string[]> {
-  const rows = (await db
-    .prepare(
-      `SELECT name FROM categories WHERE user_id = ?
-       UNION SELECT DISTINCT category AS name FROM cards WHERE user_id = ? AND category IS NOT NULL`,
-    )
-    .all(userId, userId)) as unknown as { name: string }[];
+/** The created row goes; with a game, only when it is that game's or everyone's. */
+async function removeCreated(userId: string, name: string, game?: GameId): Promise<void> {
+  if (game) await db.prepare("DELETE FROM categories WHERE user_id = ? AND name = ? AND (game = ? OR game IS NULL)").run(userId, name, game);
+  else await db.prepare("DELETE FROM categories WHERE user_id = ? AND name = ?").run(userId, name);
+}
+
+/**
+ * Every category the seller has: created on purpose, or carried by a card. A→Z.
+ * With a game: the ones that game's cards carry, plus the created ones made in
+ * it, plus older game-less ones no other game's card carries.
+ */
+export async function listCategories(userId: string, game?: GameId): Promise<string[]> {
+  const rows = (
+    game
+      ? await db
+          .prepare(
+            `SELECT name FROM categories c WHERE user_id = ? AND (game = ? OR (game IS NULL AND NOT EXISTS (
+               SELECT 1 FROM cards WHERE user_id = c.user_id AND category = c.name AND ${CARD_GAME} != ?)))
+             UNION SELECT DISTINCT category AS name FROM cards WHERE user_id = ? AND category IS NOT NULL AND ${CARD_GAME} = ?`,
+          )
+          .all(userId, game, game, userId, game)
+      : await db
+          .prepare(
+            `SELECT name FROM categories WHERE user_id = ?
+             UNION SELECT DISTINCT category AS name FROM cards WHERE user_id = ? AND category IS NOT NULL`,
+          )
+          .all(userId, userId)
+  ) as unknown as { name: string }[];
   const seen = new Map<string, string>();
   for (const r of rows) if (r.name && !seen.has(r.name.toLowerCase())) seen.set(r.name.toLowerCase(), r.name);
   return [...seen.values()].sort((a, b) => a.localeCompare(b));
 }
 
-/** Delete a folder: its cards become uncategorized. Returns how many. */
-export async function clearCategory(userId: string, from: string): Promise<number> {
-  const r = await db
-    .prepare("UPDATE cards SET category = NULL, updated_at = ? WHERE user_id = ? AND category = ?")
-    .run(Date.now(), userId, from);
-  await db.prepare("DELETE FROM categories WHERE user_id = ? AND name = ?").run(userId, from);
+/** Delete a folder: its cards become uncategorized (with a game, that game's only). Returns how many. */
+export async function clearCategory(userId: string, from: string, game?: GameId): Promise<number> {
+  const r = game
+    ? await db
+        .prepare(`UPDATE cards SET category = NULL, updated_at = ? WHERE user_id = ? AND category = ? AND ${CARD_GAME} = ?`)
+        .run(Date.now(), userId, from, game)
+    : await db.prepare("UPDATE cards SET category = NULL, updated_at = ? WHERE user_id = ? AND category = ?").run(Date.now(), userId, from);
+  await removeCreated(userId, from, game);
   return Number(r.changes ?? 0);
 }
 

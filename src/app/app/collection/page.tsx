@@ -1724,29 +1724,30 @@ export default function CollectionPage() {
   // Always the scanner's game, even when it has no cards: the two game rows
   // mirror each other (Chris 10-12; replaces the jump-to-fullest-game rule).
   // Categories = the ones cards carry + the empty ones the seller created
-  // (server table, 09-08 "add category"); both lists merge here.
+  // (server table, 09-08 "add category"); both lists merge here. Only the game
+  // in view's (10-24, Chris: "categories should only relate to the current game selected").
   const [createdCategories, setCreatedCategories] = useState<string[]>([]);
   useEffect(() => {
     // Wait for the session: fetching before AND after userId lands asked twice per visit (prod 10-16).
     if (!userId) return;
     let cancelled = false;
-    void fetchCategories().then((list) => {
+    void fetchCategories(gameView).then((list) => {
       if (!cancelled) setCreatedCategories(list);
     });
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [userId, gameView]);
   const categories = useMemo(
-    () => distinctCategories([...cards, ...createdCategories.map((category) => ({ category }))]),
-    [cards, createdCategories],
+    () => distinctCategories([...gameCards, ...createdCategories.map((category) => ({ category }))]),
+    [gameCards, createdCategories],
   );
   // Category management sheet (Chris, 09-08): add / rename / merge / delete.
   const [manageFolders, setManageFolders] = useState(false);
   const [folderBusy, setFolderBusy] = useState<string | null>(null);
   async function addFolder(name: string): Promise<boolean> {
     setFolderBusy("");
-    const r = await manageCategory("add", name);
+    const r = await manageCategory("add", name, undefined, gameView);
     setFolderBusy(null);
     if (!r.ok) {
       toast(r.error ?? "Couldn't add the category", "err");
@@ -1758,20 +1759,20 @@ export default function CollectionPage() {
   }
   async function renameFolder(from: string, to: string): Promise<boolean> {
     setFolderBusy(from);
-    const r = await manageCategory("rename", from, to);
+    const r = await manageCategory("rename", from, to, gameView);
     setFolderBusy(null);
     if (!r.ok) {
       toast(r.error ?? "Couldn't rename the category", "err");
       return false;
     }
-    setCards((prev) => prev.map((c) => (c.category === from ? { ...c, category: to } : c)));
+    setCards((prev) => prev.map((c) => (c.category === from && (c.game ?? "pokemon") === gameView ? { ...c, category: to } : c)));
     setCreatedCategories((prev) => [...prev.filter((c) => c !== from), to]);
     if (categoryRaw === from) setCategory(to);
     toast(`${from} → ${to} (${r.changed} card${r.changed === 1 ? "" : "s"})`);
     return true;
   }
   async function deleteFolder(name: string): Promise<boolean> {
-    const n = cards.filter((c) => c.category === name).length;
+    const n = gameCards.filter((c) => c.category === name).length;
     if (
       !(await confirmAction({
         message:
@@ -1784,13 +1785,13 @@ export default function CollectionPage() {
     )
       return false;
     setFolderBusy(name);
-    const r = await manageCategory("delete", name);
+    const r = await manageCategory("delete", name, undefined, gameView);
     setFolderBusy(null);
     if (!r.ok) {
       toast(r.error ?? "Couldn't delete the category", "err");
       return false;
     }
-    setCards((prev) => prev.map((c) => (c.category === name ? { ...c, category: null } : c)));
+    setCards((prev) => prev.map((c) => (c.category === name && (c.game ?? "pokemon") === gameView ? { ...c, category: null } : c)));
     setCreatedCategories((prev) => prev.filter((c) => c !== name));
     if (categoryRaw === name) setCategory("all");
     toast(n > 0 ? `Category ${name} deleted — ${r.changed} card${r.changed === 1 ? "" : "s"} uncategorized` : `Category ${name} deleted`);

@@ -282,15 +282,20 @@ export default function AppPage() {
   // Per-account: the saved value is keyed by user id, so it reads null until
   // the session is known and null again after an account switch. Tracked as
   // { forUser, value } so the read happens during render, not in an effect.
-  const [scanCategoryState, setScanCategoryState] = useState<{ forUser: string | null; value: string | null }>({ forUser: null, value: null });
+  // Per game too (10-24, Chris): switching to Magic reads Magic's folder, never the Pokémon one.
+  const [scanCategoryState, setScanCategoryState] = useState<{ forUser: string | null; forGame: GameId | null; value: string | null }>({ forUser: null, forGame: null, value: null });
   const scanCategory =
-    scanCategoryState.forUser === (user?.id ?? null) ? scanCategoryState.value : readSavedCategory(user?.id);
-  const setScanCategory = (value: string | null) => setScanCategoryState({ forUser: user?.id ?? null, value });
+    scanCategoryState.forUser === (user?.id ?? null) && scanCategoryState.forGame === game ? scanCategoryState.value : readSavedCategory(user?.id, game);
+  const setScanCategory = (value: string | null) => setScanCategoryState({ forUser: user?.id ?? null, forGame: game, value });
   const scanCategoryRef = useRef<string | null>(null);
   const userIdRef = useRef<string | null>(null);
+  const gameRef = useRef<GameId>(game);
   useEffect(() => {
     userIdRef.current = user?.id ?? null;
   }, [user?.id]);
+  useEffect(() => {
+    gameRef.current = game;
+  }, [game]);
   useEffect(() => {
     scanCategoryRef.current = scanCategory;
   }, [scanCategory]);
@@ -1370,7 +1375,7 @@ export default function AppPage() {
     if (scannedACard && !categoryAskedRef.current && !readActivePackId(userIdRef.current)) {
       categoryAskedRef.current = true;
       setCategoryPrompt({ existing: [] });
-      void fetchCategories().then((list) => {
+      void fetchCategories(gameRef.current).then((list) => {
         setCategoryPrompt((p) => (p ? { existing: list } : p));
       });
     }
@@ -2090,7 +2095,7 @@ export default function AppPage() {
           onClose={() => setCategoryPrompt(null)}
           onPick={(category) => {
             setScanCategory(category);
-            saveCategory(user?.id, category);
+            saveCategory(user?.id, category, game);
             setCategoryPrompt(null);
             // Cards already saved this session (the scan beat the answer)
             // follow the pick; unsaved ones read the ref at create time.

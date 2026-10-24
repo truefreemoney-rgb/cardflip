@@ -245,6 +245,20 @@ check("wrong user can't delete a lookup", (await listPriceChecks(alice.id)).leng
   check("list = created + carried, A→Z", await listCategories(alice.id), ["Empty Binder", "From A Card"]);
   check("rename carries the empty one", (await renameCategory(alice.id, "Empty Binder", "Binder Z"), await listCategories(alice.id)), ["Binder Z", "From A Card"]);
   check("delete drops it", (await clearCategory(alice.id, "Binder Z"), await listCategories(alice.id)), ["From A Card"]);
+// 10-24 (Chris: "categories should only relate to the current game selected").
+{
+  const pk = await createCard(alice.id, { ...base, cardNumber: "40", category: "SV: White Flare" });
+  const mt = await createCard(alice.id, { ...base, game: "mtg", cardNumber: "41", category: "Final Fantasy" });
+  const mt2 = await createCard(alice.id, { ...base, game: "mtg", cardNumber: "42", category: "Shared" });
+  const pk2 = await createCard(alice.id, { ...base, cardNumber: "43", category: "Shared" });
+  await addCategory(alice.id, "Magic Empty", "mtg");
+  check("Magic's list: its own cards' + the ones made in Magic, never Pokémon's", await listCategories(alice.id, "mtg"), ["Final Fantasy", "Magic Empty", "Shared"]);
+  check("Pokémon's list never shows a Magic-only folder", (await listCategories(alice.id, "pokemon")).includes("Final Fantasy") || (await listCategories(alice.id, "pokemon")).includes("Magic Empty"), false);
+  check("a rename in Magic moves Magic's cards only", await renameCategory(alice.id, "Shared", "Shared 2", "mtg"), 1);
+  check("… the Pokémon folder of the same name stays", [(await getCardForUser(mt2.id, alice.id)).category, (await getCardForUser(pk2.id, alice.id)).category], ["Shared 2", "Shared"]);
+  check("a delete in Magic uncategorizes Magic's cards only", (await clearCategory(alice.id, "Final Fantasy", "mtg"), [(await getCardForUser(mt.id, alice.id)).category, (await getCardForUser(pk.id, alice.id)).category]), [null, "SV: White Flare"]);
+  check("no game = every game, as before", (await listCategories(alice.id)).includes("SV: White Flare") && (await listCategories(alice.id)).includes("Shared 2"), true);
+}
   check("other user sees none of it", await listCategories(mallory.id), ["Binder A"]);
 }
 

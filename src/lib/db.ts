@@ -1330,6 +1330,12 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
     "help_messages",
     ["rating INTEGER"],
   ],
+  [
+    // The game an empty category was made in (10-24, Chris: "categories should only relate to the
+    // current game selected"). NULL = made before, or the same name made in two games: shows everywhere.
+    "categories",
+    ["game TEXT"],
+  ],
 ];
 
 /**

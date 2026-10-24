@@ -1,7 +1,7 @@
 "use client";
 
 import { CONDITIONS } from "@/lib/listing";
-import type { Condition, PriceStrategy } from "@/lib/types";
+import type { Condition, GameId, PriceStrategy } from "@/lib/types";
 
 /**
  * The seller's last-used condition and pricing strategy, remembered per
@@ -53,7 +53,7 @@ export function readSavedStrategy(): PriceStrategy {
  */
 const CATEGORY_KEY = "cardflip.category";
 
-export function readSavedCategory(userId: string | null | undefined): string | null {
+export function readSavedCategory(userId: string | null | undefined, game?: GameId): string | null {
   if (typeof window === "undefined" || !userId) return null;
   try {
     const raw = window.localStorage.getItem(CATEGORY_KEY);
@@ -63,17 +63,19 @@ export function readSavedCategory(userId: string | null | undefined): string | n
       window.localStorage.removeItem(CATEGORY_KEY);
       return null;
     }
-    const parsed = JSON.parse(raw) as { userId?: string; category?: string };
+    const parsed = JSON.parse(raw) as { userId?: string; category?: string; game?: string };
     if (parsed.userId !== userId) return null;
+    // Per game (10-24, Chris): a Pokémon folder never files a Magic scan. A value saved before carries no game: Pokémon's.
+    if (game && (parsed.game ?? "pokemon") !== game) return null;
     return parsed.category && parsed.category.trim() ? parsed.category : null;
   } catch {
     return null;
   }
 }
 
-export function saveCategory(userId: string | null | undefined, category: string | null): void {
+export function saveCategory(userId: string | null | undefined, category: string | null, game?: GameId): void {
   try {
-    if (category && userId) window.localStorage.setItem(CATEGORY_KEY, JSON.stringify({ userId, category }));
+    if (category && userId) window.localStorage.setItem(CATEGORY_KEY, JSON.stringify({ userId, category, ...(game ? { game } : {}) }));
     else window.localStorage.removeItem(CATEGORY_KEY);
   } catch {
     // Private mode / quota — the choice just doesn't persist.

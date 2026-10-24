@@ -170,9 +170,9 @@ export async function fetchLivePrices(): Promise<LivePrice[]> {
 
 /** Folder management: rename (or merge into an existing name) / delete (cards go uncategorized). */
 /** Every category the seller has (created on purpose, or carried by a card). */
-export async function fetchCategories(): Promise<string[]> {
+export async function fetchCategories(game?: GameId): Promise<string[]> {
   try {
-    const res = await apiFetch("/api/cards/categories");
+    const res = await apiFetch(`/api/cards/categories${game ? `?game=${game}` : ""}`);
     if (!res.ok) return [];
     const data = await res.json();
     return Array.isArray(data?.categories) ? data.categories : [];
@@ -185,12 +185,13 @@ export async function manageCategory(
   action: "rename" | "delete" | "add",
   from: string,
   to?: string,
+  game?: GameId,
 ): Promise<{ ok: boolean; changed: number; error: string | null }> {
   try {
     const res = await apiFetch("/api/cards/categories", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action, from, to }),
+      body: JSON.stringify({ action, from, to, game }),
     });
     const data = await res.json().catch(() => null);
     if (!res.ok) return { ok: false, changed: 0, error: data?.error ?? "Couldn't update the folder" };

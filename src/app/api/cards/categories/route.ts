@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireUser, AuthError } from "@/lib/server/auth";
 import { addCategory, clearCategory, listCategories, renameCategory } from "@/lib/server/cards";
 import { CATEGORY_MAX } from "@/lib/categories";
+import { isGameId } from "@/lib/games";
 
 /**
  * Category management (Chris, 09-08: "management options for the folders",
@@ -11,11 +12,13 @@ import { CATEGORY_MAX } from "@/lib/categories";
  *   { action: "add", from }          — an empty category, ready for cards
  *   { action: "rename", from, to }   — to may be an existing name (merge)
  *   { action: "delete", from }       — the cards go to Uncategorized
+ * A `game` (GET ?game=, POST body) keeps it to that game's categories and cards (10-24).
  */
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const user = await requireUser();
-    return NextResponse.json({ categories: await listCategories(user.id) });
+    const g = new URL(req.url).searchParams.get("game");
+    return NextResponse.json({ categories: await listCategories(user.id, isGameId(g) ? g : undefined) });
   } catch (err) {
     if (err instanceof AuthError) {
       return NextResponse.json({ error: err.message }, { status: 401 });
@@ -30,19 +33,20 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => null);
     const from = typeof body?.from === "string" ? body.from.trim().slice(0, CATEGORY_MAX) : "";
     if (!from) return NextResponse.json({ error: "Which category?" }, { status: 400 });
+    const game = isGameId(body?.game) ? body.game : undefined;
 
     if (body?.action === "add") {
-      await addCategory(user.id, from);
+      await addCategory(user.id, from, game);
       return NextResponse.json({ ok: true, changed: 0, category: from });
     }
     if (body?.action === "rename") {
       const to = typeof body?.to === "string" ? body.to.trim().slice(0, CATEGORY_MAX) : "";
       if (!to) return NextResponse.json({ error: "Give the category a name" }, { status: 400 });
-      const changed = await renameCategory(user.id, from, to);
+      const changed = await renameCategory(user.id, from, to, game);
       return NextResponse.json({ ok: true, changed, category: to });
     }
     if (body?.action === "delete") {
-      const changed = await clearCategory(user.id, from);
+      const changed = await clearCategory(user.id, from, game);
       return NextResponse.json({ ok: true, changed });
     }
     return NextResponse.json({ error: "action must be add, rename or delete" }, { status: 400 });
