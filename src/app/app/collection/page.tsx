@@ -2450,10 +2450,11 @@ export default function CollectionPage() {
         </div>
 
         {/* Category chips (Chris, 09-04); with none yet, just the way to add
-            one (09-08). */}
+            one (09-08). A phone swipes the one row; a mouse can't, so wider
+            screens wrap them, every category in view (Chris 10-24, option A). */}
         {(
-          <div className="-mx-2 mt-2 overflow-x-auto border-t border-edge px-2 pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-3 sm:px-3">
-            <div className="flex w-max items-center gap-1.5">
+          <div className="-mx-2 mt-2 overflow-x-auto border-t border-edge px-2 pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-3 sm:overflow-visible sm:px-3">
+            <div className="flex w-max items-center gap-1.5 sm:w-auto sm:flex-wrap">
               <svg viewBox="0 0 20 20" className="mr-0.5 h-4 w-4 shrink-0 text-zinc-500" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden>
                 <path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h3.4l1.6 1.6h6A1.5 1.5 0 0 1 17 8.1v6.4a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 3 14.5v-8Z" />
               </svg>
