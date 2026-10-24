@@ -10,6 +10,7 @@ import { SheetHandle, useDragToClose } from "@/components/Sheet";
 import { fetchSetCards, searchTyped } from "@/lib/cards";
 import { GAMES, GAME_IDS, readSavedGame, saveGame } from "@/lib/games";
 import { pickPrice, priceFlagOf } from "@/lib/listing";
+import { rarityRank } from "@/lib/rarity";
 import type { GameId, PokemonCard, ScanLanguage } from "@/lib/types";
 
 const NO_MATCH = "No cards matched that search.";
@@ -32,20 +33,11 @@ export type CardSearchMode = "search" | "browse";
 
 type SortKey = "default" | "price-desc" | "price-asc" | "rarity" | "name" | "set";
 
-/** Rarity rank, higher = rarer. MTG names are Scryfall's; the Pokémon
- *  mirror carries no rarity, so a numerator past the set total (secret /
- *  ultra tier) is the only signal there. */
-function rarityRank(card: PokemonCard): number {
-  const r = (card.rarity ?? "").toLowerCase();
-  if (r) {
-    if (r.includes("mythic")) return 5;
-    if (r.includes("special") || r.includes("bonus")) return 4;
-    if (r.includes("rare")) return 3;
-    if (r.includes("uncommon")) return 2;
-    if (r.includes("common")) return 1;
-  }
-  return card.isSecretRare ? 4 : 0;
-}
+/** Rarity rank, lower = rarer (lib/rarity.ts, one tier list per game). The
+ *  Pokémon mirror carries no rarity, so a numerator past the set total
+ *  (secret / ultra tier) is the only signal there. */
+const rarityOf = (card: PokemonCard): number =>
+  rarityRank(card.game, card.rarity ?? (card.isSecretRare ? "secret rare" : null));
 // A card whose market the price guard flags sorts as unpriced (lib/priceFlag.ts).
 const marketOf = (card: PokemonCard): number => (priceFlagOf(card) ? -1 : (pickPrice(card)?.market ?? -1));
 function sortCards(cards: PokemonCard[], sort: SortKey): PokemonCard[] {
@@ -55,7 +47,7 @@ function sortCards(cards: PokemonCard[], sort: SortKey): PokemonCard[] {
     case "price-desc": out.sort((a, b) => marketOf(b) - marketOf(a)); break;
     case "price-asc": out.sort((a, b) => (marketOf(a) < 0 ? 1 : marketOf(b) < 0 ? -1 : marketOf(a) - marketOf(b))); break;
     case "name": out.sort((a, b) => a.name.localeCompare(b.name)); break;
-    case "rarity": out.sort((a, b) => rarityRank(b) - rarityRank(a) || marketOf(b) - marketOf(a)); break;
+    case "rarity": out.sort((a, b) => rarityOf(a) - rarityOf(b) || marketOf(b) - marketOf(a)); break;
     case "set": out.sort((a, b) => a.setName.localeCompare(b.setName) || a.number.localeCompare(b.number, undefined, { numeric: true })); break;
   }
   return out;

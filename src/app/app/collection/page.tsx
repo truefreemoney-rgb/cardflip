@@ -51,6 +51,7 @@ import { foilChoices, foilLabel } from "@/lib/yugioh";
 import { printingChoices, printingLabel } from "@/lib/onepiece";
 import PriceFlagNote, { PriceFlagText, PriceStaleNote } from "@/components/PriceFlagNote";
 import { priceFlagLeftOut } from "@/lib/priceFlag";
+import { rarityRank } from "@/lib/rarity";
 import { saleBreakdown, saleNet } from "@/lib/profit";
 import { toast } from "@/components/Toaster";
 import { etDate } from "@/lib/time";
@@ -119,28 +120,6 @@ type QuickFilter = "all" | "dupes" | "noprice";
 /** Cards drawn per page — 1,000+ cards would otherwise build thousands of DOM nodes. */
 const PAGE_SIZE = 60;
 
-/**
- * Rarity rank for sorting, rarest first. Pokémon tiers as TCGplayer /
- * pokemontcg.io spell them, then Magic's four. Anything unrecognised sorts
- * after the known tiers, and rows scanned before rarity was stored go last.
- */
-const RARITY_RANK: string[] = [
-  "special illustration rare", "hyper rare", "secret rare", "rare secret", "rare rainbow", "rare shiny gx",
-  "rare ultra", "ultra rare", "illustration rare", "shiny ultra rare", "shiny rare", "double rare", "ace spec rare",
-  "amazing rare", "radiant rare", "trainer gallery rare holo", "rare holo vmax", "rare holo vstar", "rare holo v",
-  "rare holo gx", "rare holo ex", "rare holo lv.x", "rare break", "rare prime", "legend", "rare holo", "rare",
-  "promo", "uncommon", "common",
-  // Magic
-  "mythic", "special", "rare", "uncommon", "common",
-];
-function rarityRank(rarity: string | null): number {
-  if (!rarity) return 1000;
-  const key = rarity.trim().toLowerCase();
-  const i = RARITY_RANK.indexOf(key);
-  if (i !== -1) return i;
-  // Unknown spellings: anything that says "rare" outranks the commons.
-  return key.includes("rare") ? 500 : 900;
-}
 const SORTS: { value: SortKey; label: string }[] = [
   { value: "newest", label: "Newest" },
   { value: "price", label: "Price high → low" },
@@ -1957,7 +1936,7 @@ export default function CollectionPage() {
         return rowTotal(b) - rowTotal(a);
       }
       if (sort === "rarity") {
-        const byRarity = rarityRank(a.rarity) - rarityRank(b.rarity);
+        const byRarity = rarityRank(a.game, a.rarity) - rarityRank(b.game, b.rarity);
         return byRarity !== 0 ? byRarity : shownPrice(b) - shownPrice(a);
       }
       if (sort === "name") return a.cardName.localeCompare(b.cardName, undefined, { sensitivity: "base", numeric: true });
