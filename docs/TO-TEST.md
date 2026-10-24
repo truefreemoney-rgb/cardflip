@@ -1,5 +1,14 @@
 ﻿# To test later
 
+## 10-24 ~8:20AM ET: PUSHED 38cf8e77 on Chris "push, save, clear and resume" (62c9c5b9..38cf8e77: OP $0 promos, OP promo TCGplayer layer, TCG post ambiguity rule, inventory chip wrap, categories per game, import script, docs)
+- [ ] CI 40093266368 on 38cf8e77 green (a background watch was running at the save; re-check `gh run view 40093266368`), then the next Production smoke green.
+- [ ] Categories per game, in the pane on Chris's account (truefreemoney, signed in, tab-2 /app/collection): Magic tab -> Search, Sort & Filter -> chips list ONLY Magic sets (no "SV: White Flare"); Pokemon tab still shows "SV: White Flare"; "Move to category" on a Magic card lists Magic only. Desktop: chips WRAP onto several lines, every one clickable. Phone width: one swipe row as before.
+- [ ] Schema: the first cold start adds categories.game (SELECT game FROM categories LIMIT 1 on prod answers, no error).
+- [ ] Scanner: after a Magic scan, "Which category?" lists Magic categories only (Chris on his phone, next time he scans).
+- [ ] 7pm Head to Head (YGO) tonight: the drafts rebuild under the ambiguity rule; /admin/social 7pm draft is NOT Exodia RP01-EN021 / Dark Magician DL11 (or YGO falls through to the next game). Re-check the pair's prices before 7:05.
+- [ ] 10-25 5:45am One Piece price write: P-003_pr3#promo (Kid Online Finalist) = TCGplayer ~$153.75 (was $19.63), OP01-015_pr4#promo Chopper ~$999.95; scripts/_op-promo-dryrun.mjs shows ~0 left to move.
+- [ ] 10-25 2am catalog log: mtg_cards pushed ~0 (one-night v1->v2 switch was 10-24), tcg_cards price-only small; no One Piece price_usd = 0 rows come back (SELECT COUNT(*) FROM tcg_cards WHERE price_usd = 0 -> 0).
+
 ## 10-23 ~5:55PM ET: PUSHED 62c9c5b9 on Chris "push whatever you need fix it" (late render pings never fail; hand-clip skip; email clicks addd8506 went with it before his shot yes)
 - [x] PASS ~5:47pm ET: hand dispatch 40029128215 (slot=midday) GREEN: video job "a hand-made video owns the 2026-10-23 midday slot, nothing to do" in 1 s, post job HTTP 200; no failure mail. CI on 62c9c5b9 GREEN (e2e + checks).
 - [ ] 10-24: NO "Run failed: social-post" mail all day, however late GitHub delivers the 10:30am-1:20pm pings. A day whose planned kind is thin shows a yellow warning in the run, not red.
