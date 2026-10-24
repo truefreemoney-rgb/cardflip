@@ -1,5 +1,11 @@
 # To test later
 
+## 10-24 5:48PM ET: PUSHED ed8c9856..b599f575 on Chris "push it then" (b599f575 Magic weekly-change pause starts 10-24, 961d5f7f stamped-product leftover lines dropped nightly, c0e90f30 import name check, docs). CI + deploy: see below.
+- [x] CI 40135853773 (main) + 40135856831 (vercel-migration) GREEN; Production smoke 40135913166 GREEN on b599f575 (deploy live).
+- [ ] 7pm Magic head to head (remade, run 40135863544): no "+45% this week" claim; new pair prices TCGplayer-checked before 7:05pm.
+- [ ] 10-25 morning: Magic movers/sleepers/versus empty under the pause (falls back), Pokemon pause still on.
+- [ ] 10-25 after the 5:45am Pokemon write: the 9 hand-deleted stamp lines stay gone (mep-002 holofoil, mep-004 holofoil, svp-133/134/135 reverseHolofoil, mep-064..067 normal); log shows no unexpected cleanup deletes (dry run said 9, all done by hand 10-24 ~5:30pm; backup data/stamp-cleanup-backup-2026-10-24.json).
+- [ ] HELD (not pushed, needs Chris's yes on the 2 phone shots): Insights Collection Value = market (insights.ts + insights page line), Chris's Magic ,918.25 -> ,144.78 (= Inventory). test:inventoryvalue green.
 ## 10-24 8:50AM ET: PUSHED 38cf8e77..ed8c9856 on Chris "push it then" (151ad013 rarity sort per game, c70e005f picture 3rd retry, 74d51974 MTG one-cheap-copy cap, 56d8b11c Pokemon movers pause to 10-30, cada7457 Magic movers pause 10-25..11-01, docs). CI 40095707042 GREEN; deploy dpl_FHSd8KNK READY 8:52am ET. Firewall v44 LIVE since ~8:40 (/pics 3,000/min, no block duration).
 - [x] Inventory -> Sort: Rarity on Magic (prod, pane, phone width 8:55am): Tezzeret, The Soul Stone, Gemstone Caverns, Ouroboroid, Opposition Agent first (all Mythic, priciest first); shot sent to Chris.
 - [x] Pokemon Rarity sort on prod (8:58am): Mega Charizard X ex PFL 125 $602.34, Pikachu ex 277, Sylveon ex 153 x2, Pikachu CRZ 160 first. [x] Card search (/app/price-check) Rarest first on Magic Avatar TLA (9:05am): Avatar Aang raised foil 363 $4,737.63 first (TCGplayer NM $4,476-$4,498 = stands), then mythics.
