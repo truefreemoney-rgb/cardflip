@@ -23,7 +23,7 @@
 - [ ] Tonight's 2am catalog log (backups/catalog-sync.log): mtg_cards ~2,664 then near 0 changed with "N relabelled", tcg_cards price-only count, cardmarket_map "N new or moved, M removed" (not 30k written). No "remote count < local" error.
 - [ ] 10-24 5-6am ET price crons: CI-green writes still land (Pokémon/Magic/TCG pages show today's prices; /admin price run strip green). The series write is now ON CONFLICT DO UPDATE (rowid kept).
 - [x] PASS 10-23 10:43am ET: morning slot rerun (run 39971348930) HTTP 200, posted "Biggest price jumps this week" (all-games, the day build finished inside its 90 s budget) on Bluesky, X, Facebook, Instagram, Threads. CI 39969026438 e2e job was cancelled at its timeout in "playwright install" (GitHub download, not code; checks job green), rerun --failed at 10:38am.
-- [ ] 10-23 7pm session: re-check Charizard 30th-c-001 price on cardflip.io (was $167.47), then the answer comment "It's $X today on cardflip.io. Who had it?" on the 1pm Guess post on TikTok AND Pinterest (Pinterest description promises it), and the 5 automatic sites' posts if Chris wants (links in chat 10-23 ~1:40pm).
+- [x] DROPPED 10-23 ~10:50pm ET (Chris: "just forget that the follow up comment"; price re-checked first: $167.47 vs TCGplayer market $164.71, NM sales $143-167 = stands). WAS: 10-23 7pm session: re-check Charizard 30th-c-001 price on cardflip.io (was $167.47), then the answer comment "It's $X today on cardflip.io. Who had it?" on the 1pm Guess post on TikTok AND Pinterest (Pinterest description promises it), and the 5 automatic sites' posts if Chris wants (links in chat 10-23 ~1:40pm).
 - [ ] Vegas Blackout: Chris erases Oct 16 (UTC) usage (~$5).
 
 ## 10-23 9:45AM ET: HELD 02564b51 (L0: slow Turso no longer costs a slot)
