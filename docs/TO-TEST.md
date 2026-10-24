@@ -1,17 +1,17 @@
-﻿# To test later
+# To test later
 
 ## 10-24 8:50AM ET: PUSHED 38cf8e77..ed8c9856 on Chris "push it then" (151ad013 rarity sort per game, c70e005f picture 3rd retry, 74d51974 MTG one-cheap-copy cap, 56d8b11c Pokemon movers pause to 10-30, cada7457 Magic movers pause 10-25..11-01, docs). CI 40095707042 GREEN; deploy dpl_FHSd8KNK READY 8:52am ET. Firewall v44 LIVE since ~8:40 (/pics 3,000/min, no block duration).
 - [x] Inventory -> Sort: Rarity on Magic (prod, pane, phone width 8:55am): Tezzeret, The Soul Stone, Gemstone Caverns, Ouroboroid, Opposition Agent first (all Mythic, priciest first); shot sent to Chris.
-- [x] Pokemon Rarity sort on prod (8:58am): Mega Charizard X ex PFL 125 $602.34, Pikachu ex 277, Sylveon ex 153 x2, Pikachu CRZ 160 first. [ ] Card search (/app/cards) Rarity sort on Magic + Lorcana.
+- [x] Pokemon Rarity sort on prod (8:58am): Mega Charizard X ex PFL 125 $602.34, Pikachu ex 277, Sylveon ex 153 x2, Pikachu CRZ 160 first. [x] Card search (/app/price-check) Rarest first on Magic Avatar TLA (9:05am): Avatar Aang raised foil 363 $4,737.63 first (TCGplayer NM $4,476-$4,498 = stands), then mythics.
 - [x] Pictures (8:56am): no "No image" after scrolling the first page of 60; the rest lazy-load. [ ] Firewall Traffic: no /pics denies for a real user's IP over a day.
-- [ ] Next Production smoke after ed8c9856 green.
+- [x] Production smoke 40095763442 on ed8c9856 green.
 - [ ] 10-25 morning: Pokemon movers still paused (no "price gainers" from the 10-23 lift); Magic movers paused (cada7457).
 - [ ] First nightly Magic price run after the push: log cappedToListing ~1,650 (was ~2,800); Heroic Intervention MAR 34 price_usd ~$13.87 (was $7.67); Opposition UDS foil ~$124.99 (was $77.99); spot-check 3 on TCGplayer. Price guard: those uncapped rows are NOT flagged (no listing_lows row for them; recovery rule covers the jump back).
 
 ## 10-24 ~8:20AM ET: PUSHED 38cf8e77 on Chris "push, save, clear and resume" (62c9c5b9..38cf8e77: OP $0 promos, OP promo TCGplayer layer, TCG post ambiguity rule, inventory chip wrap, categories per game, import script, docs)
 - [x] CI 40093266368 on 38cf8e77 green (8:3x ET 10-24). Next Production smoke: not checked yet.
-- [ ] Categories per game (API part PASSED 10-24 8:20 in the pane: mtg = Magic only, pokemon = "SV: White Flare"; his Magic now 7 categories), in the pane on Chris's account (truefreemoney, signed in, tab-2 /app/collection): Magic tab -> Search, Sort & Filter -> chips list ONLY Magic sets (no "SV: White Flare"); Pokemon tab still shows "SV: White Flare"; "Move to category" on a Magic card lists Magic only. Desktop: chips WRAP onto several lines, every one clickable. Phone width: one swipe row as before.
-- [ ] Schema: the first cold start adds categories.game (SELECT game FROM categories LIMIT 1 on prod answers, no error).
+- [ ] Categories per game (API part PASSED 10-24 8:20 in the pane: mtg = Magic only, pokemon = "SV: White Flare"; his Magic now 7 categories), in the pane on Chris's account (truefreemoney, signed in, tab-2 /app/collection): Magic tab -> Search, Sort & Filter -> chips list ONLY Magic sets (no "SV: White Flare"); Pokemon tab still shows "SV: White Flare"; "Move to category" on a Magic card lists Magic only. Desktop: chips WRAP (PASS 10-24 9:06am at 1405 px: flex-wrap, 0 clipped, 9 chips one row). Phone width: one swipe row as before.
+- [x] Schema: categories.game exists on prod (GROUP BY game answers, 10-24 9:00am).
 - [ ] Scanner: after a Magic scan, "Which category?" lists Magic categories only (Chris on his phone, next time he scans).
 - [ ] 7pm Head to Head (YGO) tonight: the drafts rebuild under the ambiguity rule; /admin/social 7pm draft is NOT Exodia RP01-EN021 / Dark Magician DL11 (or YGO falls through to the next game). Re-check the pair's prices before 7:05.
 - [ ] 10-25 5:45am One Piece price write: P-003_pr3#promo (Kid Online Finalist) = TCGplayer ~$153.75 (was $19.63), OP01-015_pr4#promo Chopper ~$999.95; scripts/_op-promo-dryrun.mjs shows ~0 left to move.
