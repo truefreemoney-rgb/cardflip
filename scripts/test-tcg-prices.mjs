@@ -21,7 +21,7 @@ process.once("exit", () => {
   try { rmSync(work, { recursive: true, force: true }); } catch { /* libsql may still hold the file on Windows */ }
 });
 
-const { planTcgRefresh, onePieceNameVariant, matchLorcanaProducts, yugiohGroupPoints } = await import("../src/lib/server/tcgPriceRefresh.ts");
+const { planTcgRefresh, onePieceNameVariant, matchLorcanaProducts, matchOnePiecePromos, yugiohGroupPoints } = await import("../src/lib/server/tcgPriceRefresh.ts");
 const { upsertSeriesRows, readSeriesMap } = await import("../src/lib/server/priceBulkWrite.ts");
 const { getPriceHistory } = await import("../src/lib/server/priceHistory.ts");
 
@@ -138,6 +138,34 @@ check("Lorcana promo gaps fill from TCGplayer on name + number, never name alone
     ],
   ),
   [{ id: "d23_iago", usd: null, foil: 45.18 }, { id: "cc_tink", usd: 75.16, foil: null }]);
+{
+  // 10-24: optcgapi ran stale and low on regional Finalist promos (Kid P-003 Online Finalist $19.63 vs TCGplayer $153.75).
+  const promos = matchOnePiecePromos(
+    [
+      { id: "P-003_pr3#promo", name: "Eustass\"Captain\"Kid (Online Regional 2024 Vol. 2) [Finalist]", number: "P-003" },
+      { id: "P-003_pr6#promo", name: "Eustass\"Captain\"Kid", number: "P-003" },
+      { id: "OP02-053#promo", name: "Crocodile (Online Regional 2023) [Finalist]", number: "OP02-053" },
+      { id: "P-001_pr3#promo", name: "Monkey.D.Luffy (001) (Online Regional 2024 Vol. 2) [Finalist]", number: "P-001" },
+    ],
+    [
+      { name: "Eustass\"Captain\"Kid (Online Regional 2024 Vol. 2) [Finalist]", number: "P-003", prices: { Foil: 153.75 } },
+      { name: "Eustass\"Captain\"Kid (Promotion Pack 2022)", number: "P-003", prices: { Normal: 1.7 } },
+      { name: "Crocodile (Online Regional 2023) [Finalist]", number: "OP02-053", prices: { Normal: 210, Foil: 224.5 } },
+      { name: "Monkey.D.Luffy (001) (Online Regional 2024 Vol. 2) [Finalist]", number: "P-002", prices: { Foil: 599.99 } },
+    ],
+  );
+  check("One Piece promos take TCGplayer's market on name AND number; a bare name, two subtypes or another number never match",
+    promos, [{ id: "P-003_pr3#promo", usd: 153.75, foil: null, row: true }]);
+  const plan = planTcgRefresh(
+    "onepiece",
+    [{ id: "P-003_pr3", usd: 19.63, foil: null, setName: "One Piece Promotion Cards", variant: "" }, ...promos],
+    new Map([["P-003_pr3#promo", { usd: 19.63, foil: null, setName: "One Piece Promotion Cards", variant: "" }]]),
+    new Map(),
+    "2026-10-24",
+  );
+  check("One Piece: the row's own TCGplayer match beats the feed's image-id price",
+    plan.columns.map((c) => [c.id, c.usd]), [["P-003_pr3#promo", 153.75]]);
+}
 
 // 10-13: an asking-only price over $20 blanks the held price (Acrobat Monkey $20.16, cheapest listing 44c); no point keeps it.
 const cleared = planTcgRefresh(

@@ -141,6 +141,8 @@ export interface TcgPoint {
   variant?: string;
   /** Today's source says the held price is wrong (asking-only over $20): blank it instead of keeping the last one. */
   clear?: boolean;
+  /** One Piece: keyed by the mirror row's own id (a TCGplayer promo match), not the feed's image id. */
+  row?: boolean;
 }
 
 interface MirrorRow {
@@ -286,6 +288,67 @@ async function lorcanaPointsWithFill(): Promise<{ points: TcgPoint[]; failed: nu
     }
   } catch (err) {
     console.warn("lorcana tcgplayer fill:", err instanceof Error ? err.message : err);
+  }
+  return base;
+}
+
+/**
+ * Pure: One Piece promo rows → TCGplayer's market, when exactly one product in TCGplayer's Promotion Cards
+ * group has the same name (the sync keeps TCGplayer's "(Online Regional 2024 Vol. 2) [Finalist]" tags) AND
+ * the same card number, priced in one subtype only. optcgapi's figure for those ran stale and low (10-24:
+ * 23 of 96 matched promos >25% under, Kid P-003 Online Finalist $19.63 vs $153.75) and TCGplayer is the
+ * first source. Keyed by the mirror row id (`row`). Exported for scripts/test-tcg-prices.mjs.
+ */
+export function matchOnePiecePromos(cards: { id: string; name: string; number: string }[], products: LorcanaProduct[]): TcgPoint[] {
+  const fold = (n: string) => n.toLowerCase().replace(/[“”"']/g, "").replace(/\s+/g, " ").trim();
+  const byKey = new Map<string, LorcanaProduct[]>();
+  for (const p of products) {
+    const k = `${fold(p.name)}#${p.number.trim().toUpperCase()}`;
+    byKey.set(k, [...(byKey.get(k) ?? []), p]);
+  }
+  const out: TcgPoint[] = [];
+  for (const c of cards) {
+    const hits = byKey.get(`${fold(c.name)}#${c.number.trim().toUpperCase()}`) ?? [];
+    if (hits.length !== 1) continue;
+    // Two priced subtypes are two printings: never guess which one the row is.
+    const priced = Object.values(hits[0].prices).map(num).filter((v): v is number => v != null);
+    if (priced.length === 1) out.push({ id: c.id, usd: priced[0], foil: null, row: true });
+  }
+  return out;
+}
+
+/** TCGplayer's One Piece Promotion Cards group (tcgcsv category 68), its priced products. */
+async function onePiecePromoProducts(): Promise<LorcanaProduct[]> {
+  const API = "https://tcgcsv.com/tcgplayer/68";
+  const group = listOf<{ groupId: number; name?: string }>(await getJson(`${API}/groups`)).find((g) => g.name === "One Piece Promotion Cards");
+  if (!group) throw new Error("no One Piece Promotion Cards group on tcgcsv");
+  const products = listOf<{ productId: number; name?: string; extendedData?: { name: string; value: string }[] }>(await getJson(`${API}/${group.groupId}/products`));
+  const prices = listOf<{ productId: number; subTypeName?: string; marketPrice?: unknown }>(await getJson(`${API}/${group.groupId}/prices`));
+  const byProduct = new Map<number, Record<string, number>>();
+  for (const p of prices) {
+    const v = num(p.marketPrice);
+    if (v == null) continue;
+    byProduct.set(p.productId, { ...(byProduct.get(p.productId) ?? {}), [p.subTypeName ?? "Normal"]: v });
+  }
+  const out: LorcanaProduct[] = [];
+  for (const p of products) {
+    const priced = byProduct.get(p.productId);
+    const number = p.extendedData?.find((e) => e.name === "Number")?.value ?? "";
+    if (priced && p.name && number) out.push({ name: p.name, number, prices: priced });
+  }
+  return out;
+}
+
+/** optcgapi's points, plus TCGplayer's market on the promos that match one product exactly (10-24). */
+async function onePiecePointsWithPromos(): Promise<{ points: TcgPoint[]; failed: number }> {
+  const base = await onePiecePoints();
+  try {
+    const rows = (await db
+      .prepare("SELECT id, name, collector_number AS number FROM tcg_cards WHERE game = 'onepiece' AND set_code = 'PROMO'")
+      .all()) as { id: string; name: string; number: string }[];
+    base.points.push(...matchOnePiecePromos(rows, await onePiecePromoProducts()));
+  } catch (err) {
+    console.warn("onepiece tcgplayer promos:", err instanceof Error ? err.message : err);
   }
   return base;
 }
@@ -467,8 +530,13 @@ export function planTcgRefresh(
   // Premium Card Collection promo, $32 vs a few cents) and the sync stores
   // the repeat as "<id>#n". Match on image id + set name, then printing tag.
   const byPrinting = new Map<string, TcgPoint[]>();
+  const byRow = new Map<string, TcgPoint>();
   if (game === "onepiece") {
     for (const p of points) {
+      if (p.row) {
+        byRow.set(p.id, p);
+        continue;
+      }
       const k = `${p.id}|${p.setName ?? ""}`;
       byPrinting.set(k, [...(byPrinting.get(k) ?? []), p]);
     }
@@ -478,8 +546,10 @@ export function planTcgRefresh(
   for (const [id, held] of mirror) {
     let p: TcgPoint | undefined;
     if (game === "onepiece") {
-      const same = byPrinting.get(`${id.split("#")[0]}|${held.setName ?? ""}`) ?? [];
-      p = same.find((c) => (c.variant ?? "") === (held.variant ?? "")) ?? same[0];
+      // TCGplayer's own match for this exact row comes first (promos, 10-24).
+      p = byRow.get(id);
+      const same = p ? [] : byPrinting.get(`${id.split("#")[0]}|${held.setName ?? ""}`) ?? [];
+      p ??= same.find((c) => (c.variant ?? "") === (held.variant ?? "")) ?? same[0];
       // A starter-deck reprint ("OP12-113_r1", variant "reprint") is the same card as its original printing:
       // TCGplayer sells them as one product and optcgapi prices only the original (10-13: 29 ST31-36 rows sat at $0).
       if ((!p || (p.usd == null && p.foil == null)) && held.variant === "reprint") {
@@ -510,7 +580,7 @@ export function planTcgRefresh(
 
 export async function refreshTcgPrices(game: TcgGame, day = todayUtc()): Promise<TcgRefreshResult> {
   // Order: TCGplayer, then CardTrader (Yu-Gi-Oh), then Cardmarket for whatever is still unpriced.
-  const first = game === "lorcana" ? await lorcanaPointsWithFill() : game === "onepiece" ? await onePiecePoints() : await yugiohPoints();
+  const first = game === "lorcana" ? await lorcanaPointsWithFill() : game === "onepiece" ? await onePiecePointsWithPromos() : await yugiohPoints();
   const backup = (first as { backup?: string }).backup;
   const { points, failed } = await withCardmarket(game, await withCardtrader(game, day, first));
   // A source that answered nothing at all must not look like "no prices".
