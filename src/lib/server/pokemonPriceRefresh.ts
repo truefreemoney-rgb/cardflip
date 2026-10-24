@@ -347,7 +347,9 @@ function productSeries(
  * Pure: one pattern group's day for the cleanup after the loop. `seen` = the variants each card with two
  * products came back under, a product with no market today included (no recent TCGplayer sale is not a
  * wrong key); `unsure` = cards with a product missing from the day's file, whose variants nobody can vouch
- * for. 10-21: the cleanup deleted the stopped lines of the dearest pattern cards.
+ * for. 10-21: the cleanup deleted the stopped lines of the dearest pattern cards. A stamped product never
+ * vouches for a printing (10-24: Inteleon MEP 002 kept a "holofoil" line at its [Staff] stamp's $40.29 beside
+ * the plain $12.24 for days after the stamp stopped pricing it); a card only stamped products name is left alone.
  */
 export function patternVariantsSeen(
   results: { productId: number; subTypeName?: string | null }[],
@@ -356,9 +358,11 @@ export function patternVariantsSeen(
   productToCard: Map<number, string>,
   cardProducts: Map<string, number>,
   twins: Set<string>,
+  stamped: ReadonlySet<number> = new Set(),
 ): { seen: Map<string, Set<string>>; unsure: Set<string> } {
   const seen = new Map<string, Set<string>>();
   for (const r of results) {
+    if (stamped.has(r.productId)) continue;
     const mapped = productToCard.get(r.productId);
     const s = mapped ? productSeries(r.productId, r.subTypeName, mapped, patternOf, twins) : null;
     if (!s || (cardProducts.get(s.cardId) ?? 0) <= 1) continue;
@@ -478,8 +482,8 @@ export async function refreshPokemonPricesFromTcgcsv(day = todayUtc()): Promise<
       console.warn(`tcgcsv group ${gid}:`, err instanceof Error ? err.message : err);
       continue;
     }
-    if (patternOf.size > 0) {
-      const today = patternVariantsSeen(results, groupProducts.get(gid) ?? [], patternOf, productToCard, cardProducts, twins);
+    if (patternOf.size > 0 || stamped.size > 0) {
+      const today = patternVariantsSeen(results, groupProducts.get(gid) ?? [], patternOf, productToCard, cardProducts, twins, stamped);
       for (const [cardId, variants] of today.seen) {
         const all = patternCardVariants.get(cardId) ?? new Set<string>();
         for (const v of variants) all.add(v);
@@ -547,7 +551,8 @@ export async function refreshPokemonPricesFromTcgcsv(day = todayUtc()): Promise<
     console.warn("tcgdex referee:", err instanceof Error ? err.message : err);
   }
   // Drop the series a pattern product wrote under the wrong key before the
-  // pattern was understood (the "holofoil" row on an uncommon trainer).
+  // pattern was understood (the "holofoil" row on an uncommon trainer), and
+  // the line only a stamped product carried before stamps stopped pricing.
   for (const { cardId, variant } of patternCleanupDeletes(patternCardVariants, patternCardsUnsure, existingSeries.keys())) {
     await db
       .prepare("DELETE FROM price_series WHERE card_id = ? AND source = 'tcgplayer' AND variant = ?")

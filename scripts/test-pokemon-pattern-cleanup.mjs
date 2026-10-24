@@ -95,6 +95,24 @@ console.log("1st Edition variants are tracked under the twin, unstamped twin row
     [["neo1-9", ["pokeBallPattern"]], ["neo1-9-1st", ["1stEditionHolofoil"]]]);
 }
 
+console.log("a stamped product vouches for nothing; a card only stamps name is left alone (10-24)");
+{
+  // mep-002 Inteleon: plain product 10 (Normal) + [Staff] product 11 (Holofoil, $40.29 line left from before the guard).
+  // hgssp-HGSS18: every product a Worlds stamp (12 [Staff], 13 [Finalist]).
+  const p2c = new Map([[10, "mep-002"], [11, "mep-002"], [12, "hgssp-HGSS18"], [13, "hgssp-HGSS18"]]);
+  const cp = new Map([["mep-002", 2], ["hgssp-HGSS18", 2]]);
+  const results = [
+    { productId: 10, subTypeName: "Normal" }, { productId: 11, subTypeName: "Holofoil" },
+    { productId: 12, subTypeName: "Normal" }, { productId: 13, subTypeName: "Normal" },
+  ];
+  const keys = ["mep-002|normal", "mep-002|holofoil", "hgssp-HGSS18|normal"];
+  const before = patternVariantsSeen(results, [10, 11, 12, 13], new Map(), p2c, cp, new Set());
+  check("without the stamp list the Staff holofoil line survives", patternCleanupDeletes(before.seen, before.unsure, keys), []);
+  const { seen, unsure } = patternVariantsSeen(results, [10, 11, 12, 13], new Map(), p2c, cp, new Set(), new Set([11, 12, 13]));
+  check("with it: only the Staff line goes, the all-stamped card keeps its row", patternCleanupDeletes(seen, unsure, keys),
+    [{ cardId: "mep-002", variant: "holofoil" }]);
+}
+
 if (failures > 0) {
   console.error(`\n${failures} failure(s)`);
   process.exit(1);
