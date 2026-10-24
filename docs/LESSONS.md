@@ -1,9 +1,14 @@
-﻿# Lessons from tickets and comments
+# Lessons from tickets and comments
 
 Chris (10-14): every support ticket and every social comment is a learning
 experience while the site is new and not fully tested. One entry each: what
 they said, what it taught, what changed, what is still open. Newest first.
 
+## 10-24 ~9:30am ET · "99.9% sure i dont own this card but the csv transfer added it" (Chris, Zidane Art Series #49)
+- What: his card was Zidane, Tantalus Thief Art Card (Gold-Stamped Signature) FIN #49. It IS in his TCGplayer export (qty 1), so the import added what TCGplayer had. A full audit of all 1,238 Magic rows (file name + number vs saved) found ONE real swap: TCGplayer 662420 Suki, Kyoshi Captain (Extended Art) TLE 175 x2 came in as Fabled Passage TLE 57 (Scryfall's tcgplayer_id lookup maps that product to the wrong card; the foil product 662366 maps right).
+- Changed: his 2 rows rewritten to Suki TLE 175 nonfoil on his yes (ids a88df7ce, 2725fa82); scripts/_import-tcgplayer-mtg.mjs now sets aside any Scryfall match whose name is not inside TCGplayer's product name (dry run: exactly that 1 set aside); the cached map entry fixed.
+- Taught: a lookup by someone else's id needs a name check before it writes a card; "Scryfall has the product" is not "Scryfall has the right card".
+- Open: Zidane = Chris checks his binder later ("maybe its correct"); delete or swap only on his word.
 ## 10-24 ~7:30am ET · scorecard week 2 found $0 One Piece prices (my own check, no ticket)
 - What: the week-2 sample's Eustass Kid P-003 led to its sibling printings: two Regional [Winner] promos answered /api/search-card with market 0. 145 One Piece promo rows had price_usd = 0 (optcgapi prints 0 for a card nobody sells; scripts/sync-onepiece.mjs stored it as-is, lib/server/tcgCards toCard turned it into a $0 price line, the watchlist sweep would read it as a drop to $0). The daily refresh already dropped zeros; the nightly sync did not.
 - Changed (held): sync-onepiece feedPrice() = positive or null at all three writes; toCard and tcgCatalogPrices skip a 0. Prod: the 145 rows set NULL (ids in data/onepiece-zero-prices-2026-10-24.json); live search no longer prints 0.

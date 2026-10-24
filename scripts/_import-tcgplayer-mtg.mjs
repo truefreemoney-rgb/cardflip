@@ -73,8 +73,16 @@ const cardMemo = new Map();
 // Series" (afin) #4 by set + number. A gold-stamped signature copy has no row of its own: the plain card, flagged.
 const foldSet = (s) => s.toLowerCase().replace(/^art series:\s*/, "").replace(/^universes beyond:\s*the lord of the rings:\s*/, "").replace(/\s*art series$/, "").trim();
 const artSets = new Map((await db.prepare("SELECT DISTINCT set_code, set_name FROM mtg_cards WHERE set_name LIKE '%Art Series'").all()).map((s) => [foldSet(s.set_name), s.set_code]));
+// 10-24: Scryfall maps TCGplayer 662420 (Suki, Kyoshi Captain Extended Art) to Fabled Passage, so 2 copies came in as the
+// wrong card (fixed by hand on Chris's yes). A match whose name is not inside TCGplayer's product name ("Battle at the
+// Big Bridge - Fatal Push (Showcase)" holds "Fatal Push"; accents folded: Araña / Arana) is set aside, never added.
+const foldName = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
 for (const r of magic) {
   let m = map[r["Product ID"]];
+  if (m?.name && !foldName(r["Product Name"]).includes(foldName(m.name.split(" // ")[0]))) {
+    unmatched.push(`${r["Product Name"]} | ${r["Set Name"]} #${r.Number} (TCGplayer ${r["Product ID"]}: Scryfall says ${m.name} #${m.num}, name mismatch, set aside)`);
+    continue;
+  }
   if (!m && /^Art Series:/.test(r["Set Name"])) {
     const code = artSets.get(foldSet(r["Set Name"]));
     const hit = code ? await db.prepare("SELECT id FROM mtg_cards WHERE set_code = ? AND collector_number = ?").get(code, r.Number) : null;
