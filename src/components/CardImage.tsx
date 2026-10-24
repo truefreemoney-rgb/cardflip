@@ -22,7 +22,10 @@ export default function CardImage({ src, alt, className = "" }: Props) {
   // One load failure is not a dead URL: a phone on a flaky connection
   // loading a stack of stock images at once drops some (Chris, 09-03: a
   // White Flare card whose URL serves fine showed "No image"). Retry twice,
-  // cache-busted, before settling on the placeholder.
+  // cache-busted, then once more after a minute, before settling on the
+  // placeholder: the /pics bulk-download rule refuses a network's extra
+  // pictures for the rest of that minute (10-24: Chris's 1,844-card
+  // inventory scroll tripped it, every picture after that stayed "No image").
   // Keyed by src (not reset in an effect) so a new src starts at zero.
   const [retryState, setRetryState] = useState<{ src: string; n: number; pending: boolean }>({
     src: "",
@@ -40,13 +43,14 @@ export default function CardImage({ src, alt, className = "" }: Props) {
     if (!pendingRetry) return;
     const t = window.setTimeout(() => {
       setRetryState((r) => (r.src === src ? { src, n: r.n + 1, pending: false } : r));
-    }, 1500 * (retry + 1));
+    }, retry < 2 ? 1500 * (retry + 1) : 65_000);
     return () => window.clearTimeout(t);
   }, [pendingRetry, retry, src]);
   const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
   const effectiveSrc = fallback ?? (retry > 0 && src ? `${src}${src.includes("?") ? "&" : "?"}r=${retry}` : src);
 
-  if (!src || failedSrc === src) {
+  // The placeholder also covers the minute-long wait, not a broken-image icon.
+  if (!src || failedSrc === src || (pendingRetry && retry === 2)) {
     return (
       <div
         className={`flex flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-edge-strong bg-surface-2 ${className}`}
@@ -84,7 +88,7 @@ export default function CardImage({ src, alt, className = "" }: Props) {
       onError={() => {
         if (fallback) setFailedSrc(src);
         else if (fallbackArtUrl(src)) setFallbackFor(src);
-        else if (retry < 2) setRetryState({ src, n: retry, pending: true });
+        else if (retry < 3) setRetryState({ src, n: retry, pending: true });
         else setFailedSrc(src);
       }}
     />
