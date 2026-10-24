@@ -869,6 +869,15 @@ export function ambiguousByNumber(
 }
 
 /**
+ * Pure: a printing in another language, its printed number tagged "ja"/"zh"/"ko" (10-24, the remade 7pm head to head:
+ * Lorcana "Mickey Mouse (Promo Set 1 #25ja)" $47.50 = the Japanese promo, Cardmarket-priced; the English #25 sells at
+ * ~$16 on TCGplayer and no number in the post tells them apart). The posts speak to English-card collectors: it sits out.
+ */
+export function foreignPrinting(number: string | null | undefined): boolean {
+  return /\d(ja|jp|zh|cn|ko|kr)$/i.test(number ?? "");
+}
+
+/**
  * A TCG game's scanner-stage picks (popular cards, $15–$300, price-guarded;
  * One Piece its checked-clean lead only, as gameLeads) as Movers, each with
  * its tcg_cards id so the no-repeat list and a frozen video row can name it.
@@ -896,6 +905,7 @@ async function stageMovers(game: GameId): Promise<Mover[]> {
     if (row && held.has(row.id)) continue;
     const siblings = twins.filter((t) => t.collector_number === c.number).map((t) => ({ id: t.id, setName: t.set_name, price: t.price }));
     if (row && ambiguousByNumber(game, { id: row.id, setName: c.setName, price: c.price as number }, siblings)) continue;
+    if (foreignPrinting(c.number)) continue;
     out.push({ cardId: row?.id ?? `${game}:${c.setName}:${c.number}`, name: displayName(c.name), setName: cleanSet(c.setName), number: c.number, imageUrl: c.imageUrl, variant: "", from: c.price as number, to: c.price as number, pct: 0, unsettled: true });
   }
   return out;

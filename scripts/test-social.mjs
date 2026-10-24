@@ -690,6 +690,10 @@ check("the pause never reaches back before the cap (09-10 Pokemon moves still re
     ambiguousByNumber("lorcana", { id: "a", setName: "Fabled", price: 8 }, [{ id: "b", setName: "Winterspell", price: 80 }]), false);
   check("Lorcana: the same number in the same set at another price sits out",
     ambiguousByNumber("lorcana", { id: "a", setName: "Fabled", price: 8 }, [{ id: "b", setName: "Fabled", price: 80 }]), true);
+  const { foreignPrinting } = SOC;
+  check("a language-tagged number sits out (Mickey Mouse P1 25ja / 25zh, 10-24)", [foreignPrinting("25ja"), foreignPrinting("25zh"), foreignPrinting("25ZH")], [true, true, true]);
+  check("plain, lettered and set-coded numbers stay (25, 1a, 1TFC, RP01-EN021, SWSH069, 25a)",
+    ["25", "1a", "1TFC", "RP01-EN021", "SWSH069", "25a", null].map(foreignPrinting), [false, false, false, false, false, false, false]);
 }
 
 if (failures) { console.log(`\n${failures} failing`); process.exit(1); }
