@@ -121,6 +121,7 @@ for (const [id, game, name, subtitle, set, setName, num, total, date, rarity, va
   ["ygo-bp02-mosaic", "yugioh", "Mermail Abyssmegalo", "", "BP02", "Battle Pack 2: War of the Giants", "BP02-EN117", null, "2013-06-28", "Mosaic Rare", "", 1.2, null],
   ["ygo-maliss", "yugioh", "Maliss Q Hearts Crypter", "", "CRBR", "Crossover Breakers", "CRBR-EN020", null, "2024-12-06", "Ultra Rare", "", 2, null],
   ["ygo-yummy", "yugioh", "YummyusmentAcroquey", "", "JUSH", "Justice Hunters", "JUSH-EN024", null, "2025-08-08", "Super Rare", "", 1, null],
+  ["op-kid-winner", "onepiece", "Eustass\"Captain\"Kid (Online Regional 2024 Vol. 2) [Winner]", "", "PROMO", "One Piece Promotion Cards", "P-003", null, "", "PR", "", 0, null],
 ]) {
   await db
     .prepare(
@@ -133,6 +134,12 @@ const pn = (number, setTotal = null, setCode = null) => ({ number, setTotal, set
 const top = async (game, name, printed, sub = null, variant = null) => (await searchTcgCardsLocal(game, name, printed, 5, sub, variant))[0]?.id ?? null;
 
 check("mirror present", await hasTcgMirror("lorcana"));
+{
+  // 10-24: optcgapi prints 0 for a promo nobody sells; 145 rows answered "$0". No price is never $0.
+  const { tcgCardById, tcgCatalogPrices } = await import(at("lib/server/tcgCards.ts"));
+  check("a 0 catalog price is no price line", (await tcgCardById("op-kid-winner"))[0]?.prices, []);
+  check("a 0 catalog price never reaches the watchlist sweep", [...(await tcgCatalogPrices(["op-kid-winner"])).keys()], []);
+}
 check("Lorcana: name + number + total → the card", await top("lorcana", "Ariel", pn("2", 204)), "l-ariel-3");
 check("Lorcana: set number picks the printing of a reprinted version", await top("lorcana", "Ariel", pn("2", 204, "1")), "l-ariel-2");
 check("Lorcana: the version line separates two Ariels with no number read", await top("lorcana", "Ariel", null, "On Human Legs"), "l-ariel-1");

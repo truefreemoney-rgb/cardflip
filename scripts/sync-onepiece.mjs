@@ -100,6 +100,8 @@ const promoPicture = db.prepare("UPDATE tcg_cards SET image_url = ?1 WHERE id = 
 const deadFile = path.join(process.cwd(), "scripts", "dead-pictures-onepiece.json");
 const DEAD_PICTURES = new Set(fs.existsSync(deadFile) ? JSON.parse(fs.readFileSync(deadFile, "utf8")) : []);
 const feedPicture = (c) => { const url = String(c.card_image ?? ""); return DEAD_PICTURES.has(url) ? "" : url; };
+// The feed prints 0 for a card nobody sells (regional Winner promos, 10-24: 145 rows served "$0"); no price is not $0.
+const feedPrice = (c) => { const n = Number(c.market_price); return c.market_price != null && Number.isFinite(n) && n > 0 ? n : null; };
 function promoVariant(cardName, imageId, key) {
   const { variant } = splitVariant(cardName);
   if (variant) return variant.replace(/^-+|-+$/g, "");
@@ -150,7 +152,7 @@ for (const [label, url, floor] of FEEDS) {
         promoVariant(c.card_name, imageId, key),
         feedPicture(c),
         feedPicture(c),
-        c.market_price != null ? Number(c.market_price) : null,
+        feedPrice(c),
         null,
         now,
       );
@@ -188,7 +190,7 @@ for (const [label, url, floor] of FEEDS) {
       variant,
       "", // shown picture: the images pass fills it with a clean scan, or leaves it empty
       image, // reference picture for the tiebreak (stamped is fine there)
-      c.market_price != null ? Number(c.market_price) : null,
+      feedPrice(c),
       null,
       now,
     );
@@ -215,7 +217,7 @@ if (process.argv.includes("--with-don")) {
       if (!full) continue;
       const don = parseOnePieceDon(String(c.card_name ?? ""), full);
       const id = `${onePieceDonKey(full)}#don`;
-      upsert.run(id, "DON!! Card", don.subtitle, ONE_PIECE_DON_SET, don.setName, "", null, "", "DON!!", don.variant, feedPicture(c), feedPicture(c), c.market_price != null ? Number(c.market_price) : null, null, now);
+      upsert.run(id, "DON!! Card", don.subtitle, ONE_PIECE_DON_SET, don.setName, "", null, "", "DON!!", don.variant, feedPicture(c), feedPicture(c), feedPrice(c), null, now);
       promoPicture.run(feedPicture(c), id);
       total++;
     }

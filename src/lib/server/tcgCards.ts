@@ -73,8 +73,9 @@ const FOLDED = "REPLACE(REPLACE(REPLACE(LOWER(name), '-', ' '), 'â€™', ''''), 'â
 
 function toCard(row: TcgRow): PokemonCard {
   const prices: PokemonCard["prices"] = [];
-  if (row.price_usd != null) prices.push({ source: "tcgplayer", variant: "normal", market: row.price_usd, currency: "USD" } as PokemonCard["prices"][number]);
-  if (row.price_usd_foil != null) prices.push({ source: "tcgplayer", variant: "foil", market: row.price_usd_foil, currency: "USD" } as PokemonCard["prices"][number]);
+  // A 0 is a feed's "nobody sells it", never a $0 card (10-24: 145 One Piece promos).
+  if (row.price_usd != null && row.price_usd > 0) prices.push({ source: "tcgplayer", variant: "normal", market: row.price_usd, currency: "USD" } as PokemonCard["prices"][number]);
+  if (row.price_usd_foil != null && row.price_usd_foil > 0) prices.push({ source: "tcgplayer", variant: "foil", market: row.price_usd_foil, currency: "USD" } as PokemonCard["prices"][number]);
   return {
     id: row.id,
     name: row.subtitle ? `${row.name} - ${row.subtitle}` : row.name,
@@ -169,7 +170,7 @@ export async function tcgCatalogPrices(ids: string[]): Promise<Map<string, numbe
       .prepare(`SELECT id, price_usd, price_usd_foil FROM tcg_cards WHERE id IN (${chunk.map(() => "?").join(",")})`)
       .all(...chunk)) as unknown as { id: string; price_usd: number | null; price_usd_foil: number | null }[];
     for (const r of rows) {
-      const p = r.price_usd ?? r.price_usd_foil;
+      const p = [r.price_usd, r.price_usd_foil].find((v) => v != null && v > 0);
       if (p != null) out.set(r.id, p);
     }
   }
