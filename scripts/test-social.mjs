@@ -673,6 +673,8 @@ check("Pokemon moves paused through 10-24 (second cap day 10-18)", (await topMov
 // 10-24: the cap went OFF in the 10-23 write (1,388 $20+ prices rose 15%+ that day): the pause runs on to 10-30.
 check("Pokemon moves still paused 10-29 (window spans the 10-23 cap-off)", (await topMovers("pokemon", "2026-10-29")).length, 0);
 check("Pokemon 6-day fallback paused 10-28", (await topMovers("pokemon", "2026-10-28", { days: 6 })).length, 0);
+// 10-24: the Magic one-cheap-copy fix (74d51974) lifts ~1,164 prices in its first run (10-25 for a 10-24 push).
+check("Magic moves paused 10-28 (the cap fix lifts prices 10-25)", (await topMovers("mtg", "2026-10-28")).length, 0);
 check("Pokemon 6-day fallback paused 10-23", (await topMovers("pokemon", "2026-10-23", { days: 6 })).length, 0);
 check("the pause never reaches back before the cap (09-10 Pokemon moves still read)", (await topMovers("pokemon", TODAY)).length > 0, true);
 

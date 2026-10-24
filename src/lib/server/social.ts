@@ -41,6 +41,9 @@ export const CAP_PAUSES: Partial<Record<GameId, { from: string; settled: string;
   // Pokémon's cap went OFF in the 10-23 write (POKEMON_CAP_ON, pushed 10-22): 1,388 $20+ prices rose 15%+ that day vs
   // ~100 on a normal day (measured 10-24), so settled moved 10-18 -> 10-23 and the pause runs to 10-30; remove it then.
   pokemon: { from: "2026-10-16", settled: "2026-10-23", end: "2026-10-30" },
+  // 74d51974 (10-24): one cheap copy no longer caps a Magic price, ~1,164 printings rise back in the first 5am ET run
+  // after the push. Dated for a push on 10-24 (first run 10-25); MOVE THESE DATES if the push lands later. Remove 11-02.
+  mtg: { from: "2026-10-25", settled: "2026-10-25", end: "2026-11-01" },
 };
 export const MOVER_LIMIT = 5;
 /** Below this the % swing is noise (a $1.83 common "up 69%" is not news; Chris 09-25, was $3). */
