@@ -106,9 +106,9 @@ export async function fetchSourcePicture(url) {
   const init = { headers: { "User-Agent": UA, Accept: "image/*" }, signal: AbortSignal.timeout(30_000) };
   const res = /(^|\.)scryfall\.(io|com)$/.test(host) ? await (await import("./scryfall-guard.mjs")).scryfallFetch(url, init) : await fetch(url, init);
   if (res.status === 429) throw new StopRun(`${host} answered 429 Too Many Requests. Stopping so this PC is not blocked (10-03 Scryfall lesson).`);
-  if (!res.ok) throw new Error(`${url} â†’ ${res.status}`);
+  if (!res.ok) throw new Error(`${url} → ${res.status}`);
   const buf = Buffer.from(await res.arrayBuffer());
-  if (buf.length < 1000) throw new Error(`${url} â†’ ${buf.length} bytes, not a picture`);
+  if (buf.length < 1000) throw new Error(`${url} → ${buf.length} bytes, not a picture`);
   return buf;
 }
 

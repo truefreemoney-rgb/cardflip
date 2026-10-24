@@ -26,7 +26,7 @@ const verdict = (series, extra) => {
 /** A liquid series: moves every day (a real market), ending on `to`. */
 const liquid = (to, days = 60) => Array.from({ length: days }, (_, i) => Math.round((to * (1 + ((i * 7) % 5) / 100) - (i % 3)) * 100) / 100).concat(to);
 
-// ---- real 09-30 rows (PokÃ©mon, tcgplayer USD, oldest first, ending on 09-30)
+// ---- real 09-30 rows (Pokémon, tcgplayer USD, oldest first, ending on 09-30)
 const RAYQUAZA = expand([[101.83, 12], [104.42, 44], [104.66, 13], [107.19, 10], [536.45, 7], [599.46, 3], [679.27, 12], [null, 2], [679.27, 4], [767.94, 1], [1035.13, 9], [1013.27, 19]]); // Call of Legends col1-20 holofoil
 const DEOXYS = expand([[174.15, 10], [180, 2], [240, 14], [500, 9], [310, 14], [500, 52], [null, 2], [500, 33]]); // col1-SL1 holofoil
 const PIKACHU_PROMO = expand([[999.95, 101], [null, 2], [999.95, 24], [499.99, 9]]); // Black Star promo basep-1 holofoil
@@ -198,7 +198,7 @@ check("... and a CURRENT price Cardmarket vouches for is still vouched for, flat
 check("an old price that moved inside the month is still vouched for by Cardmarket", priceTrust({ to: 146, prices: liquid(146), refEur: 110, old: true }).agrees, true);
 
 console.log("10-01 review: the step-jump rule for movers (stepJump, not part of priceTrust)");
-// ru1-13 PokÃ©mon Rumble Skuntank normal, 09-30: $52.07-$52.69 for 4+ months, then ONE overnight step to $89.98, flat since (+71%). priceTrust calls it fine (under $100, no 3x).
+// ru1-13 Pokémon Rumble Skuntank normal, 09-30: $52.07-$52.69 for 4+ months, then ONE overnight step to $89.98, flat since (+71%). priceTrust calls it fine (under $100, no 3x).
 const SKUNTANK = expand([[52.2, 70], [52.37, 6], [52.07, 4], [null, 2], [52.07, 14], [52.53, 4], [52.67, 7], [52.37, 3], [89.98, 3]]);
 // ex1-7 Ruby & Sapphire Gardevoir holofoil: a climb in stairs over four months, $75.19 -> $106.30 in the week. A genuine rise.
 const GARDEVOIR = expand([[50, 60], [57.14, 5], [64.79, 2], [69.15, 3], [null, 2], [71.84, 15], [75.19, 14], [78.4, 3], [106.3, 3]]);

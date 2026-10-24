@@ -2,7 +2,7 @@
  * /admin/analytics data + the visitor ping's new columns.
  * Run: npm run test:analytics
  *
- * Pins: referrerHost keeps only an outside host (own site, junk, paths â†’
+ * Pins: referrerHost keeps only an outside host (own site, junk, paths →
  * ""); deviceClass reads phone/tablet/desktop; /api/visit stores ref,
  * device and country on the row; getAnalytics buckets a 7d window by day
  * and a 24h window by hour, compares against the prior period, computes
