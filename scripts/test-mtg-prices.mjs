@@ -153,7 +153,8 @@ console.warn = warn;
     { id: "ct", usd: 90, foil: null, etched: null, eur: null, eurFoil: null, source: "cardtrader" },
   ];
   const ids = new Map([["cromat", 1], ["drum", 2], ["cheap", 3], ["ct", 4]]);
-  const lows = new Map([[1, { Normal: 1, Foil: 57.3 }], [2, { Foil: 41.99 }], [3, { Normal: 1 }], [4, { Normal: 10 }]]);
+  const at = (low) => ({ low, mid: null });
+  const lows = new Map([[1, { Normal: at(1), Foil: at(57.3) }], [2, { Foil: at(41.99) }], [3, { Normal: at(1) }], [4, { Normal: at(10) }]]);
   const r = capToListing(rows, ids, lows);
   check("cap: Cromat foil $155.59 -> $57.30, drum $60 stays (1.43x), cheap and CardTrader untouched",
     [r.capped, rows.map((x) => [x.usd, x.foil]), r.lows.map((l) => `${l.cardId}|${l.variant}|${l.lowUsd}`)],
@@ -169,12 +170,30 @@ console.warn = warn;
     { id: "bog", usd: 70, foil: null, etched: null, eur: null, eurFoil: null }, // Alpha, $55 listing, 1.27x: no cap
   ];
   const ids = new Map([["blaze", 1], ["jace", 2], ["cromat", 3], ["bog", 4]]);
-  const lows = new Map([[1, { Normal: 400 }], [2, { Foil: 134 }], [3, { Foil: 57.3 }], [4, { Normal: 55 }]]);
+  const at = (low) => ({ low, mid: null });
+  const lows = new Map([[1, { Normal: at(400) }], [2, { Foil: at(134) }], [3, { Foil: at(57.3) }], [4, { Normal: at(55) }]]);
   const released = new Map([["blaze", "1993-08-05"], ["jace", "2010-02-05"], ["cromat", "2001-06-04"], ["bog", "1993-08-05"]]);
   const r = capToListing(rows, ids, lows, released);
   check("soft cap: Alpha $900 -> $580 (1.45x $400), Jace foil $300 -> $194.30, Cromat foil -> $57.30, Bog $70 untouched",
     [r.capped, rows.map((x) => x.usd ?? x.foil)],
     [3, [580, 194.3, 57.3, 70]]);
+}
+{
+  // 10-24: one cheap copy is not the market. Middle listing at or over the price: no cap, no low for the guard, key trusted.
+  // A middle listing under the price (most copies cheaper) still caps.
+  const { capToListing } = await import("../src/lib/server/mtgPriceRefresh.ts");
+  const rows = [
+    { id: "heroic", usd: 13.87, foil: null, etched: null, eur: null, eurFoil: null }, // MAR 34: $7.67 + $5.99 shipping, mid $14.99
+    { id: "opposition", usd: null, foil: 124.99, etched: null, eur: null, eurFoil: null }, // UDS foil: $77.99 LP, mid $139.69
+    { id: "even", usd: 20, foil: null, etched: null, eur: null, eurFoil: null }, // mid exactly the price: trusted
+    { id: "stale", usd: null, foil: 155.59, etched: null, eur: null, eurFoil: null }, // mid $60 under the price: caps
+  ];
+  const ids = new Map([["heroic", 1], ["opposition", 2], ["even", 3], ["stale", 4]]);
+  const lows = new Map([[1, { Normal: { low: 7.67, mid: 14.99 } }], [2, { Foil: { low: 77.99, mid: 139.69 } }], [3, { Normal: { low: 9, mid: 20 } }], [4, { Foil: { low: 57.3, mid: 60 } }]]);
+  const r = capToListing(rows, ids, lows);
+  check("mid: Heroic $13.87, Opposition foil $124.99, even $20 stay; stale foil $155.59 -> $57.30",
+    [r.capped, rows.map((x) => x.usd ?? x.foil), r.lows.map((l) => `${l.cardId}|${l.variant}`), r.trusted],
+    [1, [13.87, 124.99, 20, 57.3], ["stale|foil"], ["heroic|nonfoil", "opposition|foil", "even|nonfoil"]]);
 }
 {
   // 10-13: blank printings take Scryfall's Cardmarket euro price in dollars under the converted source; series go to that source.

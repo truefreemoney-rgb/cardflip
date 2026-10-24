@@ -243,20 +243,26 @@ export async function groupProducts(groupId: number): Promise<TcgProduct[]> {
   return out;
 }
 
+/** A printing's cheapest live listing and its middle listing price (TCGplayer's lowPrice / midPrice, item only, no shipping). */
+export interface ListingSpread {
+  low: number;
+  mid: number | null;
+}
+
 /**
- * Every Magic product's cheapest live listing, by TCGplayer product id then subtype ("Normal" / "Foil"): one tcgcsv
- * pass over all ~460 groups (~60 s on 10-13). The daily cap and the trust check read it (mtgPriceRefresh capToListing).
+ * Every Magic product's cheapest and middle live listing, by TCGplayer product id then subtype ("Normal" / "Foil"): one
+ * tcgcsv pass over all ~460 groups (~60 s on 10-13). The daily cap and the trust check read it (mtgPriceRefresh capToListing).
  */
-export async function allListingLows(): Promise<Map<number, Record<string, number>>> {
+export async function allListingLows(): Promise<Map<number, Record<string, ListingSpread>>> {
   const groups = listOf<TcgGroup>(await getJson(`${API}/groups`));
-  const out = new Map<number, Record<string, number>>();
+  const out = new Map<number, Record<string, ListingSpread>>();
   const queue = [...groups];
   const worker = async () => {
     for (let g = queue.shift(); g; g = queue.shift()) {
       try {
-        for (const p of listOf<{ productId: number; subTypeName?: string; lowPrice?: unknown }>(await getJson(`${API}/${g.groupId}/prices`))) {
+        for (const p of listOf<{ productId: number; subTypeName?: string; lowPrice?: unknown; midPrice?: unknown }>(await getJson(`${API}/${g.groupId}/prices`))) {
           const low = pos(p.lowPrice);
-          if (low != null) out.set(p.productId, { ...(out.get(p.productId) ?? {}), [p.subTypeName ?? "Normal"]: low });
+          if (low != null) out.set(p.productId, { ...(out.get(p.productId) ?? {}), [p.subTypeName ?? "Normal"]: { low, mid: pos(p.midPrice) } });
         }
       } catch (err) {
         console.warn(`mtg listing lows group ${g.groupId}:`, err instanceof Error ? err.message : err);

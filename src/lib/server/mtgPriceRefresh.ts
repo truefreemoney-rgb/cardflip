@@ -2,7 +2,7 @@ import { createGunzip } from "node:zlib";
 import { createInterface } from "node:readline";
 import { Readable } from "node:stream";
 import { streamJsonObjects } from "@/lib/server/jsonStream";
-import { allListingLows, guardFills, readMtgGapRows, readOracleMaxUsd, tcgplayerFills } from "@/lib/server/mtgTcgplayerFill";
+import { allListingLows, guardFills, readMtgGapRows, readOracleMaxUsd, tcgplayerFills, type ListingSpread } from "@/lib/server/mtgTcgplayerFill";
 import { CARDTRADER_SOURCE, cardtraderMtgPrices } from "@/lib/server/cardtrader";
 import { CONVERTED_SOURCE } from "@/lib/server/cardmarket";
 import { cardkingdomFills, fetchCardkingdomList } from "@/lib/server/cardkingdom";
@@ -156,25 +156,37 @@ export const SOFT_CAP_X = 1.45;
  * anyone can buy now, so a price over PRICE_TRUST.staleOverLow x that listing becomes the listing (eBay foil solds,
  * 10-13 sample: Cromat $155.59 -> $57.30 vs $65-$68 sold, Metamorphic Wurm $68.92 -> $1.30 vs $2-$8, Arena Swamp
  * $78.77 -> $35.75 vs $40-$49). The listing can be a played copy, so the cap runs a little low on mint, never high.
+ *
+ * One cheap copy is not the market (10-24, Chris yes): when the MIDDLE listing is at or over the price, most copies cost
+ * that much and the cheapest is a played copy or carries high shipping (Heroic Intervention MAR 34: $7.67 + $5.99
+ * shipping, mid $14.99, market $13.87). That printing is neither capped nor given a low for the guard's stale test; its
+ * key comes back in `trusted`. That day 1,164 of the 2,833 capped printings were this case; 11 of 11 hand-checked on
+ * TCGplayer had Near Mint copies at about the market (Opposition UDS foil $124.99 market, capped $77.99 LP, NM $126.43).
  * Mutates the rows; returns how many prices were capped and the listing_lows rows to store. Pure.
  */
 export function capToListing(
   rows: MtgPriceRow[],
   tcgIdOf: Map<string, number>,
-  lowsByProduct: Map<number, Record<string, number>>,
+  lowsByProduct: Map<number, Record<string, ListingSpread>>,
   /** Release date per printing (Scryfall released_at); pre-1996 takes the soft cap. */
   releasedOf: Map<string, string> = new Map(),
-): { capped: number; lows: ListingLow[] } {
+): { capped: number; lows: ListingLow[]; trusted: string[] } {
   let capped = 0;
   const lows: ListingLow[] = [];
+  const trusted: string[] = [];
   for (const r of rows) {
     if (r.source === CARDTRADER_SOURCE || r.source === CARD_KINGDOM_SOURCE) continue; // not TCGplayer numbers: a listing cap says nothing about them
     const l = lowsByProduct.get(tcgIdOf.get(r.id) ?? -1);
     if (!l) continue;
     for (const [field, variant, sub] of [["usd", "nonfoil", "Normal"], ["foil", "foil", "Foil"]] as const) {
       const price = r[field];
-      const low = l[sub];
+      const low = l[sub]?.low;
       if (price == null || price < CAP_MIN_USD || low == null) continue;
+      const mid = l[sub].mid;
+      if (mid != null && mid >= price) {
+        trusted.push(`${r.id}|${variant}`);
+        continue;
+      }
       lows.push({ cardId: r.id, game: "mtg", variant, lowUsd: low });
       if (price >= PRICE_TRUST.staleOverLow * low) { // same edge as test 4: exactly 1.5x is too high
         const soft = (releasedOf.get(r.id) ?? "9999") < SOFT_CAP_BEFORE || low >= SOFT_CAP_MIN_LOW_USD;
@@ -183,7 +195,7 @@ export function capToListing(
       }
     }
   }
-  return { capped, lows };
+  return { capped, lows, trusted };
 }
 
 /** A $100+ price whose last value has stood unchanged for PRICE_TRUST.stuckDays calendar days or more (the guard's test 4). */
@@ -336,9 +348,11 @@ export async function refreshMtgPricesFromBulk(day = todayUtc()): Promise<Refres
   }
   // Cap at the cheapest live listing and keep that listing for the trust check (capToListing). A failure only skips it.
   let cappedToListing = 0;
+  let listingTrusted: string[] = [];
   try {
     const r = capToListing(pending.filter((c) => mirror.has(c.id)), tcgIdOf, await allListingLows(), releasedOf);
     cappedToListing = r.capped;
+    listingTrusted = r.trusted;
     const have = new Set(lows.map((l) => `${l.cardId}|${l.variant}`));
     lows.push(...r.lows.filter((l) => !have.has(`${l.cardId}|${l.variant}`)));
   } catch (err) {
@@ -349,9 +363,10 @@ export async function refreshMtgPricesFromBulk(day = todayUtc()): Promise<Refres
   await upsertSeriesRows(plan.upserts);
   // Scryfall's own dollar prices are TCGplayer's market too, so they freeze the same way: every $100+ printing stuck 45+ days
   // also gets its cheapest live listing read (one tcgcsv pass over just their sets, ~400 cards on 10-07). A failure only skips it.
+  // A printing the middle listing backs (capToListing `trusted`) gets no low here either: one cheap copy is not a freeze.
   try {
-    const have = new Set(lows.map((l) => `${l.cardId}|${l.variant}`));
-    const stuck = [...existingSeries].filter(([key, s]) => !have.has(key) && isStuckDear(decodePrices(s.prices))).map(([key]) => key);
+    const have = new Set([...lows.map((l) => `${l.cardId}|${l.variant}`), ...listingTrusted]);
+    const stuck =[...existingSeries].filter(([key, s]) => !have.has(key) && isStuckDear(decodePrices(s.prices))).map(([key]) => key);
     if (stuck.length) {
       const want = new Set(stuck);
       const { fills } = await tcgplayerFills(await readMtgGapRows([...new Set(stuck.map((k) => k.split("|")[0]))].slice(0, 1500)));
