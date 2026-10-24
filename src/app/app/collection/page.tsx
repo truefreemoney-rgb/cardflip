@@ -2090,18 +2090,20 @@ export default function CollectionPage() {
           ) : (
             // Both totals stay on one row at phone width up to $99,999.99 each (10-16): tighter gaps, and "Show" steps aside when they are long.
             // Plain names (Chris 10-21, option C): "Unsold" was "In Play", "Sold" was "Earned".
+            // A little air between each name and its number (Chris 10-24: "seems too bunched up").
             <span className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-0.5 text-xs text-zinc-400 sm:gap-x-4">
               <span className="whitespace-nowrap">
-                {pricingOnly ? "Market Value" : "Unsold"} <span className="font-display text-sm font-semibold tabular-nums text-white">{liveLoaded ? formatMoney(stats.inPlayMarket) : "…"}</span>
+                {pricingOnly ? "Market Value" : "Unsold"} <span className="ml-1 font-display text-sm font-semibold tabular-nums text-white">{liveLoaded ? formatMoney(stats.inPlayMarket) : "…"}</span>
               </span>
               <span className="whitespace-nowrap">
-                Sold <span className="font-display text-sm font-semibold tabular-nums text-emerald-400">{formatMoney(pricingOnly ? stats.earned : stats.net)}</span>
+                Sold <span className="ml-1 font-display text-sm font-semibold tabular-nums text-emerald-400">{formatMoney(pricingOnly ? stats.earned : stats.net)}</span>
               </span>
             </span>
           )}
           <span className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-brand-300">
             {/* "Show" stays unless the two totals are too long for it on a phone (Chris 10-16); then the arrow alone.
-                Measured on iPhone WebKit at 375px: the line breaks from 35 characters, so 33 leaves a margin. */}
+                Measured on iPhone WebKit at 375px: the line breaks from 35 characters, so 33 leaves a margin (re-measured
+                10-24 with the numbers' 4px of air: 34 still fits in WebKit and Chromium). */}
             <span
               className={
                 summaryOpen ||
