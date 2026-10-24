@@ -1242,7 +1242,7 @@ export interface SetSpotlight {
  * something to learn): the SET_MIN_CARDS most valuable cards of one set,
  * with their 7-day move. The set is picked by a hash of the date over
  * every set with enough priced cards, so the sets cycle and every run
- * agrees. PokÃ©mon only: the set is the card id's prefix (sv1-2 â†’ sv1);
+ * agrees. Pokémon only: the set is the card id's prefix (sv1-2 → sv1);
  * Magic ids are opaque and Magic is not posted anyway.
  *
  * The guard's survivors are all it ranks, so a set whose marquee card the

@@ -10,8 +10,8 @@ export const dynamic = "force-dynamic";
 /**
  * What the board runner may know about production (runner upgrade 4, Chris
  * yes 09-10): the last day's errors grouped, the last production smoke run,
- * scan spend, the deploy sha and the daily job. Read-only by construction â€”
- * this route touches nothing â€” and guarded by its own secret (RUNNER_TOKEN)
+ * scan spend, the deploy sha and the daily job. Read-only by construction —
+ * this route touches nothing — and guarded by its own secret (RUNNER_TOKEN)
  * that only the routine holds, so it can't reach Vercel, Stripe, eBay or the
  * database no matter what it is asked to do.
  *
