@@ -1,0 +1,14 @@
+﻿# 10-24 scorecard week 2: eBay US sold, raw, BIN only (best-offer sales left out), 60 s apart. ours = what the site shows.
+1 pokemon high Bianca BLW 147 holo: ours 210.01 (TCGplayer mkt) | eBay BIN n=9 96-299.99, median ~110 | +91% vs eBay
+2 pokemon high Erika's Dragonair G1 4 unl holo: ours 122.81 | eBay BIN n=13 35-149.99, median 63 (NM-titled 149.99, MP 45-60) | +95% vs eBay; condition mix
+3 mtg high Scion of the Ur-Dragon TSP 246 foil: ours 92.09 | eBay BIN n=4 English 75-143.19, median ~92 | ~0% IN BAND
+4 mtg high Form of the Squirrel UNH 96 foil: ours 61.91 | eBay BIN n=0 | no sales, unscored
+5 lorcana high You've Got a Friend in Me WU 225 enchanted: ours 265.69 | eBay BIN n=13 147.50-285, median 239.99 | +11% IN BAND
+6 lorcana high Goliath WITW 238 enchanted: ours 126.87 | eBay BIN n=8 English 99-200, median ~121 | +5% IN BAND
+7 onepiece high DON!! Perona Gold PRB-01: ours 206.78 (TCG 206.22) | eBay BIN English n=0 (7 Japanese 52.50-123.28) | unscored
+8 yugioh high Red-Eyes B. Dragon NKC1-EN002 Nike promo: ours 399.99 (TCG mkt stale; low listing 649.99) | eBay n=5 465.40-989.99, median 599.95 | -33% => FIXED 599.95
+(1) Bianca => FIXED 105 (median of 8 BIN, MP/dmg/best-offer out); (2) Erika's Dragonair => FIXED 65.50 (median of 11)
+9 yugioh high Jinzo YAP1-EN007: ours 55.78 | eBay BIN n=11 23.25-69.99, median 37 | +51% => FIXED 37
+10 onepiece high Eustass Kid P-003 Store Champ Vol.2 Winner: ours 64.96 (TCG 57.84) | eBay BIN n=2 27.40,107.10, median 67.25 | -3% IN BAND (thin)
+11 yugioh low Archlord Zerato AST-034 1st: ours 30.15 (TCG 1st mkt) | eBay BIN n=3 5.50,28.89,31.65, median 28.89 | +4% IN BAND
+-- post card (1pm Then vs Now) Aminatou SLD 1421: ours 27.85 (Scryfall/TCG 28.02) | eBay n=5 6.25,9.20,9.20 (Aug-Sep), 18.17 (10-03), 27.00BO (10-12) | smooth daily climb 6.36 (9-28) -> 27.85, eBay ahead of it | STANDS

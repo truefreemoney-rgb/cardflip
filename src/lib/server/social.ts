@@ -840,15 +840,41 @@ function moverOf(game: GameId, cardId: string, c: CatalogRow, s: FreshCard): Mov
 }
 
 /**
+ * Pure: a post names a card by set + printed number, so a card whose number
+ * also fits another printing priced 25%+ apart tells a reader the wrong value
+ * (10-24 7pm draft: Exodia RP01-EN021 $44.99 is the 2008 original, the 2020
+ * reprint with the same number is $4.11; Dark Magician DL11-EN001 $50.00 is
+ * Purple, Green is $67.98). Yu-Gi-Oh! and One Piece numbers carry the set code
+ * and repeat across reprint sets; Lorcana numbers repeat in every set, so only
+ * the same set counts there. Unpriced printings cannot be compared and do not count.
+ */
+export function ambiguousByNumber(
+  game: GameId,
+  card: { id: string; setName: string; price: number },
+  siblings: { id: string; setName: string; price: number | null }[],
+): boolean {
+  return siblings.some(
+    (s) => s.id !== card.id && s.price != null && s.price > 0 && (game !== "lorcana" || s.setName === card.setName) && Math.abs(Math.log(s.price / card.price)) > Math.log(1.25),
+  );
+}
+
+/**
  * A TCG game's scanner-stage picks (popular cards, $15–$300, price-guarded;
  * One Piece its checked-clean lead only, as gameLeads) as Movers, each with
  * its tcg_cards id so the no-repeat list and a frozen video row can name it.
+ * A card its number cannot tell apart from a differently priced printing sits out (ambiguousByNumber).
  */
 async function stageMovers(game: GameId): Promise<Mover[]> {
   const { getGameStageCards } = await import("@/lib/server/stageCards");
   const cards = (await getGameStageCards(game)).cards.filter((c) => c.imageUrl && c.price != null && c.price > 0);
   const pool = game === "onepiece" ? cards.filter((c) => c.lead) : cards;
   const held = await postHolds(game);
+  const numbers = [...new Set(pool.map((c) => c.number).filter(Boolean))];
+  const twins = numbers.length
+    ? ((await db
+        .prepare(`SELECT id, set_name, collector_number, COALESCE(price_usd, price_usd_foil) AS price FROM tcg_cards WHERE game = ? AND collector_number IN (${numbers.map(() => "?").join(",")})`)
+        .all(game, ...numbers)) as { id: string; set_name: string; collector_number: string; price: number | null }[])
+    : [];
   const out: Mover[] = [];
   for (const c of pool) {
     // The stage's own id first: Yu-Gi-Oh! RA03-EN244 is a $5.25 Platinum and a $53.19 Quarter Century Secret, and the
@@ -858,6 +884,8 @@ async function stageMovers(game: GameId): Promise<Mover[]> {
       : ((await db.prepare("SELECT id FROM tcg_cards WHERE game = ? AND set_name = ? AND collector_number = ? LIMIT 1").get(game, c.setName, c.number)) as { id: string } | undefined);
     // A held card sits out here too: head to head and the all-games leads read this pool, not topMovers.
     if (row && held.has(row.id)) continue;
+    const siblings = twins.filter((t) => t.collector_number === c.number).map((t) => ({ id: t.id, setName: t.set_name, price: t.price }));
+    if (row && ambiguousByNumber(game, { id: row.id, setName: c.setName, price: c.price as number }, siblings)) continue;
     out.push({ cardId: row?.id ?? `${game}:${c.setName}:${c.number}`, name: displayName(c.name), setName: cleanSet(c.setName), number: c.number, imageUrl: c.imageUrl, variant: "", from: c.price as number, to: c.price as number, pct: 0, unsettled: true });
   }
   return out;

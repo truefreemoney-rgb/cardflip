@@ -617,10 +617,12 @@ await db.prepare("INSERT OR REPLACE INTO price_checked (game, card_id, variant, 
 (await import("../src/lib/server/checkedPrices.ts")).clearCheckedMemo();
 await tcg("ygo-593096-1st", "yugioh", "Slifer the Sky Dragon", "RA03", "Quarter Century Bonanza", "RA03-EN244", 5.25);
 await tcg("ygo-593097-1st", "yugioh", "Slifer the Sky Dragon", "RA03", "Quarter Century Bonanza", "RA03-EN244", 53.19);
-await tcg("ygo-t3", "yugioh", "Dark Magician", "LOB", "Legend of Blue Eyes", "LOB-005", 30);
-await db.prepare("INSERT OR REPLACE INTO card_cache (key, payload, cached_at) VALUES (?, ?, ?)").run("stage:v15:yugioh", JSON.stringify([stg("Pot of Greed", "Dark Beginning 1", "DB1-EN134", 42.97, { lead: true }), { ...stg("Slifer the Sky Dragon", "Quarter Century Bonanza", "RA03-EN244", 53.19), id: "ygo-593097-1st" }, stg("Dark Magician", "Legend of Blue Eyes", "LOB-005", 30)]), Date.now());
+await tcg("ygo-t3", "yugioh", "Dark Magician", "TST", "Test Pack", "TST-EN005", 30);
+await tcg("ygo-t4", "yugioh", "Blue-Eyes White Dragon", "TST", "Test Pack", "TST-EN001", 60);
+await db.prepare("INSERT OR REPLACE INTO card_cache (key, payload, cached_at) VALUES (?, ?, ?)").run("stage:v15:yugioh", JSON.stringify([stg("Pot of Greed", "Dark Beginning 1", "DB1-EN134", 42.97, { lead: true }), { ...stg("Slifer the Sky Dragon", "Quarter Century Bonanza", "RA03-EN244", 53.19), id: "ygo-593097-1st" }, stg("Dark Magician", "Test Pack", "TST-EN005", 30), stg("Blue-Eyes White Dragon", "Test Pack", "TST-EN001", 60)]), Date.now());
 const pY = await SOC.pair("yugioh", A);
-check("a held card sits out of the head to head; the stage id names the dearer Slifer", [pY.a.cardId, pY.b.cardId].sort(), ["ygo-593097-1st", "ygo-t3"]);
+// 10-24: the stage id names the dearer Slifer, but the post would print "RA03-EN244 $53.19" for a number the $5.25 Platinum shares, so it sits out too.
+check("a held card and a number two prices share sit out of the head to head", [pY.a.cardId, pY.b.cardId].sort(), ["ygo-t3", "ygo-t4"]);
 await db.prepare("DELETE FROM price_checked WHERE card_id = 'ygo-23670'").run();
 (await import("../src/lib/server/checkedPrices.ts")).clearCheckedMemo();
 await db.prepare("INSERT OR REPLACE INTO card_cache (key, payload, cached_at) VALUES (?, ?, ?)").run("stage:v15:yugioh", JSON.stringify(STAGES["stage:v15:yugioh"]), Date.now());
@@ -670,6 +672,20 @@ check("Pokemon dips paused 10-19 (window spans the 10-17 cap)", (await topMovers
 check("Pokemon moves paused through 10-24 (second cap day 10-18)", (await topMovers("pokemon", "2026-10-24")).length, 0);
 check("Pokemon 6-day fallback paused 10-23", (await topMovers("pokemon", "2026-10-23", { days: 6 })).length, 0);
 check("the pause never reaches back before the cap (09-10 Pokemon moves still read)", (await topMovers("pokemon", TODAY)).length > 0, true);
+
+// 10-24: a post names a card by set + number; a number that fits a printing priced 25%+ apart sits out.
+{
+  const { ambiguousByNumber } = SOC;
+  const exodia = { id: "ygo-78091", setName: "Retro Pack", price: 44.99 };
+  check("Exodia RP01-EN021: the $4.11 2020 reprint shares the number -> sits out",
+    ambiguousByNumber("yugioh", exodia, [exodia, { id: "ygo-564168", setName: "Retro Pack (2020 Date Reprint)", price: 4.11 }]), true);
+  check("an unpriced or near-priced printing does not count (Purple $50 vs unpriced Red, $55 Blue)",
+    ambiguousByNumber("yugioh", { id: "p", setName: "DL", price: 50 }, [{ id: "r", setName: "DL", price: null }, { id: "b", setName: "DL", price: 55 }]), false);
+  check("Lorcana: the same number in another set is another card",
+    ambiguousByNumber("lorcana", { id: "a", setName: "Fabled", price: 8 }, [{ id: "b", setName: "Winterspell", price: 80 }]), false);
+  check("Lorcana: the same number in the same set at another price sits out",
+    ambiguousByNumber("lorcana", { id: "a", setName: "Fabled", price: 8 }, [{ id: "b", setName: "Fabled", price: 80 }]), true);
+}
 
 if (failures) { console.log(`\n${failures} failing`); process.exit(1); }
 console.log("\nall green");
