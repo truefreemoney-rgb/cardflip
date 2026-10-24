@@ -1,8 +1,14 @@
 ﻿# To test later
 
+## 10-24 ~9:10AM ET: HELD (not pushed) 151ad013 rarity sort per game, c70e005f picture 3rd retry, 74d51974 MTG one-cheap-copy cap. Firewall v44 already LIVE (/pics 3,000/min, no block duration).
+- [ ] Before the push: phone-width screenshots of Inventory sorted by Rarity (Magic: mythics first, Tezzeret $113.46 / Soul Stone / Gemstone Caverns on top) for Chris's yes.
+- [ ] After the push: Inventory -> Sort: Rarity on Magic starts with Mythics, priciest first; Pokemon/Lorcana/One Piece/YGO rarest first (lib/rarity.ts lists); card search (/app/cards) Rarity sort the same.
+- [ ] Pictures: no "No image" on a long inventory scroll; if one fails it comes back about a minute later on its own. Firewall Traffic: no /pics denies for a real user's IP.
+- [ ] First nightly Magic price run after the push: log cappedToListing ~1,650 (was ~2,800); Heroic Intervention MAR 34 price_usd ~$13.87 (was $7.67); Opposition UDS foil ~$124.99 (was $77.99); spot-check 3 on TCGplayer. Price guard: those uncapped rows are NOT flagged (no listing_lows row for them; recovery rule covers the jump back).
+
 ## 10-24 ~8:20AM ET: PUSHED 38cf8e77 on Chris "push, save, clear and resume" (62c9c5b9..38cf8e77: OP $0 promos, OP promo TCGplayer layer, TCG post ambiguity rule, inventory chip wrap, categories per game, import script, docs)
-- [ ] CI 40093266368 on 38cf8e77 green (a background watch was running at the save; re-check `gh run view 40093266368`), then the next Production smoke green.
-- [ ] Categories per game, in the pane on Chris's account (truefreemoney, signed in, tab-2 /app/collection): Magic tab -> Search, Sort & Filter -> chips list ONLY Magic sets (no "SV: White Flare"); Pokemon tab still shows "SV: White Flare"; "Move to category" on a Magic card lists Magic only. Desktop: chips WRAP onto several lines, every one clickable. Phone width: one swipe row as before.
+- [x] CI 40093266368 on 38cf8e77 green (8:3x ET 10-24). Next Production smoke: not checked yet.
+- [ ] Categories per game (API part PASSED 10-24 8:20 in the pane: mtg = Magic only, pokemon = "SV: White Flare"; his Magic now 7 categories), in the pane on Chris's account (truefreemoney, signed in, tab-2 /app/collection): Magic tab -> Search, Sort & Filter -> chips list ONLY Magic sets (no "SV: White Flare"); Pokemon tab still shows "SV: White Flare"; "Move to category" on a Magic card lists Magic only. Desktop: chips WRAP onto several lines, every one clickable. Phone width: one swipe row as before.
 - [ ] Schema: the first cold start adds categories.game (SELECT game FROM categories LIMIT 1 on prod answers, no error).
 - [ ] Scanner: after a Magic scan, "Which category?" lists Magic categories only (Chris on his phone, next time he scans).
 - [ ] 7pm Head to Head (YGO) tonight: the drafts rebuild under the ambiguity rule; /admin/social 7pm draft is NOT Exodia RP01-EN021 / Dark Magician DL11 (or YGO falls through to the next game). Re-check the pair's prices before 7:05.
