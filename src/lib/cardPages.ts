@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { GAMES, printedCardNumber, SET_IN_NUMBER_GAMES } from "@/lib/games";
 import { formatMoney, formatVariantLabel } from "@/lib/listing";
 import { variantRank } from "@/lib/variantOrder";
+import { isOnePieceNumberTag } from "@/lib/onepiece";
 import { addDays, dayIndex, type HistoryPoint } from "@/lib/priceSeries";
 import { cleanSeriesPoints } from "@/lib/priceOutliers";
 import type { PriceFlag, PriceStale } from "@/lib/priceFlag";
@@ -423,6 +424,8 @@ export interface CardFacts {
 }
 
 const titleCase = (s: string) => s.replace(/[-_]+/g, " ").replace(/\b[a-z]/g, (c) => c.toUpperCase());
+/** One Piece tags that are codes: TCGplayer sells the spr rows as "(SP)", the same word as the special rows. */
+const ONE_PIECE_TAG_WORDS: Record<string, string> = { spr: "Special", tr: "Treasure Rare" };
 
 /** The printing tags of a catalog row: Yu-Gi-Oh! rarity and the 1st Edition stamp, One Piece and Lorcana treatments. */
 export function printingTags(game: GameId, row: { id: string; rarity?: string | null; variant?: string | null }): string[] {
@@ -432,6 +435,9 @@ export function printingTags(game: GameId, row: { id: string; rarity?: string | 
     if (row.rarity) tags.push(row.rarity);
     if (row.variant && slugify(row.rarity ?? "") !== row.variant) tags.push(titleCase(row.variant));
     if (row.id.endsWith("-1st")) tags.push("1st Edition");
+  } else if (game === "onepiece" && row.variant) {
+    // Never a bare code (10-25: "Spr", "Tr", "Op15 119"); a card-number tag names no printing.
+    if (!isOnePieceNumberTag(row.variant)) tags.push(ONE_PIECE_TAG_WORDS[row.variant] ?? titleCase(row.variant));
   } else if (row.variant) {
     tags.push(titleCase(row.variant));
   }

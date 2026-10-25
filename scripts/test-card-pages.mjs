@@ -253,6 +253,13 @@ check("1st Edition stays in the heading", cp.cardHeading({ ...facts, tags: ["1st
 check("facts paragraph states only catalog facts", cp.factsParagraph(facts), "Charizard is card 4/102 in Base Set, released Jan 9, 1999.");
 check("... a preorder set is 'out', not 'released' (Magic Star Trek, 10-07)", cp.factsParagraph({ ...facts, release: "2026-11-13" }, "2026-10-07"), "Charizard is card 4/102 in Base Set, out Nov 13, 2026.");
 check("Yu-Gi-Oh! tags", cp.printingTags("yugioh", { id: "ygo-1-1st", rarity: "Ultra Rare", variant: null }), ["Ultra Rare", "1st Edition"]);
+// 10-25: One Piece pages title-cased the raw tag ("Hody Jones OP06-020 ... Spr price", "Op15 119").
+check(
+  "One Piece tags are words, never a bare code; a card-number tag names no printing",
+  [["OP06-020_p2", "spr"], ["OP08-052_p2", "tr"], ["OP15-119", "op15-119"], ["P-105_r1", "p-105"], ["EB03_OP09-034_p1", "9-034_p1"], ["OP01-016_p8", "manga"], ["EB01-061", "bentham"], ["OP01-025_p1", "alt-art"], ["OP01-001", ""]].map(([id, variant]) => cp.printingTags("onepiece", { id, variant })),
+  [["Special"], ["Treasure Rare"], [], [], [], ["Manga"], ["Bentham"], ["Alt Art"], []],
+);
+check("... Lorcana keeps its title-cased treatment", cp.printingTags("lorcana", { id: "x", variant: "enchanted" }), ["Enchanted"]);
 check("Pok\u00e9mon 1st-Edition twin is excluded nowhere: its key is valid", cp.parseCardKey("pokemon", "base1-4-1st"), "base1-4-1st");
 check("exclusions", [cp.cardExclusion("pokemon", "sealed-x", true, "i"), cp.cardExclusion("pokemon", "base1-4", false, "i"), cp.cardExclusion("pokemon", "base1-4", true, ""), cp.cardExclusion("pokemon", "base1-4", true, "i")], ["bad-key", "orphan", "no-image", null]);
 // 10-05: Search Console flagged the offer-less Product as critical on every card page; card pages carry breadcrumbs only.

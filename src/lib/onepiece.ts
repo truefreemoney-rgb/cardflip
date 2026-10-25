@@ -132,6 +132,17 @@ const PRINTING_WORDS: Record<string, string> = {
 };
 
 /**
+ * A feed tag that is only a card number ("op15-109", "st18-004"): the feed's
+ * "(OP15-109)" name suffix. On 10-25 the 80 such rows with a card page were
+ * nearly all the regular card or a starter-deck reprint (Nico Robin OP15-109 R
+ * $0.31), so a card page names no printing for them.
+ */
+export function isOnePieceNumberTag(variant: string | null | undefined): boolean {
+  const v = (variant ?? "").toLowerCase();
+  return /^[a-z]+\d*-\d+/.test(v) || /^\d/.test(v);
+}
+
+/**
  * The printing a row sells as: "Parallel · SEC", "Reprint (PRB01) · SR". The
  * feed tags one-off alt arts with a set code or number ("op15-109") — those
  * read as "Alt Art"; a character-name tag ("bentham") is that character's
@@ -166,7 +177,7 @@ export function printingLabel(card: { rarity?: string | null; variant?: string |
           ? named || "Promo"
           : titled().replace(/\b(Cs|Tcg|Us|Uk|Jp|Sp|Tr|(?:Op|St|Eb|Prb)\d*)\b/g, (w) => w.toUpperCase());
   } else if (words === undefined) {
-    words = /^[a-z]+\d*-\d+/.test(v) || /^\d/.test(v) ? "Alt Art" : titled();
+    words = isOnePieceNumberTag(v) ? "Alt Art" : titled();
   }
   const set = v === "reprint" && card.setCode && card.setCode.toUpperCase() !== ONE_PIECE_PROMO_SET ?` (${card.setCode.toUpperCase()})` : "";
   const rarity = card.rarity ? ` · ${card.rarity}` : "";
