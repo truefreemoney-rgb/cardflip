@@ -236,11 +236,14 @@ for (const r of rows) {
   // A row sync-onepiece-tcg.mjs added ("…#tcg") has no Bandai picture to fall back on. With no TCGplayer photo
   // (CDN 403, "unchecked") it keeps what that pass gave it; behind a placeholder, a reprint or a stamped copy shows its
   // booster card's picture, the same face (Chris 09-30: never a blank, never a placeholder).
+  // A tied row whose product has no photo (Demo Deck 2023 Sanji/Usopp promos, 10-25) keeps the picture it shows.
   const added = r.id.includes("#tcg");
   const sameFace = added && (r.variant === "reprint" || isOnePieceStampedTwin({ variant: r.variant, setCode: r.set_code }));
   const image = added && v === "unchecked"
     ? r.image_url
-    : added && v === "placeholder"
+    : tiedPicks.has(r.id) && v === "unchecked"
+      ? r.ref_image_url || r.image_url
+      : added && v === "placeholder"
       ? (sameFace ? rows.find((x) => x.id === r.collector_number)?.image_url : null) || r.image_url
       : v === "clean" || twin ? tcgImage : r.ref_image_url || (p && v !== "placeholder" ? p.pick.image : "") || r.image_url;
   if (image !== r.image_url) {
