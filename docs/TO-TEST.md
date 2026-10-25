@@ -1,5 +1,13 @@
 # To test later
 
+## 10-25 10:30AM ET: PUSHED up to bac93c2d on Chris "yes, go ahead and push" (One Piece printings code 9f116aa7 + bac93c2d, e55c9eee One Piece picture picker, 41441745 catalog push price guard, 7d9dbb5f Pokémon phantom normals, 1c2cb41a Post now never re-posts, 6cab1ea0 garbled-text test, 3cdf8310 admin 1st Edition label, b22b5fd5 mail Foil label, 422eb6e7 Perplexity cap script). Pushed by sha: the docs commits on top would have made Vercel skip the whole build.
+- [ ] Deploy: Vercel deployment READY for bac93c2d (one REST check ~3 min after), Production smoke run (deployment_status) on bac93c2d, CI green on main.
+- [ ] Code only: cardflip.io looks the same until the One Piece rows go in (Turso has no tcg_product_id column yet, so the 5am refresh prices no tied rows and the scanner sees no stamped twins).
+- [ ] One Piece rows go in only after Chris's yes on phone-width shots of the new rows on a local copy (Printing picker, set page, promos page, a deck set page); the data block gets its own entry then.
+- [ ] The three HELD lines in the 10-24 7:38PM block now apply (1c2cb41a Post now dry test after a slot posts, test:mojibake on the first CI run of this push, phantom normals after the 10-26 Pokémon nightly write).
+- [ ] b22b5fd5: the 6:30pm week mail (email_sends / preview): a foil card's row says "Foil" (Judy Hopps WW 150 cold foil if it is still in the lineup).
+- [ ] 3cdf8310: /admin/prices hand list: a 1st Edition Yu-Gi-Oh! row says "1st Edition".
+
 ## 10-25 9:01AM ET: Sunday digest hand check ("This week in cards", sends 6:30pm ET)
 - [x] /admin/emails preview: the first view was the cached copy from before last night's Gustav Rocket check (ygo-692291-1st $23.05 "+84%"); the background rebuild (~8:58am) dropped it as designed (check $38.96 binds). Rebuilt lineup: Thousand Dragon MRD-EN143 Worldwide English Unl $90 "+72%" (Yu-Gi-Oh!), The Sword of Shan-Yu RoJ 219 enchanted $45.36 "+16%" (Lorcana), Finger Pistol EB01-051 alt art PRB-02 $13.93 "+11%" (One Piece), sleeper Judy Hopps WW 150 cold foil $3.14 "+26%".
 - [x] TCGplayer: Shan-Yu mkt 45.36 (NM ~50 in Oct) STANDS; Finger Pistol alt art 655992 mkt 13.93, low 14.00 STANDS; Judy foil mkt 3.20 (NM cold foil 1-8.98 Oct, median ~3.57) STANDS; Thousand Dragon 476796 mkt 65 (NM 40 today, 90 in July = the jump). eBay read #18: most MRD-EN143 sales are the 25th Anniversary reprint (6-15), the original thin (VLP Worldwide 20). FIXED 90 -> 65 (_fix-price-tcg + keep, 9:01am): page prints $65.00 (MISS), $90 gone, no "looks off"; the check binds = out of the mail.

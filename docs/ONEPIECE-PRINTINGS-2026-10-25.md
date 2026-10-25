@@ -6,6 +6,9 @@ existing row ids never change (customers' cards / wishlists / price checks point
 Chris says yes to a dry run with samples (same as B7); screenshots at phone width before any visible push.
 
 ## BUILD STATUS (s250 save, 10-25 9:58am ET) - read this first
+SAMPLE SHEET SENT 10-25 10:07am ET (private Artifact https://claude.ai/artifact/3jmcAAbo2i5wqwis3n9EXz): waiting on Chris's
+yes, then his push. Before the new rows go up I also check the 15 new prices of $300+ (11 adds + 4 first prices) on
+TCGplayer sales, and hand-price the Chopper Winner OP01-015#promo (no price on TCGplayer or on our site).
 BUILT + committed 9f116aa7 (LOCAL, NOT pushed, NOT wired into the nightly; the 2am run is unaffected: the images pass
 changes 0 rows with nothing tied, push-catalog unchanged without the column; both verified). Tests pass:
 test:onepiecetie (43, fixture scripts/fixtures/onepiece-tie.json), test:tcgprices 25, test:tcg, test:pushcatalog,
