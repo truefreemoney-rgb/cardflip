@@ -183,10 +183,14 @@ for (const table of CATALOG_TABLES) {
   // An update in place on the key, never REPLACE (delete + insert = the table and every index written twice).
   // prod-owned prices go up only with a row's first insert.
   const setCols = cols.filter((c) => !keyCols.includes(c) && !(prodOwned && priceCols.includes(c)));
+  // A price the local mirror lacks (blank, or the $0 a feed prints for "no price") never replaces prod's (10-25):
+  // prod's 5am crons price rows the local sync could not (Yu-Gi-Oh! ygo-714621 $0.62, ygo-714628 $2.90; 22 One
+  // Piece starter-deck reprints at $0 locally, cents on prod), and this 2am push used to clear them.
+  const setTo = (c, v) => (priceCols.includes(c) ? `COALESCE(NULLIF(${v}, 0), ${table}.${c})` : v);
   const upsertTail = !keyCols.length
     ? null
     : setCols.length
-      ? ` ON CONFLICT(${keyCols.join(", ")}) DO UPDATE SET ${setCols.map((c) => `${c} = excluded.${c}`).join(", ")}`
+      ? ` ON CONFLICT(${keyCols.join(", ")}) DO UPDATE SET ${setCols.map((c) => `${c} = ${setTo(c, `excluded.${c}`)}`).join(", ")}`
       : ` ON CONFLICT(${keyCols.join(", ")}) DO NOTHING`;
   let stmts = [];
   let pending = [];
@@ -212,7 +216,7 @@ for (const table of CATALOG_TABLES) {
     const width = priceCols.length + 1;
     const placeholders = chunk.map(() => `(${Array(width).fill("?").join(", ")})`).join(", ");
     const args = chunk.flatMap(({ r }) => [r[key], ...priceCols.map((c) => r[c] ?? null)]);
-    const set = priceCols.map((c, j) => `${c} = v.column${j + 2}`).join(", ");
+    const set = priceCols.map((c, j) => `${c} = ${setTo(c, `v.column${j + 2}`)}`).join(", ");
     stmts.push({ sql: `UPDATE ${table} SET ${set} FROM (VALUES ${placeholders}) AS v WHERE ${table}.${key} = v.column1`, args });
     pending.push(...chunk);
     if (stmts.length >= STMTS_PER_BATCH) await flush();

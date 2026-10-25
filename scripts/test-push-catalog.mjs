@@ -80,6 +80,26 @@ assert.equal(remoteCount(), localCount);
   assert.match(runT("tcg_cards"), /pushing 1 changed of 40 rows \(remote has 40; 1 price-only/, "tcg: a price change goes up alone");
   assert.deepEqual([at("tcg_cards", tcgId).price_usd, at("tcg_cards", tcgId).rid], [123.45, tcg0.rid], "…as a two-column update in place");
 
+  // 10-25: a price the local mirror lacks (blank, or a feed's $0) never replaces prod's (prod's 5am crons
+  // priced it), on either path, and a real local price still replaces prod's.
+  const tcgAt = (id) => {
+    const r = remote.prepare("SELECT name, price_usd, price_usd_foil FROM tcg_cards WHERE id = ?").get(id);
+    return [r.name, r.price_usd, r.price_usd_foil];
+  };
+  remote.exec(`UPDATE tcg_cards SET price_usd_foil = 8.88 WHERE id = '${tcgId}'`); // prod's cron priced the foil
+  mirror.exec(`UPDATE tcg_cards SET price_usd = 0, price_usd_foil = NULL, synced_at = synced_at + 1 WHERE id = '${tcgId}'`);
+  assert.match(runT("tcg_cards"), /pushing 1 changed of 40 rows \(remote has 40; 1 price-only/, "tcg: a blanked local price is a price-only change");
+  assert.deepEqual(tcgAt(tcgId).slice(1), [123.45, 8.88], "…that never blanks prod's prices");
+  mirror.exec(`UPDATE tcg_cards SET name = 'Renamed', synced_at = synced_at + 1 WHERE id = '${tcgId}'`);
+  assert.match(runT("tcg_cards"), /pushing 1 changed of 40 rows \(remote has 40; 0 price-only/, "tcg: a real change with no local price goes up whole");
+  assert.deepEqual(tcgAt(tcgId), ["Renamed", 123.45, 8.88], "…and keeps prod's prices too");
+  mirror.exec(`UPDATE tcg_cards SET price_usd = 4.56, synced_at = synced_at + 1 WHERE id = '${tcgId}'`);
+  assert.match(runT("tcg_cards"), /1 price-only/);
+  assert.deepEqual(tcgAt(tcgId), ["Renamed", 4.56, 8.88], "a real local price still replaces prod's (price-only)");
+  mirror.exec(`UPDATE tcg_cards SET name = 'Renamed again', price_usd_foil = 9.99, synced_at = synced_at + 1 WHERE id = '${tcgId}'`);
+  assert.match(runT("tcg_cards"), /0 price-only/);
+  assert.deepEqual(tcgAt(tcgId), ["Renamed again", 4.56, 9.99], "…and on a whole-row update");
+
   remote.exec(`UPDATE mtg_cards SET price_usd = 7.77 WHERE id = '${mtgId}'`); // prod's daily job priced it
   mirror.exec(`UPDATE mtg_cards SET price_usd = 999, synced_at = synced_at + 1 WHERE id = '${mtgId}'`);
   assert.match(runT("mtg_cards"), /no changed rows \(40 rows, 1 fingerprints relabelled\)/, "mtg: a price-only change is never pushed");
