@@ -14,7 +14,7 @@ import { usdSeries } from "@/lib/server/priceHistory";
 import { heldTrustOrOpen, loadTrustData, judgeFull } from "@/lib/server/priceTrustSite";
 import { cachedList, cachedListSwr } from "@/lib/server/listCache";
 import { getSetting, setSetting } from "@/lib/server/settings";
-import { gameJumps, MOVER_GAMES, sleepers, topMovers, type Mover } from "@/lib/server/social";
+import { gameJumps, MOVER_GAMES, sleepers, topMovers, variantLabel, type Mover } from "@/lib/server/social";
 import { monthlyScans, scanQuota, scanTier, type User } from "@/lib/server/users";
 import { listWishlist } from "@/lib/server/wishlist";
 import { toPics } from "@/lib/pics";
@@ -139,6 +139,16 @@ export interface MailCard {
   before: number | null;
   /** "watching" marks a watchlist card in the movers list. */
   note?: "watching";
+  /** The printing the price is for when it is not the plain card ("Foil", "Reverse Holo"): a foil's price under a bare name reads as the plain card's (10-24 Sunday mail: Judy Hopps cold foil $3.14, the plain card $0.88). */
+  printing?: string;
+}
+
+/** The printing word a mail card carries; "" for the plain card. */
+export function mailPrinting(game: GameId, variant: string | null | undefined): string {
+  if (game === "pokemon") return variantLabel(variant ?? "");
+  if (variant === "foil") return "Foil";
+  if (variant === "etched") return "Foil Etched";
+  return "";
 }
 
 export type CardsVariant = "movers" | "binder" | "five";
@@ -355,7 +365,8 @@ async function moversFor(game: GameId, day: string, opts: { direction?: "up" | "
 }
 
 function moverCard(m: MoverLike, game: GameId): MailCard & { cardId: string } {
-  return { name: m.name, set: m.setName, number: m.number, game, image: m.imageUrl || null, url: "", price: m.to, before: m.from, cardId: m.cardId };
+  const printing = mailPrinting(game, m.variant);
+  return { name: m.name, set: m.setName, number: m.number, game, image: m.imageUrl || null, url: "", price: m.to, before: m.from, cardId: m.cardId, ...(printing ? { printing } : {}) };
 }
 
 /** Three ordinary-looking cards from one game worth $15-$200 that moved up this week: the "worth checking your binder for" list. */
@@ -551,7 +562,10 @@ async function buildWeekFacts(now: number): Promise<WeekFacts> {
   const jumped = jumps.filter((j) => j.pct != null && j.from != null);
   const links = await linksFor(jumped.map((j) => ({ cardId: j.cardId ?? null, game: j.game })));
   const moves: Array<MailCard & { pct: number }> = jumped
-    .map((j) => ({ name: j.name, set: j.setName, number: j.number, game: j.game, image: (j.cardId && links.get(j.cardId)?.image) || j.imageUrl || null, url: (j.cardId && links.get(j.cardId)?.url) || `${SITE_URL}${gamePath(j.game)}`, price: j.price, before: j.from ?? null, pct: j.pct ?? 0 }))
+    .map((j) => {
+      const printing = mailPrinting(j.game, j.variant);
+      return { name: j.name, set: j.setName, number: j.number, game: j.game, image: (j.cardId && links.get(j.cardId)?.image) || j.imageUrl || null, url: (j.cardId && links.get(j.cardId)?.url) || `${SITE_URL}${gamePath(j.game)}`, price: j.price, before: j.from ?? null, pct: j.pct ?? 0, ...(printing ? { printing } : {}) };
+    })
     .sort((a, b) => b.pct - a.pct);
   const jump: WeekFacts["jump"] = moves[0] ?? null;
 

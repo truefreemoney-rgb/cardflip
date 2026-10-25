@@ -161,6 +161,11 @@ check("week body shows the averages its subject names", /HOW EACH GAME MOVED/i.t
 // 10-21: a "Few recent sales" price was the Yu-Gi-Oh! week pick (Amazoness Chain Master Retro Pack $104.29 -> $199.99).
 const young = readFileSync(new URL("../src/lib/server/campaignData.ts", import.meta.url), "utf8").match(/async function youngGameMovers[\s\S]*?\n}\n/)?.[0] ?? "";
 check("young-game movers skip flagged and few-sales prices", /v\.flag \|\| v\.stale\?\.few/.test(young), true);
+// 10-24: the sleeper was Judy Hopps WITW 150's COLD FOIL at $3.14 under a bare name (the plain card sells $0.88).
+const { mailPrinting } = await import(at("lib/server/campaignData.ts"));
+check("mail printing words", [mailPrinting("lorcana", "foil"), mailPrinting("lorcana", "normal"), mailPrinting("mtg", "nonfoil"), mailPrinting("mtg", "etched"), mailPrinting("pokemon", "reverseHolofoil"), mailPrinting("yugioh", "normal")], ["Foil", "", "", "Foil Etched", "Reverse Holo", ""]);
+const foilWeek = renderWeek({ games: [], jump: null, moves: [], set: null, sleeper: { name: "Judy Hopps - Lead Detective", set: "Whispers in the Well", number: "150", game: "lorcana", image: null, url: "u", price: 3.14, before: 2.5, pct: 25.6, printing: "Foil" }, scans: 0, mostScanned: null }, "Chris", "u");
+check("a foil card's row says Foil (text + html)", [foilWeek.text.includes("Judy Hopps - Lead Detective · Whispers in the Well 150 · Foil — $3.14"), foilWeek.html.includes("Whispers in the Well · 150 · Foil · Lorcana")], [true, true]);
 
 // 10-23: clicks were not measurable; every site link but Stop carries utm_source=email + the mail id.
 const stop = "https://cardflip.io/api/digest/unsubscribe?t=abc&x=1";

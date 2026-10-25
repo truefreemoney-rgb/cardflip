@@ -128,7 +128,7 @@ interface Block {
 
 function cardRowText(c: MailCard): string {
   const move = c.before != null && c.before > 0 && c.before !== c.price ? ` (was ${money(c.before)}, ${pct(((c.price - c.before) / c.before) * 100)})` : "";
-  return `${c.name} · ${c.set} ${c.number}${c.note === "watching" ? " · watching" : ""} — ${money(c.price)}${move}`;
+  return `${c.name} · ${c.set} ${c.number}${c.printing ? ` · ${c.printing}` : ""}${c.note === "watching" ? " · watching" : ""} — ${money(c.price)}${move}`;
 }
 
 function cardRowHtml(c: MailCard): string {
@@ -146,7 +146,7 @@ function cardRowHtml(c: MailCard): string {
     <td style="padding:8px 10px 8px 0;vertical-align:middle;width:56px"><a href="${esc(c.url)}">${pic}</a></td>
     <td style="padding:8px 0;vertical-align:middle;border-bottom:1px solid #eee">
       <a href="${esc(c.url)}" style="color:#111;text-decoration:none;font-weight:600">${esc(c.name)}</a>${c.note === "watching" ? ` <span style="color:#6d5dfc;font-size:12px">watching</span>` : ""}<br>
-      <span style="color:#666;font-size:13px">${esc(c.set)} · ${esc(c.number)} · ${esc(GAMES[c.game].label)}</span><br>
+      <span style="color:#666;font-size:13px">${esc(c.set)} · ${esc(c.number)}${c.printing ? ` · ${esc(c.printing)}` : ""} · ${esc(GAMES[c.game].label)}</span><br>
       <span style="font-weight:700">${money(c.price)}</span> ${move}
     </td></tr>`;
 }
