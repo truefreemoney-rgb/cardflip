@@ -23,6 +23,7 @@ import { hasTcgMirror, isTcgGame, searchTcgCardsLocal, tcgCardById } from "@/lib
 import { GAMES, parseGame } from "@/lib/games";
 import { heldPriceEntry, latestUsdPrices } from "@/lib/server/priceHistory";
 import { withPriceFlags } from "@/lib/server/priceTrustSite";
+import { withoutPhantomNormals } from "@/lib/server/phantomNormals";
 import { LIMITS, clientIp } from "@/lib/server/rateLimit";
 import { limitOrRespondShared } from "@/lib/server/rateLimitDb";
 
@@ -57,7 +58,8 @@ async function flagged(cards: PokemonCard[]): Promise<PokemonCard[]> {
     // A cached answer written before a card's picture was filled still says
     // "No image" (10-02, lib/server/cardPictures.ts): pictures first, then flags.
     // The card page's own TCGplayer number before the guard judges it (10-21, enCards.withOwnTcgplayerLines).
-    return await withPriceFlags(await withOwnTcgplayerLines(await fillMissingPictures(cards)));
+    // A cached answer from before 10-24 can still carry a holo-only card's phantom "normal" row (lib/server/phantomNormals.ts).
+    return await withPriceFlags(await withOwnTcgplayerLines(await withoutPhantomNormals(await fillMissingPictures(cards))));
   } catch (err) {
     console.warn("search-card: price guard unavailable", err);
     return cards;

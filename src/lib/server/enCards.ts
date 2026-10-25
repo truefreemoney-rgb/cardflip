@@ -15,6 +15,7 @@ import { addDays, decodePrices, todayUtc } from "@/lib/priceSeries";
 import { formatVariantLabel } from "@/lib/listing";
 import { toPics } from "@/lib/pics";
 import { artVersionPenalty, printedName } from "@/lib/artVersions";
+import { withoutPhantomNormals } from "@/lib/server/phantomNormals";
 
 /**
  * English card identification, served from our own mirror of TCGdex.
@@ -579,7 +580,8 @@ export async function splitFirstEditionPrices(cards: PokemonCard[]): Promise<Pok
     if (prices.length === 0) prices = (await ownSeriesPrices([card.id], "1stEdition%")).get(card.id) ?? [];
     out.push({ ...card, prices });
   }
-  return out;
+  // A holo-only card's TCGplayer "normal" row is a mislabelled holo sale (10-24, lib/server/phantomNormals.ts).
+  return withoutPhantomNormals(out);
 }
 
 /** Latest USD point of each card's own series whose variant matches `like`, as price rows per card. Never a graded slab

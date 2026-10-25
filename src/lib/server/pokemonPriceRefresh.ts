@@ -23,6 +23,7 @@ import {
 import { loadPokemonHandMap } from "@/lib/server/pokemonHandMap";
 import { SOFT_CAP_X } from "@/lib/server/mtgPriceRefresh";
 import { readSealedMap, sealedSeriesUpserts } from "@/lib/server/sealedPrices";
+import { confirmPhantomNormals, dropPhantomNormals, normalBesideHolo, storedNormalBesideHolo } from "@/lib/server/phantomNormals";
 
 /**
  * Daily Pokémon price points from TCGCSV (tcgcsv.com — TCGplayer's prices,
@@ -457,6 +458,8 @@ export async function refreshPokemonPricesFromTcgcsv(day = todayUtc()): Promise<
   // the mislabelled "holofoil" rows earlier runs wrote can be dropped.
   const patternCardVariants = new Map<string, Set<string>>();
   const patternCardsUnsure = new Set<string>();
+  // Cards one product lists as both Normal and Holofoil: TCGdex is asked after the loop whether "normal" exists (phantomNormals.ts).
+  const normalSuspects = new Set<string>();
   for (const gid of groups) {
     let results: { productId: number; marketPrice?: number | null; lowPrice?: number | null; subTypeName?: string | null }[];
     const patternOf = new Map<number, PatternVariant>();
@@ -491,6 +494,7 @@ export async function refreshPokemonPricesFromTcgcsv(day = todayUtc()): Promise<
       }
       for (const cardId of today.unsure) patternCardsUnsure.add(cardId);
     }
+    for (const cardId of normalBesideHolo(results, productToCard, patternOf, stamped)) normalSuspects.add(cardId);
     for (const r of results) {
       if (stamped.has(r.productId)) continue;
       const mapped = productToCard.get(r.productId);
@@ -531,8 +535,16 @@ export async function refreshPokemonPricesFromTcgcsv(day = todayUtc()): Promise<
     upserts.push(...b.upserts);
     backup = { source: "pokemontcg.io", sets: b.sets, setsDone: b.setsDone, setsFailed: b.setsFailed, setsLeft: b.setsLeft, series: b.upserts.length };
   }
+  // A holo-only card's "normal" line is a mislabelled holo sale (10-24, Regice ex EM 98): not written, the stored one dropped.
+  let phantom: { keep: SeriesUpsert[]; deletes: string[] } = { keep: upserts, deletes: [] };
+  try {
+    for (const cardId of storedNormalBesideHolo(existingSeries.keys(), cardProducts)) normalSuspects.add(cardId);
+    phantom = dropPhantomNormals(upserts, await confirmPhantomNormals(normalSuspects, day), existingSeries);
+  } catch (err) {
+    console.warn("phantom normals:", err instanceof Error ? err.message : err);
+  }
   const sealedUpserts = sealedSeriesUpserts("pokemon", day, sealedPrices, sealedMap, existingSeries);
-  await upsertSeriesRows([...upserts, ...sealedUpserts]);
+  await upsertSeriesRows([...phantom.keep, ...sealedUpserts]);
   await upsertListingLows(lows, day).catch((err) => console.warn("listing lows:", err instanceof Error ? err.message : err));
   // Last resort, TCGdex: our catalog's own source carries TCGplayer's market price per card id (the
   // Unseen Forces Unown Collection and a few promos no TCGplayer group lines up with, 10-05). After the
@@ -558,5 +570,8 @@ export async function refreshPokemonPricesFromTcgcsv(day = todayUtc()): Promise<
       .prepare("DELETE FROM price_series WHERE card_id = ? AND source = 'tcgplayer' AND variant = ?")
       .run(cardId, variant);
   }
-  return { groups: groups.length, groupsFailed, seriesTouched: upserts.length + tcgdexSeries, sealedSeries: sealedUpserts.length, day, ...(backup ? { backup } : {}) };
+  for (const cardId of phantom.deletes) {
+    await db.prepare("DELETE FROM price_series WHERE card_id = ? AND source = 'tcgplayer' AND variant = 'normal'").run(cardId);
+  }
+  return { groups: groups.length, groupsFailed, seriesTouched: phantom.keep.length + tcgdexSeries, sealedSeries: sealedUpserts.length, day, ...(backup ? { backup } : {}) };
 }
