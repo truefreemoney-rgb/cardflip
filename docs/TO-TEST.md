@@ -1,11 +1,17 @@
 # To test later
 
+## 10-25 12:50AM ET: push-catalog never replaces a prod price with a blank or $0 (41441745 committed, push HELD; the PC's 2am run uses the working tree = in effect tonight)
+- [x] npm run test:pushcatalog: a local NULL or 0 keeps prod's price on both paths (upsert + price-only UPDATE), a real local price still replaces it; the new checks FAIL on the old script.
+- [x] 12:46am: pushed the 359 tcg_cards rows (348 One Piece pictures + 11 Yu-Gi-Oh!) under the guard; dry run after = 0 rows. All 24 guarded prod prices stood: ygo-714621 $0.62, ygo-714628 $2.90, 22 One Piece starter-deck reprints (local 0, prod $0.03-$0.14; ids in data/push-guard-diff-2026-10-25.txt). 3 reprints took the local optcgapi number: Usopp OP11-003_r1 $1.48 (prod had $0.10), Jaguar.D.Saul OP02-109_r1 $0.39 ($0.06), Nico Robin OP11-009_r1 $0.29 ($0.12).
+- [ ] After the 2am run 10-25: push-catalog line in the Task Scheduler log has no error; node scripts/_row-diff-prod.mjs ygo-714621 ygo-714628 OP11-012_r1 OP13-116_r1 = prod still priced.
+- [ ] After 5:45am: the 3 reprints above = what the cron set; if still $1.48 / $0.39 / $0.29 vs the original printing's cents, TCGplayer-check one (which writer is right is open, LESSONS 10-25 12:50am).
+
 ## 10-25 12:20AM ET: One Piece wrong-printing pictures FIXED on prod (348 rows, data change live now; code e55c9eee committed, push HELD)
 - [x] Local + prod: 348 image_url changed exactly as the guarded dry run (data/op-picture-fix-dry-2026-10-25-guard.jsonl), 0 unexpected (scripts/_op-pic-verify.mjs [--prod]); 348 pictures re-saved with --prod, push-own-pictures 0 left. Backup of all 5,549 rows, local + prod: data/op-picture-fix-backup-2026-10-25.json.
 - [x] Crawl 12:15am: 9 changed card pages (OP13-118_p2/_p3, ST01-012_p3, OP10-065_p1, OP09-004_p6, OP09-093_p4/_p5, OP05-067_p4, OP17-062_p1) show the NEW own picture; home, /cards/one-piece, most-valuable, /scan + 22 set pages: every changed card's picture answers 200 (after the 696 old-name fill). /cards/one-piece/movers 404 = by design (movers are Pokémon + Magic only).
 - [x] Customers' rows (cards / wishlist_items / price_checks image_url): 0 hold an old link of the 348.
 - [ ] After the 2am PC catalog run 10-25 (log in the Task Scheduler output): the images pass logs "picks: by price ~3723, own set ~407" and changes 0 (or a few from price moves); push-catalog sends the 348 rows once (same content as prod).
-- [ ] Prod after 2:30am: ygo-714621 Gagaga Magician - Gagaga Magic $0.62 and ygo-714628 Cyberse Contract Witch $2.90 still priced (the 2am push blanks them unless the push-catalog never-blank guard lands first; the 5-5:45am crons refill them).
+- [ ] Prod after 2:30am: ygo-714621 Gagaga Magician - Gagaga Magic $0.62 and ygo-714628 Cyberse Contract Witch $2.90 still priced (guard landed + pushed 12:46am, see the 12:50AM block above).
 - [ ] Old-name files (data/op-picture-fix-aliases-2026-10-25.json) can stay; delete only after 10-27 when the 2-day caches have rolled over, if storage matters.
 
 ## 10-24 7:38PM ET: PUSHED b599f575..f3ce9447 on Chris "Push + remake" (b7c45dea ja/zh-tagged printings sit out of TCG posts, 4ac2ffa9 Insights Collection Value = market, 80a2c26c Inventory summary spacing, f3ce9447 admin garbled text fixed, docs).

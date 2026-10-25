@@ -4,6 +4,12 @@ Chris (10-14): every support ticket and every social comment is a learning
 experience while the site is new and not fully tested. One entry each: what
 they said, what it taught, what changed, what is still open. Newest first.
 
+## 10-25 ~12:50am ET · the 2am catalog push could blank or zero prod prices (my own check, no ticket)
+- What: scripts/push-catalog.mjs sent a changed tcg_cards row whole, prices included. A card the local sync could not price (NULL) or a feed's $0 overwrote the price prod's 5-5:45am crons had set: blank from 2am until the crons ran, for good where no cron re-prices the row. Tonight's 359-row batch held 24: Yu-Gi-Oh! ygo-714621 $0.62 + ygo-714628 $2.90, and 22 One Piece starter-deck reprints at $0 locally (synced 10-24 2:05am, before the feedPrice fix) vs cents on prod. Caught by diffing the batch against prod column by column BEFORE the push (scripts/_push-diff-prod.mjs).
+- Changed: both write paths write COALESCE(NULLIF(local, 0), prod); test:pushcatalog pins it (41441745). Pushed under it: all 24 stood.
+- Taught: two writers on one price column need a rule for who wins, and one writer's "no price" must never erase the other's price. Diff a prod-writing batch against prod by column before sending it, not just count the rows.
+- Open: the 3 reprints where both writers have a number disagree (Usopp OP11-003_r1: local optcgapi $1.48, prod's cron $0.10 from the original printing); every 2am push of such a row flips it until 5am. Zephyr OP12-046_r1 (ST33, variant "navy", not "reprint") is unpriced on prod: the cron's reprint fallback skips it.
+
 ## 10-24 ~9:30am ET · "99.9% sure i dont own this card but the csv transfer added it" (Chris, Zidane Art Series #49)
 - What: his card was Zidane, Tantalus Thief Art Card (Gold-Stamped Signature) FIN #49. It IS in his TCGplayer export (qty 1), so the import added what TCGplayer had. A full audit of all 1,238 Magic rows (file name + number vs saved) found ONE real swap: TCGplayer 662420 Suki, Kyoshi Captain (Extended Art) TLE 175 x2 came in as Fabled Passage TLE 57 (Scryfall's tcgplayer_id lookup maps that product to the wrong card; the foil product 662366 maps right).
 - Changed: his 2 rows rewritten to Suki TLE 175 nonfoil on his yes (ids a88df7ce, 2725fa82); scripts/_import-tcgplayer-mtg.mjs now sets aside any Scryfall match whose name is not inside TCGplayer's product name (dry run: exactly that 1 set aside); the cached map entry fixed.
