@@ -1,5 +1,11 @@
 # To test later
 
+## 10-25 8:30AM ET: 7am TikTok + Pinterest posted by hand; 2 post-card prices fixed after (data, live)
+- [x] TikTok (sound "Heroic Adventure" Jessie Lomax, 7 tags linked, both checks clean, Everyone) + Pinterest (own title/description, board Pokémon Card Prices, 7 topics) posted ~8:26-8:28am; video as is on Chris's word (Luffy $74.25 / Obelisk $39.44 stale in it).
+- [x] Comments 8:29am: site inbox nothing new; TikTok: replied to aceace1018 ("196" guess on the 10-23 Charizard Guess post); 100gojo001 emoji = no reply.
+- [x] FIXED (_fix-price-tcg + keep, pages verified 8:30am): Luffy P-055_p3 Full Art 74.25 -> 48.99 (TCGplayer NM 45.95-48.99 Sep 28-Oct 19), Obelisk KICO-EN064 UPR ygo-243518-1st 39.44 -> 27.99 (TCGplayer NM 27.99 x2 Oct). Secret Pharaoh's 243519 $158.17 stands (NM 131-136, +17%).
+- [ ] After the 10-26 5am crons: both still print the checked price.
+
 ## 10-25 1:50AM ET: eBay reads 16 of 20 + 7 prod price fixes (data, live now; details docs/ebay-batch-2026-10-23.txt + docs/price-sim-2026-10-24/ebay-reads.txt bottom)
 - [x] FIXED on prod (_fix-price-tcg + keep): Law OP05-069_p2 manga 1003.19 -> 1700.87, Litten 2017sm-3 16.75 -> 4.49, Tiana WS 205 5.56 -> 7.99, Raikou col1-SL9 -> 237.50, Blastoise ecard1-4 rev 499.95 -> 260, Geodude lc-77 rev -> 145.25, Rayquaza C pl3-8 399.50 -> 140. KEPT: Hamon ygo-58680-1st 549.98 (thin), Vayu ygo-58474-1st 375. Hand list 48 -> 42.
 - [x] 1:50am: all 7 card pages on cardflip.io print the new price, old one gone, no "looks off" (cache MISS after the keeps rebuilt them).
