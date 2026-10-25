@@ -597,7 +597,9 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
   // Nothing owed, nothing built (10-23): the GitHub backstops land minutes to hours after Vercel's own ping, and with
   // every connected site already holding every due slot they still built the whole day; a slow Turso turned two of
   // them (11:46am, 1:07pm) into 285 s "publisher crashed" mails while both slots had posted.
-  if (!force && !opts.dry) {
+  // 10-24: Post now (force, no slot) obeys this too. It used to re-post the latest slot when nothing was owed, and a
+  // 7:50pm Post now put a second 7pm post on all five sites ("dont let that happen again"). Only a NAMED slot re-posts.
+  if (!(force && opts.slot) && !opts.dry) {
     const owes = async (s: SocialSite) => {
       for (const d of due) if ((await getSetting(slotKey(s, d))) !== etDay) return true;
       return false;
@@ -766,13 +768,12 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
 
   async function postSite(site: SocialSite): Promise<SiteReport> {
     // What this site still owes today. A named slot with force re-posts it;
-    // Post now (force, no slot) re-does the latest due slot when nothing is owed.
-    let todo: typeof plan = [];
+    // Post now (force, no slot) posts only what is owed, never a slot that already went out (10-24).
+    const todo: typeof plan = [];
     for (const p of plan) {
       const done = (await getSetting(slotKey(site, p.slot))) === etDay;
       if (!done || (force && opts.slot)) todo.push(p);
     }
-    if (todo.length === 0 && force) todo = plan.slice(-1);
     if (todo.length === 0) {
       const reason = plan.some((p) => p.slot === slot) ? `${slot} slot already posted today` : `nothing to post for the ${slot} slot`;
       return { site: site.id, label: site.label, status: "skipped", reason, posts: [] };

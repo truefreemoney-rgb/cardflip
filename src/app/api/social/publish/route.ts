@@ -11,7 +11,8 @@ import { refreshMetaTokens } from "@/lib/server/sites/meta";
  * Social autopilot publisher (docs/SOCIAL-AUTOPILOT.md §1).
  *   GET|POST /api/social/publish (Bearer <CRON_SECRET>)       → posts if it is a post day and not yet posted
  *   ...&slot=morning|midday|evening                           → that slot (default: the slot for the current Eastern hour)
- *   ...&force=1                                              → posts now (re-posts if the slot already went out)
+ *   ...&force=1                                              → posts what is still owed now, even outside the windows
+ *   ...&force=1&slot=…                                       → re-posts that slot even if it already went out (10-24: never without a slot)
  *   ...&dry=1                                                → says what would go out, posts nothing
  *   ...&day=YYYY-MM-DD                                       → another day's drafts
  * The daily Pokémon cron calls publishSocial() itself; this route is the

@@ -164,7 +164,11 @@ r = await publishSocial({ day: THU, now: clock(23), origin: "http://x", sites: [
 check("7pm: no all-games picture, one drop only → falls back and still posts", [r.slot, r.sites[0].status, r.sites[0].reason ?? null, bsky.posts.length], ["evening", "posted", null, 3]);
 check("…with the day's set spotlight (every other kind already went out or has no draft)", bsky.posts[2].alt.split(":")[0], "Set spotlight");
 r = await publishSocial({ day: THU, now: clock(15), origin: "http://x", sites: [bsky], fetchImage, force: true });
-check("Post now at 11am (only morning due, already done) → re-does morning", [r.slot, r.sites[0].status, r.sites[0].reason ?? null, bsky.posts.length], ["morning", "posted", null, 4]);
+// 10-24: Post now at 7:50pm re-posted the 7pm that went out at 7:05 on all five sites ("dont let that happen again").
+check("Post now at 11am (only morning due, already done) → posts nothing again", [r.slot, r.sites[0].status, r.sites[0].reason ?? null, bsky.posts.length], ["morning", "skipped", "morning slot already posted today", 3]);
+check("…and builds nothing (no image fetched)", fetched.length, 3);
+r = await publishSocial({ day: THU, now: clock(15), origin: "http://x", sites: [bsky], fetchImage, force: true, slot: "morning" });
+check("a NAMED slot with force still re-posts it (the per-site repair link)", [r.slot, r.sites[0].status, bsky.posts.length], ["morning", "posted", 4]);
 check("one image fetch per posting run", fetched.length, 4);
 
 const late = fakeSite("late");

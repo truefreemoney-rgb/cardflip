@@ -31,9 +31,11 @@ export default function SocialSites({ sites, day, slotNow, notice, morningLabel 
   const [note, setNote] = useState<string | null>(notice ?? null);
   const anyConnected = sites.some((s) => s.connected);
 
-  /** No site = every connected site, next unposted slot. A site = that site only, its 7am post, re-posted if it already went out. */
+  /** No site = every connected site, only what is still owed (never a slot that already went out, 10-24). A site = that site only, its 7am post, re-posted if it already went out. */
   async function postNow(site?: SiteView) {
-    const ask = site ? `Post today's ${morningLabel} to ${site.label} only, now? (Re-posts if it already went out.)` : `Post the next slot's picture to every connected site now?`;
+    const ask = site
+      ? `Post today's ${morningLabel} to ${site.label} only, now? (Re-posts if it already went out.)`
+      : `Post whatever is still owed today to every connected site now? A slot that already went out is not posted again.`;
     // The in-app dialog: native confirm() answers false silently in an installed app (review 10-19 admin #7).
     if (!(await confirmAction({ message: ask, confirmLabel: "Post now" }))) return;
     setBusy(true);

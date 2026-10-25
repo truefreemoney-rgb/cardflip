@@ -2,7 +2,7 @@
 
 ## 10-24 7:38PM ET: PUSHED b599f575..f3ce9447 on Chris "Push + remake" (b7c45dea ja/zh-tagged printings sit out of TCG posts, 4ac2ffa9 Insights Collection Value = market, 80a2c26c Inventory summary spacing, f3ce9447 admin garbled text fixed, docs).
 - [x] CI 40143516519 + 40143514806 GREEN; Production smoke 40143564677 GREEN on f3ce9447 (deploy live).
-- [x] 7pm remake (run 40143522865): Dumbo Fabled #45 $36.24 (TCG market $36.61) vs Angel Winterspell #191 $41.95 (TCG NM 37.49-45); the Japanese Mickey #25ja no longer picked. Posted on the 5 sites (Post now 7:50pm), TikTok (sound Magical Fairy Tale, Saifonbria) and Pinterest by hand.
+- [x] 7pm remake (run 40143522865): Dumbo Fabled #45 $36.24 (TCG market $36.61) vs Angel Winterspell #191 $41.95 (TCG NM 37.49-45); the Japanese Mickey #25ja no longer picked. MISTAKE: the 7:05pm cron had already posted Angel vs Mickey on the 5 sites and my Post now (7:50pm) added Dumbo vs Angel as a second post; Chris deleting the 5 Mickey posts by hand (LESSONS 10-24 ~8:15pm). TikTok (sound Magical Fairy Tale, Saifonbria) and Pinterest by hand.
 - [x] /admin Overview on cardflip.io: whole page scanned, 0 garbled sequences; "276 · 1,846 / Pokémon · Magic" prints right.
 - [x] /admin/system on cardflip.io: page scanned clean; the one hit is the deploy note quoting f3ce9447's own commit title (gone with the next deploy).
 - [ ] Insights on cardflip.io (Chris's account): Collection Value = the Inventory total (~$2,144.78), not the eBay asking total.
