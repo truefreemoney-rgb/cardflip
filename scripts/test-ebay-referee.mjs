@@ -43,6 +43,13 @@ console.log("Magic: special printings");
   const pz = refereeMatcher({ game: "pokemon", cardId: "sm9-184", variant: "holofoil", name: "Pikachu & Zekrom GX", number: "184", setName: "Team Up" });
   check("fakes: 'Collectable Pokemon ... Rainbow' and 'Fan Art' are not the card", [pz("Collectable Pokemon Pikachu & Zekrom GX 184/181 Team Up Secret Rare Rainbow"), pz("Nintendo Pokemon Pikachu & Zekrom GX Team Up Gold Foil Fan Art Card 184/181")], [false, false]);
   check("... a real one still matches", pz("Pikachu & Zekrom GX (Secret) 184/181 Sm-Team Up Holo - NM/M"));
+  // 10-25 (TASKS C12): the Pokémon Center copy of a promo reads only its own asks, the plain promo never them.
+  const snorlax = { game: "pokemon", cardId: "svp-051", name: "Snorlax", number: "051", setName: "SV Black Star Promos" };
+  const snorlaxTitles = ["Snorlax #051 Pokemon Center Exclusive Stamp SV Black Star Promo NM", "Pokemon Snorlax #051 SV Black Star Promo Holo NM"];
+  check("Pokémon Center Snorlax reads only the Pokémon Center copy", snorlaxTitles.map(refereeMatcher({ ...snorlax, variant: "pokemonCenterExclusive" })), [true, false]);
+  check("... the plain promo never reads it", snorlaxTitles.map(refereeMatcher({ ...snorlax, variant: "holofoil" })), [false, true]);
+  check("... and the search names it", refereeQueries({ ...snorlax, variant: "pokemonCenterExclusive" }), ["Snorlax 051 SV Black Star Promos pokemon center", "Snorlax SV Black Star Promos pokemon center"]);
+  check("the trainer card named Pokémon Center still reads its own titles", refereeMatcher({ game: "pokemon", cardId: "base1-85", variant: "normal", name: "Pokémon Center", number: "85", setName: "Base", setTotal: 102 })("Pokémon Center 85/102 Base Set Trainer NM"));
 
   // 10-18 hand check: treatments the plain printing does not have must be named, or the listing carries the number.
   const spidey = refereeMatcher({ game: "mtg", cardId: "sp", variant: "foil", name: "Spectacular Spider-Man", number: "238", setName: "Marvel's Spider-Man", setCode: "spm", promoTypes: "textured,universesbeyond,boosterfun", finishes: "foil", borderColor: "borderless" });

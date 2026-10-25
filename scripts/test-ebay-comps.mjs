@@ -224,6 +224,13 @@ for (const [title, variant, want] of [
   ["Pikachu 179/131 Prismatic Evolutions NM", null, true],
 ]) check(`${variant ?? "any"}: ${title}`, isComparable(title, pika, null, null, variant), want);
 check("the Poké Ball trainer card is not a pattern", printingMatches("Poke Ball 185/198 Scarlet & Violet NM", "normal", pika), true);
+// 10-25 (TASKS C12): the Pokémon Center copy of a promo and the plain promo never price each other.
+const snorlax = { ...card, id: "svp-051", name: "Snorlax", setName: "SV Black Star Promos", number: "051", game: "pokemon" };
+check("words: Pokémon Center copy", printingWords("pokemonCenterExclusive", snorlax), "pokemon center");
+check("Pokémon Center copy: its own titles only", ["Snorlax SVP 051 Pokemon Center Exclusive Stamp NM", "Snorlax SVP 051 Pokémon Centre stamp", "Snorlax SVP 051 Promo Holo NM"].map((t) => printingMatches(t, "pokemonCenterExclusive", snorlax)).join(), "true,true,false");
+check("plain promo: never the Pokémon Center copy", ["Snorlax SVP 051 Pokemon Center Exclusive Stamp NM", "Snorlax SVP 051 Promo Holo NM"].map((t) => printingMatches(t, "holofoil", snorlax)).join(), "false,true");
+check("the trainer card named Pokémon Center keeps its own titles", printingMatches("Pokemon Center 85/102 Base Set NM", "normal", { game: "pokemon", name: "Pokémon Center" }), true);
+check("the Pokémon Center printing is a known one", knownPrintingVariant("pokemonCenterExclusive"), "pokemonCenterExclusive");
 const bolt = { id: "m3c-1", name: "Lightning Bolt", englishName: null, setName: "Modern Horizons 3 Commander", setCode: "m3c", number: "1", game: "mtg", prices: [] };
 for (const [title, variant, want] of [
   ["Lightning Bolt M3C Foil NM", "foil", true],

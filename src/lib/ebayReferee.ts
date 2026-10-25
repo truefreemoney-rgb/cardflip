@@ -242,6 +242,9 @@ const KNOWN_PRINTINGS: Partial<Record<GameId, Record<string, RegExp | null>>> = 
 };
 /** Sets whose cards are tournament prizes or one-offs: no liquid market of the same printing to read (a $50,000 YCS prize card). */
 const PRIZE_SET = /prize|championship|tournament|judge|challenge|participation|staff|trophy/i;
+/** Pokémon's Pokémon Center Exclusive printing (lib/tcgcsv.ts PatternVariant, TASKS C12) and the words that name it in a title. */
+const POKEMON_CENTER_VARIANT = "pokemonCenterExclusive";
+const POKEMON_CENTER_WORDS = /pok[eé]mon\s*cent(er|re)/;
 
 /** Can the referee read this printing at all? (Magic and Pokemon: always; their matchers carry the printing in the card's own fields.) */
 export function refereeable(c: RefereeCard): boolean {
@@ -268,8 +271,11 @@ export function refereeQueries(c: RefereeCard): [string, string] {
   switch (c.game) {
     case "mtg":
       return [clean(`${frontName(c.name)} ${c.setName}`), clean(`${frontName(c.name)} mtg ${foil ? "foil" : ""}`)];
-    case "pokemon":
-      return [clean(`${c.name} ${c.number} ${c.setName}`), clean(`${c.name} ${c.setName} pokemon`)];
+    case "pokemon": {
+      // A Pokémon Center copy is a few listings among the plain promo's many: the search names it (TASKS C12).
+      const center = c.variant === POKEMON_CENTER_VARIANT ? "pokemon center" : "";
+      return [clean(`${c.name} ${c.number} ${c.setName} ${center}`), clean(`${c.name} ${c.setName} ${center || "pokemon"}`)];
+    }
     case "yugioh":
       return [clean(`${c.number} ${c.name}`), clean(`${c.name} ${c.number.replace(/-EN0?/i, " ")}`)];
     case "onepiece":
@@ -356,7 +362,11 @@ function pokemonPrinting(c: RefereeCard, t: string): boolean {
   if ((c.variant === "reverseHolofoil") !== reverse) return false;
   const first = c.variant.startsWith("1stEdition") || !!c.firstEdition;
   if (first !== /\b(1st|first)\s*(edition|ed)\b/.test(t)) return false;
-  if (/\bstamp(ed)?\b|prerelease|staff|world championship|\bwc\b/.test(t)) return false;
+  // The Pokémon Center copy (a stamped SV / ME promo, TASKS C12) and the plain promo never read each other's asks; the
+  // trainer card named "Pokémon Center" is neither.
+  const center = c.variant === POKEMON_CENTER_VARIANT;
+  if (center !== (POKEMON_CENTER_WORDS.test(t) && !POKEMON_CENTER_WORDS.test(c.name.toLowerCase()))) return false;
+  if (/prerelease|staff|world championship|\bwc\b/.test(t) || (!center && /\bstamp(ed)?\b/.test(t))) return false;
   if (/holo/i.test(c.variant) && /non[-\s]?holo|regular|deck exclusive/.test(t)) return false;
   // "Gold foil" Pokemon cards are metal novelty fakes (a Magic or One Piece "gold" printing is real, so this is Pokemon only).
   if (/gold\s*foil|gold\s*metal/.test(t)) return false;

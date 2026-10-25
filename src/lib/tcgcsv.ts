@@ -294,6 +294,10 @@ export function mapKitProducts(products: TcgProduct[], halves: { tag: string; ca
  * 10-17 (Chris, asked since 09-03: "they all have different prices"): Ascended Heroes gives every card TWO pattern
  * reverses, a theme ball "(Friend Ball)" / "(Poke Ball)" (no "Pattern") / "(Team Rocket)" and "(Energy Symbol
  * Pattern)"; both had been read as one plain reverse holo. scripts/_pattern-scan.mjs lists every such product.
+ * 10-25 (TASKS C12, Chris's own-price rule): a Pokémon Center Exclusive copy of an SV / ME promo ("Snorlax - 051
+ * (Pokemon Center Exclusive)", "Flutter Mane - 097 (Pokemon Center)") is its own printing the same way, at 6-25x the
+ * plain card (26 promos: Snorlax $266.78 vs $16.82, Wobbuffet $96.41 vs $3.87). Not a pattern, but the same shape: a
+ * second product on one card whose name says which printing it is.
  */
 export type PatternVariant =
   | "pokeBallPattern"
@@ -303,7 +307,11 @@ export type PatternVariant =
   | "duskBallPattern"
   | "quickBallPattern"
   | "teamRocketPattern"
-  | "energySymbolPattern";
+  | "energySymbolPattern"
+  | "pokemonCenterExclusive";
+
+/** A Pokémon Center Exclusive product: "(Pokemon Center Exclusive)", "(Pokémon Center Exclusive)", "(Pokemon Center)". */
+const POKEMON_CENTER_PRODUCT = /\(\s*pok[eé]mon\s+center(\s+exclusive)?\s*\)/i;
 
 export function tcgplayerProductPattern(name: string | null | undefined): PatternVariant | null {
   if (!name) return null;
@@ -313,6 +321,7 @@ export function tcgplayerProductPattern(name: string | null | undefined): Patter
   if (ball) return `${ball[1].toLowerCase()}BallPattern` as PatternVariant;
   if (/\(team rocket(?:[\s-]*pattern)?\)/i.test(name)) return "teamRocketPattern";
   if (/energy[\s-]*symbol[\s-]*pattern/i.test(name)) return "energySymbolPattern";
+  if (POKEMON_CENTER_PRODUCT.test(name)) return "pokemonCenterExclusive";
   return null;
 }
 
@@ -321,12 +330,13 @@ export function tcgplayerProductPattern(name: string | null | undefined): Patter
  * stamps, Worlds placement stamps ("[Champion]", "[Finalist]", "[Top 32]", "[Participation]"). Our catalog has the
  * plain card only, and both products map to it, so whichever came first in the group priced the card: Entei SM219
  * showed the Staff stamp's $205 instead of the plain promo's $22 for five months, 14 more SM/SWSH prerelease promos
- * the same way (10-22). Pokémon Center Exclusive copies too (10-25): Eevee SVP 173 showed the exclusive's $75.82
- * beside the plain card's $9.13, Charcadet MEP 022 $31.34 beside $1.94. A stamped product never prices a plain card.
+ * the same way (10-22). A stamped product never prices a plain card. Pokémon Center Exclusive copies were stamps here
+ * for a day (10-25, Eevee SVP 173 showed the exclusive's $75.82 beside the plain card's $9.13) and are their own
+ * printing since (tcgplayerProductPattern "pokemonCenterExclusive"): they still never price the plain card.
  */
 export function tcgplayerProductStamp(name: string | null | undefined): boolean {
   if (!name) return false;
-  return /\[\s*(staff|champion|finalist|semi[\s-]*finalist|quarter[\s-]*finalist|top[\s-]*(16|32|sixteen|thirty[\s-]*two)|participation)\s*\]|\(\s*staff\s*\)|\(prerelease\s*\[staff\]|\(\s*pok[eé]mon\s+center(\s+exclusive)?\s*\)/i.test(name);
+  return /\[\s*(staff|champion|finalist|semi[\s-]*finalist|quarter[\s-]*finalist|top[\s-]*(16|32|sixteen|thirty[\s-]*two)|participation)\s*\]|\(\s*staff\s*\)|\(prerelease\s*\[staff\]/i.test(name);
 }
 
 /** TCGplayer subTypeName → pokemontcg.io's price variant key ("Reverse Holofoil" → "reverseHolofoil"). */

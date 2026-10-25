@@ -113,6 +113,18 @@ console.log("a stamped product vouches for nothing; a card only stamps name is l
     [{ cardId: "mep-002", variant: "holofoil" }]);
 }
 
+console.log("a Pokémon Center copy is its own line beside the plain promo's holofoil (10-25, TASKS C12)");
+{
+  // svp-051 Snorlax: plain product 20 + "Snorlax - 051 (Pokemon Center Exclusive)" product 21, both filed as "Holofoil".
+  const p2c = new Map([[20, "svp-051"], [21, "svp-051"]]);
+  const cp = new Map([["svp-051", 2]]);
+  const pattern = new Map([[21, "pokemonCenterExclusive"]]);
+  const results = [{ productId: 20, subTypeName: "Holofoil" }, { productId: 21, subTypeName: "Holofoil" }];
+  const { seen, unsure } = patternVariantsSeen(results, [20, 21], pattern, p2c, cp, new Set());
+  check("both lines are seen", sorted(seen), [["svp-051", ["holofoil", "pokemonCenterExclusive"]]]);
+  check("nothing of the card is deleted", patternCleanupDeletes(seen, unsure, ["svp-051|holofoil", "svp-051|pokemonCenterExclusive"]), []);
+}
+
 if (failures > 0) {
   console.error(`\n${failures} failure(s)`);
   process.exit(1);

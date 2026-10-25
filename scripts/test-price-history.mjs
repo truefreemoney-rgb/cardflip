@@ -93,8 +93,11 @@ check("the Poke Ball TRAINER card is not a pattern", [tcgplayerProductPattern("P
 check("stamped promo products", ["Entei - SM219 (Prerelease) [Staff]", "Champions Festival - BW95 (Worlds 13) [Champion]", "Tropical Beach - BW28 (Worlds 11) [Top 32]", "Tropical Tidal Wave - HGSS18 (Worlds 10) [Participation]", "Chesnaught - XY68 (Prerelease [Staff]", "Inteleon - 002 [Staff]"].map(tcgplayerProductStamp), [true, true, true, true, true, true]);
 check("plain promos and prereleases are not stamps", ["Entei - SM219", "Dragalge - XY10 (Prerelease)", "Champions Festival - BW95 (Worlds 13)", "Pikachu (1) (Misprint)", "Staff Clerk - 089/100"].map(tcgplayerProductStamp), [false, false, false, false, false]);
 // 10-25: a Pokémon Center Exclusive copy never prices the plain card (Eevee SVP 173 $75.82 vs $9.13, Charcadet MEP 022 $31.34 vs $1.94).
-check("Pokémon Center Exclusive copies are stamps", ["Eevee - 173 (Pokemon Center Exclusive)", "Charcadet - 022 (Pokemon Center Exclusive)"].map(tcgplayerProductStamp), [true, true]);
-check("the plain card and a Pokemon Center trainer card are not", ["Eevee - 173", "Pokemon Center Lady - 185/202"].map(tcgplayerProductStamp), [false, false]);
+// TASKS C12 (same day): the exclusive copy is its own printing with its own price (Snorlax SVP 051 $266.78 vs $16.82).
+const centerCopies = ["Eevee - 173 (Pokemon Center Exclusive)", "Magneton - 159 (Pokémon Center Exclusive)", "Flutter Mane - 097 (Pokemon Center)", "Team Rocket's Wobbuffet (Pokemon Center Exclusive)"];
+check("Pokémon Center copies are their own printing", centerCopies.map(tcgplayerProductPattern), centerCopies.map(() => "pokemonCenterExclusive"));
+check("... not stamps (a stamp is skipped, these are priced)", centerCopies.map(tcgplayerProductStamp), centerCopies.map(() => false));
+check("the plain card and the Pokemon Center trainer cards are neither", ["Eevee - 173", "Pokemon Center Lady - 185/202", "Pokemon Center - 85/102"].map((n) => [tcgplayerProductPattern(n), tcgplayerProductStamp(n)]), [[null, false], [null, false], [null, false]]);
 check("null name", tcgplayerProductPattern(null), null);
 
 // 10-05: the 30th Celebration sets sat priceless. Subset shares the parent code + date; Classic Collection prints original numbers.

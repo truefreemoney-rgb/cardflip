@@ -264,6 +264,7 @@ const POKEMON_VARIANT_LABEL: Record<string, string> = {
   quickBallPattern: "Quick Ball Pattern",
   teamRocketPattern: "Team Rocket Pattern",
   energySymbolPattern: "Energy Symbol Pattern",
+  pokemonCenterExclusive: "Pokémon Center Exclusive",
 };
 
 export function formatVariantLabel(variant: string): string {

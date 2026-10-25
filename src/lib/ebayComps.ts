@@ -50,9 +50,11 @@ const ballWord = (ball: string): RegExp => BALL_WORD[ball] ?? new RegExp(`${ball
 /** A title naming some ball PATTERN (not the "Poké Ball" trainer card itself). */
 const ANY_BALL_PATTERN = /(pok[eé]|master|dusk|friend|love|quick)\s*ball\s*(pattern|holo|foil|reverse|stamp|mirror)/i;
 const MTG_NONFOIL_WORD = /non[-\s]?foil|regular/i;
+/** A title naming a Pokémon Center copy (TASKS C12, 10-25: the stamped SV / ME promo at 6-25x the plain card). */
+const POKEMON_CENTER_TITLE = /pok[eé]mon\s*cent(er|re)/i;
 
 /** The printings the comps know by name; anything else (a client's made-up string) is "any printing", so it cannot mint cache keys. */
-const KNOWN_PRINTING = /^(normal|holofoil|reverseHolofoil|1stEditionHolofoil|1stEditionNormal|unlimitedHolofoil|nonfoil|foil|etched|[a-z]+BallPattern)$/;
+const KNOWN_PRINTING = /^(normal|holofoil|reverseHolofoil|1stEditionHolofoil|1stEditionNormal|unlimitedHolofoil|nonfoil|foil|etched|[a-z]+BallPattern|pokemonCenterExclusive)$/;
 export function knownPrintingVariant(variant: unknown): string | null {
   return typeof variant === "string" && KNOWN_PRINTING.test(variant) ? variant : null;
 }
@@ -63,6 +65,7 @@ export function printingWords(variant: string | null | undefined, card: Pick<Pok
   const game = gameOf(card as PokemonCard);
   if (game === "pokemon") {
     if (variant === "reverseHolofoil") return "reverse holo";
+    if (variant === "pokemonCenterExclusive") return "pokemon center";
     const ball = POKEMON_BALL.exec(variant)?.[1];
     return ball ? `${ball} ball` : "";
   }
@@ -71,11 +74,14 @@ export function printingWords(variant: string | null | undefined, card: Pick<Pok
 }
 
 /** Does this title describe the printing being priced? True when the printing is unknown or has no words of its own. */
-export function printingMatches(title: string, variant: string | null | undefined, card: Pick<PokemonCard, "game">): boolean {
+export function printingMatches(title: string, variant: string | null | undefined, card: Pick<PokemonCard, "game"> & Partial<Pick<PokemonCard, "name">>): boolean {
   if (!variant) return true;
   const game = gameOf(card as PokemonCard);
   if (game === "pokemon") {
     if ((variant === "reverseHolofoil") !== /reverse/i.test(title)) return false;
+    // The Pokémon Center copy and the plain promo never price each other (the trainer card named "Pokémon Center" is neither).
+    const centerCopy = POKEMON_CENTER_TITLE.test(title) && !POKEMON_CENTER_TITLE.test(card.name ?? "");
+    if ((variant === "pokemonCenterExclusive") !== centerCopy) return false;
     const ball = POKEMON_BALL.exec(variant)?.[1];
     if (ball) return ballWord(ball).test(title);
     return !ANY_BALL_PATTERN.test(title);
