@@ -1,5 +1,10 @@
 # To test later
 
+## 10-25 7:53PM ET: 7pm hand posts DONE (Then vs Now Greninja XY24, $48.82 May -> $138 today; card "Looks right" vs TCGplayer $134.87 earlier today)
+- [x] TikTok posted 7:50pm (Chris pressed Post): Studio Posts = Everyone; caption + 7 linked tags; sound "New Bark Town" The Greatest Bits, 1:00 (search "pokemon new bark town", 5th row; one AudioClip__root after reopening the editor); default cover = Greninja May $48.82 / Today $138; both checks "No issues found".
+- [x] Pinterest published ~7:52pm: own title "Pokémon then vs now: Greninja XY24 promo, $48.82 in May to $138 today", pack description (312 chars, 7 tags), link cardflip.io, board Pokémon Card Prices, 7 topics via the JS loop first try.
+- [x] Comments 7:53pm: /admin/social/posts Refresh = 170 posts read, 0 new comments (Needs You 12 all old); TikTok Studio comments newest 2d ago, already answered. /admin/social TikTok tracker: all 3 posted today.
+
 ## 10-25 6:36PM ET: Sunday week mail SENT (read-only check, prod email_sends + /admin/emails preview)
 - [x] Preview at 6:15pm (after the 6:00pm push) = the hand-checked lineup: subject "This week in cards: UFOroid Fighter +55%"; UFOroid Fighter CRV-EN034 $76.00 (+55%), The Sword of Shan-Yu RoJ 219 Foil $45.36 (+16%), Finger Pistol EB01-051 $13.93 (+11%), sleeper Judy Hopps WW 150 Foil $3.14 (+26%); set to watch Fabled.
 - [x] email_sends: week = 32 sent to 32 people at 6:30:35pm, 0 errors, 0 duplicates, no other campaign in the window, 32 claims; due next 0 at 6:36pm, preview unchanged (fresh facts). Past sends: 10-18 22, 10-11 11.
