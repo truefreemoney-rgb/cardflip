@@ -1,5 +1,9 @@
 # To test later
 
+## 10-25 6:36PM ET: Sunday week mail SENT (read-only check, prod email_sends + /admin/emails preview)
+- [x] Preview at 6:15pm (after the 6:00pm push) = the hand-checked lineup: subject "This week in cards: UFOroid Fighter +55%"; UFOroid Fighter CRV-EN034 $76.00 (+55%), The Sword of Shan-Yu RoJ 219 Foil $45.36 (+16%), Finger Pistol EB01-051 $13.93 (+11%), sleeper Judy Hopps WW 150 Foil $3.14 (+26%); set to watch Fabled.
+- [x] email_sends: week = 32 sent to 32 people at 6:30:35pm, 0 errors, 0 duplicates, no other campaign in the window, 32 claims; due next 0 at 6:36pm, preview unchanged (fresh facts). Past sends: 10-18 22, 10-11 11.
+
 ## 10-25 6:00PM ET: PUSHED 3c5f6b3b to main on Chris "go ahead and do the bulk push" (52b058a8 One Piece titles, 698661f0 H1 number, 7b288d49 One Piece picker labels, a095a82e Pokémon Center copies off the plain promo, 647d3b45 no cap-pause weekly moves in posts, ee807416 Pokémon Center Exclusive lines, 3c5f6b3b printing rows A). Pushed by sha: the docs commits on top (d65cdc40, 6a5e8337) would have made Vercel skip the build.
 - [x] Deploy: Vercel dpl_8fH4Ti13d3Y3bFP262WFD4sib2ZK READY for 3c5f6b3b (6:04pm check); Production smoke 40238246690 (deployment_status, 3c5f6b3b) GREEN; CI main 40238133699 + vercel-migration 40238133550 GREEN.
 - [x] 52b058a8 (prod fetch 6:05pm): "Hody Jones OP06-020 Special price: $534.99" (was "Spr"), "Lucky.Roux OP09-015 Treasure Rare price: $17.51" (was "Tr"), "Monkey.D.Luffy OP15-119 Adventure on Kami's Island price" (no "Op15 119"; cardTitle keeps the set name over the price past 60 characters, as on every long title; the page and description show $12.01).
@@ -52,7 +56,7 @@
 - [ ] Code only: cardflip.io looks the same until the One Piece rows go in (Turso has no tcg_product_id column yet, so the 5am refresh prices no tied rows and the scanner sees no stamped twins).
 - [ ] One Piece rows go in only after Chris's yes on phone-width shots of the new rows on a local copy (Printing picker, set page, promos page, a deck set page); the data block gets its own entry then.
 - [ ] The three HELD lines in the 10-24 7:38PM block now apply (1c2cb41a Post now dry test after a slot posts, test:mojibake on the first CI run of this push, phantom normals after the 10-26 Pokémon nightly write).
-- [ ] b22b5fd5: the 6:30pm week mail (email_sends / preview): a foil card's row says "Foil" (Judy Hopps WW 150 cold foil if it is still in the lineup).
+- [x] b22b5fd5: the 6:30pm week mail (email_sends / preview): a foil card's row says "Foil" (Judy Hopps WW 150 cold foil if it is still in the lineup). 10-25 6:36pm: sent with "Judy Hopps - Lead Detective · Whispers in the Well 150 · Foil" and "The Sword of Shan-Yu · Reign of Jafar 219 · Foil".
 - [ ] 3cdf8310: /admin/prices hand list: a 1st Edition Yu-Gi-Oh! row says "1st Edition".
 
 ## 10-25 9:01AM ET: Sunday digest hand check ("This week in cards", sends 6:30pm ET)
