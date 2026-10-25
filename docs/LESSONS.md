@@ -4,6 +4,12 @@ Chris (10-14): every support ticket and every social comment is a learning
 experience while the site is new and not fully tested. One entry each: what
 they said, what it taught, what changed, what is still open. Newest first.
 
+## 10-25 8:39am ET · Chris: "what was this giant spike frm" (Vercel Firewall chart, 10-24 7-10:30pm)
+- What: PerplexityBot (real: its published AWS IPs, two JA4s) walked ~62K card pages + pictures in 3.5 h, up to ~360 a minute. Allowed by the 10-19 crawler rule (search assistants send visitors); bot watch skips it by design (Amazon ASN alert-only, ~12 IPs). Chris spotted it on the chart before I did, again (10-21: "you should be catching these issues sooner").
+- Changed (Chris "put a rate limit on it"): firewall rule "Crawlers: PerplexityBot 60/min" = 30/min per JA4, live v50 (422eb6e7). Found doing it: the 10-21 OAI-SearchBot cap answered 403 (deny) although its note said 429; a 403 tells a search crawler the page is forbidden. Both caps now answer 429. Tested at ~5 req/s: 30 then 429, normal browsers 200.
+- Taught: an allowed crawler can spike the bill as hard as a scraper; the by-hand traffic query at each comment check covers allowed bots too, not only fake browsers. Test a firewall action by its real answer code, not by the rule's name.
+- Open: 10-26 billing line (scripts/_vercel-isr-days.mjs) for the cost of the 8-10:30pm part.
+
 ## 10-25 ~12:50am ET · the 2am catalog push could blank or zero prod prices (my own check, no ticket)
 - What: scripts/push-catalog.mjs sent a changed tcg_cards row whole, prices included. A card the local sync could not price (NULL) or a feed's $0 overwrote the price prod's 5-5:45am crons had set: blank from 2am until the crons ran, for good where no cron re-prices the row. Tonight's 359-row batch held 24: Yu-Gi-Oh! ygo-714621 $0.62 + ygo-714628 $2.90, and 22 One Piece starter-deck reprints at $0 locally (synced 10-24 2:05am, before the feedPrice fix) vs cents on prod. Caught by diffing the batch against prod column by column BEFORE the push (scripts/_push-diff-prod.mjs).
 - Changed: both write paths write COALESCE(NULLIF(local, 0), prod); test:pushcatalog pins it (41441745). Pushed under it: all 24 stood.
