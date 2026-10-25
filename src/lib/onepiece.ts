@@ -143,9 +143,25 @@ export function isOnePieceNumberTag(variant: string | null | undefined): boolean
 }
 
 /**
- * The printing a row sells as: "Parallel · SEC", "Reprint (PRB01) · SR". The
- * feed tags one-off alt arts with a set code or number ("op15-109") — those
- * read as "Alt Art"; a character-name tag ("bentham") is that character's
+ * A number tag in "Which printing is yours?" (10-25, the 80 such rows checked against TCGplayer): the regular card of
+ * the row's own set reads "Standard" (50: Brook OP15-032 SR $3.45 sat beside its $28.75 alt art as a second "Alt Art"),
+ * a starter deck's copy of another set's card reads "Reprint (ST20)" (26: Katakuri OP03-099 L $1.47). A booster's copy
+ * of another set's card stays "Alt Art": both today are TCGplayer Treasure Rares (Zoro OP13-037 in OP15-EB04 $153.67,
+ * Zoro-Juurou ST18-004 in OP09 $46.57), as do the tags with no set code ("9-034_p1", EB03's Heroines art).
+ */
+function numberTagWords(v: string, setCode: string | null | undefined): string {
+  const code = /^([a-z]+\d*)-\d+/.exec(v)?.[1]?.toUpperCase();
+  if (!code) return "Alt Art";
+  const set = (setCode ?? "").toUpperCase();
+  // "OP15EB04" (OP15-EB04) prints both OP15 and EB04 numbers as its own cards.
+  if (!set || set.match(/[A-Z]+\d+/g)?.includes(code)) return "Standard";
+  return /^ST\d/.test(set) ? `Reprint (${set})` : "Alt Art";
+}
+
+/**
+ * The printing a row sells as: "Parallel · SEC", "Reprint (PRB01) · SR". A
+ * card-number tag ("op15-109") is the set's regular card or a reprint
+ * (numberTagWords); a character-name tag ("bentham") is that character's
  * alt art and reads as the name. A reprint's face is the base's, so the set
  * it came from is what tells them apart.
  */
@@ -177,7 +193,7 @@ export function printingLabel(card: { rarity?: string | null; variant?: string |
           ? named || "Promo"
           : titled().replace(/\b(Cs|Tcg|Us|Uk|Jp|Sp|Tr|(?:Op|St|Eb|Prb)\d*)\b/g, (w) => w.toUpperCase());
   } else if (words === undefined) {
-    words = isOnePieceNumberTag(v) ? "Alt Art" : titled();
+    words = isOnePieceNumberTag(v) ? numberTagWords(v, card.setCode) : titled();
   }
   const set = v === "reprint" && card.setCode && card.setCode.toUpperCase() !== ONE_PIECE_PROMO_SET ?` (${card.setCode.toUpperCase()})` : "";
   const rarity = card.rarity ? ` · ${card.rarity}` : "";

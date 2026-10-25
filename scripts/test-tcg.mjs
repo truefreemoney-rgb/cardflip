@@ -245,7 +245,18 @@ check("One Piece: a one-digit number misread with an exact name lands on the nea
   ];
   check("Which printing: one chip per printing of the number, pick first, two alt arts kept apart by picture", printingChoices(rows[1], rows).map((c) => c.id), ["p", "b", "a2", "a3", "r"]);
   check("Which printing: a number in one printing asks nothing", printingChoices(rows[5], rows), []);
-  check("printing labels", [printingLabel(rows[0]), printingLabel(rows[1]), printingLabel(rows[4]), printingLabel({ rarity: "R", variant: "op15-109" }), printingLabel({ rarity: "SR", variant: "bentham" })], ["Standard · SEC", "Parallel · SEC", "Reprint (PRB03) · SEC", "Alt Art · R", "Bentham · SR"]);
+  check("printing labels", [printingLabel(rows[0]), printingLabel(rows[1]), printingLabel(rows[4]), printingLabel({ rarity: "SR", variant: "bentham" })], ["Standard · SEC", "Parallel · SEC", "Reprint (PRB03) · SEC", "Bentham · SR"]);
+  // 10-25: a card-number tag is the set's regular card or a starter deck's reprint, never an alt art (Brook OP15-032 $3.45 read "Alt Art").
+  check("printing labels: card-number tags", [
+    printingLabel({ rarity: "SR", variant: "op15-032", setCode: "OP15EB04" }),
+    printingLabel({ rarity: "R", variant: "eb04-054", setCode: "OP15EB04" }),
+    printingLabel({ rarity: "SR", variant: "st20-001", setCode: "ST20" }),
+    printingLabel({ rarity: "L", variant: "op03-099", setCode: "ST20" }),
+    printingLabel({ rarity: "R", variant: "p-061", setCode: "ST16" }),
+    printingLabel({ rarity: "TR", variant: "op13-037", setCode: "OP15EB04" }),
+    printingLabel({ rarity: "R", variant: "9-034_p1", setCode: "EB03" }),
+    printingLabel({ rarity: "R", variant: "op15-109" }),
+  ], ["Standard · SR", "Standard · R", "Standard · SR", "Reprint (ST20) · L", "Reprint (ST16) · R", "Alt Art · TR", "Alt Art · R", "Standard · R"]);
 }
 const ygo = async (name, number, rarity = null, first = null) => (await searchTcgCardsLocal("yugioh", name, number ? pn(number) : null, 5, null, rarity, first))[0]?.id ?? null;
 check("Yu-Gi-Oh!: LOB-EN005 read finds the LOB-005 row", await ygo("Dark Magician", "LOB-EN005", null, false), "ygo-21876");
