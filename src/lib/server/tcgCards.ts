@@ -4,7 +4,7 @@ import type { GameId, PokemonCard } from "@/lib/types";
 import { normalizeNumber, type PrintedNumber } from "@/lib/cardNumber";
 import { TIEBREAK_GAP } from "@/lib/tiebreak";
 import { yugiohKey } from "@/lib/yugioh";
-import { ONE_PIECE_DON_SET, ONE_PIECE_PROMO_SET } from "@/lib/onepiece";
+import { isOnePieceStampedTwin, ONE_PIECE_DON_SET, ONE_PIECE_PROMO_SET } from "@/lib/onepiece";
 import type { SetInfo } from "@/lib/grading";
 import { cachedList, SET_LIST_TTL_MS } from "@/lib/server/listCache";
 import { LOOSE_MIN, looseLike, squash, squashSql } from "@/lib/server/looseName";
@@ -47,6 +47,8 @@ interface TcgRow {
 function onePieceVariantFamily(v: string): string {
   if (v === "" || v === "reprint") return "plain";
   if (v === "parallel" || v === "alt-art" || v === "special" || v === "spr" || v === "box-topper") return "alt";
+  // TCGplayer's words on the rows scripts/sync-onepiece-tcg.mjs added (10-25).
+  if (v === "super-alt-art" || v === "red-super-alt-art" || v === "super-leader-alt-art") return "alt";
   if (v === "manga") return "manga";
   if (v === "full-art") return "full";
   return "other";
@@ -352,8 +354,9 @@ export async function searchTcgCardsLocal(
   const nameOf = (row: TcgRow) => fold(game === "onepiece" ? row.name.replace(/\s+-\s+[A-Z]+\d*-\d+[a-z0-9_#]*$/i, "") : row.name);
   // Reprint / parallel rows may carry their suffix in the number ("P-030_r1").
   const numberOf = (row: TcgRow) => normalizeNumber(game === "onepiece" ? row.collector_number.replace(/_[rp]\d+$/i, "") : row.collector_number);
-  // One Piece numbers that have a regular (non-promo) printing among the candidates.
-  const regularNumbers = new Set(game === "onepiece" ? rows.filter((r) => r.set_code !== ONE_PIECE_PROMO_SET).map(numberOf) : []);
+  // One Piece numbers that have a regular (non-promo, unstamped) printing among the candidates.
+  const stampedTwin = (row: TcgRow) => game === "onepiece" && isOnePieceStampedTwin({ variant: row.variant, setCode: row.set_code });
+  const regularNumbers = new Set(game === "onepiece" ? rows.filter((r) => r.set_code !== ONE_PIECE_PROMO_SET && !stampedTwin(r)).map(numberOf) : []);
   // A shaky One Piece read whose number does name a card of the read name.
   const shakyHit =
     game === "onepiece" && Boolean(printed?.shaky) && needle !== "" && Boolean(wantedNumber) && rows.some((r) => nameOf(r) === needle && numberOf(r) === wantedNumber);
@@ -469,6 +472,9 @@ export async function searchTcgCardsLocal(
     // never reached the picture), and still behind a regular-set row of the
     // same name, which is the card more people own.
     if (game === "onepiece" && row.set_code === ONE_PIECE_PROMO_SET) p += (promoOnly ? 1 : 1.25) + Math.min(row.price_usd ?? 9999, 9999) / 1e6;
+    // A stamped twin (release event / pre-release / anniversary copy of a booster card, lib/onepiece.ts, 10-25)
+    // stands behind its booster printing exactly like a promo: same face, a corner stamp a photo rarely shows.
+    else if (stampedTwin(row)) p += 1.25 + Math.min(row.price_usd ?? 9999, 9999) / 1e6;
     return p;
   };
   const scored = rows.map((row) => ({ row, s: score(row) })).sort((a, b) => a.s - b.s).slice(0, limit);

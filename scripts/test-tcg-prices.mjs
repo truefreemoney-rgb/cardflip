@@ -166,6 +166,44 @@ check("Lorcana promo gaps fill from TCGplayer on name + number, never name alone
   check("One Piece: the row's own TCGplayer match beats the feed's image-id price",
     plan.columns.map((c) => [c.id, c.usd]), [["P-003_pr3#promo", 153.75]]);
 }
+{
+  // 10-25: rows tied to their TCGplayer product (tcg_product_id) take that product's price, the nightly's rule;
+  // a tied row or a "#tcg" row TCGplayer does not price today keeps its last price, never the feed's for its number.
+  const { onePieceTiedPoints } = await import("../src/lib/server/tcgPriceRefresh.ts");
+  const { ONE_PIECE_ASKING_MAX_USD } = await import("../src/lib/onepiece.ts");
+  const { ASKING_MAX_USD } = await import("../src/lib/server/mtgTcgplayerFill.ts");
+  check("One Piece's asking-price cap is the Yu-Gi-Oh! / Magic one", ONE_PIECE_ASKING_MAX_USD, ASKING_MAX_USD);
+  const tiedPts = onePieceTiedPoints(
+    [{ id: "OP11-003_r1", productId: 656670 }, { id: "P-043#promo", productId: 552131 }, { id: "OP17-006#tcg712668", productId: 712668 }, { id: "OP08-001_p2", productId: 629185 }],
+    [
+      { productId: 656670, subTypeName: "Normal", marketPrice: 0.09, midPrice: 0.25 },
+      { productId: 552131, subTypeName: "Normal", marketPrice: 63.65 }, { productId: 552131, subTypeName: "Foil", marketPrice: 342.55 },
+      { productId: 629185, subTypeName: "Foil", marketPrice: null, midPrice: 3350 },
+    ],
+  );
+  check("tied points: own product, Normal line beside Foil, no price = an empty point, a missing product = an empty point",
+    tiedPts.map((p) => [p.id, p.usd, p.row]), [["OP11-003_r1", 0.09, true], ["P-043#promo", 63.65, true], ["OP17-006#tcg712668", null, true], ["OP08-001_p2", null, true]]);
+  const opPlan = planTcgRefresh(
+    "onepiece",
+    [
+      { id: "OP11-003_r1", usd: 1.66, foil: null, setName: "Starter Deck 31: RED Monkey.D.Luffy", variant: "reprint" },
+      { id: "OP17-006", usd: 0.08, foil: null, setName: "The World's Strongest Warriors", variant: "" },
+      { id: "OP08-001_p2", usd: 162.11, foil: null, setName: "Extra Booster: Anime 25th Collection", variant: "spr" },
+      ...tiedPts,
+    ],
+    new Map([
+      ["OP11-003_r1", { usd: 1.66, foil: null, setName: "Starter Deck 31: RED Monkey.D.Luffy", variant: "reprint" }],
+      ["OP17-006#tcg712668", { usd: 1.77, foil: null, setName: "The World's Strongest Warriors", variant: "release-event" }],
+      ["OP08-001_p2", { usd: 162.11, foil: null, setName: "Extra Booster: Anime 25th Collection", variant: "spr" }],
+      ["OP17-006", { usd: 0.08, foil: null, setName: "The World's Strongest Warriors", variant: "" }],
+    ]),
+    new Map(),
+    "2026-10-25",
+  );
+  check("the tied Usopp reprint takes its product ($0.09), not optcgapi's $1.66; the unpriced tied / #tcg rows keep theirs",
+    opPlan.columns.map((c) => [c.id, c.usd]), [["OP11-003_r1", 0.09]]);
+  check("...and only the priced rows get today's history point", opPlan.upserts.map((u) => u.cardId).sort(), ["OP11-003_r1", "OP17-006"]);
+}
 
 // 10-13: an asking-only price over $20 blanks the held price (Acrobat Monkey $20.16, cheapest listing 44c); no point keeps it.
 const cleared = planTcgRefresh(

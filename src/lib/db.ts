@@ -1032,6 +1032,9 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
       "own_image_url TEXT NOT NULL DEFAULT ''",
       "own_tile_url TEXT NOT NULL DEFAULT ''",
       "own_image_src TEXT NOT NULL DEFAULT ''",
+      // One Piece (10-25, scripts/sync-onepiece-tcg.mjs): the TCGplayer product the row is, which the daily refresh
+      // prices it by (lib/server/tcgPriceRefresh.ts). NULL = not tied (every other game, and loose One Piece rows).
+      "tcg_product_id INTEGER",
     ],
   ],
   // Server log (10-03): console.warn lines share the table; 'error' | 'warn'.

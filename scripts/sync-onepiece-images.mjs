@@ -17,6 +17,7 @@ import fs from "node:fs";
 import path from "node:path";
 import sharp from "sharp";
 import { classOf, pickPictures, tagsOf } from "./lib/onepiecePick.mjs";
+import { isOnePieceStampedTwin } from "../src/lib/onepiece.ts";
 
 const API = "https://tcgcsv.com/tcgplayer/68";
 // TCGplayer itself reuses Bandai's stamped art for many products (ST-13,
@@ -176,14 +177,31 @@ console.log(`tcgcsv: ${fetched} groups, ${byNumber.size} numbers`);
 
 // Promo rows (set_code PROMO, sync-onepiece.mjs --with-promos) stay out: paired by number they
 // took other cards' scans; they keep the picture their own feed entry carries.
-const rows = db.prepare("SELECT id, set_name, collector_number, variant, image_url, ref_image_url, price_usd FROM tcg_cards WHERE game = 'onepiece' AND set_code NOT IN ('PROMO', 'DON') ORDER BY id").all(); // DON!! cards print no number to pair on
+// The rows sync-onepiece-tcg.mjs added ("…#tcg<product>") stay out of the pairing too: they would shift every
+// pairing after them (10-25). They, and every row it tied to its product (tcg_product_id), take that product's picture.
+const rows = db.prepare("SELECT id, set_name, collector_number, variant, image_url, ref_image_url, price_usd FROM tcg_cards WHERE game = 'onepiece' AND set_code NOT IN ('PROMO', 'DON') AND id NOT LIKE '%#tcg%' ORDER BY id").all(); // DON!! cards print no number to pair on
+const hasTie = db.prepare("PRAGMA table_info(tcg_cards)").all().some((c) => c.name === "tcg_product_id");
+const tied = hasTie ? db.prepare("SELECT id, set_code, set_name, collector_number, variant, image_url, ref_image_url, price_usd, tcg_product_id FROM tcg_cards WHERE game = 'onepiece' AND tcg_product_id IS NOT NULL ORDER BY id").all() : [];
 // synced_at moves too: push-catalog.mjs only uploads a table whose newest stamp is newer than prod's.
 const update = db.prepare("UPDATE tcg_cards SET image_url = ?, synced_at = ? WHERE id = ?");
 const now = Date.now();
 let matched = 0;
 let stamped = 0;
-const { picks, unmatched, how } = pickPictures(rows, byNumber);
+const { picks: paired, unmatched: unpaired, how } = pickPictures(rows, byNumber);
 console.log(`picks: by price ${how.price}, own set ${how.own}, kept the old pick ${how.keptOld}; own-set pick 2x+ off the row price ${how.offPrice}; Bandai (no pick) ${how.none}`);
+// A recorded tie is the row's own printing: it replaces the pairing's pick (and Bandai's fallback) when TCGplayer has a picture.
+const productById = new Map();
+for (const list of byNumber.values()) for (const p of list) productById.set(p.id, p);
+const tiedPicks = new Map();
+for (const r of tied) {
+  const pick = productById.get(Number(r.tcg_product_id));
+  if (pick) tiedPicks.set(r.id, { row: r, pick, exact: true });
+}
+const picks = [...paired.filter((p) => !tiedPicks.has(p.row.id)), ...tiedPicks.values()];
+const unmatched = unpaired.filter((id) => !tiedPicks.has(id));
+const pairedIds = new Set(rows.map((r) => r.id));
+for (const r of tied) if (!pairedIds.has(r.id) && tiedPicks.has(r.id)) rows.push(r);
+console.log(`tied to their own product (sync-onepiece-tcg.mjs): ${tiedPicks.size} rows${tied.length > tiedPicks.size ? ` (${tied.length - tiedPicks.size} with no TCGplayer picture keep theirs)` : ""}`);
 // Stamp check, a few thumbnails at a time (cached ids cost nothing).
 const queue2 = [...picks];
 const results = new Map();
@@ -215,7 +233,16 @@ for (const r of rows) {
   // Fallback order: TCGplayer's twin copy, Bandai's picture, TCGplayer's stamped copy, whatever the row had.
   const cleanLen = p ? stampCache[String(p.pick.id)]?.cleanLen : null;
   const tcgImage = p ? (cleanLen && v === "clean" ? `${p.pick.image}?v=${cleanLen}` : p.pick.image) : "";
-  const image = v === "clean" || twin ? tcgImage : r.ref_image_url || (p && v !== "placeholder" ? p.pick.image : "") || r.image_url;
+  // A row sync-onepiece-tcg.mjs added ("…#tcg") has no Bandai picture to fall back on. With no TCGplayer photo
+  // (CDN 403, "unchecked") it keeps what that pass gave it; behind a placeholder, a reprint or a stamped copy shows its
+  // booster card's picture, the same face (Chris 09-30: never a blank, never a placeholder).
+  const added = r.id.includes("#tcg");
+  const sameFace = added && (r.variant === "reprint" || isOnePieceStampedTwin({ variant: r.variant, setCode: r.set_code }));
+  const image = added && v === "unchecked"
+    ? r.image_url
+    : added && v === "placeholder"
+      ? (sameFace ? rows.find((x) => x.id === r.collector_number)?.image_url : null) || r.image_url
+      : v === "clean" || twin ? tcgImage : r.ref_image_url || (p && v !== "placeholder" ? p.pick.image : "") || r.image_url;
   if (image !== r.image_url) {
     changed++;
     sample.push(`${r.id}: ${r.image_url.split("/").pop()} -> ${image}`);

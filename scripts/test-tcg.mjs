@@ -101,6 +101,9 @@ for (const [id, game, name, subtitle, set, setName, num, total, date, rarity, va
   ["P-058#promo", "onepiece", "Where the Wind Blows", "", "PROMO", "One Piece Promotion Cards", "P-058", null, "", "PR", "promo", 0.9, null],
   ["P-005#promo", "onepiece", "Kaido", "", "PROMO", "One Piece Promotion Cards", "P-005", null, "", "PR", "promotion-pack-2022", 3.5, null],
   ["op-kaido-094", "onepiece", "Kaido", "", "OP01", "Romance Dawn", "OP01-094", null, "2022-12-01", "SR", "", 4, null],
+  // Stamped twins (10-25, scripts/sync-onepiece-tcg.mjs): TCGplayer's release event copy of a booster card, filed under the booster.
+  ["op-kingdew", "onepiece", "Kingdew", "", "OP17", "The World's Strongest Warriors", "OP17-006", null, "2026-08-28", "C", "", 0.08, null],
+  ["OP17-006#tcg712668", "onepiece", "Kingdew", "", "OP17", "The World's Strongest Warriors", "OP17-006", null, "2026-08-28", "C", "release-event", 1.77, null],
   // DON!! cards (10-01, sync-onepiece.mjs --with-don): no number, name "DON!! Card", subtitle = who the art shows.
   ["don-uta#don", "onepiece", "DON!! Card", "Uta", "DON", "Extra Booster: One Piece Heroines Edition (EB-03)", "", null, "", "DON!!", "", 1.2, null],
   ["don-uta-gold#don", "onepiece", "DON!! Card", "Uta", "DON", "Extra Booster: One Piece Heroines Edition (EB-03)", "", null, "", "DON!!", "gold", 120, null],
@@ -191,6 +194,13 @@ check("One Piece: a one-digit number misread with an exact name lands on the nea
     check("One Piece promos: a promo-only number leads with its cheapest printing", boa.map((c) => c.id), ["P-115_pr1#promo", "P-115#promo"]);
     check("One Piece promos: two promo printings of one number cost no picture call (the seller's tap decides)", tiebreakIds(boa, "onepiece"), []);
     check("One Piece promos: both printings are in 'Which printing is yours?'", printingChoices(boa[0], boa).map((c) => printingLabel(c)), ["OP15 Release Event · PR", "OP15 Release Event Winner · PR"]);
+    for (const read of [null, "standard"]) {
+      const kd = await searchTcgCardsLocal("onepiece", "Kingdew", pn("OP17-006", null, "OP17"), 8, null, read);
+      check(`One Piece stamped twins (${read ?? "no printing read"}): the booster card leads its release event copy, which is offered`, kd.map((c) => c.id), ["op-kingdew", "OP17-006#tcg712668"]);
+      check(`One Piece stamped twins (${read ?? "no printing read"}): no picture call between them`, tiebreakIds(kd, "onepiece"), []);
+    }
+    const kd = await searchTcgCardsLocal("onepiece", "Kingdew", pn("OP17-006", null, "OP17"), 8, null, null);
+    check("One Piece stamped twins: 'Which printing is yours?' names the stamp", printingChoices(kd[0], kd).map((c) => printingLabel(c)), ["Standard · C", "Release Event · C"]);
     check("One Piece promos: labels", [printingLabel({ rarity: "UC", variant: "premium-card-collection-best-selection-vol-4", setCode: "PROMO" }), printingLabel({ rarity: "PR", variant: "cs-2023-celebration-pack", setCode: "PROMO" }), printingLabel({ rarity: "PR", variant: "promo-pr2", setCode: "PROMO" }), printingLabel({ rarity: "PR", variant: "alt-art", setCode: "PROMO" })],
       ["Premium Card Collection Best Selection Vol 4 · UC", "CS 2023 Celebration Pack · PR", "Promo · PR", "Promo Alt Art · PR"]);
     const zoro = await searchTcgCardsLocal("onepiece", "Roronoa Zoro", pn("P-058", null, "P"), 8, null, "parallel");

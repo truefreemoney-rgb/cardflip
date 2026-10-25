@@ -4,7 +4,7 @@
  * on /api/vision/tiebreak.
  */
 
-import { ONE_PIECE_PROMO_SET, onePieceKey } from "@/lib/onepiece";
+import { isOnePieceSideline, onePieceKey } from "@/lib/onepiece";
 import { isArtVersionId } from "@/lib/artVersions";
 
 /** Score gap at or under which #1 and #2 count as a tie (both rankers use 1-point tiebreaks). */
@@ -33,7 +33,7 @@ export function isNearTie(cards: Array<{ id: string; rankScore?: number }>): boo
  * #4 in all 4 misses the two-face check left.
  */
 export function tiebreakIds(
-  cards: Array<{ id: string; rankScore?: number; number?: string; setCode?: string | null; setName?: string }>,
+  cards: Array<{ id: string; rankScore?: number; number?: string; setCode?: string | null; setName?: string; variant?: string | null }>,
   game: string,
   noNumber = false,
 ): string[] {
@@ -74,13 +74,14 @@ function facesWithinGap<T extends { id: string; rankScore?: number }>(cards: T[]
  * (base / parallel) collapse to the first, and fall back to #1 vs #2 when
  * the tie is only between those.
  */
-function onePieceTiebreakIds(cards: Array<{ id: string; rankScore?: number; number?: string; setCode?: string | null }>): string[] {
+function onePieceTiebreakIds(cards: Array<{ id: string; rankScore?: number; number?: string; setCode?: string | null; variant?: string | null }>): string[] {
   // Two promo printings of one number (a number that is promo-only): the
   // same art with a different stamp or pack. The picture cannot price that
   // and the seller's tap can ("Which printing is yours?") — no call.
+  // A stamped twin (release event / pre-release copy, 10-25) is the same.
   // (Checked after the walk below: another NUMBER inside the gap is still a
   // question for the picture.)
-  const promo = (c: { setCode?: string | null }) => (c.setCode ?? "").toUpperCase() === ONE_PIECE_PROMO_SET;
+  const promo = (c: { setCode?: string | null; variant?: string | null }) => isOnePieceSideline(c);
   const top = cards[0].rankScore as number;
   const out: string[] = [];
   const numbers = new Set<string>();

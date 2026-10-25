@@ -30,6 +30,55 @@ export const ONE_PIECE_PROMO_SET = "PROMO";
 export const ONE_PIECE_DON_SET = "DON";
 
 /**
+ * TCGplayer's event groups beside the boosters (tcgcsv category 68): "OP08 PRE" (pre-release), "OP17 RE" (release
+ * event), "OP05 ANN" (anniversary tournament), "ST-01 PRE" (super pre-release). Every card in one is the booster's own
+ * card with a stamp in the corner: same number, same art, its own price (Kingdew OP17-006 $0.08, its release event
+ * copy $1.77 on 10-25). scripts/sync-onepiece-tcg.mjs files each under the booster's set with the stamp as the variant
+ * ("release-event", or "release-event-bentham" when TCGplayer's name carries more), 10-25, Chris: every printing
+ * TCGplayer sells is its own row and price.
+ */
+const STAMP_VARIANT = /^(super-pre-release|pre-release|release-event|anniversary)(?:-(.+))?$/;
+const STAMP_WORDS: Record<string, string> = { "pre-release": "Pre-Release", "release-event": "Release Event", anniversary: "Anniversary", "super-pre-release": "Super Pre-Release" };
+
+/** A stamped twin of a regular printing (above): ranked behind it like a promo, never a doubt of its own. */
+export function isOnePieceStampedTwin(card: { variant?: string | null; setCode?: string | null }): boolean {
+  return (card.setCode ?? "").toUpperCase() !== ONE_PIECE_PROMO_SET && STAMP_VARIANT.test((card.variant ?? "").toLowerCase());
+}
+
+/**
+ * A promo or a stamped twin: the regular card's face with a pack or a stamp. Offered in "Which printing is yours?",
+ * kept out of the picture tiebreak, and never the reason a scan says Check match (nearly every copy scanned is the
+ * regular card).
+ */
+export function isOnePieceSideline(card: { variant?: string | null; setCode?: string | null }): boolean {
+  return (card.setCode ?? "").toUpperCase() === ONE_PIECE_PROMO_SET || isOnePieceStampedTwin(card);
+}
+
+/**
+ * The price CardFlip keeps for one TCGplayer One Piece product, from its tcgcsv /prices rows (one per subtype): the
+ * market (last sales), else the asking price up to $20 (the Yu-Gi-Oh! / Magic rule, ASKING_MAX_USD in
+ * lib/server/mtgTcgplayerFill.ts; test:tcgprices keeps the two equal). Twenty products list a Normal and a Foil line
+ * (PRB-02 reprints, a few OP01-03 commons, P-043 Luffy Convention Promo $63.65 / $342.55): the catalog row is the
+ * Normal one (every tied row sat at the Normal price, 10-25), so the Foil line is never taken for it. The nightly
+ * (scripts/sync-onepiece-tcg.mjs) and the daily refresh (lib/server/tcgPriceRefresh.ts) both price with this, so the
+ * 2am push and the 5am refresh agree.
+ */
+export const ONE_PIECE_ASKING_MAX_USD = 20;
+export function onePieceProductPrice(rows: { subTypeName?: string | null; marketPrice?: unknown; midPrice?: unknown }[]): number | null {
+  const pos = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v > 0 ? v : null);
+  const normal = rows.filter((r) => r.subTypeName === "Normal");
+  for (const r of normal.length ? normal : rows) {
+    const market = pos(r.marketPrice);
+    if (market != null) return market;
+  }
+  for (const r of normal.length ? normal : rows) {
+    const mid = pos(r.midPrice);
+    if (mid != null && mid <= ONE_PIECE_ASKING_MAX_USD) return mid;
+  }
+  return null;
+}
+
+/**
  * A DON!! row's id before "#don", from the feed's full name ("DON!! Card
  * (Koby) (Gold) - Premium Booster -The Best- Vol. 2 (PRB-02)"). The feed's
  * own id ("don_121") looks positional, so the id is the name: the sync and
@@ -74,6 +123,12 @@ const PRINTING_WORDS: Record<string, string> = {
   "box-topper": "Box Topper",
   "dash-pack": "Dash Pack",
   tr: "Treasure Rare",
+  // TCGplayer's own printing words (scripts/sync-onepiece-tcg.mjs rows, 10-25).
+  "super-alt-art": "Super Alt Art",
+  "red-super-alt-art": "Red Super Alt Art",
+  "super-leader-alt-art": "Super Leader Alt Art",
+  gold: "Gold",
+  silver: "Silver",
 };
 
 /**
@@ -93,7 +148,12 @@ export function printingLabel(card: { rarity?: string | null; variant?: string |
     const from = /\(([A-Z]{2,4}-?\d{0,3}[A-Z-]*)\)\s*$/.exec(card.setName ?? "")?.[1] ?? card.setName ?? "";
     return [who, v ? titled() : "", from].filter(Boolean).join(" · ") || "DON!! Card";
   }
-  if ((card.setCode ?? "").toUpperCase() === ONE_PIECE_PROMO_SET) {
+  const stamp = (card.setCode ?? "").toUpperCase() === ONE_PIECE_PROMO_SET ? null : STAMP_VARIANT.exec(v);
+  if (stamp) {
+    // "Release Event · C", "Release Event Bentham · C": the stamp, then whatever else TCGplayer's name says.
+    const rest = stamp[2] ? ` ${stamp[2].replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}` : "";
+    words = `${STAMP_WORDS[stamp[1]]}${rest}`;
+  } else if ((card.setCode ?? "").toUpperCase() === ONE_PIECE_PROMO_SET) {
     // Promo rows carry the pack as the tag ("cs-2023-celebration-pack",
     // "judge-pack-vol-5"); an untagged promo is "promo" / "promo-pr2".
     words =

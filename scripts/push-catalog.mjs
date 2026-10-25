@@ -61,6 +61,7 @@ const CATALOG_TABLES = [
 // first push. tcg_cards prices still come up (a card off TCGCSV has no other source), but a price-only
 // change is a two-column UPDATE: no index holds them, so it is one row written, where a REPLACE wrote the
 // table and every index twice.
+const SPARSE_COLS = new Set(["tcg_product_id"]);
 const PRICE_COLS = {
   mtg_cards: { cols: ["price_usd", "price_usd_foil", "price_usd_etched", "price_eur", "price_eur_foil"], prodOwned: true },
   tcg_cards: { cols: ["price_usd", "price_usd_foil"], prodOwned: false },
@@ -135,7 +136,9 @@ for (const table of CATALOG_TABLES) {
   const priceCols = (PRICE_COLS[table]?.cols ?? []).filter((c) => cols.includes(c));
   const prodOwned = Boolean(PRICE_COLS[table]?.prodOwned);
   const restCols = hashCols.filter((c) => !priceCols.includes(c));
-  const sha = (list, r) => crypto.createHash("sha1").update(JSON.stringify(list.map((c) => r[c] ?? null))).digest("base64");
+  // A column a sync adds for a few rows (tcg_cards.tcg_product_id, One Piece only, 10-25) stays out of a row's
+  // fingerprint while empty: the new column would otherwise resend all 69k rows of every game once.
+  const sha = (list, r) => crypto.createHash("sha1").update(JSON.stringify(list.filter((c) => !(SPARSE_COLS.has(c) && r[c] == null)).map((c) => r[c] ?? null))).digest("base64");
   // v2 fingerprints keep the price columns apart (10-23), so a price-only change is told from a real one.
   // A v1 fingerprint (one hash of every column but synced_at) that still matches is relabelled locally.
   const hashOf = (r) => `v2:${sha(restCols, r)}|${sha(priceCols, r)}`;

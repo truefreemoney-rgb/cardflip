@@ -106,6 +106,17 @@ assert.equal(remoteCount(), localCount);
   mirror.exec(`UPDATE mtg_cards SET name = 'Renamed', synced_at = synced_at + 1 WHERE id = '${mtgId}'`);
   assert.match(runT("mtg_cards"), /pushing 1 changed of 40/, "mtg: a real change goes up");
   assert.deepEqual([at("mtg_cards", mtgId).name, at("mtg_cards", mtgId).price_usd, at("mtg_cards", mtgId).rid], ["Renamed", 7.77, mtg0.rid], "…in place, keeping prod's price");
+
+  // 10-25: a column the One Piece tie step adds (tcg_product_id) goes up empty without resending every row,
+  // and a row that carries one goes up alone.
+  mirror.exec("ALTER TABLE tcg_cards ADD COLUMN tcg_product_id INTEGER");
+  mirror.exec("UPDATE tcg_cards SET synced_at = synced_at + 1"); // the nightly re-stamp
+  const widened = runT("tcg_cards");
+  assert.match(widened, /adding column tcg_product_id INTEGER on Turso/, "the new column is added upstream first");
+  assert.match(widened, /no changed rows/, "an empty new column resends no row");
+  mirror.exec(`UPDATE tcg_cards SET tcg_product_id = 712668, synced_at = synced_at + 1 WHERE id = '${tcgId}'`);
+  assert.match(runT("tcg_cards"), /pushing 1 changed of 40 rows \(remote has 40; 0 price-only/, "only the tied row goes up");
+  assert.equal(remote.prepare("SELECT tcg_product_id AS p FROM tcg_cards WHERE id = ?").get(tcgId).p, 712668);
   mirror.close();
 }
 

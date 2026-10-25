@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { decodePrices, encodePrices, setDay, todayUtc } from "@/lib/priceSeries";
 import { readSeriesMap, upsertSeriesRows, type SeriesUpsert } from "@/lib/server/priceBulkWrite";
 import type { TcgGame } from "@/lib/server/tcgCards";
-import { onePieceDonKey, parseOnePieceDon } from "@/lib/onepiece";
+import { onePieceDonKey, onePieceProductPrice, parseOnePieceDon } from "@/lib/onepiece";
 import { CARDMARKET_GAME, CONVERTED_SOURCE, fetchPriceGuide, guideUsd } from "@/lib/server/cardmarket";
 import { CARDTRADER_SOURCE, cardtraderLorcanaPrices, cardtraderYugiohPrices, type CtLorcanaRow } from "@/lib/server/cardtrader";
 import cardmarketYugioh from "@/data/cardmarket-yugioh.json" with { type: "json" };
@@ -101,7 +101,8 @@ async function withCardmarket(game: TcgGame, base: { points: TcgPoint[]; failed:
  *
  * Sources are the ones the syncs use, so ids line up without a map:
  *   Lorcana  — Lorcast, one call per set (card id = row id)
- *   One Piece — optcgapi, three bulk calls (card_image_id = row id)
+ *   One Piece — optcgapi, three bulk calls (card_image_id = row id); a row tied to its
+ *               TCGplayer product (tcg_product_id, 10-25) takes tcgcsv's price for it instead
  *   Yu-Gi-Oh! — tcgcsv category 2, one /prices call per group
  *               (ygo-<productId>, "-1st" = the 1st Edition subtype)
  * No back-history exists to load: TCGplayer publishes none and tcgcsv's
@@ -339,7 +340,58 @@ async function onePiecePromoProducts(): Promise<LorcanaProduct[]> {
   return out;
 }
 
-/** optcgapi's points, plus TCGplayer's market on the promos that match one product exactly (10-24). */
+type OnePiecePriceRow = { productId: number; subTypeName?: string; marketPrice?: unknown; midPrice?: unknown };
+
+/**
+ * Pure: One Piece rows tied to their TCGplayer product (tcg_cards.tcg_product_id, set by the nightly
+ * scripts/sync-onepiece-tcg.mjs, 10-25) → one point per row, priced from its own product by the nightly's own
+ * rule (lib/onepiece.ts onePieceProductPrice), keyed by the row (`row`). A tied row TCGplayer prices nothing for
+ * today still gets a point, an empty one: it keeps its last price instead of taking optcgapi's figure for its
+ * number, which is another printing's (Usopp OP11-003_r1 flipped $1.66 at the 2am push / $0.09 here, nightly).
+ * Exported for scripts/test-tcg-prices.mjs.
+ */
+export function onePieceTiedPoints(tied: { id: string; productId: number }[], prices: OnePiecePriceRow[]): TcgPoint[] {
+  const byProduct = new Map<number, OnePiecePriceRow[]>();
+  for (const p of prices) byProduct.set(p.productId, [...(byProduct.get(p.productId) ?? []), p]);
+  return tied.map((t) => {
+    const rows = byProduct.get(t.productId);
+    return { id: t.id, usd: rows ? onePieceProductPrice(rows) : null, foil: null, row: true };
+  });
+}
+
+/** Every tcgcsv One Piece group's prices, for the rows tied to a product. Nothing when no row is tied (or the column is not there yet). */
+async function onePieceProductPoints(): Promise<TcgPoint[]> {
+  let tied: { id: string; productId: number }[];
+  try {
+    tied = (await db
+      .prepare("SELECT id, tcg_product_id AS productId FROM tcg_cards WHERE game = 'onepiece' AND tcg_product_id IS NOT NULL")
+      .all()) as { id: string; productId: number }[];
+  } catch {
+    return []; // tcg_product_id not on this database yet (lib/db.ts probe, push-catalog adds it)
+  }
+  if (tied.length === 0) return [];
+  const API = "https://tcgcsv.com/tcgplayer/68";
+  const groups = listOf<{ groupId: number }>(await getJson(`${API}/groups`));
+  const prices: OnePiecePriceRow[] = [];
+  let failed = 0;
+  const queue = [...groups];
+  const worker = async () => {
+    for (let g = queue.shift(); g; g = queue.shift()) {
+      try {
+        prices.push(...listOf<OnePiecePriceRow>(await getJson(`${API}/${g.groupId}/prices`)));
+      } catch (err) {
+        failed++;
+        console.warn(`onepiece prices group ${g.groupId}:`, err instanceof Error ? err.message : err);
+      }
+      await sleep(TCGCSV_PAUSE_MS);
+    }
+  };
+  await Promise.all([1, 2, 3, 4].map(worker));
+  if (failed) console.warn(`onepiece prices: ${failed} tcgcsv group(s) failed, their tied rows keep yesterday's price`);
+  return onePieceTiedPoints(tied, prices);
+}
+
+/** optcgapi's points, plus TCGplayer's market on the promos that match one product exactly (10-24) and on every tied row (10-25). */
 async function onePiecePointsWithPromos(): Promise<{ points: TcgPoint[]; failed: number }> {
   const base = await onePiecePoints();
   try {
@@ -349,6 +401,12 @@ async function onePiecePointsWithPromos(): Promise<{ points: TcgPoint[]; failed:
     base.points.push(...matchOnePiecePromos(rows, await onePiecePromoProducts()));
   } catch (err) {
     console.warn("onepiece tcgplayer promos:", err instanceof Error ? err.message : err);
+  }
+  // After the promo matches: a row's own product beats its name match (planTcgRefresh keeps the last row point).
+  try {
+    base.points.push(...(await onePieceProductPoints()));
+  } catch (err) {
+    console.warn("onepiece tcgplayer products:", err instanceof Error ? err.message : err);
   }
   return base;
 }
@@ -546,15 +604,20 @@ export function planTcgRefresh(
   for (const [id, held] of mirror) {
     let p: TcgPoint | undefined;
     if (game === "onepiece") {
-      // TCGplayer's own match for this exact row comes first (promos, 10-24).
+      // TCGplayer's own match for this exact row comes first (promos, 10-24; every row tied to its product, 10-25).
       p = byRow.get(id);
-      const same = p ? [] : byPrinting.get(`${id.split("#")[0]}|${held.setName ?? ""}`) ?? [];
-      p ??= same.find((c) => (c.variant ?? "") === (held.variant ?? "")) ?? same[0];
-      // A starter-deck reprint ("OP12-113_r1", variant "reprint") is the same card as its original printing:
-      // TCGplayer sells them as one product and optcgapi prices only the original (10-13: 29 ST31-36 rows sat at $0).
-      if ((!p || (p.usd == null && p.foil == null)) && held.variant === "reprint") {
-        const original = id.split("#")[0].replace(/[_-]r\d+$/, ""); // "_r1", once "-r1" (OP13-008-r1)
-        p = points.find((c) => c.id === original && !c.variant && (c.usd != null || c.foil != null)) ?? p;
+      // A tied row, or one the nightly added for a TCGplayer printing ("OP17-006#tcg712668"), never borrows the
+      // feed's price for its number: that is another printing's (the "#" split would hand a release event copy the
+      // base card's). With no price of its own today it keeps the last one.
+      if (!p && !id.includes("#tcg")) {
+        const same = byPrinting.get(`${id.split("#")[0]}|${held.setName ?? ""}`) ?? [];
+        p = same.find((c) => (c.variant ?? "") === (held.variant ?? "")) ?? same[0];
+        // A starter-deck reprint ("OP12-113_r1", variant "reprint") is the same card as its original printing:
+        // TCGplayer sells them as one product and optcgapi prices only the original (10-13: 29 ST31-36 rows sat at $0).
+        if ((!p || (p.usd == null && p.foil == null)) && held.variant === "reprint") {
+          const original = id.split("#")[0].replace(/[_-]r\d+$/, ""); // "_r1", once "-r1" (OP13-008-r1)
+          p = points.find((c) => c.id === original && !c.variant && (c.usd != null || c.foil != null)) ?? p;
+        }
       }
     } else {
       p = byId.get(id);
