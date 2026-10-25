@@ -105,7 +105,7 @@ export async function refereeCandidates(): Promise<RefereeCandidate[]> {
       if (price == null || price < min) continue;
       out.push({
         price: Number(price),
-        label: `${r.name}${r.subtitle ? ` - ${r.subtitle}` : ""} | ${r.set_name} ${r.collector_number}${r.variant ? ` ${r.variant}` : ""}${variant === "foil" ? " | foil" : ""}`,
+        label: `${r.name}${r.subtitle ? ` - ${r.subtitle}` : ""} | ${r.set_name} ${r.collector_number}${r.variant ? ` ${r.variant}` : ""}${r.id.endsWith("-1st") ? " 1st Edition" : ""}${variant === "foil" ? " | foil" : ""}`,
         card: {
           game: r.game, cardId: r.id, variant, name: r.name, subtitle: r.subtitle || undefined, number: r.collector_number, setName: r.set_name,
           setCode: r.set_code, releaseDate: r.set_release_date, setTotal: r.set_total, rarity: r.rarity, printing: r.variant, firstEdition: r.id.endsWith("-1st"),
