@@ -92,6 +92,20 @@ export async function generateMetadata({ params }: PageProps<"/cards/[game]/[set
   return cardMetadata(l.page);
 }
 
+/** The H1 words, with the card number kept on one line (10-25: a phone broke "OP15-119" after the hyphen, "LEA 232" at the space). */
+function Heading({ f }: { f: CardFacts }) {
+  const text = cardHeading(f);
+  const at = f.number ? text.indexOf(f.number, f.name.length) : -1;
+  if (at < 0) return <>{text}</>;
+  return (
+    <>
+      {text.slice(0, at)}
+      <span className="whitespace-nowrap">{f.number}</span>
+      {text.slice(at + f.number.length)}
+    </>
+  );
+}
+
 /** "Holofoil  $12.40" rows: every current printing, each through the guard. */
 function PriceTable({ page }: { page: CardPage }) {
   return (
@@ -291,7 +305,7 @@ export default async function CardPricePage({ params }: PageProps<"/cards/[game]
           </div>
 
           <div className="min-w-0">
-            <h1 className="font-display text-2xl font-bold leading-tight text-white sm:text-4xl">{cardHeading(f)}</h1>
+            <h1 className="font-display text-2xl font-bold leading-tight text-white sm:text-4xl"><Heading f={f} /></h1>
             <p className="mt-2 text-sm text-zinc-400">
               <Link href={setPath(game, f.setSlug)} className="text-brand-300 transition hover:text-brand-200">
                 {f.setName}
