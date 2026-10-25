@@ -1,5 +1,14 @@
 # To test later
 
+## 10-25 6:00PM ET: PUSHED 3c5f6b3b to main on Chris "go ahead and do the bulk push" (52b058a8 One Piece titles, 698661f0 H1 number, 7b288d49 One Piece picker labels, a095a82e Pokémon Center copies off the plain promo, 647d3b45 no cap-pause weekly moves in posts, ee807416 Pokémon Center Exclusive lines, 3c5f6b3b printing rows A). Pushed by sha: the docs commits on top (d65cdc40, 6a5e8337) would have made Vercel skip the build.
+- [ ] Deploy: Vercel deployment for 3c5f6b3b READY and aliased; Production smoke run on the sha GREEN; CI main + vercel-migration GREEN.
+- [ ] 52b058a8 (prod fetch): One Piece titles name the printing in words: Hody Jones OP06-020 SP = "Special" (was "Spr"), Lucky.Roux = "Treasure Rare" (was "Tr"), Monkey.D.Luffy OP15-119 has no "Op15 119".
+- [ ] 698661f0 (prod fetch + phone): the H1 card number is one unbreakable piece (One Piece "OP15-119", Magic "LEA 232", Yu-Gi-Oh!); the title and description text unchanged.
+- [ ] 7b288d49 (phone, Inventory): an unverified Brook OP15-032 offers "Standard" and its "Alt Art", never "Alt Art · SR" twice; a starter-deck copy reads "Reprint (ST20)".
+- [ ] 647d3b45: the 10-26 post drafts print no "+X% this week" for a card in a cap-paused game (Pokémon to 10-31, Magic to 11-02); the set spotlight has no riser pool while the pause covers the week.
+- [ ] a095a82e + ee807416: the 10-25 2:50PM and 5:12PM blocks (first 5:45am Pokémon write, then the 8:15am referee).
+- [ ] 3c5f6b3b (prod fetch now + phone): a card with several printings (Lillipup sv10.5w-074) = the price alone on the right, no date on rows from the headline's day; Snorlax svp-051 after the 5:45am write = Holofoil $16.8x + Pokémon Center Exclusive ~$266 with "Few recent sales" under the name.
+
 ## 10-25 5:58PM ET: the 30 priciest Pokémon price lines vs TCGplayer NM sales (pane tab-1) and what cardflip.io shows (no writes)
 - [x] Confirmed by TCGplayer NM sales, prod shows the number: Latias & Latios GX TEU 170 $4,499.66 (NM ~4,450), Lugia-EX PLS 134 $2,717.32 (NM 3 sales ~3,000), Umbreon VMAX EVS 215 $2,236.75 (~2,013), Gengar & Mimikyu GX TEU 165 $1,894.91 (~1,850), Raikou Star UF 114 $1,600 (=), Rayquaza VMAX EVS 218 $1,241.76 (~1,133), Ultra Ball PLF 122 $1,199.51 (2 NM =), Umbreon ex PRE 161 $1,205.47 (~1,087); checked by hand already: Rocket's Mewtwo Best of Game 8 $1,000 (19 sold), Charizard Skyridge 146 $2,999.99, Rocket's Mewtwo ex TRR 99 normal $750 (14 sold).
 - [ ] 10-26 eBay reads, FIRST (shown and likely ~2x high): M Charizard EX FLF 108 $1,501.23 (kept by hand at that price; TCGplayer has no NM sale since Aug, LP x6 $420-629, MP ~$292).
