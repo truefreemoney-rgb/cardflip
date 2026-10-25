@@ -5,9 +5,10 @@
 //
 //   npm run sync:onepiece:images          (after sync:onepiece; catalog-sync runs both)
 //
-// Match: tcgcsv product Number ("ST13-003") = our collector_number, then
-// the printing — a product with no "(Parallel)"-style tag is the base
-// print, tagged ones pair with our parallel rows (_p1, _p2 … in order).
+// Match: tcgcsv product Number ("ST13-003") = our collector_number, then the
+// printing: the product priced like the row, else its own set's product of
+// that printing, else Bandai's picture (lib/onepiecePick.mjs; 10-25, pairing
+// across every set had put 361 rows on another printing's picture).
 // Rows with no clean TCGplayer scan show Bandai's stamped card (Chris 09-30:
 // "if the cards don't have an unstamped image … you have to use the stamped
 // cards, we can't have any image coming soon nonsense").
@@ -15,6 +16,7 @@ import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
 import path from "node:path";
 import sharp from "sharp";
+import { classOf, pickPictures, tagsOf } from "./lib/onepiecePick.mjs";
 
 const API = "https://tcgcsv.com/tcgplayer/68";
 // TCGplayer itself reuses Bandai's stamped art for many products (ST-13,
@@ -149,44 +151,20 @@ async function pictureVerdict(productId, refUrl) {
 const ext = (p, key) => p.extendedData?.find((e) => e.name === key)?.value ?? "";
 const bigImage = (url) => String(url ?? "").replace(/_200w\.jpg$/, "_in_1000x1000.jpg");
 
-// "Monkey.D.Luffy (003) (Parallel)" → printing tags without the card-number tag.
-function tagsOf(name) {
-  const tags = [];
-  for (const m of String(name).matchAll(/\(([^)]+)\)/g)) {
-    const t = m[1].trim().toLowerCase();
-    if (!/^\d+$/.test(t)) tags.push(t);
-  }
-  return tags;
-}
-// Our variant column ↔ a tcgcsv tag class.
-function classOf(tags) {
-  const s = tags.join(" ");
-  if (!s) return "base";
-  if (/manga/.test(s)) return "manga";
-  if (/box topper/.test(s)) return "box-topper";
-  if (/alternate|alt art/.test(s)) return "alt-art";
-  if (/parallel/.test(s)) return "parallel";
-  if (/reprint/.test(s)) return "base";
-  return "other";
-}
-function ourClass(variant) {
-  if (!variant || variant === "reprint") return "base";
-  if (/^(parallel|alt-art|manga|box-topper)$/.test(variant)) return variant;
-  return "other";
-}
-
 const groups = await getJson(`${API}/groups`);
-// number → products (in productId order)
+// number → products (in productId order), each with its set (group name) and TCGplayer market (the highest printing's)
 const byNumber = new Map();
 let fetched = 0;
 async function worker(queue) {
   for (let g = queue.shift(); g; g = queue.shift()) {
-    const products = await getJson(`${API}/${g.groupId}/products`);
+    const [products, prices] = await Promise.all([getJson(`${API}/${g.groupId}/products`), getJson(`${API}/${g.groupId}/prices`)]);
+    const market = new Map();
+    for (const q of prices) if (q.marketPrice > 0) market.set(q.productId, Math.max(market.get(q.productId) ?? 0, q.marketPrice));
     for (const p of products) {
       const number = ext(p, "Number").trim().toUpperCase();
       if (!number || !p.imageUrl) continue;
       if (!byNumber.has(number)) byNumber.set(number, []);
-      byNumber.get(number).push({ id: p.productId, name: p.name, cls: classOf(tagsOf(p.name)), image: bigImage(p.imageUrl) });
+      byNumber.get(number).push({ id: p.productId, name: p.name, cls: classOf(tagsOf(p.name)), image: bigImage(p.imageUrl), group: g.name, market: market.get(p.productId) ?? null });
     }
     fetched++;
   }
@@ -198,37 +176,14 @@ console.log(`tcgcsv: ${fetched} groups, ${byNumber.size} numbers`);
 
 // Promo rows (set_code PROMO, sync-onepiece.mjs --with-promos) stay out: paired by number they
 // took other cards' scans; they keep the picture their own feed entry carries.
-const rows = db.prepare("SELECT id, collector_number, variant, image_url, ref_image_url FROM tcg_cards WHERE game = 'onepiece' AND set_code NOT IN ('PROMO', 'DON') ORDER BY id").all(); // DON!! cards print no number to pair on
+const rows = db.prepare("SELECT id, set_name, collector_number, variant, image_url, ref_image_url, price_usd FROM tcg_cards WHERE game = 'onepiece' AND set_code NOT IN ('PROMO', 'DON') ORDER BY id").all(); // DON!! cards print no number to pair on
 // synced_at moves too: push-catalog.mjs only uploads a table whose newest stamp is newer than prod's.
 const update = db.prepare("UPDATE tcg_cards SET image_url = ?, synced_at = ? WHERE id = ?");
 const now = Date.now();
-// Same number, same printing class, paired in order (_p1 → first parallel, _p2 → second).
-const taken = new Map(); // number|cls → how many used
 let matched = 0;
 let stamped = 0;
-const unmatched = [];
-const picks = [];
-for (const r of rows) {
-  const number = r.collector_number.toUpperCase();
-  const cls = ourClass(r.variant);
-  const pool = (byNumber.get(number) ?? []).filter((p) => p.cls === cls);
-  const k = `${number}|${cls}`;
-  const i = taken.get(k) ?? 0;
-  // A parallel beyond what TCGplayer lists (or our "other") falls back to the
-  // last product of its class; a base with no base product tries the first
-  // product of any class only when it is the sole listing.
-  let pick = pool[i] ?? pool[pool.length - 1];
-  if (!pick) {
-    const any = byNumber.get(number) ?? [];
-    if (cls === "base" && any.length === 1) pick = any[0];
-  }
-  if (!pick) {
-    unmatched.push(r.id);
-    continue;
-  }
-  taken.set(k, i + 1);
-  picks.push({ row: r, pick, exact: pick === pool[i] });
-}
+const { picks, unmatched, how } = pickPictures(rows, byNumber);
+console.log(`picks: by price ${how.price}, own set ${how.own}, kept the old pick ${how.keptOld}; own-set pick 2x+ off the row price ${how.offPrice}; Bandai (no pick) ${how.none}`);
 // Stamp check, a few thumbnails at a time (cached ids cost nothing).
 const queue2 = [...picks];
 const results = new Map();
