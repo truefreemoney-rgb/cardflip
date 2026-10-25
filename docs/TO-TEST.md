@@ -1,5 +1,13 @@
 # To test later
 
+## 10-25 12:20AM ET: One Piece wrong-printing pictures FIXED on prod (348 rows, data change live now; code e55c9eee committed, push HELD)
+- [x] Local + prod: 348 image_url changed exactly as the guarded dry run (data/op-picture-fix-dry-2026-10-25-guard.jsonl), 0 unexpected (scripts/_op-pic-verify.mjs [--prod]); 348 pictures re-saved with --prod, push-own-pictures 0 left. Backup of all 5,549 rows, local + prod: data/op-picture-fix-backup-2026-10-25.json.
+- [x] Crawl 12:15am: 9 changed card pages (OP13-118_p2/_p3, ST01-012_p3, OP10-065_p1, OP09-004_p6, OP09-093_p4/_p5, OP05-067_p4, OP17-062_p1) show the NEW own picture; home, /cards/one-piece, most-valuable, /scan + 22 set pages: every changed card's picture answers 200 (after the 696 old-name fill). /cards/one-piece/movers 404 = by design (movers are Pokémon + Magic only).
+- [x] Customers' rows (cards / wishlist_items / price_checks image_url): 0 hold an old link of the 348.
+- [ ] After the 2am PC catalog run 10-25 (log in the Task Scheduler output): the images pass logs "picks: by price ~3723, own set ~407" and changes 0 (or a few from price moves); push-catalog sends the 348 rows once (same content as prod).
+- [ ] Prod after 2:30am: ygo-714621 Gagaga Magician - Gagaga Magic $0.62 and ygo-714628 Cyberse Contract Witch $2.90 still priced (the 2am push blanks them unless the push-catalog never-blank guard lands first; the 5-5:45am crons refill them).
+- [ ] Old-name files (data/op-picture-fix-aliases-2026-10-25.json) can stay; delete only after 10-27 when the 2-day caches have rolled over, if storage matters.
+
 ## 10-24 7:38PM ET: PUSHED b599f575..f3ce9447 on Chris "Push + remake" (b7c45dea ja/zh-tagged printings sit out of TCG posts, 4ac2ffa9 Insights Collection Value = market, 80a2c26c Inventory summary spacing, f3ce9447 admin garbled text fixed, docs).
 - [x] CI 40143516519 + 40143514806 GREEN; Production smoke 40143564677 GREEN on f3ce9447 (deploy live).
 - [x] 7pm remake (run 40143522865): Dumbo Fabled #45 $36.24 (TCG market $36.61) vs Angel Winterspell #191 $41.95 (TCG NM 37.49-45); the Japanese Mickey #25ja no longer picked. MISTAKE: the 7:05pm cron had already posted Angel vs Mickey on the 5 sites and my Post now (7:50pm) added Dumbo vs Angel as a second post; Chris deleting the 5 Mickey posts by hand (LESSONS 10-24 ~8:00pm). TikTok (sound Magical Fairy Tale, Saifonbria) and Pinterest by hand.
