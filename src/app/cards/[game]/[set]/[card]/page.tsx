@@ -106,20 +106,30 @@ function Heading({ f }: { f: CardFacts }) {
   );
 }
 
-/** "Holofoil  $12.40" rows: every current printing, each through the guard. */
+/**
+ * "Holofoil  $12.40" rows: every current printing, each through the guard. The price stands alone on its side; the row's
+ * day (only when it is not the headline's, which "As of" above already says) and its note go under the name (10-25,
+ * Chris picked sample A: "Pokémon Center Exclusive" had squeezed price, date and note onto three lines).
+ */
 function PriceTable({ page }: { page: CardPage }) {
+  const day = page.headline?.day;
   return (
     <dl className="mt-4 divide-y divide-edge rounded-2xl border border-edge bg-surface-1 text-sm">
-      {page.prices.map((p) => (
-        <div key={p.variant} className="flex items-baseline justify-between gap-3 px-4 py-3">
-          <dt className="text-zinc-300">{p.label}</dt>
-          <dd className="text-right">
-            <PriceCell price={p.flag ? null : p.price} flagged={Boolean(p.flag)} className="text-base" />
-            <span className="ml-2 text-xs text-zinc-500">{priceDayLabel(p.day)}</span>
-            {p.stale && !p.flag && <span className="block text-xs text-zinc-400">{priceStaleNote(p.stale)}</span>}
-          </dd>
-        </div>
-      ))}
+      {page.prices.map((p) => {
+        const note = [p.day !== day ? priceDayLabel(p.day) : null, p.stale && !p.flag ? priceStaleNote(p.stale) : null].filter(Boolean).join(" · ");
+        return (
+          <div key={p.variant} className="flex items-baseline justify-between gap-3 px-4 py-3">
+            <dt className="min-w-0 text-zinc-300">
+              {p.label}
+              {note && <span className="block text-xs text-zinc-400">{note}</span>}
+            </dt>
+            {/* The flag sentence may wrap; a price never does. */}
+            <dd className={`text-right ${p.flag ? "" : "shrink-0"}`}>
+              <PriceCell price={p.flag ? null : p.price} flagged={Boolean(p.flag)} className="text-base" />
+            </dd>
+          </div>
+        );
+      })}
     </dl>
   );
 }
