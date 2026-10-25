@@ -4,6 +4,12 @@ Chris (10-14): every support ticket and every social comment is a learning
 experience while the site is new and not fully tested. One entry each: what
 they said, what it taught, what changed, what is still open. Newest first.
 
+## 10-25 2:50pm ET · My catch: two promos priced as their Pokémon Center Exclusive copy (one in the 7pm post)
+- What: checking the 7pm Set Spotlight cards (MEP Black Star Promos) on TCGplayer, Charcadet MEP 022 showed $31.34 ("3rd most valuable in the set", "up 1048% in 90 days") while the plain card sells for $1.94; TCGplayer's $31 product is "Charcadet - 022 (Pokemon Center Exclusive)". A scan of every card two TCGplayer products map to found one more: Eevee SVP 173 at $75.82 vs the plain card's $9.13 (the same card the 10-17 memory already called "the stamped print mixed in", never fixed at the source).
+- Taught: the 10-22 stamp rule ([Staff], Worlds placements) did not cover retail-exclusive copies; whichever product comes first in the TCGplayer group prices the card, so a later exclusive product can take over silently. 26 SV/MEP promos have such a twin (worth 5-15x the plain card); 24 happened to be priced right.
+- Changed: Charcadet fixed to $1.94 through the post-card Fix (7pm video remade, other 4 post cards matched TCGplayer = "Looks right"), Eevee fixed to $9.13 (scripts/_fix-price-tcg.mjs, 31 history points); both pages print the fix. Code a095a82e (held for the bulk push): "(Pokemon Center Exclusive)" / "(Pokemon Center)" products are stamps and never price the plain card; test:pricehistory +2.
+- Open: the 26 exclusive copies have no row of their own (Chris's rule: every print TCGplayer sells separately gets its own price) = build item in the task list.
+
 ## 10-25 1:19pm ET · Chris: "no pushes, stop asking, we need to bulk push"
 - What: I ended the 11:22am report on the One Piece title fix with "OK to push the title fix live?", and STATE said "WAITING ON Chris's yes to push". The 10-20 rule already said never ask to push after a fix.
 - Taught: the morning's One Piece push (Chris's yes on a sheet he was shown for that purpose) made "ask to push" feel normal again; a one-off yes does not change the standing rule.

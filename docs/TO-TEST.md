@@ -1,5 +1,11 @@
 # To test later
 
+## 10-25 2:50PM ET: Pokémon Center Exclusive copies stop pricing the plain promo (prod checks now, code a095a82e held for the bulk push)
+- [x] Prod checks: Charcadet mep-022 holofoil $31.34 -> $1.94 (post-card Fix, 12 TCGplayer NM sales 10-25, 7pm video remake dispatched = social-post run 40223008243); Eevee svp-173 holofoil $75.82 -> $9.13 (_fix-price-tcg, 31 history points). Both card pages print the fix (2:49pm).
+- [x] Code: tcgplayerProductStamp takes "(Pokemon Center Exclusive)" / "(Pokemon Center)" / "(Pokémon Center Exclusive)"; test:pricehistory all pass, tsc clean, eslint 0 errors.
+- [ ] 7pm Set Spotlight (MEP Black Star Promos) shows Charcadet at $1.94 with no % (or another card), on the auto sites and in the rebuilt TikTok/Pinterest pack.
+- [ ] After the bulk push, the first 5:45am Pokémon refresh: svp-173 + mep-022 raw = the plain product (~$9 / ~$2), the two checks retire after two days in band; the other 24 SV/MEP promos with a Pokémon Center twin keep their price: svp-013 014 027 044 051 065 066 075 097 098 123 129 141 159 189 203 209 210, mep-009 010 031 070 080 088 (plain products 10-25: e.g. Pikachu svp-027 $17.48, Charmander svp-044 $48.69, Snorlax svp-051 $16.64).
+
 ## 10-25 10:45AM ET: One Piece printings LIVE on prod (Chris "yes, go ahead" on the phone shots 10:44am; data, plus aa9cebe7 promo labels + the nightly wiring in the next push)
 - [x] Local: sync-onepiece-tcg.mjs (1,577 added, 5,173 tied, 1,172 prices, 85 held = the rehearsal), images pass 305 changed, save-pictures --game onepiece 1,881 saved 0 failed. Backup before: data/cardflip.before-op-printings-2026-10-25.db.
 - [x] Prod: push-catalog --only tcg_cards 7,154 rows (remote 69,324 -> 70,901 = +1,577); push-own-pictures 7,123 = 7,123, 0 to push. Spot rows on prod: OP10-033#tcg620759 $53.31, OP05-010#tcg530892 $309.16, OP05-091#promo $8,000 (was blank), OP11-003_r1 $0.15 (tied to 656670), all with own tiles.
