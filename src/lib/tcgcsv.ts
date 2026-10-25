@@ -321,11 +321,12 @@ export function tcgplayerProductPattern(name: string | null | undefined): Patter
  * stamps, Worlds placement stamps ("[Champion]", "[Finalist]", "[Top 32]", "[Participation]"). Our catalog has the
  * plain card only, and both products map to it, so whichever came first in the group priced the card: Entei SM219
  * showed the Staff stamp's $205 instead of the plain promo's $22 for five months, 14 more SM/SWSH prerelease promos
- * the same way (10-22). A stamped product never prices a plain card.
+ * the same way (10-22). Pokémon Center Exclusive copies too (10-25): Eevee SVP 173 showed the exclusive's $75.82
+ * beside the plain card's $9.13, Charcadet MEP 022 $31.34 beside $1.94. A stamped product never prices a plain card.
  */
 export function tcgplayerProductStamp(name: string | null | undefined): boolean {
   if (!name) return false;
-  return /\[\s*(staff|champion|finalist|semi[\s-]*finalist|quarter[\s-]*finalist|top[\s-]*(16|32|sixteen|thirty[\s-]*two)|participation)\s*\]|\(\s*staff\s*\)|\(prerelease\s*\[staff\]/i.test(name);
+  return /\[\s*(staff|champion|finalist|semi[\s-]*finalist|quarter[\s-]*finalist|top[\s-]*(16|32|sixteen|thirty[\s-]*two)|participation)\s*\]|\(\s*staff\s*\)|\(prerelease\s*\[staff\]|\(\s*pok[eé]mon\s+center(\s+exclusive)?\s*\)/i.test(name);
 }
 
 /** TCGplayer subTypeName → pokemontcg.io's price variant key ("Reverse Holofoil" → "reverseHolofoil"). */
