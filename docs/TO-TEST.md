@@ -1,5 +1,12 @@
 # To test later
 
+## 10-25 1:50AM ET: eBay reads 16 of 20 + 7 prod price fixes (data, live now; details docs/ebay-batch-2026-10-23.txt + docs/price-sim-2026-10-24/ebay-reads.txt bottom)
+- [x] FIXED on prod (_fix-price-tcg + keep): Law OP05-069_p2 manga 1003.19 -> 1700.87, Litten 2017sm-3 16.75 -> 4.49, Tiana WS 205 5.56 -> 7.99, Raikou col1-SL9 -> 237.50, Blastoise ecard1-4 rev 499.95 -> 260, Geodude lc-77 rev -> 145.25, Rayquaza C pl3-8 399.50 -> 140. KEPT: Hamon ygo-58680-1st 549.98 (thin), Vayu ygo-58474-1st 375. Hand list 48 -> 42.
+- [x] 1:50am: all 7 card pages on cardflip.io print the new price, old one gone, no "looks off" (cache MISS after the keeps rebuilt them).
+- [ ] After the 5-5:45am crons 10-25: the 7 still print the checked price (a check wins over the feed); Litten/Tiana/Law did not flip back.
+- [ ] After 5am: read #17 Transmutation Font BIG 58 (expect ~13.74 from 74d51974) = scorecard week 2 card 20. Keep 3 reads for the Sunday digest (before 6:30pm). Charizard LC 3 holo 600 confirm = 10-26.
+- [ ] OPEN (mine): NM base vs all-condition median for vintage fixes (METHOD NOTE in ebay-reads.txt).
+
 ## 10-25 12:50AM ET: push-catalog never replaces a prod price with a blank or $0 (41441745 committed, push HELD; the PC's 2am run uses the working tree = in effect tonight)
 - [x] npm run test:pushcatalog: a local NULL or 0 keeps prod's price on both paths (upsert + price-only UPDATE), a real local price still replaces it; the new checks FAIL on the old script.
 - [x] 12:46am: pushed the 359 tcg_cards rows (348 One Piece pictures + 11 Yu-Gi-Oh!) under the guard; dry run after = 0 rows. All 24 guarded prod prices stood: ygo-714621 $0.62, ygo-714628 $2.90, 22 One Piece starter-deck reprints (local 0, prod $0.03-$0.14; ids in data/push-guard-diff-2026-10-25.txt). 3 reprints took the local optcgapi number: Usopp OP11-003_r1 $1.48 (prod had $0.10), Jaguar.D.Saul OP02-109_r1 $0.39 ($0.06), Nico Robin OP11-009_r1 $0.29 ($0.12).

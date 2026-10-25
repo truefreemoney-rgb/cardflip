@@ -22,3 +22,17 @@ Ursula FAB 208 Epic foil: ours 8.15 | TCG 650145 mkt 8.13; NM 6.98-8.86 x13, med
 Sabo PRB02-014 SR parallel: ours 15.02 | TCG 653841 mkt 15.02; NM 12.70-16.58 x13, median ~13.97 | +8%, TCG backs ours
 Trafalgar Law OP07-047 Offline Regional Participation Pack 2025 Vol.2: ours 15.02 | TCG 646725 mkt 15.02 (same number as Sabo = two products, coincidence); NM 9.68-15.51 x14, median ~13.79 | +9%, TCG backs ours
 Winged Kuriboh LV10 CRV-EN005 Unlimited: ours 13.36 | TCG 24479 Unl mkt 13.36; NM Unl 14.25 (10-02), 14.34 (09-16); LP 8, HP 5.99; 1st NM 18-20.40 | TCG backs ours
+
+== 10-25 1:22-1:47 AM ET eBay reads (16 of 20; >=90 s apart via scratchpad wait-ebay.ps1; Chris signed in to eBay in the pane since 10-24) ==
+SCORECARD WEEK 2 (BIN only, raw English; ours = what the site showed):
+S1 pokemon Mr. Mime AQ 95b normal: ours 8.06 | eBay BIN n=18 Oct 4.00-19.90, median 6.49 | +24% HIT (TCG NM 7.18/7.91 back it)
+S2 pokemon Litten McD 2017 3 holo: ours 16.75 | eBay BIN n=11 (HP/MP/dmg/BO out) 2.99-8.61, median 4.49 (one NM-titled 8.61) | +273% MISS => FIXED 4.49 (TCG LP 3.18-4.99 agree; TCG NM 12.00/14.49 = 2 sales)
+S3 mtg Boromir LTR 407 borderless nonfoil: ours 7.46 | eBay BIN nonfoil n=14 (foils/lots out) 4.99-16.04, median 7.50 | -1% HIT
+S4 mtg Transmutation Font BIG 58: NOT READ (after the 5am Magic run; TCG 13.74 vs ours 6.23 before 74d51974)
+S5 lorcana Tiana WS 205 epic foil: ours 5.56 | eBay BIN n=16 (lots out) 6.00-12.99, median 7.99 | -30% MISS => FIXED 7.99 (TCG NM median ~5.45 x12: eBay runs ~45% over TCGplayer here)
+S6 lorcana Ursula FAB 208 epic foil: ours 8.15 | eBay BIN n=12 (lots, #38 regular foil out) 8.00-17.37, median 10.25 | -20% HIT
+S7 onepiece Sabo PRB02-014 alt art: ours 15.02 | eBay BIN alt-art n=2 17.00/17.33 (plain SR 3-7, SP 160-290 = other printings) | -12% HIT (thin)
+S8 onepiece Law OP07-047 Offline Regional Participation 2025 Vol.2: ours 15.02 | eBay BIN n=2 19.99/24.63 (orBO 16.59-25.00) | -33% MISS (thin) => KEPT 15.02: TCG NM x14 median 13.79 outweighs 2 eBay sales
+S9 yugioh Winged Kuriboh LV10 CRV-EN005 Ultra Rare Unl: ours 13.36 | eBay BIN Unl n=2-3 6.84 LP/10.00/20.40 LP(ed?) | +34% MISS (thin) => KEPT: TCG NM Unl 14.25/14.34
+WEEK-2 SCORE (19 of 20 read): 10-24 5 hit / 4 miss / 2 unscored + 10-25 4 hit / 4 miss = 9 hit / 8 miss of 17 scorable = 53% (week 1: 11/17 = 65%, BIN+BO+auctions). Transmutation Font = #20 after 5am.
+METHOD NOTE (open, mine): the site's price is the NEAR MINT base (listing.ts CONDITION_MULTIPLIER, LP x0.85); hand fixes use the all-condition median (LP in). Same thing for modern cards, but vintage/high-end LP sells at ~40-60% of NM (Raikou, Hamon, Geodude), so x0.85 overprices LP and the median underprices NM. Decide before the next big batch.

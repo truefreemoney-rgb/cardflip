@@ -173,3 +173,16 @@ Cards: Gustav Rocket BLZD-EN043 Starlight 1st $23.05 (+84%), Cinderella Unintent
 TCGplayer: Cinderella NM 850-1499.99 x8, median ~960 = +11% STANDS; Sugar SP (671455) NM 76.90-114.97 x13, median ~90 = -8% STANDS; Judy Hopps cold foil NM 3.07 (10-21), 8.98 x2, 1.50, 5 = thin/scattered (eBay in the afternoon if still in the mail).
 FIXED ygo-692291-1st Gustav Rocket Starlight 1st 23.05 -> 38.96 (TCG NM 1st sales 10-19..10-24 n 11: 23, 24, 28, 34 x2, 38.96, 39.9 x2, 39.99 x2, 40; TCG mkt 23.77 lags a riser); page prints $38.96 "Checked against recent sales" (MISS render). Binding check = out of the digest; the afternoon check reads its replacement.
 FOUND: Sugar OP10-065_p1's picture is the Judge Pack Vol. 6 Sugar (TCGplayer 641237) = One Piece picture pass pairs by number across ALL sets; 782 rows affected (TASKS B7).
+
+== 10-25 1:22-1:47 AM ET eBay queue reads (part of 16 of 20 today) ==
+RULE for thin high-value cards (10-25): median of the exact printing's raw English sales, last ~4 months = eBay BIN + "or Best Offer" sold at the shown price + auctions + TCGplayer latest sales; lots/dmg/crease/MP/HP/foreign/graded/"Best offer accepted" (hidden price) out. n<5 = thin: keep ours unless >2x off.
+L  onepiece OP05-069_p2 Trafalgar Law OP05 manga: ours 1003.19 | TCG 527019 mkt 1700.87 on NM 1700.99 (9-11) + 1700.74 (9-10); eBay BIN 1500 (7-26), BOacc 1600 (8-9); PRB-01 reprint 587959 = 1066.66 (ours sat at the reprint's level) => FIXED 1700.87 + keep
+Q2 pokemon col1-SL9 Raikou SL9 holo: row 698.99, site 225 fallback | BIN 9 74.99-349.99 + orBO 15 125-650 + TCG LP 300/333, NM 698.99 x2; median of 28 = 237.50 => FIXED 237.50 + keep
+Q3 yugioh ygo-58680-1st Hamon SOI UTR 1st: ours 549.98 | eBay BIN 250, orBO 668.70; TCG LP 225 (10-07), NM 549.98 (7-13); BOacc 300 LP/330 | n=4 thin, +37% => KEPT 549.98 (keep)
+Q4 pokemon ecard1-4 Blastoise Exp 4 reverse: row 499.95 | BIN 200/229.99 + orBO 9 184.99-399.99 + TCG LP 260/300; median of 13 = 260 => FIXED 260 + keep
+Q5 pokemon lc-77 Geodude LC 77 reverse: row 444, site 94.99 | BIN 7 + orBO 11 66-350 (NM 249.94-350, LP 70-166); median of 18 = 145.25 => FIXED 145.25 + keep
+Q6 pokemon pl3-8 Rayquaza C SV 8 holo: row 399.50 | holo (not reverse) Oct 10-24 BIN 7 + orBO 16 30-250; median of 23 = 140 => FIXED 140 + keep
+Q7 yugioh ygo-58474-1st Blackwing Vayu ANPR UTR 1st: ours 375 | eBay orBO 249.99 (8-11); TCG 58474 NM 350 (8-18), 375 (8-02), 374.99 (7-06), MP 185 | median 362.50, +3% => STANDS (keep)
+Q1 Tropical Tidal Wave HGSS18 700 (confirm): eBay English NM BIN 668.42 (9-07); rest Italian/Spanish/Portuguese | +5% STANDS (no hand-list row)
+DEFERRED to 10-26: Charizard LC 3 holo 600 (confirm). Hand list 48 -> 42.
+PROD CHECK 1:50am: /api/price-history + all 7 fixed card pages fetched (x-vercel-cache MISS after the keeps rebuilt them): new price printed, old one gone, no "looks off".
