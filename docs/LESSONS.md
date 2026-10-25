@@ -4,6 +4,12 @@ Chris (10-14): every support ticket and every social comment is a learning
 experience while the site is new and not fully tested. One entry each: what
 they said, what it taught, what changed, what is still open. Newest first.
 
+## 10-25 10:48am ET · My miss: a check I promised Chris ran AFTER the prices went live
+- What: the sample sheet and my 10:07am message said "I check the 15 new prices of $300 or more against TCGplayer sales before they go up". At 10:45am push-catalog sent all 1,577 new rows, those 15 included, unchecked. Caught at 10:48 while listing what was left; checked 10:50 (11 stood, 4 were far too high: Bonney Treasure Cup $2,048.73 vs Oct sales ~$150, Luffy ST01-001 super pre-release $923.83 vs $570); fixed 10:51; told Chris plainly. Exposure: ~6 minutes, app search/scan only (#tcg rows have no pages), 1 One Piece customer row on prod and not one of them.
+- Taught: a promised pre-check is a step IN the rollout list, written before the push step, not a note beside it. The doc's ROLLOUT ORDER had no check line, so I followed the list and skipped the promise.
+- Changed: hand checks of big new prices now sit before any prod data push in the rollout lists I write; the held check of the same build ran the same hour (28 fixed).
+- Also found: starting the local dev server runs the daily price refresh on data/cardflip.db (instrumentation.ts boots the daily jobs), so local prices can change under a running build; diff against a backup, not against "what the last script wrote".
+
 ## 10-25 8:39am ET · Chris: "what was this giant spike frm" (Vercel Firewall chart, 10-24 7-10:30pm)
 - What: PerplexityBot (real: its published AWS IPs, two JA4s) walked ~62K card pages + pictures in 3.5 h, up to ~360 a minute. Allowed by the 10-19 crawler rule (search assistants send visitors); bot watch skips it by design (Amazon ASN alert-only, ~12 IPs). Chris spotted it on the chart before I did, again (10-21: "you should be catching these issues sooner").
 - Changed (Chris "put a rate limit on it"): firewall rule "Crawlers: PerplexityBot 60/min" = 30/min per JA4, live v50 (422eb6e7). Found doing it: the 10-21 OAI-SearchBot cap answered 403 (deny) although its note said 429; a 403 tells a search crawler the page is forbidden. Both caps now answer 429. Tested at ~5 req/s: 30 then 429, normal browsers 200.

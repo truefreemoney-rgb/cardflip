@@ -5,7 +5,33 @@ market (TOP PRIORITY); every print TCGplayer sells separately = its own price + 
 existing row ids never change (customers' cards / wishlists / price checks point at them); prod data writes only after
 Chris says yes to a dry run with samples (same as B7); screenshots at phone width before any visible push.
 
-## BUILD STATUS (s250 save, 10-25 9:58am ET) - read this first
+## LIVE 10-25 10:45am ET (s251) - read this first
+Chris yes 10:24 (sheet + push) and 10:44 (phone shots). Prod: push-catalog 7,154 rows (remote 69,324 -> 70,901), own pictures
+all saved (1,881, 0 failed); crawl clean (TO-TEST 10:45AM block). Nightly wired in d9d143e2 (sync:onepiece = feed ->
+sync-onepiece-tcg -> images); second run on the mirror = 0 added, 1 small price, 60 held. Labels fix aa9cebe7 (untagged
+promos say their event). The 15 new $300+ prices: 11 stand, 4 fixed (ST01-001#tcg412113 569.99, OP06-063#tcg668421 249.99,
+OP09-119#tcg680493 254.99, OP13-108#tcg692134 150.00).
+
+### HELD CHECK 10-25 10:58am (TCGplayer NM sales, 90 days; pane tab-1 HELD_OUT)
+85 held at the first run; 25 of them now equal TCGplayer locally (the dev server's boot ran the daily refresh = prod's own
+numbers since 5am), 60 still held:
+- FIXED 28 (checks on prod + scripts/onepiece-tcg-cleared.json): the EB02 "SP" family (Belo Betty, Foxy, Hannyabal, Hody Jones,
+  Jewelry Bonney, Kalgara, Kyros, Monkey.D.Dragon, Vinsmoke Reiju, Perona 750, Rosinante 894.81), OP07-109_p2 Luffy TR 173.87,
+  ST13-015_p1 18.43, OP06-118_p2 2,500 (binds tonight), OP01-120_p2 Shanks manga 3,998.74, OP05-069_p2 (1:50am check), promos
+  OP09-106_pr7 58.26, EB01-043_pr6 33.35, OP05-102_pr3 127.83, EB01-003_pr2 189.66, OP05-062 18.28, P-034_pr1 83.68,
+  P-032_pr1 39.42, OP03-116_pr3 761.97, ST06-006 20.53, OP02-098_pr2 Koby 45.48, EB01-048 Laboon 599.46, OP07-047_pr4 53.74.
+- OURS STANDS 4 (leave held): P-078_pr6#promo, OP07-051_p2, OP07-021_pr7#promo, ST13-003_pr1#promo.
+- eBAY QUEUE 28 (no NM sale in 90 d, or one odd sale; from 10-26, 20 a day, biggest doubt first): OP08-001_p2 Chopper SP
+  (TCG 6,835.94 / ours 162.11), OP07-038_p2 Boa SP (6,969.69 / 376.27), OP05-060_p4 Luffy SP (4,999.99 / 232.72), ST01-012_p3
+  gold signature (4,999.99 / 3,282.21), EB01-006_p2 Chopper manga (2,999.99 / 1,720.48), P-001_pr4#promo Luffy trophy (ours
+  1,525, NM 116-240 Sep-Oct, LP 1,350 Jul), OP01-003_p1 Luffy parallel (NM 195-200 and 1,290-1,550), OP06-080_p2 Gecko Moria SP
+  (one NM 95), OP06-022_p2 Yamato SP (one NM 100, LP 1,300), OP08-002_p2 Marco SP, OP07-079_p2 Lucci SP, OP05-001_p2 Sabo SP,
+  OP06-001_p2 Uta SP, OP08-021_p2 Carrot SP, OP08-058_p2 Pudding SP, OP05-098_p2 Enel SP, OP02-013_p2 Ace manga, OP05-074_p2
+  Kid manga, OP12-015#promo, P-033_pr1#promo, OP02-114#promo, OP06-092_pr3#promo, ST18-003#promo, OP11-004#promo, P-079#promo,
+  P-070#promo, P-085_pr5#promo, EB01-043#promo. Plus: Bonney OP13-108#tcg692134 (confirm 150), Sanji OP07-064_pr1#promo
+  (799.99, 0 sales), Chopper OP01-015#promo Winner (no price anywhere).
+
+## BUILD STATUS (s250 save, 10-25 9:58am ET)
 SAMPLE SHEET SENT 10-25 10:07am ET (private Artifact https://claude.ai/artifact/3jmcAAbo2i5wqwis3n9EXz): waiting on Chris's
 yes, then his push. Before the new rows go up I also check the 15 new prices of $300+ (11 adds + 4 first prices) on
 TCGplayer sales, and hand-price the Chopper Winner OP01-015#promo (no price on TCGplayer or on our site).
