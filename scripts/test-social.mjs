@@ -677,6 +677,10 @@ check("Pokemon 6-day fallback paused 10-28", (await topMovers("pokemon", "2026-1
 check("Magic moves paused 10-28 (the cap fix lifts prices 10-25)", (await topMovers("mtg", "2026-10-28")).length, 0);
 check("Pokemon 6-day fallback paused 10-23", (await topMovers("pokemon", "2026-10-23", { days: 6 })).length, 0);
 check("the pause never reaches back before the cap (09-10 Pokemon moves still read)", (await topMovers("pokemon", TODAY)).length > 0, true);
+// 10-25: the set spotlight / most valuable / guess print no week inside the same window (the 7pm BREAKthrough spotlight
+// said "+20% this week" for a $123.24 cap cut lifted back to $148.01 on 10-23).
+check("capPausedWeek = topMovers' window (Pokemon 10-25 / 10-29 in, 10-30 out, 09-10 out; Magic 10-28 in)", [SOC.capPausedWeek("pokemon", "2026-10-25"), SOC.capPausedWeek("pokemon", "2026-10-29"), SOC.capPausedWeek("pokemon", "2026-10-30"), SOC.capPausedWeek("pokemon", TODAY), SOC.capPausedWeek("mtg", "2026-10-28")], [true, true, false, false, true]);
+check("a paused week puts no move on the set caption", SOC.setCaption("pokemon", { setId: "xy8", setName: "BREAKthrough", cards: [{ cardId: "xy8-160", name: "M Mewtwo EX", setName: "BREAKthrough", number: "160", variant: "holofoil", from: 148.01, to: 148.01, pct: 0, unsettled: true }] }).includes("this week"), false);
 
 // 10-24: a post names a card by set + number; a number that fits a printing priced 25%+ apart sits out.
 {

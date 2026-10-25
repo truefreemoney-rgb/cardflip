@@ -47,6 +47,15 @@ export const CAP_PAUSES: Partial<Record<GameId, { from: string; settled: string;
   // straddled it (10-24: Flayer of Loyalties CMM 747 "+45% this week" = 10 -> 14.98 on 10-18, TCGplayer sales flat).
   mtg: { from: "2026-10-24", settled: "2026-10-25", end: "2026-11-01" },
 };
+/**
+ * The game's cap pause covers the week ending `day`: a "this week" move is the cap or its lift, not the market. The
+ * movers sit out; every other post prints today's price with no week claimed (10-25: the 7pm BREAKthrough spotlight
+ * said "M Mewtwo EX #160: $148, +20% this week" = $148.01 cut to $123.24 on 10-18, back to $148.01 on 10-23).
+ */
+export function capPausedWeek(game: GameId, day: string, days = MOVER_DAYS): boolean {
+  const pause = CAP_PAUSES[game];
+  return Boolean(pause && day >= pause.from && day <= pause.end && addDays(day, -days) < pause.settled);
+}
 export const MOVER_LIMIT = 5;
 /** Below this the % swing is noise (a $1.83 common "up 69%" is not news; Chris 09-25, was $3). */
 export const MOVER_MIN_PRICE = 10;
@@ -553,8 +562,7 @@ export async function topMovers(
   // Pokémon's 10-16/10-17 cap did the same (106 cards $20+ fell 60%+ in 4 days vs 4 a month earlier; the 10-19 7am
   // "price drops" had Dragonair 1st Ed $198 -> $29): paused the same way, and on through 10-30 for the cap switching off
   // on 10-23 (the same cards rose back).
-  const pause = CAP_PAUSES[game];
-  if (pause && day >= pause.from && day <= pause.end && addDays(day, -days) < pause.settled) return [];
+  if (capPausedWeek(game, day, days)) return [];
   const [{ cards: series }, held] = await Promise.all([freshSeries(game, day, days, band), postHolds(game)]);
   const moves: { cardId: string; variant: string; from: number; to: number; pct: number }[] = [];
   const staleFrom: string[] = [];
@@ -793,7 +801,8 @@ export async function cardOfTheDay(game: GameId, day = todayUtc(), minPrice = CO
   const s = series.get(pick)!;
   const c = (await catalogRows(game, [pick])).get(pick);
   if (!c) return null;
-  const from = s.from ?? s.to;
+  const paused = capPausedWeek(game, day);
+  const from = paused ? s.to : (s.from ?? s.to);
   return {
     cardId: pick,
     name: displayName(c.name),
@@ -804,6 +813,7 @@ export async function cardOfTheDay(game: GameId, day = todayUtc(), minPrice = CO
     from,
     to: s.to,
     pct: from > 0 ? ((s.to - from) / from) * 100 : 0,
+    ...(paused ? { unsettled: true } : {}),
   };
 }
 
@@ -839,12 +849,12 @@ const medianOf = (xs: number[]) => [...xs].sort((a, b) => a - b)[Math.floor((xs.
  * A Mover from a fresh series and its catalog row, priced the way the set
  * spotlight prices a card: today's point when it held HELD_DAYS days, else the
  * week's median; the week claimed only when both ends are prices the movers
- * would print (held, the old price believed and settled, no lone step).
+ * would print (held, the old price believed and settled, no lone step, no cap pause over the week).
  */
-function moverOf(game: GameId, cardId: string, c: CatalogRow, s: FreshCard): Mover {
+function moverOf(game: GameId, cardId: string, c: CatalogRow, s: FreshCard, paused = false): Mover {
   const median = s.held < HELD_DAYS;
   const to = median ? s.median : s.to;
-  const unsettled = median || s.from == null || !s.fromOk || !s.fromSettled || Boolean(s.stepJump);
+  const unsettled = paused || median || s.from == null || !s.fromOk || !s.fromSettled || Boolean(s.stepJump);
   const from = unsettled ? to : (s.from as number);
   return { cardId, name: displayName(c.name), setName: c.set_name, number: c.number, imageUrl: postArtUrl(game, c.image_url), variant: s.variant, from, to, pct: !unsettled && from > 0 ? ((to - from) / from) * 100 : 0, unsettled };
 }
@@ -931,12 +941,13 @@ export async function topByPrice(game: GameId, day = todayUtc(), limit = 5): Pro
     .sort((a, b) => price(b[0], b[1]) - price(a[0], a[1]) || a[0].localeCompare(b[0]))
     .slice(0, limit * 4);
   const cat = await catalogRows(game, ranked.map(([id]) => id));
+  const paused = capPausedWeek(game, day);
   for (const [id, s] of ranked) {
     const c = cat.get(id);
     if (!c || !c.image_url || seen.has(baseName(c.name))) continue;
     seen.add(baseName(c.name));
     const ck = checkedTo(id, s);
-    out.push(ck != null ? { ...moverOf(game, id, c, s), from: ck, to: ck, pct: 0, unsettled: true } : moverOf(game, id, c, s));
+    out.push(ck != null ? { ...moverOf(game, id, c, s), from: ck, to: ck, pct: 0, unsettled: true } : moverOf(game, id, c, s, paused));
     if (out.length >= limit) break;
   }
   if (game === "mtg") return eurOnlyTop(out, limit, seen);
@@ -1289,9 +1300,11 @@ export async function setSpotlight(game: GameId, day = todayUtc(), { minCards = 
   // do (10-02: gains posts average 22 views, set posts 13, and that morning's Sun & Moon caption said "steady" four
   // times). Same test as the lead card below: a held price, an old price the guard believes, a real jump. With no such
   // set that day, every qualifying set is in the pool as before.
+  // A cap pause over the week: no riser (the lift made ~1,400 Pokémon "risers" on 10-23) and no week claimed below.
+  const paused = capPausedWeek(game, day);
   const rises = (id: string) => {
     const s = series.get(id)!;
-    if (checkedTo(id) != null || s.held < HELD_DAYS || !s.fromOk || !s.fromSettled || s.stepJump) return false;
+    if (paused || checkedTo(id) != null || s.held < HELD_DAYS || !s.fromOk || !s.fromSettled || s.stepJump) return false;
     const from = s.from ?? s.to;
     return from > 0 && Math.min(from, s.to) >= MOVER_MIN_PRICE && ((s.to - from) / from) * 100 >= JUMP_MIN_PCT;
   };
@@ -1311,9 +1324,9 @@ export async function setSpotlight(game: GameId, day = todayUtc(), { minCards = 
     // believes, or the price is an eBay sold check (its "move" is the fix, not the market).
     const ck = checkedTo(id);
     const median = ck == null && s.held < HELD_DAYS;
-    const unsettled = ck != null || median || !s.fromOk;
+    const unsettled = paused || ck != null || median || !s.fromOk;
     const to = ck ?? (median ? s.median : s.to);
-    const from = ck == null && s.fromOk ? (s.from ?? to) : to;
+    const from = !paused && ck == null && s.fromOk ? (s.from ?? to) : to;
     cards.push({
       cardId: id,
       name: displayName(c.name),
