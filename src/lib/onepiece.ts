@@ -155,12 +155,15 @@ export function printingLabel(card: { rarity?: string | null; variant?: string |
     words = `${STAMP_WORDS[stamp[1]]}${rest}`;
   } else if ((card.setCode ?? "").toUpperCase() === ONE_PIECE_PROMO_SET) {
     // Promo rows carry the pack as the tag ("cs-2023-celebration-pack",
-    // "judge-pack-vol-5"); an untagged promo is "promo" / "promo-pr2".
+    // "judge-pack-vol-5"); an untagged promo is "promo" / "promo-pr2", and its
+    // event sits in the name ("Tony Tony.Chopper (Offline Regional 2024 Vol. 3)
+    // [Winner]"): 10-25, Chopper OP01-015 offered "Promo · UC" three times.
+    const named = [...(card.name ?? "").matchAll(/[([]([^()[\]]+)[)\]]/g)].map((m) => m[1].replace(/\./g, "").trim()).filter(Boolean).join(" ");
     words =
       words !== undefined
         ? `Promo ${words}`
         : /^promo(-pr\d+)?$/.test(v)
-          ? "Promo"
+          ? named || "Promo"
           : titled().replace(/\b(Cs|Tcg|Us|Uk|Jp|Sp|Tr|(?:Op|St|Eb|Prb)\d*)\b/g, (w) => w.toUpperCase());
   } else if (words === undefined) {
     words = /^[a-z]+\d*-\d+/.test(v) || /^\d/.test(v) ? "Alt Art" : titled();
