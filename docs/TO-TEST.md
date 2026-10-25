@@ -1,5 +1,11 @@
 # To test later
 
+## 10-25 5:12PM ET: Pokémon Center Exclusive lines (ee807416) + the printing rows Chris picked, sample A (3c5f6b3b); both held for the bulk push
+- [x] Local: the real nightly step = 191 groups, 0 failed, 26 new pokemonCenterExclusive lines, every plain line = the plain product (Eevee 75.82 -> 9.06, Charcadet 31.34 -> 1.93); test:pricehistory / patterncleanup / ebay / ebayreferee, tsc, eslint green. Phone shots: Snorlax svp-051 (Holofoil $16.82; Pokémon Center Exclusive $266.78 with "Few recent sales" under the name), Lillipup sv10.5w-074 (4 rows, one line each).
+- [ ] After the bulk push, the first 5:45am Pokémon write: the 26 svp/mep cards each have a pokemonCenterExclusive line = TCGplayer's Pokémon Center product, their holofoil = the plain product; the Snorlax svp-051 page shows both rows.
+- [ ] After the push, phone: a card page with several printings (any game) = the price alone on the right, no date on rows from the headline's day, a stale or few-sales note under the name; a flagged row's sentence still wraps.
+- [ ] First 8:15am referee run after the push: eBay reads for a pokemonCenterExclusive line use Pokémon Center titles only, the plain promo's never do.
+
 ## 10-25 2:50PM ET: Pokémon Center Exclusive copies stop pricing the plain promo (prod checks now, code a095a82e held for the bulk push)
 - [x] Prod checks: Charcadet mep-022 holofoil $31.34 -> $1.94 (post-card Fix, 12 TCGplayer NM sales 10-25, 7pm video remake dispatched = social-post run 40223008243); Eevee svp-173 holofoil $75.82 -> $9.13 (_fix-price-tcg, 31 history points). Both card pages print the fix (2:49pm).
 - [x] Code: tcgplayerProductStamp takes "(Pokemon Center Exclusive)" / "(Pokemon Center)" / "(Pokémon Center Exclusive)"; test:pricehistory all pass, tsc clean, eslint 0 errors.
