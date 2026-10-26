@@ -1,5 +1,12 @@
 # To test later
 
+## 10-26 10:45AM ET: eBay reads 1-5 of 20 (pane, Chris's login, 10-21 NM rule) + TCGplayer sales = 4 prod checks (scripts/_fix-price-tcg.mjs)
+- [x] Firkraag CLB 642 extended art foil (was hidden "high" at 139.98 = TCGplayer's one listing): eBay EA foil = 1 Best Offer <=8.99 only (reads 1-2; the rest = #648 foil $1-16, which is also what the referee's asks matched); TCGplayer 273895 foil LP x4 79.69-87.79 = CHECK 86.91.
+- [x] Lightning Crafter MOR 93 foil (raw 109.99 -> 77.99 today): eBay 2 sold, both titled LP 42.99 / 44.99 (read 3); TCGplayer 18008 LP 34.98 / 51.36, one odd "NM" 14.00 = CHECK 43.99 (median of the 4).
+- [x] Rayquaza CL 20 reverse (562.15, kept LOW): TCGplayer 88628 reverse NM 863.54 / 1,554.90 / 900; eBay (read 4) NM-titled 1,600 / 915 (auctions), the untitled BIN 75-120 = played copies (the NM rule misreads this card) = CHECK 900 (31 series points).
+- [x] M Charizard EX FLF 108 (1,501.23, kept by hand = PSA 9 level): TCGplayer 91246 no NM since Jul, LP x6 median 468.48; eBay (read 5) plain BIN only LP 499.99; PriceCharting ungraded 243.96 / PSA 8 706.20 / PSA 9 1,533.65 = CHECK 468.48 (31 points). [ ] Re-check when a NM sale shows (NM may run ~600-750).
+- [ ] After the pages regenerate (2-day cache): the 4 pages print 86.91 / 43.99 / 900 / 468.48 with no "looks off".
+
 ## 10-26 9:55AM ET: morning checks (read only, no writes)
 - [x] 647d3b45: today's 1pm (Dragon Vault most valuable) and 7pm (Guess Tyranitar) captions print no "+X% this week"; the 1pm spotlight has no riser pool.
 - [x] 1pm + 7pm post cards vs TCGplayer NM sales: Kyurem DV 21 $94.18 (= mkt, NM 137/98/88), Rayquaza DV 11 $82.69 (mkt 85.60, NM 61-120 rising), Dragonite DV 5 $34.76 (NM med 33.88), Latias DV 9 $26.68 (NM ~25.5), Latios DV 10 $19.31 (NM 16-18.71), Tyranitar Neo Discovery 31 1st $102 (NM 1st 114.99) = all stand.
