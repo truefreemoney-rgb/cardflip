@@ -1,5 +1,17 @@
 # To test later
 
+## 10-26 7:58PM ET: One Piece eBay queue, reads 13-18 + TCGplayer (prod price checks via scripts/_fix-price-tcg.mjs)
+- [x] OP08-001_p2 Chopper SP (EB02 EN) 162.11 -> 1225 (2026 ungraded NM sales median n14; eBay raw 1370.49 Jul 30; PSA 9 3050).
+- [x] OP07-038_p2 Boa Hancock SP 376.27 -> 3572.63 (2026 ungraded sales median n5; eBay 90 d: no raw EN, PSA 8.5 2275).
+- [x] OP05-060_p4 Luffy SP 232.72 -> 3450 (2026 ungraded NM median n8; eBay 90 d: PSA 9 3600).
+- [x] OP01-003_p1 Romance Dawn Luffy parallel 355.88 -> 1010.20 (TCGplayer 453506 NM n8 median 1044.99, mkt 1010.20).
+- [x] ST01-012_p3 gold-stamped signature: eBay 2 sales (10,000 best offer = hidden, 2,400 Oct 9), TCGplayer none = ours 3282.21 STANDS (unsure, one usable sale).
+- [x] Read 19 EB01-006_p2 Chopper manga (Memorial EN): eBay 90 d = graded only (PSA 10 4800-5400, BGS 9.5 3518) + JP / "-The Best-" reprint raw; TCGplayer 544532 no sales = ours 1720.48 STANDS (unsure).
+- [x] Read 20 P-001_pr4#promo Luffy Store Championship trophy: eBay BGS 10 2396.87 (Oct 4) vs BGS 9.5 48.30 (Oct 7) = two products under one name; TCGplayer 503023 NM 116.41 / 239.98 / 239.99 / 2000, LP 1349.95 x2 = ours 1525 STANDS (unsure; needs the trophy vs participant promo split looked at).
+- eBay 10-26 = 20/20 used (scripts/ebay-count.txt). Queue continues 10-27 from OP06-080_p2 Gecko Moria SP (docs/ONEPIECE-PRINTINGS-2026-10-25.md line 27).
+- PriceCharting NOT used as a price (Chris 7:53pm "not to sure about pricecharting"; its ungraded sat above PSA 9 on Boa/Luffy); its sold-listing pages were read only as a list of sales.
+- [ ] 10-27: the four card pages show the new prices + charts (cache dropped by the script).
+
 ## 10-26 7:18PM ET: X pixel (ri0v0; Sign up tw-ri0v0-ri127, Purchase tw-ri0v0-ri128; env set on Vercel production; code 4f1f483e committed, unpushed: rides Chris's bulk push; privacy wording = his 7:18pm "do whatever privacy wording we need")
 - [x] Local (dev server with the X ids): uwt.js loads, queue = 4 'set' off switches then config, one page view to t.co + analytics.twitter.com with txn_id ri0v0; a button click sends nothing (auto clicks off); npm run test:pixel 13/13, tsc + eslint green.
 - [x] PUSHED 7:20pm on Chris's "go ahead and push" (origin/main 3c5f6b3b..4f1f483e, 26 commits; Vercel dpl_fhHCwYKqFbXy27TxMTykFsYak6RR READY, CI 40419015819 + Production smoke 40419122584 green). 7:35pm on cardflip.io: uwt.js loads, queue = 4 off switches + config ri0v0, page view beacons to t.co + analytics.twitter.com (adsctp). Privacy page names X.
