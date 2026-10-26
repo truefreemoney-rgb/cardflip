@@ -685,15 +685,47 @@ console.log("one post per slot per site, whatever overlaps (10-26)");
   const rs = await publishSocial({ day: THU, now: clock(17, 45), slot: "midday", origin: "http://x", sites: [said], fetchImage });
   check("a clear refusal (the site answered no) is retried by the next ping", [said.posts.length, rs.sites[0].status], [1, "posted"]);
 
+  // 10-26 review: the publish call itself answering 5xx, or 200 with no id, may still have gone out (Graph and X do,
+  // now and then): never retried. A 4xx on it, or a 5xx on an upload before it, is a clear "no" and is retried.
+  const publishCall = [
+    ["pc1", "x tweets 503: Service Unavailable"],
+    ["pc2", "facebook photos 500: An unexpected error has occurred"],
+    ["pc3", "facebook videos: no id in response"],
+    ["pc4", "instagram media_publish 502: Bad Gateway"],
+    ["pc5", "threads publish: no id"],
+    ["pc6", "bluesky com.atproto.repo.createRecord 500: InternalServerError"],
+    ["pc7", "pinterest create pin 503 [1]: try later"],
+  ];
+  for (const [id, msg] of publishCall) {
+    const s = fakeSite(id);
+    s.post = async (p) => { s.posts.push(p); throw new Error(msg); };
+    const r1 = await publishSocial({ day: THU, now: clock(17), slot: "midday", origin: "http://x", sites: [s], fetchImage });
+    s.post = async (p) => { s.posts.push(p); return { uri: `https://${id}/2` }; };
+    const r2 = await publishSocial({ day: THU, now: clock(17, 45), slot: "midday", origin: "http://x", sites: [s], fetchImage });
+    check(`"${msg}": maybe gone out, the next ping does not post it again`, [/may have gone out/.test(r1.sites[0].posts[0]?.error ?? ""), s.posts.length, r2.sites[0].status], [true, 1, "skipped"]);
+  }
+  for (const [id, msg] of [["no1", "x tweets 403: duplicate content"], ["no2", "x media/upload 503: try again later"], ["no3", "instagram media 500: container failed"]]) {
+    const s = fakeSite(id);
+    s.post = async () => { throw new Error(msg); };
+    await publishSocial({ day: THU, now: clock(17), slot: "midday", origin: "http://x", sites: [s], fetchImage });
+    s.post = async (p) => { s.posts.push(p); return { uri: `https://${id}/1` }; };
+    const r2 = await publishSocial({ day: THU, now: clock(17, 45), slot: "midday", origin: "http://x", sites: [s], fetchImage });
+    check(`"${msg}": a clear no, retried by the next ping`, [s.posts.length, r2.sites[0].status], [1, "posted"]);
+  }
+
+  // One site breaking off mid-run (10-26 review: a dropped Turso connection) fails that site only; the run ends normally.
+  const sound = fakeSite("sound1");
+  const torn = fakeSite("torn1");
+  Object.defineProperty(torn, "maxChars", { get() { throw new Error("libsql: connection dropped"); } });
+  const rt = await publishSocial({ day: THU, now: clock(17), slot: "midday", origin: "http://x", sites: [sound, torn], fetchImage });
+  check("one site breaking off: that site failed with a look-by-hand note, the other posted", [rt.sites.map((x) => x.status), /broke off.*look at torn1/.test(rt.sites[1].reason ?? ""), sound.posts.length], [["posted", "failed"], true, 1]);
+
   const crashed = fakeSite("crash1");
   await db.prepare("INSERT INTO social_post_log (site, url, day, slot, kind, at, game, format, run) VALUES ('crash1', 'pending:dead-run:x', ?, 'midday', 'set', ?, 'pokemon', NULL, 'dead-run')").run(THU, clock(17));
   const rc = await publishSocial({ day: THU, now: clock(17), slot: "midday", origin: "http://x", sites: [crashed], fetchImage });
   check("a run that died between its post and its log still holds the slot (its pending row)", [crashed.posts.length, rc.sites[0].status], [0, "skipped"]);
   check("a landed post's log row carries its run and real address, no pending row left", (await db.prepare("SELECT url, run FROM social_post_log WHERE site = 'race1'").all()).map((x) => [x.url.startsWith("https://race1/"), typeof x.run === "string" && x.run.length > 10]), [[true, true]]);
 }
-
-if (failures) { console.log(`\n${failures} failing`); process.exit(1); }
-console.log("\nall green");
 
 // Reach trial 10-09: Instagram, Threads and X close with the sign-off instead of opening with it.
 {
@@ -707,3 +739,6 @@ console.log("\nall green");
   check("fitText signOffLast: body first, sign-off, then tags", fitText(post, 300, 7, true), `Hi\n\n${S}\n\n#A #B`);
   check("fitText default still leads", fitText(post, 300, 7), `${S}\n\nHi\n\n#A #B`);
 }
+
+if (failures) { console.log(`\n${failures} failing`); process.exit(1); }
+console.log("\nall green");

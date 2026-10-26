@@ -414,12 +414,15 @@ const ALREADY_POSTED = "this slot already went out on this site today";
  * "double posting is absurd, there should always be a check making sure the post isnt a double". Such a post is never
  * retried and never followed by a picture fallback; its pending log row keeps the slot taken and the failure mail asks
  * for a look by hand. A failure WITH an answer (the site said no) is retried as before.
+ * 10-26 review: the publish call itself answering 5xx, or 200 with no post id, counts as no answer too (Graph and X
+ * now and then publish behind a 500). A 4xx on that call, or a 5xx on an upload before it, is still a clear "no".
  */
 class UnclearPost extends Error {}
+const PUBLISH_CALL_UNCLEAR = /\b(x tweets|facebook (photos|videos)|instagram media_publish|threads publish|repo\.createRecord|pinterest create pin)( 5\d\d\b|: no id)/i;
 function unclear(err: unknown): boolean {
   const e = err as { name?: string; message?: string; cause?: { code?: string; name?: string } } | null;
   const text = `${e?.name ?? ""} ${e?.message ?? ""} ${e?.cause?.name ?? ""} ${e?.cause?.code ?? ""}`;
-  return /AbortError|TimeoutError|timed? ?out|aborted|fetch failed|ECONNRESET|ETIMEDOUT|EPIPE|socket hang up|UND_ERR|network/i.test(text);
+  return /AbortError|TimeoutError|timed? ?out|aborted|fetch failed|ECONNRESET|ETIMEDOUT|EPIPE|socket hang up|UND_ERR|network/i.test(text) || PUBLISH_CALL_UNCLEAR.test(text);
 }
 
 /**
@@ -896,15 +899,17 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
         // between the post and its log, or a post whose answer never came back, still counts as gone out for every other
         // run (mayPost). No record, no post: if the row cannot be written, this draft is not sent.
         const pendingUrl = `pending:${runId}:${d.id}`;
+        const dropPending = () => db.prepare("DELETE FROM social_post_log WHERE site = ? AND url = ?").run(site.id, pendingUrl).catch(() => undefined);
         try {
           await db
             .prepare("INSERT OR REPLACE INTO social_post_log (site, url, day, slot, kind, at, game, format, run) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?)")
             .run(site.id, pendingUrl, etDay, p.slot, kind, now, game, runId);
         } catch (err) {
+          // The write may have landed before the error came back: take the row out again, nothing was sent.
+          await dropPending();
           entry.posts.push({ id: d.id, title: d.title, error: `not posted: the post record could not be written first (${err instanceof Error ? err.message : String(err)})` });
           continue;
         }
-        const dropPending = () => db.prepare("DELETE FROM social_post_log WHERE site = ? AND url = ?").run(site.id, pendingUrl).catch(() => undefined);
         try {
           const r = await postOne(site, d, text, p.slot);
           const format = r.video === "yes" ? "video" : "picture";
@@ -971,8 +976,16 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
     return entry;
   }
 
-  // Every connected site at once; the report keeps the sites' order.
-  report.sites.push(...(await Promise.all(connected.map(postSite))));
+  // Every connected site at once; the report keeps the sites' order. One site breaking off (a dropped Turso connection,
+  // 10-26 review) is that site's failure, never the whole run's: the run still ends together, inside the route's wall.
+  const brokeOff = (site: SocialSite, err: unknown): SiteReport => ({
+    site: site.id,
+    label: site.label,
+    status: "failed",
+    reason: `the run broke off on this site (${err instanceof Error ? err.message : String(err)}); look at ${site.label} before posting by hand`,
+    posts: [],
+  });
+  report.sites.push(...(await Promise.all(connected.map((s) => postSite(s).catch((err) => brokeOff(s, err))))));
   if (!opts.dry) {
     // No-repeat rule: every gains/drops draft that landed anywhere keeps its cards out of that kind for FEATURED_DAYS.
     // The 7pm all-games post files its per-game jumps under their own "jumps" list (a lead card has no id and files nothing).

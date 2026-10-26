@@ -87,6 +87,8 @@ async function run(req: NextRequest) {
     clearTimeout(timer);
   } catch (err) {
     clearTimeout(timer);
+    // A run that fell over posts nothing more: whatever is still going in the background stops before its next post.
+    stop.abort();
     // The whole run fell over (10-02 9:51pm ET: a bare 500, no trace). Record it, mail Chris, and say why in the body.
     console.error("social publish crashed", err);
     const crash = await recordPublishCrash(err, { slot: slot ?? null });

@@ -7,6 +7,7 @@
 - [x] 4:20pm: the 4 extra 1pm copies deleted (X / Bluesky / Facebook by the console route, Threads in the pane); kept copies live (Bluesky public API shows only 3mysamnmmau26; Threads De90V4yFcAR up, De90V4old38 gone).
 - [ ] After the push: prod social_post_log gains the run + deleted_at columns at boot; each new post's row carries a run id, no "pending:" rows left behind after a normal slot (SELECT url FROM social_post_log WHERE url LIKE 'pending:%').
 - [ ] A force re-post of a slot that is still up answers "this slot already went out on this site today".
+- [ ] 4:55pm review fixes (unpushed): a site's publish call answering 5xx or "no id" mails "may have gone out" and is NOT retried by the backstop (watch the next such mail); one site breaking off mid-run shows "the run broke off on this site" in its report while the other sites post normally.
 
 ## 10-26 3:50PM ET: bot protection (firewall v51-v53 live; bot watch + smoke + robots committed, unpushed)
 - [x] v51 Amazon picture scraper deny: refused from 3:35pm (108 / 89 / 36 per 5 min), 0-3 allowed after (uptime).
