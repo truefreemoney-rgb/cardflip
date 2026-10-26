@@ -1,5 +1,5 @@
 /**
- * Ad-measurement events (TikTok Pixel, 10-04, for the first paid test; Google Ads conversions 10-06, below).
+ * Ad-measurement events (TikTok Pixel, 10-04, for the first paid test; Google Ads conversions 10-06 and the X Pixel 10-26, below).
  *
  * The pixel itself is loaded by GoogleAnalytics.tsx under the same consent
  * gate as GA4 and only when NEXT_PUBLIC_TIKTOK_PIXEL_ID is set. These helpers
@@ -121,9 +121,46 @@ function gaEvent(event: string, waitedMs = 0) {
   })("event", name, { send_to: GA_ID });
 }
 
+/**
+ * X Pixel events (10-26, the first X ad test): the event ids from X's Events
+ * manager (tw-<pixel>-<event>) live on Vercel. Sent only outside /app: X's
+ * pixel has no pause like TikTok's holdConsent, and nothing measures inside the
+ * account (privacy page), so a purchase confirmed on /app/account/welcome is
+ * not sent. The base code mounts after first paint (DeferredAnalytics); until
+ * its twq() stub exists the event waits here, given up after 15 s.
+ */
+const X_EVENT: Partial<Record<string, string | undefined>> = {
+  CompleteRegistration: process.env.NEXT_PUBLIC_X_EVENT_SIGNUP,
+  Subscribe: process.env.NEXT_PUBLIC_X_EVENT_PURCHASE,
+  CompletePayment: process.env.NEXT_PUBLIC_X_EVENT_PURCHASE,
+};
+
+function xEvent(event: string, props?: Record<string, unknown>, waitedMs = 0) {
+  const id = X_EVENT[event];
+  if (!id || typeof window === "undefined") return;
+  const path = window.location.pathname;
+  if (path === "/app" || path.startsWith("/app/")) return;
+  const twq = (window as unknown as { twq?: (...args: unknown[]) => void }).twq;
+  if (typeof twq !== "function") {
+    if (waitedMs < 15_000) setTimeout(() => xEvent(event, props, waitedMs + 250), 250);
+    return;
+  }
+  const value = typeof props?.value === "number" ? props.value : undefined;
+  try {
+    twq("event", id, value != null ? { value, currency: typeof props?.currency === "string" ? props.currency : "USD" } : {});
+  } catch {
+    // Measurement never breaks the page.
+  }
+}
+
 export function pixelTrack(event: "CompleteRegistration" | "Subscribe" | "CompletePayment" | "ViewContent" | "ClickButton", props?: Record<string, unknown>) {
   try {
     adsConversion(event, props);
+  } catch {
+    // Measurement never breaks the page.
+  }
+  try {
+    xEvent(event, props);
   } catch {
     // Measurement never breaks the page.
   }
