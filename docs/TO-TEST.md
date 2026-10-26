@@ -2,6 +2,8 @@
 
 ## 10-26 7:18PM ET: X pixel (ri0v0; Sign up tw-ri0v0-ri127, Purchase tw-ri0v0-ri128; env set on Vercel production; code 4f1f483e committed, unpushed: rides Chris's bulk push; privacy wording = his 7:18pm "do whatever privacy wording we need")
 - [x] Local (dev server with the X ids): uwt.js loads, queue = 4 'set' off switches then config, one page view to t.co + analytics.twitter.com with txn_id ri0v0; a button click sends nothing (auto clicks off); npm run test:pixel 13/13, tsc + eslint green.
+- [x] PUSHED 7:20pm on Chris's "go ahead and push" (origin/main 3c5f6b3b..4f1f483e, 26 commits; Vercel dpl_fhHCwYKqFbXy27TxMTykFsYak6RR READY, CI 40419015819 + Production smoke 40419122584 green). 7:35pm on cardflip.io: uwt.js loads, queue = 4 off switches + config ri0v0, page view beacons to t.co + analytics.twitter.com (adsctp). Privacy page names X.
+- [ ] 10-27: X ad groups 2-4 (21-34, 35-49, 50+; $3/day each; ads tagged utm_campaign=pokemon-21-34 / pokemon-35-49 / pokemon-50-plus) delivering once Chris presses Save changes.
 - [ ] After the push: cardflip.io home source has "x-pixel" + static.ads-twitter.com/uwt.js only after the consent gate (UK/IE visitors asked first); /admin and /app pages load no uwt.js on a fresh load.
 - [ ] After the push: X Ads Manager > Events manager shows "Site visits" + "Landing page views" Active with a Last recorded time within the day.
 - [ ] First real signup after the push: Events manager "Sign up" shows Active (Last recorded); never a "gtm_sign_up" or "autobuttonclick" event (dataLayer + auto clicks are off).
