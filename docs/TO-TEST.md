@@ -1,5 +1,12 @@
 # To test later
 
+## 10-26 8:50AM ET: 7am hand posts DONE (all five games Biggest Jumps; pack built 8:19am with tiktok-pack.mjs 2026-10-26)
+- [x] Post cards vs TCGplayer NM sales (pane, 8:25am): Eevee McDonald's 2019 #12 $26.85 (NM 23.40 10-24, 33.99 10-09; mkt 26.84) stands; Lightning Bolt Unlimited $22.72 (NM 18.50-19.98 Sep-Oct, +20%, in band) stands; Baymax Armored Companion promo #9 $65.27 (NM 70-73 Sep-Oct) stands; Slifer RA03-EN244 QCSR $53.06 (NM 45-54) stands; Luffy P-055 $74.25 (checked 10-25).
+- [x] TikTok posted 8:35am, Everyone, 7 linked tags; sound "Heroic Adventure" Sound Gallery by Dmitry Taras, 1:00 (search "heroic adventure", 8th row; one AudioClip__root after reopening); cover Eevee $26.85. Content check lite was still "in progress" at post time (music check: no issues).
+- [x] Pinterest published ~8:47am: own title + own 492-char description (the pack's read "at's market price"), link, board Pokémon Card Prices, 7 all-games topics first try.
+- [x] Comments: TikTok newest 2d ago (answered); social_comments total 19, newest 10-23 replied (admin console session had expired, read from the DB instead).
+- [ ] tiktok-pack.mjs pinterest.txt for kind games: the description drops words ("CardFlip reads Pokémon. ... at's market price") = fix the trimming.
+
 ## 10-25 7:53PM ET: 7pm hand posts DONE (Then vs Now Greninja XY24, $48.82 May -> $138 today; card "Looks right" vs TCGplayer $134.87 earlier today)
 - [x] TikTok posted 7:50pm (Chris pressed Post): Studio Posts = Everyone; caption + 7 linked tags; sound "New Bark Town" The Greatest Bits, 1:00 (search "pokemon new bark town", 5th row; one AudioClip__root after reopening the editor); default cover = Greninja May $48.82 / Today $138; both checks "No issues found".
 - [x] Pinterest published ~7:52pm: own title "Pokémon then vs now: Greninja XY24 promo, $48.82 in May to $138 today", pack description (312 chars, 7 tags), link cardflip.io, board Pokémon Card Prices, 7 topics via the JS loop first try.
