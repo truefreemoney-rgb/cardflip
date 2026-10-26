@@ -10,7 +10,7 @@ sc = None
 _fonts = {}
 
 
-def setup(out, frames, fps=30, seed=7):
+def setup(out, frames, fps=30, seed=7, res=(1080, 1920)):
     global sc
     random.seed(seed)
     bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -20,7 +20,7 @@ def setup(out, frames, fps=30, seed=7):
             sc.render.engine = eng; break
         except TypeError:
             pass
-    sc.render.resolution_x, sc.render.resolution_y, sc.render.resolution_percentage = 1080, 1920, 100
+    sc.render.resolution_x, sc.render.resolution_y, sc.render.resolution_percentage = res[0], res[1], 100
     sc.render.fps = fps; sc.frame_start, sc.frame_end = 1, frames
     sc.render.image_settings.file_format = "PNG"; sc.render.filepath = os.path.join(out, "f_")
     sc.view_settings.view_transform = "Standard"
@@ -150,6 +150,22 @@ def make_card(name, front, back=BACK, holo=True, loc=(0, 0, 0), scale=0.85, flat
     return pivot, holo_keys
 
 
+def rrect(name, hw, hh, r, mat, z=0.0, parent=None):
+    """Flat rounded rectangle (one face, XY plane, facing +z): price plates, buttons, screens."""
+    me = bpy.data.meshes.new(name); bm = bmesh.new(); pts = []
+    for cx, cy, a0 in ((hw - r, hh - r, 0), (-hw + r, hh - r, 90), (-hw + r, -hh + r, 180), (hw - r, -hh + r, 270)):
+        for k in range(7):
+            a = math.radians(a0 + k * 15); pts.append((cx + r * math.cos(a), cy + r * math.sin(a), z))
+    bm.faces.new([bm.verts.new(p) for p in pts])
+    uv = bm.loops.layers.uv.new("UVMap")
+    for f in bm.faces:
+        for l in f.loops: l[uv].uv = ((l.vert.co.x + hw) / (2 * hw), (l.vert.co.y + hh) / (2 * hh))
+    bm.to_mesh(me); bm.free(); me.materials.append(mat)
+    o = bpy.data.objects.new(name, me); sc.collection.objects.link(o)
+    if parent: o.parent = parent
+    return o
+
+
 def holo_sweep(keys, pts_rain, pts_shine):
     for key, pts in (("rain", pts_rain), ("shine", pts_shine)):
         if key not in keys: continue
@@ -221,6 +237,23 @@ def sparkles(n=160, frames=150, clear_x=1.9, clear_z=(-3.0, 0.2)):
         o.location = (x, y, z); o.keyframe_insert("location", frame=1)
         o.location = (x + random.uniform(-0.3, 0.3), y, z + random.uniform(0.4, 1.0)); o.keyframe_insert("location", frame=frames)
     return proto
+
+
+def clear_sparks(proto, cam, zones, frames):
+    """Delete sparkles that pass behind text (10-26: a spark in the O of GOOD read as GOQD). zones = (x0, y0, x1, y1)
+    frame fractions, y down; checked at the given frames because sparks drift and the camera moves."""
+    from bpy_extras.object_utils import world_to_camera_view
+    sparks = [o for o in sc.objects if o.type == "MESH" and o.data == proto.data and o != proto]
+    dead = set()
+    for f in frames:
+        sc.frame_set(f)
+        for o in sparks:
+            if o in dead: continue
+            p = world_to_camera_view(sc, cam, o.matrix_world.translation)
+            if any(x0 <= p.x <= x1 and y0 <= 1 - p.y <= y1 for x0, y0, x1, y1 in zones): dead.add(o)
+    for o in dead: bpy.data.objects.remove(o, do_unlink=True)
+    sc.frame_set(1)
+    print("sparks cleared", len(dead))
 
 
 def burst(proto, center, n, f0, reach, mat, size=0.02, flat=False):
@@ -319,6 +352,25 @@ def camera(loc, target=None, lens=50, dof_target=None, fstop=1.6):
     else: co.rotation_euler = (math.radians(90), 0, 0)
     if dof_target is not None: cam.dof.focus_object = dof_target
     return co
+
+
+def hud(co, name, body, fx, fy, frac, color, strength, d=4.0, font_path=FONT_HEAVY, align="CENTER"):
+    """Text pinned to the camera: (fx, fy) = 0..1 across/down the frame, frac = text size as a share of the frame
+    height. Any aspect (10-26 square X ads). Put d at the focus distance so DOF keeps it sharp."""
+    hh = d * (co.data.sensor_height / 2) / co.data.lens; hw = hh * sc.render.resolution_x / sc.render.resolution_y
+    o = text(name, body, (0, 0, 0), frac * 2 * hh, color, strength, rot=(0, 0, 0), font_path=font_path, align=align); o.parent = co
+    o.location = ((fx - 0.5) * 2 * hw, (0.5 - fy) * 2 * hh, -d); return o
+
+
+def hud_pill(co, name, fx, fy, w, h, d, fill=(0.018, 0.016, 0.03, 1), rim=LILAC):
+    """Camera-pinned dark badge with a thin rim, just behind text at distance d (w, h = share of the frame)."""
+    hh_ = d * (co.data.sensor_height / 2) / co.data.lens; hw_ = hh_ * sc.render.resolution_x / sc.render.resolution_y
+    root = bpy.data.objects.new(name, None); sc.collection.objects.link(root); root.parent = co
+    root.location = ((fx - 0.5) * 2 * hw_, (0.5 - fy) * 2 * hh_, -d - 0.01)
+    e = 0.003 * d
+    rrect(name + "_rim", w * hw_ + e, h * hh_ + e, h * hh_ * 0.42 + e, emission_mat(name + "_rimm", rim, 1.1), z=-0.002, parent=root)
+    rrect(name + "_fill", w * hw_, h * hh_, h * hh_ * 0.42, emission_mat(name + "_fillm", fill, 1.0), parent=root)
+    return root
 
 
 def bloom(threshold=0.8, strength=0.6, size=0.6):
