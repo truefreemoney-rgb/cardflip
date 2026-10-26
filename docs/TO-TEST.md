@@ -1,5 +1,11 @@
 # To test later
 
+## 10-26 6:58PM ET: X ads LIVE (campaign "CardFlip | Pokemon | Website traffic | Oct 26", ad group 57123481 18-24 $3/day, ads A/B/C)
+- [x] 6:59pm: X Ads Manager shows the ad group Active ($3.00 daily) and all 3 ads Active (posts A 2114853837530120373, B 2114853837710545237, C 2114853837664334033).
+- [ ] 10-27 morning: X Ads Manager > Ads: impressions + link clicks + CTR per ad (A pull / B binder / C higher-lower); spend near $3/day, not more.
+- [ ] 10-27: the site's attribution shows source x, medium paid with utm_content a / b / c (lib/attribution.ts), and whether any X visitor scanned or signed up.
+- [ ] After ~3 days: pick the winner per CTR + signups before copying the ad group for 24-34 / 34-49 / 49-54 / 54+ (Chris's ages, $3/day each).
+
 ## 10-26 4:25PM ET: one post per slot per site (publisher claim + time wall stops the run; committed, unpushed)
 - [ ] After the push: every slot posts once per site (prod social_posts: 1 row per site per slot per day).
 - [ ] The GitHub backstop's run report says "slot already posted today" or "another run is posting the <slot> slot", never a second post.
