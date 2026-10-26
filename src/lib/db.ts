@@ -1205,7 +1205,9 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
   // 10-03 phase 5: the game the post was about ("mixed" for a one-per-game list) and its format (video / picture), from
   // the publisher's log, so the loop can score an angle per game and the video-vs-picture choice.
   ["social_posts", ["kind TEXT", "slot TEXT", "game TEXT", "format TEXT"]],
-  ["social_post_log", ["game TEXT", "format TEXT"]],
+  // 10-26 the double check (lib/server/socialPublish.ts mayPost): run = the publisher run that wrote the row (its own
+  // rows never block it), deleted_at = taken down from the console (a deliberate re-post of that slot is allowed again).
+  ["social_post_log", ["game TEXT", "format TEXT", "run TEXT", "deleted_at INTEGER"]],
   ["users", [
     "totp_secret TEXT",
     "totp_enabled_at INTEGER",

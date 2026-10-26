@@ -4,6 +4,7 @@ import { metaReadCreds } from "@/lib/server/sites/meta";
 import { xSignedJson } from "@/lib/server/sites/x";
 import { blueskyCall, blueskySession } from "@/lib/server/sites/bluesky";
 import { adminFailure } from "@/lib/server/adminGate";
+import { db } from "@/lib/db";
 
 /**
  * Owner-only: take one of OUR posts down on its site, by the URL social_post_log stored (10-16: the 1pm head to head went
@@ -79,7 +80,10 @@ export async function POST(req: NextRequest) {
   const url = body?.url?.trim();
   if (!site || !url) return NextResponse.json({ error: "site and url required" }, { status: 400 });
   try {
-    return NextResponse.json({ ok: true, id: await deletePost(site, url) });
+    const id = await deletePost(site, url);
+    // 10-26: the publisher's double check skips a post taken down here, so a deliberate re-post of the slot stays possible.
+    await db.prepare("UPDATE social_post_log SET deleted_at = ? WHERE site = ? AND url = ?").run(Date.now(), site, url).catch((err) => console.warn("social: deleted_at not stamped", err instanceof Error ? err.message : err));
+    return NextResponse.json({ ok: true, id });
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : String(err) }, { status: 400 });
   }

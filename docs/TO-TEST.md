@@ -4,6 +4,9 @@
 - [ ] After the push: every slot posts once per site (prod social_posts: 1 row per site per slot per day).
 - [ ] The GitHub backstop's run report says "slot already posted today" or "another run is posting the <slot> slot", never a second post.
 - [ ] Next Turso slowdown: a "publisher crashed" mail is no longer followed by a late post from that run.
+- [x] 4:20pm: the 4 extra 1pm copies deleted (X / Bluesky / Facebook by the console route, Threads in the pane); kept copies live (Bluesky public API shows only 3mysamnmmau26; Threads De90V4yFcAR up, De90V4old38 gone).
+- [ ] After the push: prod social_post_log gains the run + deleted_at columns at boot; each new post's row carries a run id, no "pending:" rows left behind after a normal slot (SELECT url FROM social_post_log WHERE url LIKE 'pending:%').
+- [ ] A force re-post of a slot that is still up answers "this slot already went out on this site today".
 
 ## 10-26 3:50PM ET: bot protection (firewall v51-v53 live; bot watch + smoke + robots committed, unpushed)
 - [x] v51 Amazon picture scraper deny: refused from 3:35pm (108 / 89 / 36 per 5 min), 0-3 allowed after (uptime).

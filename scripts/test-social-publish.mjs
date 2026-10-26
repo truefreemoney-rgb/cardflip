@@ -168,8 +168,12 @@ r = await publishSocial({ day: THU, now: clock(15), origin: "http://x", sites: [
 check("Post now at 11am (only morning due, already done) → posts nothing again", [r.slot, r.sites[0].status, r.sites[0].reason ?? null, bsky.posts.length], ["morning", "skipped", "morning slot already posted today", 3]);
 check("…and builds nothing (no image fetched)", fetched.length, 3);
 r = await publishSocial({ day: THU, now: clock(15), origin: "http://x", sites: [bsky], fetchImage, force: true, slot: "morning" });
-check("a NAMED slot with force still re-posts it (the per-site repair link)", [r.slot, r.sites[0].status, bsky.posts.length], ["morning", "posted", 4]);
-check("one image fetch per posting run", fetched.length, 4);
+// 10-26 the double check (Chris: "there should always be a check making sure the post isnt a double"): force included.
+check("a NAMED slot with force does NOT re-post a post that is still up", [r.slot, r.sites[0].status, r.sites[0].reason ?? null, bsky.posts.length], ["morning", "skipped", "this slot already went out on this site today", 3]);
+await db.prepare("UPDATE social_post_log SET deleted_at = ? WHERE site = 'bsky' AND slot = 'morning'").run(Date.now());
+r = await publishSocial({ day: THU, now: clock(15), origin: "http://x", sites: [bsky], fetchImage, force: true, slot: "morning" });
+check("…once that post is taken down from the console (deleted_at), the repair link re-posts it", [r.slot, r.sites[0].status, bsky.posts.length], ["morning", "posted", 4]);
+check("one image fetch per posting run (the refused run fetched nothing)", fetched.length, 4);
 
 const late = fakeSite("late");
 r = await publishSocial({ day: THU, now: clock(19), origin: "http://x", sites: [bsky, late], fetchImage });
@@ -664,6 +668,28 @@ console.log("one post per slot per site, whatever overlaps (10-26)");
   await claim("live1", 60_000);
   const rlive = await publishSocial({ day: THU, now: clock(17), slot: "midday", origin: "http://x", sites: [live], fetchImage });
   check("a live run's claim (1 min old) holds the slot", [live.posts.length, rlive.sites[0].status, rlive.sites[0].reason], [0, "skipped", "another run is posting the midday slot"]);
+
+  // No answer from the site (timeout, dropped connection) = it may have gone out: never retried. An answer of "no" is.
+  const unsure = fakeSite("unsure1");
+  unsure.post = async (p) => { unsure.posts.push(p); throw Object.assign(new Error("The operation was aborted due to timeout"), { name: "TimeoutError" }); };
+  const ru = await publishSocial({ day: THU, now: clock(17), slot: "midday", origin: "http://x", sites: [unsure], fetchImage });
+  check("no answer from the site: reported as maybe gone out, for a look by hand", [ru.sites[0].status, /may have gone out/.test(ru.sites[0].posts[0]?.error ?? "")], ["failed", true]);
+  unsure.post = async (p) => { unsure.posts.push(p); return { uri: "https://unsure1/2" }; };
+  const ru2 = await publishSocial({ day: THU, now: clock(17, 45), slot: "midday", origin: "http://x", sites: [unsure], fetchImage });
+  check("…and the next ping does not post it again", [unsure.posts.length, ru2.sites[0].status, ru2.sites[0].reason], [1, "skipped", "this slot already went out on this site today"]);
+
+  const said = fakeSite("saidno1");
+  said.post = async () => { throw new Error("x post 503: try again later"); };
+  await publishSocial({ day: THU, now: clock(17), slot: "midday", origin: "http://x", sites: [said], fetchImage });
+  said.post = async (p) => { said.posts.push(p); return { uri: "https://saidno1/1" }; };
+  const rs = await publishSocial({ day: THU, now: clock(17, 45), slot: "midday", origin: "http://x", sites: [said], fetchImage });
+  check("a clear refusal (the site answered no) is retried by the next ping", [said.posts.length, rs.sites[0].status], [1, "posted"]);
+
+  const crashed = fakeSite("crash1");
+  await db.prepare("INSERT INTO social_post_log (site, url, day, slot, kind, at, game, format, run) VALUES ('crash1', 'pending:dead-run:x', ?, 'midday', 'set', ?, 'pokemon', NULL, 'dead-run')").run(THU, clock(17));
+  const rc = await publishSocial({ day: THU, now: clock(17), slot: "midday", origin: "http://x", sites: [crashed], fetchImage });
+  check("a run that died between its post and its log still holds the slot (its pending row)", [crashed.posts.length, rc.sites[0].status], [0, "skipped"]);
+  check("a landed post's log row carries its run and real address, no pending row left", (await db.prepare("SELECT url, run FROM social_post_log WHERE site = 'race1'").all()).map((x) => [x.url.startsWith("https://race1/"), typeof x.run === "string" && x.run.length > 10]), [[true, true]]);
 }
 
 if (failures) { console.log(`\n${failures} failing`); process.exit(1); }

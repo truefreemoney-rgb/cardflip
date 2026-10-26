@@ -407,6 +407,20 @@ export const CLAIM_STALE_MS = 10 * 60_000;
 const CLAIM_PREFIX = "social_slot:claim:";
 const OUT_OF_TIME = "this run ran out of time; the next ping posts it";
 const TAKEN_OVER = "another run took this slot over";
+const ALREADY_POSTED = "this slot already went out on this site today";
+
+/**
+ * A site.post() that failed WITHOUT an answer (timeout, dropped connection) may still have published. Chris 10-26:
+ * "double posting is absurd, there should always be a check making sure the post isnt a double". Such a post is never
+ * retried and never followed by a picture fallback; its pending log row keeps the slot taken and the failure mail asks
+ * for a look by hand. A failure WITH an answer (the site said no) is retried as before.
+ */
+class UnclearPost extends Error {}
+function unclear(err: unknown): boolean {
+  const e = err as { name?: string; message?: string; cause?: { code?: string; name?: string } } | null;
+  const text = `${e?.name ?? ""} ${e?.message ?? ""} ${e?.cause?.name ?? ""} ${e?.cause?.code ?? ""}`;
+  return /AbortError|TimeoutError|timed? ?out|aborted|fetch failed|ECONNRESET|ETIMEDOUT|EPIPE|socket hang up|UND_ERR|network/i.test(text);
+}
 
 /**
  * 10-23: Turso scans ran 30-45 s each and the 7:05, 8:05 and 9:03 runs all hit the route's 300 s wall before a site
@@ -722,7 +736,8 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
   const key = process.env.CRON_SECRET ?? "";
   // The slot claim (CLAIM_STALE_MS): one write that only lands when no other live run holds this site's slot today.
   const claimKey = (site: SocialSite, s: Slot) => `${CLAIM_PREFIX}${site.id}:${s}`;
-  const claimValue = `${etDay}|${randomUUID()}`;
+  const runId = randomUUID();
+  const claimValue = `${etDay}|${runId}`;
   const timeUp = () => opts.signal?.aborted === true;
   async function claim(site: SocialSite, s: Slot): Promise<boolean> {
     const t = opts.now ?? Date.now();
@@ -736,9 +751,17 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
   async function release(site: SocialSite, s: Slot): Promise<void> {
     await db.prepare("DELETE FROM settings WHERE key = ? AND value = ?").run(claimKey(site, s), claimValue);
   }
-  /** Right before a post goes out: the run's time is not up and the slot is still its own. */
+  /**
+   * The double check, right before a post goes out: the run's time is not up; no other run's post (or pending post) for
+   * this site's slot is in today's log, on every path, force and Post now included (a post taken down from the console,
+   * deleted_at, no longer counts, so a deliberate re-post is still possible); and the slot is still this run's claim.
+   */
   async function mayPost(site: SocialSite, s: Slot): Promise<void> {
     if (timeUp()) throw new Error(OUT_OF_TIME);
+    const other = await db
+      .prepare("SELECT url FROM social_post_log WHERE site = ? AND day = ? AND slot = ? AND deleted_at IS NULL AND (run IS NULL OR run <> ?) LIMIT 1")
+      .get(site.id, etDay, s, runId);
+    if (other) throw new Error(ALREADY_POSTED);
     if ((await getSetting(claimKey(site, s))) !== claimValue) throw new Error(TAKEN_OVER);
   }
   // Sites post in parallel (video polling on Meta takes minutes), so the
@@ -775,6 +798,8 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
   }
 
   async function postOne(site: SocialSite, d: SocialPost, text: string, slot: Slot): Promise<{ uri: string; video?: "yes" | "fallback"; error?: string }> {
+    // The double check before any picture or video is fetched, and again right before the post goes out.
+    await mayPost(site, slot);
     const png = await pngFor(d);
     const img = await fitImage(png, site.maxImageBytes);
     const base: SitePost = {
@@ -788,17 +813,27 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
     };
     // The slot's format (phase 5): the optimizer may make a slot the picture now and then, on the sites that take both.
     const video = site.postsVideo && slotFormat(slot, day) === "video" ? await videoOf(d) : null;
+    const send = async (post: SitePost) => {
+      try {
+        return await site.post(post);
+      } catch (err) {
+        if (unclear(err)) throw new UnclearPost(err instanceof Error ? err.message : String(err));
+        throw err;
+      }
+    };
     await mayPost(site, slot);
-    if (!video) return site.post(base);
+    if (!video) return send(base);
     try {
       // The all-games caption is written for the picture; with the file attached it is a video (the picture fallback below keeps the picture wording).
-      const { uri } = await site.post({ ...base, text: text.replace(/^In the picture,/m, "In the video,"), video });
+      const { uri } = await send({ ...base, text: text.replace(/^In the picture,/m, "In the video,"), video });
       return { uri, video: "yes" };
     } catch (err) {
+      // A video with no answer may still publish: no picture on top of it (10-26).
+      if (err instanceof UnclearPost) throw err;
       // Video is the upgrade, the picture is the post: never lose the slot to a video upload.
       const reason = err instanceof Error ? err.message : String(err);
       await mayPost(site, slot);
-      const { uri } = await site.post(base);
+      const { uri } = await send(base);
       return { uri, video: "fallback", error: `video failed, picture posted: ${reason}` };
     }
   }
@@ -856,14 +891,38 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
           entry.posts.push({ id: d.id, title: d.title, video: site.postsVideo && slotFormat(p.slot, day) === "video" && (await currentVideoFor(d)) ? "yes" : undefined });
           continue;
         }
+        const game = d.mixed ? "mixed" : d.game;
+        // The double check's own record (10-26): a pending row goes into today's log BEFORE the post, so a run that dies
+        // between the post and its log, or a post whose answer never came back, still counts as gone out for every other
+        // run (mayPost). No record, no post: if the row cannot be written, this draft is not sent.
+        const pendingUrl = `pending:${runId}:${d.id}`;
+        try {
+          await db
+            .prepare("INSERT OR REPLACE INTO social_post_log (site, url, day, slot, kind, at, game, format, run) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?)")
+            .run(site.id, pendingUrl, etDay, p.slot, kind, now, game, runId);
+        } catch (err) {
+          entry.posts.push({ id: d.id, title: d.title, error: `not posted: the post record could not be written first (${err instanceof Error ? err.message : String(err)})` });
+          continue;
+        }
+        const dropPending = () => db.prepare("DELETE FROM social_post_log WHERE site = ? AND url = ?").run(site.id, pendingUrl).catch(() => undefined);
         try {
           const r = await postOne(site, d, text, p.slot);
+          const format = r.video === "yes" ? "video" : "picture";
+          // The pending row becomes the real one in one write; if that write fails the pending row still holds the slot.
+          await db.prepare("UPDATE social_post_log SET url = ?, format = ? WHERE site = ? AND url = ?").run(r.uri, format, site.id, pendingUrl).catch(() => undefined);
           entry.posts.push({ id: d.id, title: d.title, uri: r.uri, ...(r.video ? { video: r.video } : {}), ...(r.error ? { error: r.error } : {}) });
-          landed.push({ uri: r.uri, game: d.mixed ? "mixed" : d.game, format: r.video === "yes" ? "video" : "picture" });
+          landed.push({ uri: r.uri, game, format });
         } catch (err) {
-          // Out of time, or another run took the slot over (mayPost): stand down, it is not a site failure.
           const reason = err instanceof Error ? err.message : String(err);
-          if (reason === OUT_OF_TIME || reason === TAKEN_OVER) {
+          if (err instanceof UnclearPost) {
+            // No answer from the site: it may have gone out. The pending row stays, so no run posts this slot again on
+            // this site today; the failure mail (alertFailures) asks for a look by hand.
+            entry.posts.push({ id: d.id, title: d.title, error: `${reason} (no answer from ${site.label}: it may have gone out, so it is not retried; check ${site.label} by hand)` });
+            continue;
+          }
+          await dropPending();
+          // Out of time, already posted, or another run took the slot over (mayPost): stand down, it is not a site failure.
+          if (reason === OUT_OF_TIME || reason === TAKEN_OVER || reason === ALREADY_POSTED) {
             if (landed.length === 0 && entry.posts.every((x) => !x.uri)) Object.assign(entry, { status: "skipped", reason });
             break;
           }
@@ -877,8 +936,8 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
         await setSetting(kindKey(site, kind), etDay);
         // What went out as what, for the optimization loop (social_post_log): kind, slot, game and format. A failed write never costs the post.
         try {
-          const log = db.prepare("INSERT OR REPLACE INTO social_post_log (site, url, day, slot, kind, at, game, format) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-          for (const l of landed) await log.run(site.id, l.uri, etDay, p.slot, kind, now, l.game, l.format);
+          const log = db.prepare("INSERT OR REPLACE INTO social_post_log (site, url, day, slot, kind, at, game, format, run) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+          for (const l of landed) await log.run(site.id, l.uri, etDay, p.slot, kind, now, l.game, l.format, runId);
         } catch (err) {
           console.warn("social: post log write failed", err instanceof Error ? err.message : err);
         }
