@@ -4,10 +4,10 @@ Chris (10-14): every support ticket and every social comment is a learning
 experience while the site is new and not fully tested. One entry each: what
 they said, what it taught, what changed, what is still open. Newest first.
 
-## 10-26 9:30am ET · My catch: 25 promo pages drew a fake 90% crash from their Pokémon Center Exclusive twin's old prices
+## 10-26 8:59am ET · My catch: 25 promo pages drew a fake 90% crash from their Pokémon Center Exclusive twin's old prices
 - What: the TO-TEST check of yesterday's push found the Snorlax SVP 051 page saying "▼ $286.25 (94.5%) 3M" and "the high was $308.05 on Jul 21" for a card that sold for $20-26 all summer. Its plain holofoil history held the Pokémon Center copy's prices: TCGplayer's own Near Mint history for "Snorlax - 051 (Pokemon Center Exclusive)" reads 05-25 $305.10, 08-17 $295.42, the same numbers. Same on 23 more SV/ME promos for May 18-Aug 26 (the TCGCSV backfill mapped both products by collector number), and on Eevee SVP 173 + Charcadet MEP 022 for Aug 29-Sep 24 (the daily job's pick). 10-25's fixes (a095a82e, ee807416) only corrected prices from that day on.
 - Taught: when a mapping bug is fixed, check the HISTORY it wrote too, not just today's price; a chart and its "3M / 90-day high" lines are facts the page states.
-- Changed: scripts/_fix-pc-history.mjs (dry run, then --write; backup data/pc-history-backup-2026-10-26.json, 53 rows) moved those days onto each card's pokemonCenterExclusive line (now 162 / 59 days) and blanked them on the plain line (23 plain lines now start 2026-08-29); all 26 re-checked clean. Card pages cache for 2 days, so they show it as they regenerate (Snorlax read "As of Oct 25" at 9am).
+- Changed: scripts/_fix-pc-history.mjs (dry run, then --write; backup data/pc-history-backup-2026-10-26.json, 53 rows) moved those days onto each card's pokemonCenterExclusive line (now 162 / 59 days) and blanked them on the plain line (23 plain lines now start 2026-08-29); all 26 re-checked clean. Card pages cache for 2 days, so they show it as they regenerate (Snorlax read "As of Oct 25" at 8:52am).
 - Open: the 23 plain lines have no history before Aug 29 (TCGplayer's weekly Near Mint history could fill May-Aug if wanted).
 
 ## 10-25 2:50pm ET · My catch: two promos priced as their Pokémon Center Exclusive copy (one in the 7pm post)
