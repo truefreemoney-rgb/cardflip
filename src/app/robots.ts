@@ -13,10 +13,12 @@ import { SITE_URL } from "@/lib/siteUrl";
 // (104K ISR writes, $1.67 that day vs ~$0.40); turned away here and by a Vercel Firewall deny rule. Same day: AionBot
 // (Oracle cloud, 31K requests) and Amzn-SearchBot (18K) were the next two; the three were 114K of 125K requests.
 // 10-22: ExaSearchBot (Exa AI search index, ~1.1K card pages a day, no visitors) joins them, firewall rule v37.
+// 10-26: Reflectionbot (~3.9K card pages a day from Google Cloud), ElevenlabsCrawler, KeenableBot, Lightpanda; firewall v53.
 const TRAINING_BOTS = [
   "GPTBot", "CCBot", "ClaudeBot", "anthropic-ai", "Google-Extended", "Applebot-Extended",
   "Bytespider", "meta-externalagent", "meta-webindexer", "AionBot", "Amzn-SearchBot", "ExaSearchBot", "FacebookBot", "Amazonbot", "cohere-ai", "Diffbot",
   "Omgilibot", "ImagesiftBot", "Timpibot", "PetalBot", "AhrefsBot", "SemrushBot", "MJ12bot", "DotBot",
+  "Reflectionbot", "ElevenlabsCrawler", "KeenableBot", "Lightpanda",
 ];
 export default function robots(): MetadataRoute.Robots {
   return {

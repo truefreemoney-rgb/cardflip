@@ -108,7 +108,9 @@ for (const path of ["/", "/pricing", "/help", "/login", "/signup", "/forgot-pass
   });
 }
 await check("admin console is gated (redirects to its login)", async () => {
-  const res = await fetch(base + "/admin", { redirect: "manual", signal: AbortSignal.timeout(TIMEOUT_MS) });
+  // Smoke name + pass header like every other check: GitHub runs on Azure, which must pass the Firewall's browser check
+  // unless it shows the pass (10-26, scripts/_fw-cloud-challenge.mjs).
+  const res = await fetch(base + "/admin", { redirect: "manual", signal: AbortSignal.timeout(TIMEOUT_MS), headers: { "user-agent": "cardflip-smoke", ...passHeader } });
   // Outside the admin countries the console answers a plain 404 (proxy.ts); only trusted when the gate was seen above.
   if (res.status === 404 && geoGated) throw geoError();
   expect(res.status >= 300 && res.status < 400, `status ${res.status}`);
@@ -129,7 +131,7 @@ await check("sitemap index lists its files and every file answers (keeps the cop
   const files = [...idx.text.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => new URL(m[1]).pathname);
   expect(files.length >= 2, `index lists ${files.length} files`);
   for (const path of files) {
-    const res = await fetch(base + path, { signal: AbortSignal.timeout(SITEMAP_TIMEOUT_MS), headers: { "user-agent": "cardflip-smoke" } });
+    const res = await fetch(base + path, { signal: AbortSignal.timeout(SITEMAP_TIMEOUT_MS), headers: { "user-agent": "cardflip-smoke", ...passHeader } });
     const text = await res.text();
     expect(res.status === 200 && text.includes("<urlset"), `${path}: status ${res.status}`);
   }

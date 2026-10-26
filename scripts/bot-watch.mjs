@@ -5,10 +5,16 @@
 // denies any (network, TLS fingerprint) pair that is clearly a crawler:
 //   - over MIN_REQ requests in the window,
 //   - spread over MIN_IPS+ addresses (a proxy pool, not one person or one of our own scripts),
-//   - mostly card pages (a crawl, not people loading the app),
+//   - mostly card pages (a crawl, not people loading the app), OR almost only card pictures with no app code and no
+//     /api/ calls at all (10-26: an Amazon AWS scraper pulled ~70K pictures in 45 min and was "0% card pages"; a real
+//     browser always loads /_next/ code or calls /api/, so real customers never look like this),
 //   - not a network we must never block (search engines, link previews, iCloud Private Relay, eBay/Stripe webhooks).
+//     Amazon, Google Cloud and Microsoft Azure are blocked by pair too unless the pair's top user agent is an allowed bot
+//     (PerplexityBot, OAI-SearchBot, bingbot...): 10-26 the "Amazon = too broad, alert only" rule let that scraper run.
 // Blocks go into ONE rule, network AND fingerprint per group, so real customers on the same ISP keep access
 // (same shape as scripts/_fw-block-ja4.mjs). Every block or held suspect mails Chris via /api/ops/alert.
+// First wall since 10-26: scripts/_fw-cloud-challenge.mjs makes every cloud/hosting network pass a browser check;
+// this catches what gets past it (residential proxy pools, allowed-bot names used by someone else).
 //   node scripts/bot-watch.mjs [--dry]      (VERCEL_TOKEN + OPS_KEY from env, or .env.migration.json locally)
 import fs from "node:fs";
 
@@ -19,11 +25,16 @@ const HOURS = 4;
 const MIN_REQ = 1000;
 const MIN_IPS = 25;
 const MIN_CARDS_SHARE = 0.6;
+const MIN_PICS_SHARE = 0.8;
+const MAX_APP_SHARE = 0.01; // /_next/ code + /api/ calls: a real browser always makes some
 const MAX_GROUPS = 40;
 const MAX_NEW_PER_RUN = 3;
-// Alert only, never auto-block: Google, Microsoft (Bing + GitHub Actions), Apple (Applebot + Private Relay), Meta
-// (link previews), Cloudflare/Akamai/Fastly (iCloud Private Relay), Amazon (too broad), eBay + Stripe (webhooks).
-const NEVER = new Set(["15169", "396982", "8075", "714", "6185", "32934", "13335", "20940", "16625", "54113", "16509", "14618", "11643", "5091"]);
+// Alert only, never auto-block: Google's own network (Googlebot, Gmail pictures, AdsBot), Apple (Applebot + Private
+// Relay), Meta (link previews), Cloudflare/Akamai/Fastly (iCloud Private Relay), eBay + Stripe (webhooks).
+const NEVER = new Set(["15169", "36040", "714", "6185", "32934", "13335", "20940", "16625", "54113", "11643", "5091"]);
+// Clouds where allowed bots live next to scrapers: block the pair unless its top user agent is an allowed bot.
+const BIG_CLOUDS = new Set(["16509", "14618", "8987", "396982", "8075"]);
+const ALLOWED_BOTS = /PerplexityBot|Perplexity-User|Claude-SearchBot|Claude-User|DuckDuckBot|DuckAssistBot|Twitterbot|Slackbot|Discordbot|TelegramBot|WhatsApp|Snapchat|LinkedInBot|Pinterest|redditbot|Iframely|Embedly|Mastodon|Cardyb|Qwantbot|SeznamBot|Googlebot|AdsBot-Google|Mediapartners-Google|Google-InspectionTool|APIs-Google|GoogleOther|FeedFetcher-Google|Google-Read-Aloud|Storebot-Google|GoogleImageProxy|bingbot|BingPreview|msnbot|adidxbot|MicrosoftPreview|OAI-SearchBot|ChatGPT-User|^CardFlip\/1\.0|^cardflip-(uptime|smoke)$|^vercel-/i;
 
 const dry = process.argv.includes("--dry");
 const local = fs.existsSync(".env.migration.json") ? JSON.parse(fs.readFileSync(".env.migration.json", "utf8").replace(/^﻿/, "")) : {};
@@ -78,11 +89,15 @@ for (const [key, count] of pairs) {
   const ips = (await metric(f, ["clientIp"], 500)).length;
   const paths = await metric(f, ["requestPath"], 500);
   const seen = paths.reduce((n, [, v]) => n + v, 0);
-  const cards = paths.filter(([p]) => p.startsWith("/cards/")).reduce((n, [, v]) => n + v, 0);
-  const share = seen ? cards / seen : 0;
-  const crawl = ips >= MIN_IPS && share >= MIN_CARDS_SHARE;
-  console.log(`  check ${asnName} AS${asn} ${ja4}: ${count} req, ${ips}${ips === 500 ? "+" : ""} IPs, ${Math.round(share * 100)}% card pages -> ${crawl ? "CRAWLER" : "ok"}`);
-  if (crawl) suspects.push({ asn, asnName, ja4, count, ips, share });
+  const sum = (pre) => paths.filter(([p]) => pre.some((x) => p.startsWith(x))).reduce((n, [, v]) => n + v, 0);
+  const share = seen ? sum(["/cards/"]) / seen : 0;
+  const pics = seen ? sum(["/pics/"]) / seen : 0;
+  const app = seen ? sum(["/_next/", "/api/"]) / seen : 0;
+  const crawl = ips >= MIN_IPS && (share >= MIN_CARDS_SHARE || (pics >= MIN_PICS_SHARE && app < MAX_APP_SHARE));
+  console.log(`  check ${asnName} AS${asn} ${ja4}: ${count} req, ${ips}${ips === 500 ? "+" : ""} IPs, ${Math.round(share * 100)}% card pages, ${Math.round(pics * 100)}% pictures, ${Math.round(app * 100)}% app -> ${crawl ? "CRAWLER" : "ok"}`);
+  if (!crawl) continue;
+  const ua = BIG_CLOUDS.has(asn) ? ((await metric(f, ["userAgent"], 5))[0]?.[0] ?? "") : "";
+  suspects.push({ asn, asnName, ja4, count, ips, share, pics, ua, allowedBot: ALLOWED_BOTS.test(ua) });
 }
 if (!suspects.length) { console.log("no crawler found"); process.exit(0); }
 
@@ -94,10 +109,11 @@ const groups = old ? old.conditionGroup : [];
 // from before the block, so skip it instead of a duplicate group and a second mail.
 const allGroups = (active.rules ?? []).filter((r) => r.active && r.action?.mitigate?.action === "deny").flatMap((r) => r.conditionGroup ?? []);
 const has = (s) => allGroups.some((g) => g.conditions.some((c) => c.type === "geo_as_number" && c.value === s.asn) && g.conditions.some((c) => c.type === "ja4_digest" && [].concat(c.value).includes(s.ja4)));
-const line = (s) => `${s.asnName} (AS${s.asn}) fingerprint ${s.ja4}: ${s.count} pages in ${HOURS} h from ${s.ips}${s.ips === 500 ? "+" : ""} addresses, ${Math.round(s.share * 100)}% card pages`;
+const line = (s) => `${s.asnName} (AS${s.asn}) fingerprint ${s.ja4}: ${s.count} requests in ${HOURS} h from ${s.ips}${s.ips === 500 ? "+" : ""} addresses, ${Math.round(s.share * 100)}% card pages, ${Math.round(s.pics * 100)}% pictures${s.ua ? `, top agent "${s.ua.slice(0, 80)}"` : ""}`;
 
-const held = suspects.filter((s) => NEVER.has(s.asn));
-const fresh = suspects.filter((s) => !NEVER.has(s.asn) && !has(s));
+const protectedPair = (s) => NEVER.has(s.asn) || (BIG_CLOUDS.has(s.asn) && s.allowedBot);
+const held = suspects.filter(protectedPair);
+const fresh = suspects.filter((s) => !protectedPair(s) && !has(s));
 const toBlock = fresh.slice(0, Math.max(0, Math.min(MAX_NEW_PER_RUN, MAX_GROUPS - groups.length)));
 const overflow = fresh.slice(toBlock.length);
 

@@ -1,5 +1,14 @@
 # To test later
 
+## 10-26 3:50PM ET: bot protection (firewall v51-v53 live; bot watch + smoke + robots committed, unpushed)
+- [x] v51 Amazon picture scraper deny: refused from 3:35pm (108 / 89 / 36 per 5 min), 0-3 allowed after (uptime).
+- [x] v52 cloud + hosting challenge live; smoke dispatch 3:45pm (run 40389519321) 16/16 PASS incl. sitemaps + /admin from Azure.
+- [ ] Uptime cron (cardflip-uptime from AWS 14618) keeps passing: firewall metrics for that agent = allow only; no "Uptime Failed" mail caused by a challenge.
+- [ ] 7pm social post: the GitHub video render pulls card art through cardflip.io/pics (CardFlip/1.0 from Azure) = the 7pm video has its card art; /admin/social shows 7pm posted on every site.
+- [ ] 10-27 morning: Firewall challenges by network (expect Google Cloud Reflectionbot + hosting scrapers; never PerplexityBot / OAI-SearchBot / Googlebot / bingbot / eBay); Search Console crawl stats normal.
+- [ ] After the next push: bot watch runs ~4 times an hour (gh run list); robots.txt lists Reflectionbot, ElevenlabsCrawler, KeenableBot, Lightpanda.
+- [ ] Stripe webhook + eBay notifications still 200 after the rule (machine paths skip it; eBay's network is not listed).
+
 ## 10-26 9:20AM ET: the 7 top-30 Pokémon blanks = 7 prod checks (eBay reads 6-11 + TCGplayer NM sales)
 - [x] M Rayquaza EX AO 98 (1172, hidden by hand 10-24): TCGplayer 101520 NM x8 median 1089.99 = CHECK 1089.99 vouches, shows 1172 (no eBay read).
 - [x] Rayquaza EX Deoxys 22 reverse (was 100, kept): NM = TCGplayer 1200 / 1193 + eBay full-price NM-titled 879.95 / 499.99 = CHECK 1036.48 (read 6).

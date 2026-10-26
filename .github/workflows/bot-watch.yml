@@ -7,10 +7,13 @@ name: Bot watch
 
 on:
   schedule:
-    # Two slots an hour: GitHub drops scheduled runs in busy minutes (10-22: nothing ran 3:43-7:40am ET on the
-    # :25 slot alone). The concurrency group below keeps the two from overlapping; a run reads the last 4 hours,
-    # so a second look costs one more metrics read and changes nothing when the first already blocked.
-    - cron: "25 * * * *" # every hour at :25 (ET = UTC-4)
+    # Four slots an hour: GitHub drops scheduled runs in busy minutes (10-22: nothing ran 3:43-7:40am ET on the
+    # :25 slot alone; 10-26 only ~8 of 48 :25/:55 runs happened in 24 h, so a picture scraper ran 2:15-3:35pm ET
+    # unseen). The concurrency group below keeps them from overlapping; a run reads the last 4 hours, so an extra
+    # look costs one more metrics read and changes nothing when an earlier run already blocked.
+    - cron: "10 * * * *" # ET = UTC-4
+    - cron: "25 * * * *"
+    - cron: "40 * * * *"
     - cron: "55 * * * *"
   workflow_dispatch:
     inputs:
