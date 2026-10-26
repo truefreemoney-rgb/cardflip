@@ -1,5 +1,12 @@
 # To test later
 
+## 10-26 7:18PM ET: X pixel (ri0v0; Sign up tw-ri0v0-ri127, Purchase tw-ri0v0-ri128; env set on Vercel production; code 4f1f483e committed, unpushed: rides Chris's bulk push; privacy wording = his 7:18pm "do whatever privacy wording we need")
+- [x] Local (dev server with the X ids): uwt.js loads, queue = 4 'set' off switches then config, one page view to t.co + analytics.twitter.com with txn_id ri0v0; a button click sends nothing (auto clicks off); npm run test:pixel 13/13, tsc + eslint green.
+- [ ] After the push: cardflip.io home source has "x-pixel" + static.ads-twitter.com/uwt.js only after the consent gate (UK/IE visitors asked first); /admin and /app pages load no uwt.js on a fresh load.
+- [ ] After the push: X Ads Manager > Events manager shows "Site visits" + "Landing page views" Active with a Last recorded time within the day.
+- [ ] First real signup after the push: Events manager "Sign up" shows Active (Last recorded); never a "gtm_sign_up" or "autobuttonclick" event (dataLayer + auto clicks are off).
+- [ ] Purchase stays Inactive while the purchase moment is /app/account/welcome (nothing measures inside /app); that is expected, not a bug.
+
 ## 10-26 6:58PM ET: X ads LIVE (campaign "CardFlip | Pokemon | Website traffic | Oct 26", ad group 57123481 18-24 $3/day, ads A/B/C)
 - [x] 6:59pm: X Ads Manager shows the ad group Active ($3.00 daily) and all 3 ads Active (posts A 2114853837530120373, B 2114853837710545237, C 2114853837664334033).
 - [ ] 10-27 morning: X Ads Manager > Ads: impressions + link clicks + CTR per ad (A pull / B binder / C higher-lower); spend near $3/day, not more.
