@@ -1,5 +1,11 @@
 # To test later
 
+## 10-26 9:30AM ET: 25 promo histories carried their Pokémon Center twin's prices = moved (LESSONS 10-26 9:30am)
+- [x] Found by the 5:12PM check: plain holofoil history of 23 SV/ME promos = the Pokémon Center Exclusive product May 18-Aug 26 (TCGCSV backfill), svp-173 + mep-022 Aug 29-Sep 24; TCGplayer's own NM history matches (Snorlax PC 05-25 $305.10 / 08-17 $295.42; plain $24.82 / $20.49).
+- [x] scripts/_fix-pc-history.mjs dry run (25 cards, 0 skips) then --write: 50 rows, backup data/pc-history-backup-2026-10-26.json (53 rows). Re-check: all 26 plain lines clean (svp-051 max 21.98), PC lines 162 / 59 days.
+- [ ] After the pages regenerate (2-day cache): Snorlax svp-051 page = no "▼ 94.5%", history from Aug 29, its Pokémon Center Exclusive row; spot Pikachu svp-027 + Charmander svp-044 the same.
+- [ ] 10-27 5:45am Pokémon write keeps both lines (holofoil gets the plain product's day, PC line its own day; no PC price lands on holofoil).
+
 ## 10-26 8:50AM ET: 7am hand posts DONE (all five games Biggest Jumps; pack built 8:19am with tiktok-pack.mjs 2026-10-26)
 - [x] Post cards vs TCGplayer NM sales (pane, 8:25am): Eevee McDonald's 2019 #12 $26.85 (NM 23.40 10-24, 33.99 10-09; mkt 26.84) stands; Lightning Bolt Unlimited $22.72 (NM 18.50-19.98 Sep-Oct, +20%, in band) stands; Baymax Armored Companion promo #9 $65.27 (NM 70-73 Sep-Oct) stands; Slifer RA03-EN244 QCSR $53.06 (NM 45-54) stands; Luffy P-055 $74.25 (checked 10-25).
 - [x] TikTok posted 8:35am, Everyone, 7 linked tags; sound "Heroic Adventure" Sound Gallery by Dmitry Taras, 1:00 (search "heroic adventure", 8th row; one AudioClip__root after reopening); cover Eevee $26.85. Content check lite was still "in progress" at post time (music check: no issues).
@@ -34,7 +40,7 @@
 ## 10-25 5:12PM ET: Pokémon Center Exclusive lines (ee807416) + the printing rows Chris picked, sample A (3c5f6b3b); both held for the bulk push
 - [x] Local: the real nightly step = 191 groups, 0 failed, 26 new pokemonCenterExclusive lines, every plain line = the plain product (Eevee 75.82 -> 9.06, Charcadet 31.34 -> 1.93); test:pricehistory / patterncleanup / ebay / ebayreferee, tsc, eslint green. Phone shots: Snorlax svp-051 (Holofoil $16.82; Pokémon Center Exclusive $266.78 with "Few recent sales" under the name), Lillipup sv10.5w-074 (4 rows, one line each).
 - [x] Pre-check 5:50pm (pane tab-1, TCGplayer NM sales, latest 6 per product): all 26 new Pokémon Center prices within 25% of their sales = none to fix. Widest: Riolu mep-010 59.68 vs ~51.50 (falling), Iron Bundle svp-066 32.05 vs ~28.20, Wobbuffet svp-203 96.41 vs ~85.50; Snorlax svp-051 266.78 vs ~253.70, Charmander svp-044 231.46 vs ~219.50, Pikachu svp-027 161.94 vs ~158.50.
-- [ ] After the bulk push, the first 5:45am Pokémon write: the 26 svp/mep cards each have a pokemonCenterExclusive line = TCGplayer's Pokémon Center product, their holofoil = the plain product; the Snorlax svp-051 page shows both rows.
+- [x] After the bulk push, the first 5:45am Pokémon write: the 26 svp/mep cards each have a pokemonCenterExclusive line = TCGplayer's Pokémon Center product, their holofoil = the plain product (10-26 9am prod: 26/26, e.g. svp-051 16.82 + PC 266.78, svp-173 9.06, mep-022 1.93). [ ] The Snorlax svp-051 page shows both rows (page still "As of Oct 25" at 9am; card pages cache 2 days).
 - [ ] After the push, phone: a card page with several printings (any game) = the price alone on the right, no date on rows from the headline's day, a stale or few-sales note under the name; a flagged row's sentence still wraps.
 - [ ] First 8:15am referee run after the push: eBay reads for a pokemonCenterExclusive line use Pokémon Center titles only, the plain promo's never do.
 
@@ -42,7 +48,7 @@
 - [x] Prod checks: Charcadet mep-022 holofoil $31.34 -> $1.94 (post-card Fix, 12 TCGplayer NM sales 10-25, 7pm video remake dispatched = social-post run 40223008243); Eevee svp-173 holofoil $75.82 -> $9.13 (_fix-price-tcg, 31 history points). Both card pages print the fix (2:49pm).
 - [x] Code: tcgplayerProductStamp takes "(Pokemon Center Exclusive)" / "(Pokemon Center)" / "(Pokémon Center Exclusive)"; test:pricehistory all pass, tsc clean, eslint 0 errors.
 - [ ] 7pm Set Spotlight (MEP Black Star Promos) shows Charcadet at $1.94 with no % (or another card), on the auto sites and in the rebuilt TikTok/Pinterest pack.
-- [ ] After the bulk push, the first 5:45am Pokémon refresh: svp-173 + mep-022 raw = the plain product (~$9 / ~$2), the two checks retire after two days in band; the other 24 SV/MEP promos with a Pokémon Center twin keep their price: svp-013 014 027 044 051 065 066 075 097 098 123 129 141 159 189 203 209 210, mep-009 010 031 070 080 088 (plain products 10-25: e.g. Pikachu svp-027 $17.48, Charmander svp-044 $48.69, Snorlax svp-051 $16.64).
+- [x] (10-26 9am: svp-173 9.06, mep-022 1.93, the other 24 holofoil lines = their plain product) After the bulk push, the first 5:45am Pokémon refresh: svp-173 + mep-022 raw = the plain product (~$9 / ~$2), the two checks retire after two days in band; the other 24 SV/MEP promos with a Pokémon Center twin keep their price: svp-013 014 027 044 051 065 066 075 097 098 123 129 141 159 189 203 209 210, mep-009 010 031 070 080 088 (plain products 10-25: e.g. Pikachu svp-027 $17.48, Charmander svp-044 $48.69, Snorlax svp-051 $16.64).
 
 ## 10-25 10:45AM ET: One Piece printings LIVE on prod (Chris "yes, go ahead" on the phone shots 10:44am; data, plus aa9cebe7 promo labels + the nightly wiring in the next push)
 - [x] Local: sync-onepiece-tcg.mjs (1,577 added, 5,173 tied, 1,172 prices, 85 held = the rehearsal), images pass 305 changed, save-pictures --game onepiece 1,881 saved 0 failed. Backup before: data/cardflip.before-op-printings-2026-10-25.db.
