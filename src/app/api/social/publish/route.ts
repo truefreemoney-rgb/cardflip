@@ -63,8 +63,14 @@ async function run(req: NextRequest) {
   if (onlySite && sites.length === 0) return NextResponse.json({ error: `unknown site ${onlySite}` }, { status: 400 });
   let report: Awaited<ReturnType<typeof publishSocial>>;
   // 10-23: three runs hung to Vercel's 300 s kill (504, no row, no mail). Just before the wall the run records itself as a crash.
+  // 10-26: and the wall now stops the run itself: the 1:05pm run hung on Turso, kept going in the background past its
+  // wall and posted at 1:27 beside the GitHub backstop (two 1pm posts on four sites). Aborted = no further post.
   let timer: ReturnType<typeof setTimeout> | undefined;
-  const wall = new Promise<never>((_, reject) => (timer = setTimeout(() => reject(new Error(`publisher ran out of time (${RUN_BUDGET_MS / 1000} s, Vercel stops it at ${maxDuration} s)`)), RUN_BUDGET_MS)));
+  const stop = new AbortController();
+  const wall = new Promise<never>((_, reject) => (timer = setTimeout(() => {
+    stop.abort();
+    reject(new Error(`publisher ran out of time (${RUN_BUDGET_MS / 1000} s, Vercel stops it at ${maxDuration} s)`));
+  }, RUN_BUDGET_MS)));
   try {
     report = await Promise.race([
       publishSocial({
@@ -74,6 +80,7 @@ async function run(req: NextRequest) {
         force: q.get("force") === "1",
         dry: q.get("dry") === "1",
         day: rawDay && /^\d{4}-\d{2}-\d{2}$/.test(rawDay) ? rawDay : undefined,
+        signal: stop.signal,
       }),
       wall,
     ]);

@@ -392,7 +392,21 @@ export interface PublishOptions {
   /** Builds a game's drafts (test hook; default socialDrafts). */
   build?: typeof socialDrafts;
   now?: number;
+  /** The route's time wall (10-26): once aborted, the run makes no further post. */
+  signal?: AbortSignal;
 }
+
+/**
+ * One run per slot per site (10-26): the 1:05pm run hung on a Turso outage, outlived the route's 285 s wall in the
+ * background and posted at 1:27:33, the same second as the 1:27 GitHub backstop = two 1pm posts on X, Bluesky, Facebook
+ * and Threads. A run claims a site's slot in one write before posting it and checks right before each post that the
+ * claim is still its own and its time is not up. A dead run's claim goes stale after this long, so a later ping still
+ * makes the post (a healthy run posts within the route's 285 s).
+ */
+export const CLAIM_STALE_MS = 10 * 60_000;
+const CLAIM_PREFIX = "social_slot:claim:";
+const OUT_OF_TIME = "this run ran out of time; the next ping posts it";
+const TAKEN_OVER = "another run took this slot over";
 
 /**
  * 10-23: Turso scans ran 30-45 s each and the 7:05, 8:05 and 9:03 runs all hit the route's 300 s wall before a site
@@ -706,6 +720,27 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
   const fetchImage = opts.fetchImage ?? defaultFetchImage;
   const fetchVideo = opts.fetchVideo ?? defaultFetchVideo;
   const key = process.env.CRON_SECRET ?? "";
+  // The slot claim (CLAIM_STALE_MS): one write that only lands when no other live run holds this site's slot today.
+  const claimKey = (site: SocialSite, s: Slot) => `${CLAIM_PREFIX}${site.id}:${s}`;
+  const claimValue = `${etDay}|${randomUUID()}`;
+  const timeUp = () => opts.signal?.aborted === true;
+  async function claim(site: SocialSite, s: Slot): Promise<boolean> {
+    const t = opts.now ?? Date.now();
+    const r = await db
+      .prepare(
+        "INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at WHERE settings.value NOT LIKE ? OR settings.updated_at < ?",
+      )
+      .run(claimKey(site, s), claimValue, t, `${etDay}|%`, t - CLAIM_STALE_MS);
+    return r.changes > 0;
+  }
+  async function release(site: SocialSite, s: Slot): Promise<void> {
+    await db.prepare("DELETE FROM settings WHERE key = ? AND value = ?").run(claimKey(site, s), claimValue);
+  }
+  /** Right before a post goes out: the run's time is not up and the slot is still its own. */
+  async function mayPost(site: SocialSite, s: Slot): Promise<void> {
+    if (timeUp()) throw new Error(OUT_OF_TIME);
+    if ((await getSetting(claimKey(site, s))) !== claimValue) throw new Error(TAKEN_OVER);
+  }
   // Sites post in parallel (video polling on Meta takes minutes), so the
   // per-draft fetches are memoized as promises: one image and one video
   // fetch per draft per run, whoever asks first.
@@ -753,6 +788,7 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
     };
     // The slot's format (phase 5): the optimizer may make a slot the picture now and then, on the sites that take both.
     const video = site.postsVideo && slotFormat(slot, day) === "video" ? await videoOf(d) : null;
+    await mayPost(site, slot);
     if (!video) return site.post(base);
     try {
       // The all-games caption is written for the picture; with the file attached it is a video (the picture fallback below keeps the picture wording).
@@ -761,6 +797,7 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
     } catch (err) {
       // Video is the upgrade, the picture is the post: never lose the slot to a video upload.
       const reason = err instanceof Error ? err.message : String(err);
+      await mayPost(site, slot);
       const { uri } = await site.post(base);
       return { uri, video: "fallback", error: `video failed, picture posted: ${reason}` };
     }
@@ -778,8 +815,15 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
       const reason = plan.some((p) => p.slot === slot) ? `${slot} slot already posted today` : `nothing to post for the ${slot} slot`;
       return { site: site.id, label: site.label, status: "skipped", reason, posts: [] };
     }
+    // One run per slot per site (CLAIM_STALE_MS): a slot another live run holds is left to it; a run past its time posts nothing.
+    const mine: typeof todo = [];
+    for (const p of todo) if (opts.dry || (!timeUp() && (await claim(site, p.slot)))) mine.push(p);
+    if (mine.length === 0) {
+      const reason = timeUp() ? OUT_OF_TIME : `another run is posting the ${todo.map((p) => p.slot).join(" + ")} slot`;
+      return { site: site.id, label: site.label, status: "skipped", reason, posts: [] };
+    }
     const entry: SiteReport = { site: site.id, label: site.label, status: opts.dry ? "dry" : "posted", posts: [] };
-    for (const p of todo) {
+    for (const p of mine) {
       // Same-day dedupe BY KIND (09-26): only when this SITE has not posted
       // THIS SLOT yet today (a force re-post of an already-done slot must
       // repeat its own kind, not reroute) and that kind already went out
@@ -817,9 +861,17 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
           entry.posts.push({ id: d.id, title: d.title, uri: r.uri, ...(r.video ? { video: r.video } : {}), ...(r.error ? { error: r.error } : {}) });
           landed.push({ uri: r.uri, game: d.mixed ? "mixed" : d.game, format: r.video === "yes" ? "video" : "picture" });
         } catch (err) {
-          entry.posts.push({ id: d.id, title: d.title, error: err instanceof Error ? err.message : String(err) });
+          // Out of time, or another run took the slot over (mayPost): stand down, it is not a site failure.
+          const reason = err instanceof Error ? err.message : String(err);
+          if (reason === OUT_OF_TIME || reason === TAKEN_OVER) {
+            if (landed.length === 0 && entry.posts.every((x) => !x.uri)) Object.assign(entry, { status: "skipped", reason });
+            break;
+          }
+          entry.posts.push({ id: d.id, title: d.title, error: reason });
         }
       }
+      // Nothing landed: let the claim go, so the next ping can make the post at once.
+      if (!opts.dry && landed.length === 0) await release(site, p.slot).catch(() => {});
       if (!opts.dry && landed.length > 0) {
         await setSetting(slotKey(site, p.slot), etDay);
         await setSetting(kindKey(site, kind), etDay);
@@ -832,7 +884,7 @@ export async function publishSocial(opts: PublishOptions): Promise<PublishReport
         }
       }
     }
-    if (!opts.dry) {
+    if (!opts.dry && entry.status !== "skipped") {
       const posted = entry.posts.filter((p) => p.uri);
       if (posted.length === 0) {
         entry.status = "failed";

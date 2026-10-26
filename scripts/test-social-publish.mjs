@@ -625,6 +625,47 @@ console.log("the 7pm jumps are filed for the no-repeat rule once they land (thei
   check("named kinds only; no kinds = every kind; a day's kinds = one per slot, no spares", [only, everything.length > only.length, everything.every((k) => ALL_DRAFT_KINDS.includes(k)), dayKinds(THU)], [["movers", "set"], true, true, ["set", "movers", "games"]]);
 }
 
+// 10-26: the 1:05pm run hung on a Turso outage, outlived the route's 285 s wall in the background and posted at 1:27:33,
+// the same second as the 1:27 GitHub backstop = two 1pm posts on X, Bluesky, Facebook and Threads.
+console.log("one post per slot per site, whatever overlaps (10-26)");
+{
+  const slowSite = (id) => {
+    const s = fakeSite(id);
+    const post = s.post;
+    s.post = async (p) => { await new Promise((res) => setTimeout(res, 150)); return post(p); };
+    return s;
+  };
+  const a = slowSite("race1");
+  const both = await Promise.all([1, 2].map(() => publishSocial({ day: THU, now: clock(17), slot: "midday", origin: "http://x", sites: [a], fetchImage })));
+  check("two overlapping runs: the slot posts once", a.posts.length, 1);
+  check("…one run posted, the other stood down", both.map((x) => x.sites[0].status).sort(), ["posted", "skipped"]);
+
+  const z = fakeSite("zombie1");
+  const ctl = new AbortController();
+  ctl.abort();
+  const rz = await publishSocial({ day: THU, now: clock(17), slot: "midday", origin: "http://x", sites: [z], fetchImage, signal: ctl.signal });
+  check("a run past its time posts nothing and marks nothing", [z.posts.length, rz.sites[0].status, await getSetting(`${SLOT_PREFIX}zombie1:midday`)], [0, "skipped", null]);
+  const rz2 = await publishSocial({ day: THU, now: clock(17), slot: "midday", origin: "http://x", sites: [z], fetchImage });
+  check("…so the next ping still makes the post", [z.posts.length, rz2.sites[0].status], [1, "posted"]);
+
+  const late = fakeSite("late1");
+  const lateCtl = new AbortController();
+  const lateFetch = async (url, headers) => { lateCtl.abort(); return fetchImage(url, headers); };
+  const rl = await publishSocial({ day: THU, now: clock(17), slot: "midday", origin: "http://x", sites: [late], fetchImage: lateFetch, signal: lateCtl.signal });
+  check("time runs out mid-run (after the picture fetch): the post is not made", [late.posts.length, rl.sites[0].posts[0]?.uri ?? null], [0, null]);
+  check("…and its claim is let go, so the next ping posts at once", (await publishSocial({ day: THU, now: clock(17), slot: "midday", origin: "http://x", sites: [late], fetchImage })).sites[0].status, "posted");
+
+  const claim = (id, ageMs) => db.prepare("INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)").run(`${SLOT_PREFIX}claim:${id}:midday`, `${THU}|another-run`, clock(17) - ageMs);
+  const dead = fakeSite("dead1");
+  await claim("dead1", 11 * 60_000);
+  await publishSocial({ day: THU, now: clock(17), slot: "midday", origin: "http://x", sites: [dead], fetchImage });
+  check("a dead run's claim (11 min old) does not block the slot", dead.posts.length, 1);
+  const live = fakeSite("live1");
+  await claim("live1", 60_000);
+  const rlive = await publishSocial({ day: THU, now: clock(17), slot: "midday", origin: "http://x", sites: [live], fetchImage });
+  check("a live run's claim (1 min old) holds the slot", [live.posts.length, rlive.sites[0].status, rlive.sites[0].reason], [0, "skipped", "another run is posting the midday slot"]);
+}
+
 if (failures) { console.log(`\n${failures} failing`); process.exit(1); }
 console.log("\nall green");
 

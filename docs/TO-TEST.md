@@ -1,5 +1,10 @@
 # To test later
 
+## 10-26 4:25PM ET: one post per slot per site (publisher claim + time wall stops the run; committed, unpushed)
+- [ ] After the push: every slot posts once per site (prod social_posts: 1 row per site per slot per day).
+- [ ] The GitHub backstop's run report says "slot already posted today" or "another run is posting the <slot> slot", never a second post.
+- [ ] Next Turso slowdown: a "publisher crashed" mail is no longer followed by a late post from that run.
+
 ## 10-26 3:50PM ET: bot protection (firewall v51-v53 live; bot watch + smoke + robots committed, unpushed)
 - [x] v51 Amazon picture scraper deny: refused from 3:35pm (108 / 89 / 36 per 5 min), 0-3 allowed after (uptime).
 - [x] v52 cloud + hosting challenge live; smoke dispatch 3:45pm (run 40389519321) 16/16 PASS incl. sitemaps + /admin from Azure.
