@@ -4,6 +4,9 @@
 # (one scan per card, like the app), each card flashes, its price tag pops and the PAGE TOTAL badge pulses up; the
 # priciest card goes last and lifts out of its sleeve. Ends "What's YOUR binder worth?  cardflip.io".
 # Prices are examples (no dates, no "today": the ad runs for months).
+# v3 (10-26, Chris: "the white text is almost unreadable", "the cards in the binder are all weirdly faded", the lifted
+# card "faded and washed out"): no words in 3D any more, overlay.mjs draws them flat from overlay.json; cards show their
+# true printed colours (glow), sleeves nearly clear, the hero's foil and lights turned down, bloom only on real glows.
 # Run: blender --background --python binder.py -- <out> <hero index 0-8> <front1> <price1> ... <front9> <price9>
 import sys, os, math, random
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "poc"))
@@ -13,7 +16,6 @@ argv = sys.argv[sys.argv.index("--") + 1:]
 OUT, HERO = argv[0], int(argv[1])
 FRONTS, PRICES = argv[2::2][:9], [float(p) for p in argv[3::2][:9]]
 FR = 270
-DT = 1.2  # text plane: nearer than anything the camera passes (no DOF here, so it stays sharp)
 OPEN0, OPEN1 = 12, 44   # cover swings open
 T0, STEP = 54, 10       # first scan, frames per card
 L.setup(OUT, FR, res=(1200, 1200))
@@ -104,30 +106,23 @@ for x in (-0.42, 0.42):   # pocket seams between columns and rows
 for y in (-0.585, 0.585):
     L.rrect("seamh", 1.28, 0.006, 0.003, seam_mat, z=0.032).location = (0, y, 0)
 
-sleeve_mat, _, _ = L.principled_mat("sleeve", (0.9, 0.92, 0.95, 1), rough=0.05, alpha=0.14, spec=0.9)
-plate_mat, _, _ = L.principled_mat("plate", (0.012, 0.014, 0.02, 1), rough=0.35)
-rim_mat = L.emission_mat("rim", L.GREEN, 2.0)
+sleeve_mat, _, _ = L.principled_mat("sleeve", (0.9, 0.92, 0.95, 1), rough=0.12, alpha=0.04, spec=0.5)
 shine_mat = L.emission_mat("shine", (0.85, 1.0, 0.95, 1), 4.0)
 pos, cards = [], []
 for i, front_img in enumerate(FRONTS):
     gx, gy = i % 3, i // 3
     x, y = (gx - 1) * 0.84, (1 - gy) * 1.17
-    c, hk = L.make_card("c%d" % i, front_img, loc=(x, y, 0.012), scale=0.6, flat=True, holo=(i == HERO))
+    c, hk = L.make_card("c%d" % i, front_img, loc=(x, y, 0.012), scale=0.6, flat=True, holo=(i == HERO), glow=0.8, holo_amt=0.3)
     c.rotation_euler = (0, 0, math.radians(random.uniform(-1.4, 1.4)))
     L.rrect("sleeve%d" % i, 0.4, 0.56, 0.02, sleeve_mat, z=0.03).location = (x, y + 0.01, 0)
     pos.append((x, y)); cards.append((c, hk))
 
 
-def tag(name, price, loc, parent=None, s=1.0):
-    """A dark rounded price plate with a green rim and the green price, tilted toward the camera."""
-    root = bpy.data.objects.new(name, None); L.sc.collection.objects.link(root)
-    if parent: root.parent = parent
-    root.location = loc; root.rotation_euler = (math.radians(35), 0, 0)
-    L.rrect(name + "_rim", 0.29 * s, 0.092 * s, 0.07 * s, rim_mat, z=-0.004, parent=root)
-    L.rrect(name + "_plate", 0.278 * s, 0.08 * s, 0.06 * s, plate_mat, z=0.0, parent=root)
-    t = L.text(name + "_t", f"${price:,.2f}", (0, 0, 0.004), 0.12 * s, L.GREEN, 1.15, rot=(0, 0, 0)); t.parent = root
-    t.location = (0, 0, 0.004)
-    return root
+def anchor(name, loc, parent=None):
+    """An empty whose screen position overlay.mjs reads (price chips are drawn flat, 10-26)."""
+    o = bpy.data.objects.new(name, None); L.sc.collection.objects.link(o)
+    if parent: o.parent = parent
+    o.location = loc; return o
 
 
 order = [i for i in range(9) if i != HERO] + [HERO]
@@ -161,15 +156,11 @@ last = T0 + STEP * (len(order) - 1)
 scanner.keyframe_insert("scale", frame=last + 7); scanner.scale = (0,) * 3; scanner.keyframe_insert("scale", frame=last + 11)
 
 f0 = last + 9  # the hero's lift starts here
-for i in order:
-    if i == HERO: continue
-    x, y = pos[i]
-    tg = tag("tag%d" % i, PRICES[i], (x, y - 0.33, 0.085)); L.pop(tg, land[i], big=1.25)
-    tg.keyframe_insert("scale", frame=f0 + 6); tg.scale = (0,) * 3; tg.keyframe_insert("scale", frame=f0 + 14)  # clear the stage
+anchors = {"tag%d" % i: anchor("tag%d" % i, (pos[i][0], pos[i][1] - 0.33, 0.085)) for i in order if i != HERO}
 
 # the hero: scanned last, slides out of its sleeve and lifts toward the camera with its price
 hero, hk = cards[HERO]; hx, hy = pos[HERO]
-HZ, HY = 1.1, -0.3
+HZ, HY = 1.1, -0.42   # v3: a little lower so the PAGE TOTAL badge does not cover its top
 hero.keyframe_insert("location", frame=f0); hero.keyframe_insert("rotation_euler", frame=f0); hero.keyframe_insert("scale", frame=f0)
 hero.location = (hx, hy + 0.5, 0.05); hero.keyframe_insert("location", frame=f0 + 10)
 hero.location = (0, HY, HZ); hero.keyframe_insert("location", frame=f0 + 30)
@@ -179,20 +170,19 @@ for f, z, a in ((f0 + 70, HZ + 0.05, 37), (FR, HZ - 0.01, 35)):
     hero.location = (0, HY, z); hero.keyframe_insert("location", frame=f)
     hero.rotation_euler = (math.radians(a), 0, math.radians(0.8 if f < FR else -0.8)); hero.keyframe_insert("rotation_euler", frame=f)
 L.holo_sweep(hk, ((1, -1.4), (f0 + 30, -1.4), (f0 + 75, 1.4), (FR, -1.4)), ((1, -1.3), (f0 + 32, -1.3), (f0 + 65, 1.3), (FR, 1.3)))
-htag = tag("tagH", PRICES[HERO], (0, -0.6, 0.03), parent=hero, s=1.6); htag.rotation_euler = (0, 0, 0)  # on the card's lower half
-L.pop(htag, f0 + 32, big=1.2)
+anchors["tagH"] = anchor("tagH", (0, -0.6, 0.03), parent=hero)  # on the card's lower half
 land[HERO] = f0 + 32
 proto = L.sparkles(0, FR)
-L.ring((0, HY, HZ), f0 + 30, big=1.8, rot=(math.radians(36), 0, 0))
+L.ring((0, HY, HZ), f0 + 30, color=L.GREEN, big=1.25, rot=(math.radians(36), 0, 0))
 L.burst(proto, (0, HY, HZ), 50, f0 + 30, 1.4, L.emission_mat("sp", (1, 0.85, 0.55, 1), 6), 0.02)
-L.flash((0, -1.2, 2.6), f0 + 30, 240)
+L.flash((0, -1.2, 2.6), f0 + 30, 90)
 
 # lighting: a warm desk lamp pool from the upper left, a cool weak fill, a rim on the binder edge
 L.spot("lamp", (-2.2, -1.6, 5.2), (0.1, 0.0, 0.0), 1700, 58, 0.85, (1.0, 0.9, 0.78), 0.6)
 fill = L.area("fill", (3.2, -1.0, 3.0), (math.radians(-35), math.radians(50), 0), 90, 3, (0.7, 0.78, 1.0))
 L.area("rim", (0.5, 3.4, 2.2), (math.radians(-65), 0, math.radians(180)), 160, 3, (1.0, 0.9, 0.8))
 hs = L.spot("herospot", (0.6, -2.4, 4.6), (0, HY, HZ), 0, 30, 0.6, (1, 1, 1), 0.3)
-hs.data.keyframe_insert("energy", frame=f0); hs.data.energy = 120; hs.data.keyframe_insert("energy", frame=f0 + 24)
+hs.data.keyframe_insert("energy", frame=f0); hs.data.energy = 35; hs.data.keyframe_insert("energy", frame=f0 + 24)
 
 # camera: low and close on the closed binder, cranes up over the page as the cover opens, slow push during the scan
 co = L.camera((0.9, -3.4, 1.5), (0.05, -0.2, 0.0))
@@ -205,34 +195,8 @@ aim.location = (0, -0.2, 0.1); aim.keyframe_insert("location", frame=OPEN1 + 8)
 co.location = (0.12, -3.3, 4.45); co.keyframe_insert("location", frame=FR)
 
 
-def hud(name, body, fx, fy, frac, color, strength=1.1, font_path=L.FONT_HEAVY):
-    return L.hud(co, name, body, fx, fy, frac, color, strength, d=DT, font_path=font_path)
-
-
-hook = hud("hook", "OLD BINDER IN THE CLOSET?", 0.5, 0.085, 0.05, L.WHITE, 1.0)  # on screen from frame 1
-hook.keyframe_insert("scale", frame=OPEN1 - 2); hook.scale = (0,) * 3; hook.keyframe_insert("scale", frame=OPEN1 + 3)
-pill = L.hud_pill(co, "totpill", 0.5, 0.085, 0.4, 0.125, DT); L.pop(pill, T0 - 2, big=1.08)
-lab = hud("label", "PAGE TOTAL", 0.5, 0.047, 0.024, L.WHITE, 0.9, L.FONT_BOLD); L.pop(lab, T0 - 2)
-tot = hud("total", "$0.00", 0.5, 0.102, 0.068, L.GREEN, 1.05); L.pop(tot, T0 - 2)
-for i in order:   # the badge bumps each time a price lands
-    fl = land[i]
-    pill.scale = (1.0,) * 3; pill.keyframe_insert("scale", frame=fl)
-    pill.scale = (1.07,) * 3; pill.keyframe_insert("scale", frame=fl + 2)
-    pill.scale = (1.0,) * 3; pill.keyframe_insert("scale", frame=fl + 6)
-events = sorted((land[i], PRICES[i]) for i in range(9))
-
-
-def total(scene, *_):
-    f = scene.frame_current; v = 0.0
-    for fl, pr in events:
-        if f >= fl + 8: v += pr
-        elif f > fl: t = (f - fl) / 8; v += pr * (1 - (1 - t) ** 3)
-    tot.data.body = f"${v:,.2f}"
-
-
-L.every_frame(total)
-L.pop(L.hud_pill(co, "ctapill", 0.5, 0.865, 0.74, 0.15, DT), f0 + 58, big=1.06)
-q = hud("q", "What's YOUR binder worth?", 0.5, 0.83, 0.048, L.WHITE, 1.0); L.pop(q, f0 + 60)
-url = hud("url", "cardflip.io", 0.5, 0.897, 0.062, L.LILAC, 1.5); L.pop(url, f0 + 66)
-L.bloom(threshold=1.0, strength=0.3, size=0.5)
+# words (hook, PAGE TOTAL counter, price chips, the question, cardflip.io) are drawn by overlay.mjs from this timing
+L.export_overlay(OUT, co, anchors, {"open1": OPEN1, "t0": T0, "f0": f0, "hero": HERO, "prices": PRICES,
+                                    "land": {str(i): land[i] for i in range(9)}})
+L.bloom(threshold=1.4, strength=0.3, size=0.5)
 L.render(OUT)

@@ -92,7 +92,9 @@ def _mesh():
     bm.to_mesh(me); bm.free(); _card_mesh = me; return me
 
 
-def card_face(name, img_path, flip_u, holo, holo_keys=None):
+def card_face(name, img_path, flip_u, holo, holo_keys=None, glow=0.0, holo_amt=1.0):
+    """glow 0..1 = share of the face shown as its true printed colours (emission) instead of lit paint: 10-26 Chris on
+    the binder ad, "the cards are all weirdly faded"; holo_amt scales the foil rainbow + shine ("washed out" Lugia)."""
     m, nt = new_mat(name)
     for attr, val in (("surface_render_method", "DITHERED"), ("blend_method", "CLIP")):
         try: setattr(m, attr, val)
@@ -106,6 +108,10 @@ def card_face(name, img_path, flip_u, holo, holo_keys=None):
     if "Specular IOR Level" in p.inputs: p.inputs["Specular IOR Level"].default_value = 0.35
     nt.links.new(tex.outputs["Color"], p.inputs["Base Color"])
     shader = p.outputs[0]
+    if glow > 0:
+        ge = N(nt, "ShaderNodeEmission", Strength=1.0); nt.links.new(tex.outputs["Color"], ge.inputs["Color"])
+        gm = N(nt, "ShaderNodeMixShader", Fac=glow); nt.links.new(shader, gm.inputs[1]); nt.links.new(ge.outputs[0], gm.inputs[2])
+        shader = gm.outputs[0]
     if holo:
         def band(rot, key):
             mpp = N(nt, "ShaderNodeMapping", Rotation=(0, 0, math.radians(rot))); nt.links.new(tc.outputs["UV"], mpp.inputs[0])
@@ -118,13 +124,13 @@ def card_face(name, img_path, flip_u, holo, holo_keys=None):
         el[0].position, el[0].color = 0.30, (*cols[0], 1); el[1].position, el[1].color = 0.70, (*cols[-1], 1)
         for i, c in enumerate(cols[1:-1]): e = el.new(0.36 + i * 0.07); e.color = (*c, 1)
         nt.links.new(g1.outputs["Fac"], spec.inputs[0])
-        e1 = N(nt, "ShaderNodeEmission", Strength=0.5); nt.links.new(spec.outputs["Color"], e1.inputs["Color"])
+        e1 = N(nt, "ShaderNodeEmission", Strength=0.5 * holo_amt); nt.links.new(spec.outputs["Color"], e1.inputs["Color"])
         g2 = band(-22, "shine")
         sh = nt.nodes.new("ShaderNodeValToRGB"); el2 = sh.color_ramp.elements
         el2[0].position, el2[0].color = 0.47, (0, 0, 0, 1); el2[1].position, el2[1].color = 0.5, (1, 1, 1, 1)
         e3 = el2.new(0.53); e3.color = (0, 0, 0, 1)
         nt.links.new(g2.outputs["Fac"], sh.inputs[0])
-        e2 = N(nt, "ShaderNodeEmission", Strength=0.9); nt.links.new(sh.outputs["Color"], e2.inputs["Color"])
+        e2 = N(nt, "ShaderNodeEmission", Strength=0.9 * holo_amt); nt.links.new(sh.outputs["Color"], e2.inputs["Color"])
         a1 = nt.nodes.new("ShaderNodeAddShader"); nt.links.new(shader, a1.inputs[0]); nt.links.new(e1.outputs[0], a1.inputs[1])
         a2 = nt.nodes.new("ShaderNodeAddShader"); nt.links.new(a1.outputs[0], a2.inputs[0]); nt.links.new(e2.outputs[0], a2.inputs[1])
         shader = a2.outputs[0]
@@ -134,11 +140,11 @@ def card_face(name, img_path, flip_u, holo, holo_keys=None):
     return m
 
 
-def make_card(name, front, back=BACK, holo=True, loc=(0, 0, 0), scale=0.85, flat=False):
+def make_card(name, front, back=BACK, holo=True, loc=(0, 0, 0), scale=0.85, flat=False, glow=0.0, holo_amt=1.0):
     """Returns (pivot, holo_keys). Upright: face toward -y (the camera). flat=True: lying on the XY plane, face up."""
     holo_keys = {}
     me = _mesh().copy(); me.materials.clear()
-    me.materials.append(card_face(name + "_front", front, False, holo, holo_keys))
+    me.materials.append(card_face(name + "_front", front, False, holo, holo_keys, glow, holo_amt))
     me.materials.append(card_face(name + "_back", back, True, False))
     edge, ent = new_mat(name + "_edge"); out(ent, N(ent, "ShaderNodeBsdfPrincipled", **{"Base Color": (0.08, 0.1, 0.25, 1), "Roughness": 0.4}).outputs[0])
     me.materials.append(edge)
@@ -371,6 +377,24 @@ def hud_pill(co, name, fx, fy, w, h, d, fill=(0.018, 0.016, 0.03, 1), rim=LILAC)
     rrect(name + "_rim", w * hw_ + e, h * hh_ + e, h * hh_ * 0.42 + e, emission_mat(name + "_rimm", rim, 1.1), z=-0.002, parent=root)
     rrect(name + "_fill", w * hw_, h * hh_, h * hh_ * 0.42, emission_mat(name + "_fillm", fill, 1.0), parent=root)
     return root
+
+
+def export_overlay(out, cam, anchors, extra=None):
+    """Writes <out>/overlay.json for ad-x/overlay.mjs, which draws every word flat on top of the frames (10-26: 3D text
+    showed its extruded sides off-centre and read melted). anchors = {key: object}: pixel x/y per frame, y down."""
+    import json
+    from bpy_extras.object_utils import world_to_camera_view
+    rx, ry = sc.render.resolution_x, sc.render.resolution_y
+    pos = {k: [] for k in anchors}
+    for f in range(sc.frame_start, sc.frame_end + 1):
+        sc.frame_set(f)
+        for k, o in anchors.items():
+            p = world_to_camera_view(sc, cam, o.matrix_world.translation)
+            pos[k].append([round(p.x * rx, 1), round((1 - p.y) * ry, 1)])
+    sc.frame_set(1)
+    os.makedirs(out, exist_ok=True)
+    with open(os.path.join(out, "overlay.json"), "w") as fh:
+        json.dump({"w": rx, "h": ry, "frames": sc.frame_end, "anchors": pos, **(extra or {})}, fh)
 
 
 def bloom(threshold=0.8, strength=0.6, size=0.6):

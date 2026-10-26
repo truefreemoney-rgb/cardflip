@@ -77,17 +77,9 @@ for f, dx, dz in ((57, 0.03, -0.02), (59, -0.025, 0.02), (61, 0.012, -0.01), (63
 co.keyframe_insert("location", frame=112); co.location = (0, -D + 0.12, 0.05); co.keyframe_insert("location", frame=FR)
 
 
-def hud(name, body, fx, fy, frac, color, strength=1.1, align="LEFT", font_path=L.FONT_HEAVY):
-    return L.hud(co, name, body, fx, fy, frac, color, strength, d=DT, font_path=font_path, align=align)
-
-
-hook = hud("hook", "PULLED SOMETHING GOOD?", 0.5, 0.115, 0.05, L.WHITE, 1.0, "CENTER")  # on screen from frame 1
-hook.keyframe_insert("scale", frame=44); hook.scale = (0,) * 3; hook.keyframe_insert("scale", frame=50)
+# every word (hook, name, set, price count-up, labels, cardflip.io) is drawn flat by overlay.mjs (10-26 v3: 3D text
+# read melted); the chart stays in 3D. X0 = the text column's left edge as a share of the frame width.
 X0 = 0.495
-nm = hud("name", NAME.upper(), X0, 0.2, 0.064, L.GOLD); L.pop(nm, 124)
-st = hud("set", SETLINE, X0, 0.257, 0.027, L.WHITE, 0.9, font_path=L.FONT_BOLD); L.pop(st, 128)
-pr = hud("price", "$0.00", X0, 0.345, 0.1, L.GREEN, 1.05); L.pop(pr, 132); L.count_up(pr, PRICE, 132, 28)
-sub = hud("sub", "MARKET PRICE  ·  NEAR MINT", X0, 0.415, 0.024, L.WHITE, 0.9, font_path=L.FONT_BOLD); L.pop(sub, 140)
 
 # the card's real price line (one point a day, gaps joined), drawn left to right under the price
 vals = [float(v) for v in SERIES.split(",")]
@@ -117,10 +109,8 @@ fo.scale = (0.001, 1, 1); fo.keyframe_insert("scale", frame=148); fo.scale = (1,
 dotm = L.emission_mat("dot", L.GREEN, 2.5)
 bpy.ops.mesh.primitive_uv_sphere_add(radius=0.015, location=pts[-1]); dot = bpy.context.object; dot.data.materials.append(dotm); dot.parent = co
 L.pop(dot, 178, big=1.6)
-chg = hud("change", CHANGE, X0, 0.64, 0.024, L.WHITE, 0.9, font_path=L.FONT_BOLD); L.pop(chg, 182)  # timeless label, no dated %
-
-cta = hud("cta", "Scan yours at", X0, 0.735, 0.034, L.WHITE, 0.95, font_path=L.FONT_BOLD); L.pop(cta, 192)
-url = hud("url", "cardflip.io", X0, 0.8, 0.075, L.LILAC, 1.5); L.pop(url, 196)
+L.export_overlay(OUT, co, {}, {"price": PRICE, "name": NAME, "set": SETLINE, "sub": "MARKET PRICE  ·  NEAR MINT",
+                              "chart": CHANGE})   # CHANGE = a timeless chart label, no dated %
 L.clear_sparks(proto, co, ((0.08, 0.05, 0.92, 0.18), (0.47, 0.14, 0.98, 0.86)), (1, 40, 120, 180, FR))
 L.bloom(threshold=1.0, strength=0.3, size=0.5)
 L.render(OUT)
