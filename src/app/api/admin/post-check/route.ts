@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { AuthError, requireAdminOwner } from "@/lib/server/auth";
 import { fixSeriesNow, isOffCheck, putCheck, retireCheck, storedRaw } from "@/lib/server/checkedPrices";
 import { dropCardLists, loadCardRecord } from "@/lib/server/cardPages";
-import { cardPath } from "@/lib/cardPages";
+import { cardPath, setPath } from "@/lib/cardPages";
 import { setMark, slotAt } from "@/lib/server/postCheck";
 import { dispatchTiktokRender } from "@/lib/server/socialTiktok";
 import type { Slot } from "@/lib/server/socialPublish";
@@ -27,12 +27,15 @@ const GAMES: ReadonlySet<string> = new Set(["pokemon", "mtg", "lorcana", "onepie
 const SLOT_NAMES: ReadonlySet<string> = new Set(["morning", "midday", "evening"]);
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
-/** The card page shows a fix at once (it is otherwise cached for two days). Best effort. */
+/** The card page and its set page show a fix at once (both are otherwise cached for two days; 10-26 the EB02 set page kept three fixed SPs). Best effort. */
 async function rebuildPage(game: GameId, cardId: string): Promise<void> {
   try {
     await dropCardLists(game, cardId);
     const rec = await loadCardRecord(game, cardId);
-    if (rec) revalidatePath(cardPath(game, rec.facts.setSlug, rec.facts.name, rec.facts.key));
+    if (rec) {
+      revalidatePath(cardPath(game, rec.facts.setSlug, rec.facts.name, rec.facts.key));
+      revalidatePath(setPath(game, rec.facts.setSlug));
+    }
   } catch (err) {
     console.warn(`post check: could not rebuild the page of ${game} ${cardId}`, err);
   }

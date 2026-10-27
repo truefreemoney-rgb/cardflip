@@ -850,16 +850,19 @@ export async function otherPrintings(game: GameId, f: Pick<CardFacts, "name" | "
 const printingsKey = (game: GameId, name: string) => `seo:printings:v3:${game}:${name}`;
 
 /**
- * The cached lists a hand call on one card can change (its set's strip, its "Other <name> cards" strip, the game's top
- * tiles): dropped right after the call so the next page build shows the verdict, not the day-old number (10-14: the
- * Base Set Charizard was hidden at 2:45pm and its sister pages kept printing $968.91). One indexed row read; never throws.
+ * The cached lists a hand call on one card can change (its set's strip, its set page's card list and rank, its "Other
+ * <name> cards" strip, the game's top tiles): dropped right after the call so the next page build shows the verdict, not
+ * the day-old number (10-14: the Base Set Charizard was hidden at 2:45pm and its sister pages kept printing $968.91;
+ * 10-26: the EB02 set page kept three fixed One Piece SPs at their old prices because setcards + setrank were missing
+ * here). One indexed row read; never throws.
  */
 export async function dropCardLists(game: GameId, cardId: string): Promise<void> {
   try {
     const [row] = await catalogRows(game, "id = ?", [cardId]);
     if (!row) return;
     const f = factsOf(game, row, "");
-    await dropCachedLists([printingsKey(game, f.name), `seo:settop:v3:${game}:${row.set_key}`, `seo:top:v3:${game}`]);
+    const set = row.set_key;
+    await dropCachedLists([printingsKey(game, f.name), `seo:settop:v3:${game}:${set}`, `seo:setcards:v1:${game}:${set}`, `seo:setrank:v5:${game}:${set}`, `seo:top:v3:${game}`]);
   } catch (err) {
     console.warn(`card pages: could not drop the lists of ${game} ${cardId}`, err);
   }

@@ -3,7 +3,7 @@ import { AuthError, requireAdminOwner } from "@/lib/server/auth";
 import { setManualCall } from "@/lib/server/ebayReferee";
 import { revalidatePath } from "next/cache";
 import { dropCardLists, loadCardRecord } from "@/lib/server/cardPages";
-import { cardPath } from "@/lib/cardPages";
+import { cardPath, setPath } from "@/lib/cardPages";
 import type { GameId } from "@/lib/types";
 import { adminAuthResponse } from "@/lib/server/adminGate";
 
@@ -33,10 +33,14 @@ export async function POST(req: Request) {
     if (changed) {
       await dropCardLists(game as GameId, cardId.slice(0, 120));
       // The card page itself is cached for two days: a keep must show the real price now, not after the cache (10-22,
-      // 57 referee hides were cheaper-printing matches and the pages kept printing the $5 ask). Best effort, as post-check.
+      // 57 referee hides were cheaper-printing matches and the pages kept printing the $5 ask). Its set page too (10-26).
+      // Best effort, as post-check.
       try {
         const rec = await loadCardRecord(game as GameId, cardId.slice(0, 120));
-        if (rec) revalidatePath(cardPath(game as GameId, rec.facts.setSlug, rec.facts.name, rec.facts.key));
+        if (rec) {
+          revalidatePath(cardPath(game as GameId, rec.facts.setSlug, rec.facts.name, rec.facts.key));
+          revalidatePath(setPath(game as GameId, rec.facts.setSlug));
+        }
       } catch (err) {
         console.warn(`admin prices: could not rebuild the page of ${game} ${cardId}`, err);
       }
