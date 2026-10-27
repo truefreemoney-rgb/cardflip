@@ -108,7 +108,7 @@ if (missing) throw new Error(`${missing} slot(s) not registered for ${day}; the 
     console.log(label, `cover at ${best.t}s (brightness ${Math.round(best.lum)}${best.still ? ", still" : ", NO STILL FRAME, check it"})`);
   }
 }
-fs.writeFileSync(path.join(dir, "captions.txt"), "TikTok: post the \"TikTok (no music)\" MP4 and add a sound from TikTok's library (Sounds). Pinterest: post the \"Pinterest (music)\" MP4.\n\n" + captions, "utf8");
+fs.writeFileSync(path.join(dir, "captions.txt"), "TikTok AND Pinterest: post the \"Pinterest (music)\" MP4, no TikTok sound (since 10-26 a sound added in TikTok's editor fails on TikTok's servers: \"Re-upload your video\").\n\n" + captions, "utf8");
 
 // Pinterest by hand (Chris 10-03: the app review is taking forever). Same
 // three MP4s as video Pins; a Pin = title (first caption line, <=100) +
