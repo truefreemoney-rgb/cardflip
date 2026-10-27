@@ -52,12 +52,16 @@ pixelTrack("ViewContent", { content_type: "product" });
 pixelTrack("ClickButton");
 check("events X has no id for send nothing", sent.splice(0), []);
 
-for (const p of ["/app", "/app/account/welcome", "/app/collection"]) {
+for (const p of ["/app", "/app/collection", "/app/account"]) {
   win.location.pathname = p;
   pixelTrack("Subscribe", { value: 9.99 });
   pixelTrack("CompleteRegistration");
 }
 check("nothing goes to X inside /app", sent.splice(0), []);
+// 10-27: the purchase thank-you page is the one /app page that sends its sale.
+win.location.pathname = "/app/account/welcome";
+pixelTrack("CompletePayment", { value: 4.99 });
+check("the purchase thank-you page sends its sale to X", sent.splice(0), [["event", "tw-test-purchase", { value: 4.99, currency: "USD" }]]);
 
 win.location.pathname = "/signup";
 delete win.twq;
@@ -92,12 +96,15 @@ pixelTrack("ViewContent", { content_type: "product" });
 check("only value and currency travel", fbSent.splice(0), [["track", "ViewContent", {}]]);
 pixelTrack("ClickButton");
 check("a /scan tap goes as the custom ClickButton", fbSent.splice(0), [["trackCustom", "ClickButton", {}]]);
-for (const p of ["/app", "/app/account/welcome", "/app/collection"]) {
+for (const p of ["/app", "/app/collection", "/app/account"]) {
   win.location.pathname = p;
   pixelTrack("Subscribe", { value: 9.99 });
   pixelTrack("CompleteRegistration");
 }
 check("nothing goes to Meta inside /app", fbSent.splice(0), []);
+win.location.pathname = "/app/account/welcome";
+pixelTrack("CompletePayment", { value: 4.99 });
+check("the purchase thank-you page sends Purchase to Meta", fbSent.splice(0), [["track", "Purchase", { value: 4.99, currency: "USD" }]]);
 win.location.pathname = "/signup";
 delete win.fbq;
 pixelTrack("CompleteRegistration");

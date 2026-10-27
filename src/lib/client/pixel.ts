@@ -14,6 +14,16 @@
  *   ViewContent          = /scan showed a price
  *   ClickButton          = a signup button was tapped on /scan
  */
+/**
+ * Where no tag measures: the signed-in app (/app), except the purchase thank-you
+ * page (10-27), so the ad sites learn a sale happened (its value only; the page
+ * strips Stripe's ?billing= on arrival). Before, a Purchase never reached Meta or X.
+ */
+export const PURCHASE_PAGE = "/app/account/welcome";
+export function tagsOff(path: string | null | undefined): boolean {
+  return (path === "/app" || !!path?.startsWith("/app/")) && path !== PURCHASE_PAGE;
+}
+
 type Ttq = { track: (event: string, props?: Record<string, unknown>) => void };
 
 function ttq(): Ttq | null {
@@ -124,10 +134,9 @@ function gaEvent(event: string, waitedMs = 0) {
 
 /**
  * X Pixel events (10-26, the first X ad test): the event ids from X's Events
- * manager (tw-<pixel>-<event>) live on Vercel. Sent only outside /app: X's
- * pixel has no pause like TikTok's holdConsent, and nothing measures inside the
- * account (privacy page), so a purchase confirmed on /app/account/welcome is
- * not sent. The base code mounts after first paint (DeferredAnalytics); until
+ * manager (tw-<pixel>-<event>) live on Vercel. Sent only where tagsOff() allows:
+ * X's pixel has no pause like TikTok's holdConsent, and nothing measures inside
+ * the account except the purchase thank-you page. The base code mounts after first paint (DeferredAnalytics); until
  * its twq() stub exists the event waits here, given up after 15 s.
  */
 const X_EVENT: Partial<Record<string, string | undefined>> = {
@@ -140,7 +149,7 @@ function xEvent(event: string, props?: Record<string, unknown>, waitedMs = 0) {
   const id = X_EVENT[event];
   if (!id || typeof window === "undefined") return;
   const path = window.location.pathname;
-  if (path === "/app" || path.startsWith("/app/")) return;
+  if (tagsOff(path)) return;
   const twq = (window as unknown as { twq?: (...args: unknown[]) => void }).twq;
   if (typeof twq !== "function") {
     if (waitedMs < 15_000) setTimeout(() => xEvent(event, props, waitedMs + 250), 250);
@@ -172,7 +181,7 @@ const META_EVENT: Partial<Record<string, string>> = {
 function metaEvent(event: string, props?: Record<string, unknown>, waitedMs = 0) {
   if (!META_ID || typeof window === "undefined") return;
   const path = window.location.pathname;
-  if (path === "/app" || path.startsWith("/app/")) return;
+  if (tagsOff(path)) return;
   const fbq = (window as unknown as { fbq?: (...args: unknown[]) => void }).fbq;
   if (typeof fbq !== "function") {
     if (waitedMs < 15_000) setTimeout(() => metaEvent(event, props, waitedMs + 250), 250);

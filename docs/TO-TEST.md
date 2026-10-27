@@ -12,6 +12,7 @@
 - [ ] Next 2am nightly: ygo-710119 keeps own_image_url ...ygo-708838-374fe2a5.webp (not reverted); its card page shows Fiendsmith Engraver. Recheck Yugipedia WI26 again ~11-10.
 
 ## 10-27 1:50PM ET: Google / X sign-ups land on the Scanner page, camera closed (unpushed: rides Chris's bulk push)
+- [x] Chris 2:34pm ET on his phone, live site: X login "looks fine".
 - [x] Chris 1:37pm: 'login immediately takes me to the scanner, not the scanner page' + 'it should be the scanner page for google and x logins via their connect buttons' + 'https://cardflip.io/app here'. Cause: a Google/X sign-up started from the /scan ad page carries from=scan, and the welcome step sent it to /app?scan=1 (camera opens on arrival, on top of the first-login tour).
 - [x] Fix: signup/page.tsx opens the camera only for the ad page's email form (fromScan and not google=new / x=new / x=finished); /api/auth/x/finish now returns /signup?step=welcome&x=finished. test:xauth + test:google all passed, tsc + eslint green.
 - [x] Local dev (signed-in admin): /signup?step=welcome&x=finished&from=scan -> /app 'Ready to scan', camera closed; /signup?step=welcome&from=scan (email form) -> /app with the scanner open (unchanged).

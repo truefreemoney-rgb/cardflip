@@ -4,6 +4,7 @@ import Script from "next/script";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { visitorCountry } from "@/lib/client/geo";
+import { tagsOff } from "@/lib/client/pixel";
 
 /**
  * Google Analytics 4 (Chris 09-25). Renders nothing until
@@ -86,7 +87,8 @@ export default function GoogleAnalytics() {
   // Inside the signed-in app (/app) nothing measures (privacy page: "on the public pages, not inside your account";
   // found loading on /app/collection 10-18). No ad conversion fires there (signup and /scan are public). A tab that
   // came from a public page already has the tags running: they are paused while in /app, resumed outside it.
-  const inApp = pathname === "/app" || !!pathname?.startsWith("/app/");
+  // One exception (10-27): the purchase thank-you page, so a sale reaches the ad sites (lib/client/pixel.ts tagsOff).
+  const inApp = tagsOff(pathname);
   useEffect(() => {
     const w = window as unknown as Record<string, unknown> & { ttq?: { holdConsent?: () => void; grantConsent?: () => void }; fbq?: (...args: unknown[]) => void };
     for (const id of [GA_ID, ADS_ID]) if (id) w[`ga-disable-${id}`] = inApp;
