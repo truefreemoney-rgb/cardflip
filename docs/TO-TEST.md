@@ -11,7 +11,8 @@
 - [x] Code: GoogleAnalytics.tsx loads it behind the same consent gate + /admin + /app rules (autoConfig off, consent revoke in /app); pixel.ts sends CompleteRegistration / Subscribe / Purchase / ViewContent + custom ClickButton, never in /app. npm run test:pixel 27/27, tsc green. Privacy page names Meta (phone shot sent, Chris OK'd the wording).
 - [x] NEXT_PUBLIC_META_PIXEL_ID=1952238846159869 on Vercel production (REST, plain, same target as X).
 - [x] Local dev: fbevents.js loaded and facebook.com/tr?id=1952238846159869&ev=PageView fired on /privacy.
-- [ ] After the bulk push: cardflip.io page view shows in Events Manager > CardFlip > Overview (PageView from cardflip.io, not localhost).
+- [x] Pushed 10-27 1:42pm (62df9932 READY, smoke green): cardflip.io/privacy loads fbevents.js + signals/config/1952238846159869 and fires facebook.com/tr.
+- [ ] Events Manager > CardFlip > Overview shows PageView from cardflip.io (not localhost).
 - [ ] A real signup from a public page shows CompleteRegistration in Events Manager.
 - [ ] A tab moved into /app sends nothing more to facebook.com/tr.
 
