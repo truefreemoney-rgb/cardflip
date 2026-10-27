@@ -142,8 +142,9 @@ export async function POST(req: Request) {
     });
   }
 
-  // The signup page resumes on the code step (or the welcome step) from the live session.
-  const res = NextResponse.json({ next: `/signup?step=welcome${pending.fromScan ? "&from=scan" : ""}` });
+  // The signup page resumes on the code step (or the welcome step) from the live session. x=finished: it lands on
+  // the Scanner page afterwards, never with the camera open (10-27).
+  const res = NextResponse.json({ next: `/signup?step=welcome&x=finished${pending.fromScan ? "&from=scan" : ""}` });
   res.cookies.set(SESSION_COOKIE, session.token, sessionCookieOptions(session.expiresAt));
   setHomeCookie(res, user.id, user.homeCountry, session.token);
   res.cookies.set(DEVICE_COOKIE, deviceId, {

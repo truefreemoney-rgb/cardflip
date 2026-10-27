@@ -65,6 +65,12 @@ export default function SignupPage() {
     const q = new URLSearchParams(window.location.search);
     return q.get("google") === "new" || q.get("x") === "new"; // x=new: the same, from Continue with X
   });
+  // /signup?step=welcome&x=finished: the X sign-up that needed the typed email (POST /api/auth/x/finish).
+  // With googleNew: the account came through the Google or X button, which lands on the Scanner page with the
+  // camera closed, even from the ad page (10-27, Chris: "https://cardflip.io/app here").
+  const [xFinished] = useState(
+    () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("x") === "finished",
+  );
   // /signup?x=email: X did not share an email, so this is the one-field step (POST /api/auth/x/finish).
   const [xEmailStep] = useState(
     () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("x") === "email",
@@ -212,8 +218,10 @@ export default function SignupPage() {
     } catch {
       // Moving on anyway: the choice can be made again from Inventory.
     }
-    if (scansLeft > 0 && fromScan) leaveOpenScanNote();
-    router.push(scansLeft > 0 ? (fromScan ? "/app?scan=1" : "/app") : "/pricing");
+    // Only the ad page's email form opens the camera on arrival; the Google and X buttons land on the Scanner page.
+    const openCamera = scansLeft > 0 && fromScan && !googleNew && !xFinished;
+    if (openCamera) leaveOpenScanNote();
+    router.push(scansLeft > 0 ? (openCamera ? "/app?scan=1" : "/app") : "/pricing");
   }
   // Came from the ad page: Seller (the normal mode) by default, no question.
   useEffect(() => {

@@ -248,7 +248,7 @@ check("finish: email that already has an account -> 409 with the log-in message,
 const f1 = await finishReq("NoMail@Example.com");
 const f1body = await f1.json();
 const u2 = await findUserByEmail("nomail@example.com");
-check("finish: 200 with the signup page to resume on", [f1.status, f1body.next], [200, "/signup?step=welcome"]);
+check("finish: 200 with the signup page to resume on", [f1.status, f1body.next], [200, "/signup?step=welcome&x=finished"]);
 check("finish: account has the X id, no password, email NOT proven", [u2?.xSub, hasPassword(u2.passwordHash), u2.emailVerifiedAt, u2.name], ["888001", false, null, "No Mail"]);
 check("finish: session + device cookies set, pending cookie cleared", [(await getSessionUserId(f1.cookies.get(SESSION_COOKIE)?.value)) === u2.id, Boolean(f1.cookies.get("cf_dev")?.value), f1.cookies.get("x_pending")?.value], [true, true, ""]);
 check("finish: signup logged", (await db.prepare("SELECT COUNT(*) AS n FROM signup_log WHERE user_id = ?").get(u2.id)).n, 1);

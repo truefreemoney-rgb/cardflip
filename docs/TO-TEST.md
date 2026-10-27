@@ -1,5 +1,11 @@
 # To test later
 
+## 10-27 1:50PM ET: Google / X sign-ups land on the Scanner page, camera closed (unpushed: rides Chris's bulk push)
+- [x] Chris 1:37pm: 'login immediately takes me to the scanner, not the scanner page' + 'it should be the scanner page for google and x logins via their connect buttons' + 'https://cardflip.io/app here'. Cause: a Google/X sign-up started from the /scan ad page carries from=scan, and the welcome step sent it to /app?scan=1 (camera opens on arrival, on top of the first-login tour).
+- [x] Fix: signup/page.tsx opens the camera only for the ad page's email form (fromScan and not google=new / x=new / x=finished); /api/auth/x/finish now returns /signup?step=welcome&x=finished. test:xauth + test:google all passed, tsc + eslint green.
+- [x] Local dev (signed-in admin): /signup?step=welcome&x=finished&from=scan -> /app 'Ready to scan', camera closed; /signup?step=welcome&from=scan (email form) -> /app with the scanner open (unchanged).
+- [ ] After the bulk push, on cardflip.io: a NEW Google or X sign-up from cardflip.io/scan lands on cardflip.io/app with the camera closed (tour on the Scanner page). Needs a fresh Google/X account = do it with the automated tests, never ask Chris for a new account.
+
 ## 10-27 1:05PM ET: Meta pixel 1952238846159869 "CardFlip" (unpushed: rides Chris's bulk push)
 - [x] Dataset "CardFlip" created in Wageley Inc (business 620820014160219), connected to ad account 195156422868087; automatic advanced matching Off, automatic events Off, "detailed page and product info" turned Off, portfolio-wide Conversions API box left unticked.
 - [x] Code: GoogleAnalytics.tsx loads it behind the same consent gate + /admin + /app rules (autoConfig off, consent revoke in /app); pixel.ts sends CompleteRegistration / Subscribe / Purchase / ViewContent + custom ClickButton, never in /app. npm run test:pixel 27/27, tsc green. Privacy page names Meta (phone shot sent, Chris OK'd the wording).
