@@ -30,7 +30,7 @@
 - [ ] After ~3 days: pick the winner per CTR + signups before copying the ad group for 24-34 / 34-49 / 49-54 / 54+ (Chris's ages, $3/day each).
 
 ## 10-26 4:25PM ET: one post per slot per site (publisher claim + time wall stops the run; committed, unpushed)
-- [ ] After the push: every slot posts once per site (prod social_posts: 1 row per site per slot per day).
+- [x] After the push: every slot posts once per site (prod social_posts: 1 row per site per slot per day). 10-27 8:30am: 10-26 7:05pm evening + 10-27 7:05am morning = exactly 1 row on each of x / bluesky / facebook / threads / instagram, no pending rows (scripts/_social-log-today.mjs).
 - [ ] The GitHub backstop's run report says "slot already posted today" or "another run is posting the <slot> slot", never a second post.
 - [ ] Next Turso slowdown: a "publisher crashed" mail is no longer followed by a late post from that run.
 - [x] 4:20pm: the 4 extra 1pm copies deleted (X / Bluesky / Facebook by the console route, Threads in the pane); kept copies live (Bluesky public API shows only 3mysamnmmau26; Threads De90V4yFcAR up, De90V4old38 gone).
