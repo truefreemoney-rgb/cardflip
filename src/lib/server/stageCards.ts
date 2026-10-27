@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { plausiblePrices } from "@/lib/listing";
 import { getFeaturedCard, getShowcaseCards } from "@/lib/tcg";
 import { MTG_REFEREE_SQL } from "@/lib/server/priceTrust";
+import { activeChecks, checkedValue, checkKey } from "@/lib/server/checkedPrices";
+import { todayUtc } from "@/lib/priceSeries";
 import { trustedUsdPrices } from "@/lib/server/priceTrustLoad";
 import { toPics } from "@/lib/pics";
 import { withOwnPictures } from "@/lib/server/cardPictures";
@@ -263,6 +265,24 @@ async function buildGame(game: OtherGame): Promise<StageCard[]> {
   }
 }
 
+/**
+ * The mirror row's price is TCGplayer's raw number, so a card with a binding eBay sold check shows the checked price
+ * instead (10-27: the One Piece lead Luffy P-055_p3, checked $48.99 on 10-25, still led the homepage, the scan page
+ * and the 7am all-games video at TCGplayer's $74.25). Applied on the way out, never cached: a new check shows within
+ * the checks memo. Pokémon's reel reads price_series, which the nightly writers already fix.
+ */
+async function withChecks(game: OtherGame, cards: StageCard[], now: number): Promise<StageCard[]> {
+  const checks = await activeChecks();
+  if (checks.size === 0) return cards;
+  const day = todayUtc(now);
+  const variant = game === "mtg" ? "nonfoil" : "normal"; // the price_usd column's series variant (mtgCards / tcgCards toCard)
+  return cards.map((c) => {
+    if (!c.id || c.price == null) return c;
+    const usd = checkedValue(c.price, checks.get(checkKey(game, c.id, variant)), day);
+    return usd === c.price ? c : { ...c, price: usd };
+  });
+}
+
 /** The stage for one game: Pokémon keeps its hand-tuned reel; the others come from their mirrors. */
 export async function getGameStageCards(game: GameId, now = Date.now()): Promise<{ cards: StageCard[]; cached: boolean }> {
   if (game === "pokemon") return getStageCards(false, now);
@@ -275,7 +295,7 @@ export async function getGameStageCards(game: GameId, now = Date.now()): Promise
     const row = (await db.prepare("SELECT payload, cached_at FROM card_cache WHERE key = ?").get(key)) as { payload: string; cached_at: number } | undefined;
     if (row && now - row.cached_at < STAGE_TTL_MS) {
       const cards = JSON.parse(row.payload) as StageCard[];
-      if (cards.length > 0) return { cards, cached: true };
+      if (cards.length > 0) return { cards: await withChecks(game, cards, now), cached: true };
     }
   } catch {
     // Cache miss is fine.
@@ -287,7 +307,7 @@ export async function getGameStageCards(game: GameId, now = Date.now()): Promise
       .run(key, JSON.stringify(cards), now)
       .catch(() => {});
   }
-  return { cards, cached: false };
+  return { cards: await withChecks(game, cards, now), cached: false };
 }
 
 export async function getStageCards(magic: boolean, now = Date.now()): Promise<{ cards: StageCard[]; cached: boolean }> {

@@ -521,8 +521,9 @@ function handHolds(game: GameId): Set<string> {
 
 /**
  * Card ids of a game that sit out of the posts built on a change or on the stage pool (movers, jumps, dips, head to head,
- * the all-games leads): the hand list plus every card with a binding eBay sold check. A fixed price is not a "move", and
- * the stage pool prints the mirror's raw number, not the checked one.
+ * guess the price):
+ * the hand list plus every card with a binding eBay sold check. A fixed price is not a "move". The all-games leads keep
+ * a checked card at its checked price (stageCards withChecks, 10-27: the One Piece lead is pinned to a checked card).
  */
 async function postHolds(game: GameId): Promise<Set<string>> {
   const ids = await checkedCardIds(game).catch(() => new Set<string>());
@@ -911,7 +912,7 @@ async function stageMovers(game: GameId): Promise<Mover[]> {
     const row = c.id
       ? { id: c.id }
       : ((await db.prepare("SELECT id FROM tcg_cards WHERE game = ? AND set_name = ? AND collector_number = ? LIMIT 1").get(game, c.setName, c.number)) as { id: string } | undefined);
-    // A held card sits out here too: head to head and the all-games leads read this pool, not topMovers.
+    // A held card sits out here too: head to head and guess the price read this pool, not topMovers.
     if (row && held.has(row.id)) continue;
     const siblings = twins.filter((t) => t.collector_number === c.number).map((t) => ({ id: t.id, setName: t.set_name, price: t.price }));
     if (row && ambiguousByNumber(game, { id: row.id, setName: c.setName, price: c.price as number }, siblings)) continue;

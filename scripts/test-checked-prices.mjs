@@ -121,5 +121,25 @@ check("…another card (the 2020 reprint) gets nothing from it", other.prices.le
 const [stale] = await withPriceFlags([copycat([])], addDays(TODAY, CHECKED_MAX_DAYS + 1));
 check("…and a check past CHECKED_MAX_DAYS prints nothing", stale.prices.length, 0);
 
+console.log("stage cards");
+// 10-27: the One Piece lead (pinned P-055_p3) was checked $48.99 on 10-25, yet the homepage, /scan and the 7am all-games
+// video printed the mirror's raw $74.25: getGameStageCards applies binding checks on the way out.
+const { getGameStageCards } = await import(at("lib/server/stageCards.ts"));
+const opRow = (id, name, usd) =>
+  db.prepare("INSERT INTO tcg_cards (id, game, name, set_code, set_name, collector_number, image_url, price_usd, synced_at) VALUES (?, 'onepiece', ?, 'PRB01', 'Premium Booster -The Best-', ?, 'https://example.test/a.jpg', ?, 0)").run(id, name, id.split("_")[0], usd);
+await opRow("P-055_p3", "Monkey.D.Luffy", 74.25);
+await opRow("P-056_p1", "Roronoa Zoro", 40);
+await putCheck({ ...C, game: "onepiece", cardId: "P-055_p3", variant: "normal", usd: 48.99 });
+const priceOf = (cards, id) => cards.find((c) => c.id === id)?.price ?? null;
+const built = await getGameStageCards("onepiece");
+check("a fresh build: the checked lead shows $48.99, an unchecked card its own price", [built.cached, priceOf(built.cards, "P-055_p3"), priceOf(built.cards, "P-056_p1")], [false, 48.99, 40]);
+const hit = await getGameStageCards("onepiece");
+check("…and so does the cached copy", [hit.cached, priceOf(hit.cards, "P-055_p3")], [true, 48.99]);
+const stageRow = await db.prepare("SELECT key, payload FROM card_cache WHERE key LIKE 'stage:%:onepiece'").get();
+check("…the cache keeps the raw number (a check is never baked in)", priceOf(JSON.parse(stageRow.payload), "P-055_p3"), 74.25);
+await db.prepare("INSERT INTO card_cache (key, payload, cached_at) VALUES (?, ?, ?)").run(stageRow.key.replace(/onepiece$/, "mtg"), JSON.stringify([{ id: "mtg-test-1", name: "Sol Ring", setName: "Test", number: "1", imageUrl: "x", price: 90, lead: true }]), Date.now());
+await putCheck({ ...C, game: "mtg", cardId: "mtg-test-1", variant: "nonfoil", usd: 60 });
+check("Magic: a nonfoil check fixes its stage price", priceOf((await getGameStageCards("mtg")).cards, "mtg-test-1"), 60);
+
 console.log(failures === 0 ? "\nall green" : `\n${failures} FAILED`);
 process.exit(failures === 0 ? 0 : 1);
