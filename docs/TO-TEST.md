@@ -1,5 +1,11 @@
 # To test later
 
+## 10-27 11:40AM ET: X ads moved to one 18+ ad group (Chris's pick; he pressed Save changes)
+- [x] Before: 4 age groups at $3/day, 3 impressions / $0 in ~16 h, all 12 ads approved + Active.
+- [x] New ad group 57133339 "Pokemon | US | 18+ | All | Mobile | EN | CPC": ages 18 and up, $12/day, Optimize targeting ON, 3 ads utm_campaign=pokemon-18-plus; Active in the list 11:41am. Old 57123481 / 57123664 / 57123665 / 57123666 Paused.
+- [ ] ~2pm ET: 57133339 shows impressions and spend climbing (X Ads Manager ad groups tab; X day = Pacific).
+- [ ] First X visits in our own analytics carry utm_campaign=pokemon-18-plus.
+
 ## 10-27 9:05AM ET: scanner stage shows eBay-checked prices (dee3d55e, unpushed: rides Chris's bulk push)
 - [x] Found: Luffy P-055_p3 check ($48.99, 10-25) is still on in prod price_checked and its series ends on 48.99; card page + set page print $48.99. But the stage (homepage One Piece card, /scan, /api/cards/featured, and the all-games post leads) read tcg_cards.price_usd raw = $74.25; the 10-27 7am video (rendered 9:20pm 10-26) printed $74.25.
 - [x] Fix: getGameStageCards applies binding checks on the way out (variant "normal", Magic "nonfoil"); never cached. npm run test:checked all green (4 new stage checks), tsc + eslint green.
