@@ -1,5 +1,37 @@
 # To test later
 
+## 10-27 9:05AM ET: scanner stage shows eBay-checked prices (dee3d55e, unpushed: rides Chris's bulk push)
+- [x] Found: Luffy P-055_p3 check ($48.99, 10-25) is still on in prod price_checked and its series ends on 48.99; card page + set page print $48.99. But the stage (homepage One Piece card, /scan, /api/cards/featured, and the all-games post leads) read tcg_cards.price_usd raw = $74.25; the 10-27 7am video (rendered 9:20pm 10-26) printed $74.25.
+- [x] Fix: getGameStageCards applies binding checks on the way out (variant "normal", Magic "nonfoil"); never cached. npm run test:checked all green (4 new stage checks), tsc + eslint green.
+- [ ] After the bulk push: cardflip.io homepage One Piece card and /scan One Piece stage show Luffy P-055 $48.99 (not $74.25).
+- [ ] The next all-games video render (social_tiktok:morning:<day> leads) has the One Piece lead at 48.99 while the check binds.
+
+## 10-27 9:05AM ET: One Piece eBay queue 10-27 (scripts/ebay-count.txt), EB02 SP leaders
+- [x] Read 1 Luffy P-055_p3: the 10-25 check $48.99 holds (card + set pages); the $74.25 was the stage (fixed above, dee3d55e).
+- [x] Read 2 OP06-080_p2 Gecko Moria SP 140.86 -> 589.99 on prod (_fix-price-tcg): TCGplayer 629178 mkt 589.99 (EN NM 05-07); PriceCharting sold list EN raw Jul 576.55/641/670/925, Jun 555-1125, Mar-May 470-590, 2025 ~145-250 (= our old number); the 10-04 TCGplayer $95 and the eBay $102 were JP copies. Card page title + body $589.99 at 9:14am. Tie cleared in scripts/onepiece-tcg-cleared.json (nightly ties it to 629178).
+- TCGplayer 10-27 for the other EB02 SP leaders (ours -> TCG mkt, no EN sale in window): Yamato 284.39 -> 1007.92, Marco 154.86 -> 1500, Lucci 218.81 -> 750, Sabo 123.30 -> 1125, Uta 175.93 -> 999.99, Carrot 131.13 -> 874.99, Pudding 177.74 -> 1199.01, Enel 236.17 -> 750 (LP 900 07-15). Low "custom" asks (100, 249.99, 251.99) = likely JP copies.
+- [x] Read 3 OP06-022_p2 Yamato SP 284.39 -> 1007.92 (TCG mkt; eBay EN 1100 Aug 16, 950 Aug 18; TCG LP 1300 06-30). Tie cleared. Page $1,007.92.
+- [x] Read 4 OP08-002_p2 Marco SP 154.86 -> 710 (EN raw 710 10-08, 700 BO-acc 09-09, 799.50 07-23; TCG mkt 1500 stale, live NM ask 730). Tie stays held. Page $710.00.
+- [x] Read 5 OP07-079_p2 Rob Lucci SP 218.81 -> 468.33 (EN raw TCG 622.63 10-13, eBay 466.08 09-06, 468.33 08-23; TCG mkt 750; PSA 10 839-918). Page $468.33.
+- [x] Read 6 OP05-001_p2 Sabo SP 123.30 -> 610.63 (volatile; last 5 EN raw 333-1400, median; PSA 9 371-760, PSA 10 1199-1375). Page $610.63.
+- [x] Read 7 OP06-001_p2 Uta SP 175.93 -> 786.44 (latest EN raw 09-15; spring 830-1425; PSA 9 710-810 Aug-Oct caps it). Page $786.44.
+- [x] Read 8 OP08-021_p2 Carrot SP 131.13 -> 699.99 (EN raw 699.99 10-12, 523 08-10, 781 08-03). Page $699.99.
+- [x] Read 9 OP08-058_p2 Pudding SP 177.74 -> 1199.01 (TCG mkt = its 05-03 sale; EN raw Apr-May 1010-1600; no raw since May = STALE, recheck in Nov). Tie cleared. Page $1,199.01.
+- [x] Read 10 OP05-098_p2 Enel SP 236.17 -> 750 (TCG mkt inside band of EN raw 800-1055; EN PSA 10 sold 500 on 10-25 = recheck). Tie cleared. Page $750.00.
+- [x] Read 11 OP02-013_p2 Ace OG Paramount War manga 1204.12 -> 1700 (TCG 485862 mkt; EN raw 2375 10-09, 1550 08-12, 1799.99 08-01, TCG LP 1600 08-31; PriceCharting "PRB-01" rows = the reprint, left out). Page body $1,700.00 (the title drops the price when long).
+- [x] Read 12 OP05-074_p2 Kid OG manga 620.75 STANDS (EN raw 580 10-08, 519.98 TCG 08-18, 680 08-18; median of 5 = 680; TCG 527020 mkt 976.65 = July's 990 sales, stale). No write.
+- [x] Read 13 OP12-015#promo Luffy Treasure Cup 2025 978.65 -> 1850 (TCG 657117 mkt; NM 2000 07-07; eBay 2182.20 BO-acc Apr 3). Promo set has no public card pages (404) = series fix only (26 points).
+- [x] Read 14 P-033_pr1#promo Luffy CS 2023 Event Pack 1101 -> 1600 (TCG 525304 mkt; NM 2000 07-04; cheapest std NM ask 2002.39; eBay 2500 Oct 8 likely this one). The ~350 eBay sales = Event Pack Vol. 2 = our P-033_pr2 at 356.47 (right).
+- [x] Read 15 OP02-114#promo Borsalino Championship 2023 276.06 -> 799.99 (EN raw 550-800 Jun-Aug, median of last 3; TCG mkt 1049.48 over; PSA 10 1187-1287 Oct).
+- [x] Read 16 OP06-092_pr3#promo Brook Top Player Pack Vol. 2 203.33 -> 750 (UNSURE: the only raw sale anywhere = TCG NM 750 06-21 = mkt; eBay 90 d 0; graded 316-1350).
+- [x] Read 17 ST18-003#promo San-Gorou Treasure Cup 2025 427.25 STANDS (EN raw 450 BO 09-03, TCG 949.88 06-10, 500 03-02 = median 500; an Oct 1 eBay BO-accepted on a 1100 listing is hidden = recheck). No write.
+- [x] Read 18 OP11-004#promo Kujyaku Treasure Cup Aug 2025 176.59 -> 398.97 (TCG 646745 mkt inside band of EN raw 397-519). Tie cleared.
+- [x] Read 19 P-079#promo Lim CS 25-26 Finalist 200 STANDS (UNSURE: no Finalist sale anywhere; TCG asks 271-491, mkt 485 undated; eBay = the regular event-pack card 12-40). No write.
+- [x] Read 20 P-070#promo Carrot CS 25-26 Finalist 280 -> 474 (UNSURE: the only sale = TCG NM 474 07-08 = mkt = the only ask; eBay 0).
+- eBay 10-27 = 20/20 used. Queue continues 10-28 from P-085_pr5#promo, EB01-043#promo, Bonney OP13-108#tcg692134 (confirm 150), Sanji OP07-064_pr1#promo (799.99, 0 sales), Chopper OP01-015#promo Winner (no price anywhere). Rechecks later: Pudding OP08-058_p2 (no raw since May), Enel OP05-098_p2 (EN PSA 10 500 on 10-25), San-Gorou (hidden Oct 1 BO), Lim P-079 (no sale).
+- [ ] Tonight's nightly ties the 5 cleared rows (OP06-080_p2, OP06-022_p2, OP08-058_p2, OP05-098_p2, OP11-004#promo) to their TCGplayer products: after the 2am run, tcg_cards.tcg_product_id set + price_usd = the TCGplayer market, and the checks stay on until TCGplayer is in band two days running.
+- Method for EB02 SP leaders: eBay search (mostly JP copies + regular alt arts) + PriceCharting's sold LIST for the EN product (its rows are eBay/TCGplayer sales with the accepted best-offer price); never its summary number.
+
 ## 10-26 7:58PM ET: One Piece eBay queue, reads 13-18 + TCGplayer (prod price checks via scripts/_fix-price-tcg.mjs)
 - [x] OP08-001_p2 Chopper SP (EB02 EN) 162.11 -> 1225 (2026 ungraded NM sales median n14; eBay raw 1370.49 Jul 30; PSA 9 3050).
 - [x] OP07-038_p2 Boa Hancock SP 376.27 -> 3572.63 (2026 ungraded sales median n5; eBay 90 d: no raw EN, PSA 8.5 2275).
