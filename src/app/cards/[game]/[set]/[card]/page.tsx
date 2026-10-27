@@ -5,7 +5,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 import MarketingNav from "@/components/MarketingNav";
 import Footer from "@/components/Footer";
 import JsonLd from "@/components/JsonLd";
-import ArtImg from "@/components/ArtImg";
+import ZoomArt from "@/components/ZoomArt";
 import WatchPrice from "@/components/WatchPrice";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
 import PriceConfidenceBadge from "@/components/PriceConfidenceBadge";
@@ -310,7 +310,7 @@ export default async function CardPricePage({ params }: PageProps<"/cards/[game]
         <div className="mt-5 grid gap-6 sm:grid-cols-[minmax(0,17rem)_minmax(0,1fr)] sm:gap-8">
           <div className="mx-auto w-full max-w-[17rem] sm:mx-0">
             <div className="aspect-[5/7] overflow-hidden rounded-2xl border border-edge bg-black/30">
-              <ArtImg src={f.image} alt={`${f.name}, ${f.setName}${f.number ? ` ${f.number}` : ""}`} width={500} height={700} priority className="h-full w-full object-cover" />
+              <ZoomArt src={f.image} alt={`${f.name}, ${f.setName}${f.number ? ` ${f.number}` : ""}`} width={500} height={700} />
             </div>
           </div>
 

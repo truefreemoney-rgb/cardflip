@@ -1,5 +1,11 @@
 # To test later
 
+## 10-27 2:30PM ET: tap the card picture on a card page = full-screen card (unpushed, waiting on Chris's yes on the look)
+- [x] Why: heat map 14 days, phone card pages 78 of 88 taps hit nothing, nearly all on the card picture (admin heat map overlay).
+- [x] src/components/ZoomArt.tsx (button around the picture; dialog, Close, any tap or Escape closes, page scroll locked while open); card page uses it. tsc + eslint green. Local Playwright at 375px: opens, card 351px wide, closes on a tap (docs/shots/zoomart-1/2-card-page-phone.jpg, sent 2:29pm).
+- [ ] After the bulk push, on a phone: open any cardflip.io card page, tap the picture -> big card + Close; tap -> back. A week later: card-page dead taps on /admin/heatmap well under 87%, "Show ... bigger" in Most tapped.
+- [ ] Scanner dead taps (24%, right side of the scan result sheet) NOT looked at yet: the static heat map preview cannot show the result sheet.
+
 ## 10-27 2:25PM ET: Yu-Gi-Oh! WI26 picture recheck (data fix live, map change local only)
 - [x] Yugipedia recheck (dated ~10-27): its Winner's Pack 2026-2027 page (last edit 08-13) has no card scans yet = nothing to swap; the 117 WI26 rows keep their exact-stamp CardTrader pictures (111 SAMPLE-stamped, 6 clean), nightly keeps retrying TCGplayer. The 67 other CardTrader-pictured rows screened by eye: all the right card.
 - [x] ygo-710119 Fiendsmith Engraver WI26-EN008 Regional Qualifier stamp showed The Bystial Lubellion (CardTrader blueprint 415556 carries the wrong card). Now shows the same card's OTS-stamp picture (ygo-708838 copy, blueprint 415555), prod + local + scripts/yugioh-exact-pictures.json.
