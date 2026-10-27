@@ -5,6 +5,9 @@
 // proxy exempts (webhooks, crons, GitHub Actions), our smoke checks (x-cf-smoke, copied from the cloud-servers
 // rule), Google + Apple crawlers by network, and members carrying the cf_home travel pass (the app still verifies
 // its signature). 22 h before: 5,582 allowed from other countries = Leaseweb SG scraper, Tor relays, proxy pools.
+// 10-27 (Chris, first Instagram ads: "make sure to allowed meta bots in to check out website/ads"): Meta's own
+// networks too, AS32934 (its servers: ad review + link previews also run from SE/DK/SG data centers) and AS54115
+// (Meta corp, human ad reviewers). The Meta scrapers stay blocked by name + Oculus AS398781 in the AI crawlers rule.
 //   node scripts/_fw-geo-gate.mjs [--dry]
 import fs from "node:fs";
 const m = JSON.parse(fs.readFileSync(".env.migration.json", "utf8").replace(/^﻿/, ""));
@@ -18,12 +21,12 @@ const smoke = (active.rules ?? []).flatMap((r) => r.conditionGroup.flatMap((g) =
 if (!smoke) throw new Error("x-cf-smoke condition not found in the active rules");
 const value = {
   name: NAME,
-  description: "Outside the open countries: denied at the edge (10-21). Webhooks, smoke, Google/Apple, travel pass exempt.",
+  description: "Outside the open countries: denied at the edge (10-21). Webhooks, smoke, Google/Apple/Meta, travel pass exempt.",
   active: true,
   conditionGroup: [{ conditions: [
     { type: "geo_country", op: "inc", neg: true, value: COUNTRIES },
     { type: "path", op: "re", neg: true, value: "^/api/(cron/|stripe/webhook|ebay/(account-deletion|callback)|social/|ops/|runner/|digest/unsubscribe)" },
-    { type: "geo_as_number", op: "inc", neg: true, value: ["15169", "396982", "714", "6185"] },
+    { type: "geo_as_number", op: "inc", neg: true, value: ["15169", "396982", "714", "6185", "32934", "54115"] },
     { type: "cookie", key: "cf_home", op: "ex", neg: true },
     { ...smoke },
   ] }],
