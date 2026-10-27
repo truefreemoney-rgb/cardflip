@@ -1,5 +1,14 @@
 # To test later
 
+## 10-27 1:05PM ET: Meta pixel 1952238846159869 "CardFlip" (unpushed: rides Chris's bulk push)
+- [x] Dataset "CardFlip" created in Wageley Inc (business 620820014160219), connected to ad account 195156422868087; automatic advanced matching Off, automatic events Off, "detailed page and product info" turned Off, portfolio-wide Conversions API box left unticked.
+- [x] Code: GoogleAnalytics.tsx loads it behind the same consent gate + /admin + /app rules (autoConfig off, consent revoke in /app); pixel.ts sends CompleteRegistration / Subscribe / Purchase / ViewContent + custom ClickButton, never in /app. npm run test:pixel 27/27, tsc green. Privacy page names Meta (phone shot sent, Chris OK'd the wording).
+- [x] NEXT_PUBLIC_META_PIXEL_ID=1952238846159869 on Vercel production (REST, plain, same target as X).
+- [x] Local dev: fbevents.js loaded and facebook.com/tr?id=1952238846159869&ev=PageView fired on /privacy.
+- [ ] After the bulk push: cardflip.io page view shows in Events Manager > CardFlip > Overview (PageView from cardflip.io, not localhost).
+- [ ] A real signup from a public page shows CompleteRegistration in Events Manager.
+- [ ] A tab moved into /app sends nothing more to facebook.com/tr.
+
 ## 10-27 11:40AM ET: X ads moved to one 18+ ad group (Chris's pick; he pressed Save changes)
 - [x] Before: 4 age groups at $3/day, 3 impressions / $0 in ~16 h, all 12 ads approved + Active.
 - [x] New ad group 57133339 "Pokemon | US | 18+ | All | Mobile | EN | CPC": ages 18 and up, $12/day, Optimize targeting ON, 3 ads utm_campaign=pokemon-18-plus; Active in the list 11:41am. Old 57123481 / 57123664 / 57123665 / 57123666 Paused.

@@ -1,5 +1,6 @@
 /**
- * Ad-measurement events (TikTok Pixel, 10-04, for the first paid test; Google Ads conversions 10-06 and the X Pixel 10-26, below).
+ * Ad-measurement events (TikTok Pixel, 10-04, for the first paid test; Google Ads conversions 10-06, the X Pixel 10-26
+ * and the Meta Pixel 10-27, below).
  *
  * The pixel itself is loaded by GoogleAnalytics.tsx under the same consent
  * gate as GA4 and only when NEXT_PUBLIC_TIKTOK_PIXEL_ID is set. These helpers
@@ -153,6 +154,41 @@ function xEvent(event: string, props?: Record<string, unknown>, waitedMs = 0) {
   }
 }
 
+/**
+ * Meta Pixel events (10-27, the first Instagram ad test): Meta's standard names
+ * so Ads Manager can optimise on them (a Booster is Meta's Purchase); a /scan
+ * signup-button tap goes as the custom event ClickButton. Same rules as X:
+ * never inside /app, waits for the fbq() stub that mounts after first paint,
+ * given up after 15 s. Only the value and currency travel with an event.
+ */
+const META_ID = process.env.NEXT_PUBLIC_META_PIXEL_ID;
+const META_EVENT: Partial<Record<string, string>> = {
+  CompleteRegistration: "CompleteRegistration",
+  Subscribe: "Subscribe",
+  CompletePayment: "Purchase",
+  ViewContent: "ViewContent",
+};
+
+function metaEvent(event: string, props?: Record<string, unknown>, waitedMs = 0) {
+  if (!META_ID || typeof window === "undefined") return;
+  const path = window.location.pathname;
+  if (path === "/app" || path.startsWith("/app/")) return;
+  const fbq = (window as unknown as { fbq?: (...args: unknown[]) => void }).fbq;
+  if (typeof fbq !== "function") {
+    if (waitedMs < 15_000) setTimeout(() => metaEvent(event, props, waitedMs + 250), 250);
+    return;
+  }
+  const value = typeof props?.value === "number" ? props.value : undefined;
+  const data = value != null ? { value, currency: typeof props?.currency === "string" ? props.currency : "USD" } : {};
+  const name = META_EVENT[event];
+  try {
+    if (name) fbq("track", name, data);
+    else fbq("trackCustom", event, data);
+  } catch {
+    // Measurement never breaks the page.
+  }
+}
+
 export function pixelTrack(event: "CompleteRegistration" | "Subscribe" | "CompletePayment" | "ViewContent" | "ClickButton", props?: Record<string, unknown>) {
   try {
     adsConversion(event, props);
@@ -161,6 +197,11 @@ export function pixelTrack(event: "CompleteRegistration" | "Subscribe" | "Comple
   }
   try {
     xEvent(event, props);
+  } catch {
+    // Measurement never breaks the page.
+  }
+  try {
+    metaEvent(event, props);
   } catch {
     // Measurement never breaks the page.
   }

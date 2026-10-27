@@ -40,6 +40,16 @@ const GTAG_ID = GA_ID || ADS_ID;
  */
 const X_PIXEL_ID = process.env.NEXT_PUBLIC_X_PIXEL_ID;
 const X_OFF = ["autoConfig", "autoDwellTracking", "autoAdvancedMatching", "dataLayerTracking"];
+/**
+ * Meta Pixel (10-27, the first Instagram ad test): the same consent gate and
+ * /admin + /app rules as X; absent until NEXT_PUBLIC_META_PIXEL_ID exists on
+ * Vercel. Conversions are sent through lib/client/pixel.ts. autoConfig off =
+ * no automatic button-click or page-metadata events; automatic advanced
+ * matching (email scraping) is off on the dataset in Events Manager. While a
+ * tab is inside /app the pixel is paused with fbq('consent','revoke').
+ */
+const META_PIXEL_ID = process.env.NEXT_PUBLIC_META_PIXEL_ID;
+const ANY_TAG = GTAG_ID || TIKTOK_PIXEL_ID || X_PIXEL_ID || META_PIXEL_ID;
 const CONSENT_COOKIE = "cf_consent";
 const CONSENT_COUNTRIES = new Set(["GB", "IE"]);
 
@@ -59,7 +69,7 @@ export default function GoogleAnalytics() {
   const [mode, setMode] = useState<"load" | "ask" | "off" | null>(null);
 
   useEffect(() => {
-    if (!GTAG_ID && !TIKTOK_PIXEL_ID && !X_PIXEL_ID) return;
+    if (!ANY_TAG) return;
     let alive = true;
     (async () => {
       const prior = readConsent();
@@ -78,7 +88,7 @@ export default function GoogleAnalytics() {
   // came from a public page already has the tags running: they are paused while in /app, resumed outside it.
   const inApp = pathname === "/app" || !!pathname?.startsWith("/app/");
   useEffect(() => {
-    const w = window as unknown as Record<string, unknown> & { ttq?: { holdConsent?: () => void; grantConsent?: () => void } };
+    const w = window as unknown as Record<string, unknown> & { ttq?: { holdConsent?: () => void; grantConsent?: () => void }; fbq?: (...args: unknown[]) => void };
     for (const id of [GA_ID, ADS_ID]) if (id) w[`ga-disable-${id}`] = inApp;
     try {
       if (inApp) w.ttq?.holdConsent?.();
@@ -86,9 +96,15 @@ export default function GoogleAnalytics() {
     } catch {
       // Measurement never breaks the page.
     }
+    try {
+      if (inApp) w.fbq?.("consent", "revoke");
+      else if (mode === "load") w.fbq?.("consent", "grant");
+    } catch {
+      // Measurement never breaks the page.
+    }
   }, [inApp, mode]);
 
-  if ((!GTAG_ID && !TIKTOK_PIXEL_ID && !X_PIXEL_ID) || !pathname || pathname.startsWith("/admin")) return null;
+  if (!ANY_TAG || !pathname || pathname.startsWith("/admin")) return null;
 
   if (mode === "ask") {
     // On /app phones the bar sits ON the bottom tab bar (BottomTabBar: h-14 + home-bar inset), never over it,
@@ -154,6 +170,11 @@ export default function GoogleAnalytics() {
       {X_PIXEL_ID && (
         <Script id="x-pixel" strategy="afterInteractive">
           {`!function(e,t,n,s,u,a){e.twq||(s=e.twq=function(){s.exe?s.exe.apply(s,arguments):s.queue.push(arguments);},s.version='1.1',s.queue=[],u=t.createElement(n),u.async=!0,u.src='https://static.ads-twitter.com/uwt.js',a=t.getElementsByTagName(n)[0],a.parentNode.insertBefore(u,a))}(window,document,'script');${X_OFF.map((k) => `twq('set','${k}','false','${X_PIXEL_ID}');`).join("")}twq('config','${X_PIXEL_ID}');`}
+        </Script>
+      )}
+      {META_PIXEL_ID && (
+        <Script id="meta-pixel" strategy="afterInteractive">
+          {`!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('set','autoConfig',false,'${META_PIXEL_ID}');fbq('init','${META_PIXEL_ID}');fbq('track','PageView');`}
         </Script>
       )}
     </>
