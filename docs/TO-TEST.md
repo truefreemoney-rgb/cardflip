@@ -1,5 +1,10 @@
 # To test later
 
+## 10-27 2:25PM ET: Yu-Gi-Oh! WI26 picture recheck (data fix live, map change local only)
+- [x] Yugipedia recheck (dated ~10-27): its Winner's Pack 2026-2027 page (last edit 08-13) has no card scans yet = nothing to swap; the 117 WI26 rows keep their exact-stamp CardTrader pictures (111 SAMPLE-stamped, 6 clean), nightly keeps retrying TCGplayer. The 67 other CardTrader-pictured rows screened by eye: all the right card.
+- [x] ygo-710119 Fiendsmith Engraver WI26-EN008 Regional Qualifier stamp showed The Bystial Lubellion (CardTrader blueprint 415556 carries the wrong card). Now shows the same card's OTS-stamp picture (ygo-708838 copy, blueprint 415555), prod + local + scripts/yugioh-exact-pictures.json.
+- [ ] Next 2am nightly: ygo-710119 keeps own_image_url ...ygo-708838-374fe2a5.webp (not reverted); its card page shows Fiendsmith Engraver. Recheck Yugipedia WI26 again ~11-10.
+
 ## 10-27 1:50PM ET: Google / X sign-ups land on the Scanner page, camera closed (unpushed: rides Chris's bulk push)
 - [x] Chris 1:37pm: 'login immediately takes me to the scanner, not the scanner page' + 'it should be the scanner page for google and x logins via their connect buttons' + 'https://cardflip.io/app here'. Cause: a Google/X sign-up started from the /scan ad page carries from=scan, and the welcome step sent it to /app?scan=1 (camera opens on arrival, on top of the first-login tour).
 - [x] Fix: signup/page.tsx opens the camera only for the ad page's email form (fromScan and not google=new / x=new / x=finished); /api/auth/x/finish now returns /signup?step=welcome&x=finished. test:xauth + test:google all passed, tsc + eslint green.
