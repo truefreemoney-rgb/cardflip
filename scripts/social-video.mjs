@@ -462,7 +462,8 @@ if (ONE_KIND) {
     const msg = err instanceof Error ? err.message : String(err);
     // No video is not a failed run: the publisher posts the slot's picture or its next kind (FALLBACK_KINDS). As a
     // failure it mailed Chris once per render ping (10-23: "not enough dips", six mails). A GitHub warning shows in the run.
-    if (/^not enough /.test(msg)) { console.log(`::warning::${msg}: no 1pm video, the publisher posts its fallback`); process.exit(0); }
+    // An angle with nothing to draw says "no <kind> data" (10-28: "no sleepers data", two mails); same thing, same warning.
+    if (/^(not enough |no \S+ data for )/.test(msg)) { console.log(`::warning::${msg}: no 1pm video, the publisher posts its fallback`); process.exit(0); }
     console.error(msg);
     process.exit(1);
   }

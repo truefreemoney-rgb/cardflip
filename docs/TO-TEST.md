@@ -1,5 +1,10 @@
 # To test later
 
+## 10-28 3:00PM ET: 1pm video with nothing to draw = warning, not a failure mail (unpushed: rides Chris's bulk push)
+- [x] Why: GitHub mailed "video job failed" twice (12:40 + 1:40pm dispatch runs 40728286304 / 40737958006): "no sleepers data for 2026-10-28". The 1pm sites posted once at 1:06pm with the picture fallback (Flashfire most valuable), so nothing was lost; only the mail was false.
+- [x] scripts/social-video.mjs: the 1pm path treats "no <kind> data for" like "not enough" (::warning::, exit 0). node --check ok, regex checked on both messages + a real error ("card art missing") still fails.
+- [ ] After the bulk push, the next day a 1pm angle has no cards: the social-post run is green with a warning, no failure mail.
+
 ## 10-27 2:30PM ET: tap the card picture on a card page = full-screen card (unpushed, waiting on Chris's yes on the look)
 - [x] Why: heat map 14 days, phone card pages 78 of 88 taps hit nothing, nearly all on the card picture (admin heat map overlay).
 - [x] src/components/ZoomArt.tsx (button around the picture; dialog, Close, any tap or Escape closes, page scroll locked while open); card page uses it. tsc + eslint green. Local Playwright at 375px: opens, card 351px wide, closes on a tap (docs/shots/zoomart-1/2-card-page-phone.jpg, sent 2:29pm).
