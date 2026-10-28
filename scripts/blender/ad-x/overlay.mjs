@@ -169,6 +169,27 @@ LAYOUTS["C-higher"] = async () => {
   };
 };
 
+const ORANGE = "#ff8a1f";
+// Halloween (10-27): hook over the closed book, Gengar's name + price up top once the brackets lock, CTA at the bottom
+LAYOUTS["H-ghost"] = async () => {
+  const { price, name, set } = meta;
+  const label = `${name}  ·  ${set}`, labelS = await fit(label, 40, 860, BOLD, 700);
+  const q = "What are YOUR ghosts worth?", qS = await fit(q, 64, 840);
+  const P = 214, CTA = 238;
+  return (f) => {
+    const hk = f < 52 ? 1 : gone(f, 52, 6);   // on screen from frame 1 (the thumbnail)
+    let s = text("WHAT ARE YOUR", 600, 92, 100, { scale: hk }) + text("GHOSTS WORTH?", 600, 200, 108, { fill: ORANGE, scale: hk });
+    const ps = pop(f, P, 1.1);
+    s += pill(600, 150, 760, 210, { rim: C.green, rw: 5, scale: ps }) +
+      text(label, 600, 88, labelS, { font: BOLD, weight: 700, fill: C.gold, scale: ps, stroke: null, shadow: false }) +
+      text(money(count(f, P + 2, 26, price)), 600, 172, 118, { fill: C.green, scale: ps, stroke: null, shadow: false });
+    s += pill(600, 1046, 900, 190, { scale: pop(f, CTA, 1.06) }) +
+      text(q, 600, 998, qS, { scale: pop(f, CTA + 2), stroke: null }) +
+      text("cardflip.io", 600, 1086, 88, { fill: C.lilac, scale: pop(f, CTA + 8), stroke: null });
+    return s;
+  };
+};
+
 if (!LAYOUTS[scene]) throw new Error(`no overlay layout for ${scene}`);
 const draw = await LAYOUTS[scene]();
 const files = fs.readdirSync(raw).filter((f) => /^(f|still)_\d{4}\.png$/.test(f)).sort();
