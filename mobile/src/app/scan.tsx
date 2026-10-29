@@ -46,6 +46,17 @@ const GUIDE_HEIGHT = 0.82;
 const BRACKET = "#818cf8";
 const HOLO_PINK = "#f0abfc";
 const SURFACE_2 = "rgba(180,190,255,0.1)";
+/**
+ * Which back lens the scanner looks through, best first: the Dual Wide (the 1x wide with the ultra-wide behind it for
+ * close-ups, what TCGplayer scans with; Chris 10-29 1:05am "it matches tcg"), the Triple (same plus the telephoto),
+ * then the plain wide. Left to itself expo-camera came up on the 0.5x ultra-wide on Chris's phone, a blur at card
+ * distance because most ultra-wides have no autofocus.
+ */
+const WIDE_LENS = "AVCaptureDeviceTypeBuiltInWideAngleCamera";
+const LENS_ORDER = ["AVCaptureDeviceTypeBuiltInDualWideCamera", "AVCaptureDeviceTypeBuiltInTripleCamera", WIDE_LENS];
+function pickLens(available: { deviceType: string }[]): string {
+  return LENS_ORDER.find((t) => available.some((l) => l.deviceType === t)) ?? WIDE_LENS;
+}
 
 type Phase =
   | { kind: "camera" }
@@ -509,6 +520,8 @@ export default function Scan() {
   const [sheet, setSheet] = useState<"copy" | "pick" | "big" | null>(null);
   const [options, setOptions] = useState(false);
   const [torch, setTorch] = useState(false);
+  /** The lens (expo-camera selectedLens): undefined = the phone's combined lens, which hands close-ups to the ultra-wide at a 2x crop; the plain wide is what the website's browser camera uses. */
+  const [lens, setLens] = useState<string>(WIDE_LENS);
   const [tipsOn, setTipsOn] = useState(true);
   const [flash, setFlash] = useState(false);
   /** Tap to focus (the site's tapToFocus): a one-shot refocus, the ring at the tap, then back to following the card. */
@@ -766,7 +779,7 @@ export default function Scan() {
       <View style={styles.cameraWrap} onLayout={onLayout}>
         {granted ? (
           <>
-            <CameraView ref={camera} style={StyleSheet.absoluteFill} facing="back" enableTorch={torch} autofocus={focusOnce ? "on" : "off"} onCameraReady={() => setCameraReady(true)} animateShutter={false} />
+            <CameraView ref={camera} style={StyleSheet.absoluteFill} facing="back" enableTorch={torch} autofocus={focusOnce ? "on" : "off"} selectedLens={lens} onCameraReady={() => { setCameraReady(true); camera.current?.getAvailableLensesAsync().then((l) => setLens(pickLens(l))).catch(() => {}); }} animateShutter={false} />
             {/* The tap layer: expo-camera has no focus point, so a tap asks for one fresh focus ("on" = focus once), then continuous again. */}
             <Pressable
               style={StyleSheet.absoluteFill}

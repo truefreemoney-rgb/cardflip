@@ -54,6 +54,31 @@ import {
 /** Frames taken per tap; the sharpest one is sent (10-04: a shaky hand loses the collector number first). */
 const BURST = 4;
 
+/**
+ * The lens a card wants (10-29, from the iPhone app): iPhones list their
+ * combined back cameras to the browser as "Back Dual Wide Camera" (the 1x
+ * wide with the ultra-wide behind it for close-ups, what TCGplayer scans
+ * with) and "Back Triple Camera". The plain "Back Camera" the browser hands
+ * out first cannot focus at card distance on the Pro models. Labels are
+ * readable only once a stream is open, so the first stream is swapped for
+ * the better lens when one exists; any failure keeps the stream we have.
+ */
+async function preferCloseUpCamera(stream: MediaStream, edge: number): Promise<MediaStream> {
+  try {
+    const current = stream.getVideoTracks()[0];
+    if (!current || /dual wide|triple/i.test(current.label)) return stream;
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const cams = devices.filter((d) => d.kind === "videoinput" && /back|rear|environment/i.test(d.label));
+    const better = cams.find((d) => /dual wide/i.test(d.label)) ?? cams.find((d) => /triple/i.test(d.label));
+    if (!better) return stream;
+    const swapped = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: better.deviceId }, width: { ideal: edge }, height: { ideal: edge } } });
+    stream.getTracks().forEach((track) => track.stop());
+    return swapped;
+  } catch {
+    return stream;
+  }
+}
+
 /** ?dbg=outline's panel, frame dumps and photo input: dev builds only, production never builds it. */
 const CameraOutlineDebug =
   process.env.NODE_ENV === "production" ? null : dynamic(() => import("@/components/CameraOutlineDebug"), { ssr: false });
@@ -533,6 +558,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
           }
         }
         if (!stream) throw new DOMException("no stream", "NotReadableError");
+        stream = await preferCloseUpCamera(stream, edge);
 
         if (cancelled) {
           stream.getTracks().forEach((track) => track.stop());
