@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import WebView, { type WebViewNavigation } from "react-native-webview";
 import { API_URL, APP_HEADER_VALUE } from "~/lib/api";
@@ -40,8 +40,16 @@ export function safeSitePath(raw: string | string[] | undefined): string {
   return p && p.startsWith("/") && !p.startsWith("//") ? p : "/app/account";
 }
 
-export default function SiteWebView({ path, onLeave, onLoading, scanner = false }: { path: string; onLeave?: () => void; onLoading?: (loading: boolean) => void; scanner?: boolean }) {
+/** What a screen holding a ref can do with the page: run script in it (the Scanner tab's in-place resume). */
+export type SiteWebViewHandle = { inject(js: string): void };
+
+const SiteWebView = forwardRef<SiteWebViewHandle, { path: string; onLeave?: () => void; onLoading?: (loading: boolean) => void; scanner?: boolean }>(function SiteWebView(
+  { path, onLeave, onLoading, scanner = false },
+  ref,
+) {
   const { refresh } = useAuth();
+  const web = useRef<React.ComponentRef<typeof WebView>>(null);
+  useImperativeHandle(ref, () => ({ inject: (js: string) => web.current?.injectJavaScript(js) }), []);
   const [token, setToken] = useState<string | null | undefined>(undefined);
   const [failed, setFailed] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -124,6 +132,7 @@ export default function SiteWebView({ path, onLeave, onLoading, scanner = false 
   }
   return (
     <WebView
+      ref={web}
       key={attempt}
       style={styles.web}
       source={{ uri: `${API_URL}/api/auth/app-cookie?next=${encodeURIComponent(path)}`, headers }}
@@ -155,7 +164,9 @@ export default function SiteWebView({ path, onLeave, onLoading, scanner = false 
       applicationNameForUserAgent={`CardFlipApp/${APP_HEADER_VALUE}`}
     />
   );
-}
+});
+
+export default SiteWebView;
 
 /** Web only: cookie handoff by fetch, then the page in an iframe. */
 function WebPreview({ path, headers, onLoad, onFail }: { path: string; headers: Record<string, string>; onLoad(): void; onFail(message: string): void }) {

@@ -1238,45 +1238,52 @@ export default function AppPage() {
   // seller's photo (or the catalogue art) that My Cards passed along, so the
   // wait looks like the card coming back rather than a spinner (09-04).
   const [resumeHint, setResumeHint] = useState<{ name: string | null; image: string | null }>({ name: null, image: null });
-  useEffect(() => {
-    if (resumedRef.current) return;
-    const params = new URLSearchParams(window.location.search);
-    // One id, or several comma-joined: My Cards' "Move to listings" sends a
-    // whole selection here so they can be verified in one sitting instead
-    // of one round trip each (Chris, 09-03).
-    const resumeIds = (params.get("resume") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-    if (resumeIds.length === 0) return;
-    resumedRef.current = true;
-    // My Cards passes the card's identity alongside the id so the catalog
-    // search runs in PARALLEL with the ledger fetch — sequentially they were
-    // two-plus seconds of blank stare on a cold function (Chris, 09-02).
-    const hintName = params.get("rn");
-    const hintNumber = params.get("rnum");
-    const hintGame = parseGame(params.get("rg"));
-    const hintPhotoAt = params.get("rp");
-    const hintImage = params.get("ri");
-    // The iPhone app's camera just scanned these (10-29): they count as this session's scans, so the page
-    // asks "Which category?" over them exactly as it does when its own camera closes.
-    const justScanned = params.get("ask") === "category";
-    window.history.replaceState(null, "", window.location.pathname);
-    void (async () => {
-      // On a client-side navigation Next updates window.location AFTER the
-      // first render, so the state initializer above saw the previous URL
-      // and started false — the first-scan hero then sat there for the whole
-      // rebuild (Chris, 09-02: "hanging on this screen for 5-7 seconds").
-      // Set here, past the effect's synchronous body (react-hooks rule), a
-      // microtask later and long before any network answer.
-      await Promise.resolve();
-      setResuming(true);
-      setResumeHint({
-        name: resumeIds.length === 1 ? hintName : null,
-        image:
-          resumeIds.length === 1 && hintPhotoAt
-            ? apiPath(`/api/card-image/${resumeIds[0]}?v=${hintPhotoAt}`)
-            : resumeIds.length === 1
-              ? hintImage
-              : null,
-      });
+  /**
+   * Ledger rows back into the queue, rebuilt from the catalog (the row supplies photo, price, condition,
+   * quantity). Two callers: the ?resume= link below, and the iPhone app's camera, which hands its new
+   * scans into this page IN PLACE over a "cardflip:resume" window event (10-29): the queue stays as it
+   * was, the new rows join it, the first one opens in the editor, "Which category?" asks over them, the
+   * way this page's own camera sheet closes. `quiet` skips the reopen hero (the queue is on screen);
+   * rows already in the queue are not rebuilt twice, just selected.
+   */
+  const resumeFromLedger = useCallback(
+    async (
+      wantedIds: string[],
+      hints: { name: string | null; number: string | null; game: GameId; photoAt: string | null; image: string | null },
+      opts: { justScanned: boolean; quiet: boolean },
+    ) => {
+      const { justScanned, quiet } = opts;
+      const hintName = hints.name;
+      const hintNumber = hints.number;
+      const hintGame = hints.game;
+      const hintPhotoAt = hints.photoAt;
+      const hintImage = hints.image;
+      const present = new Map(itemsRef.current.filter((i) => i.serverId).map((i) => [i.serverId as string, i.id]));
+      const resumeIds = wantedIds.filter((id) => !present.has(id));
+      if (resumeIds.length === 0) {
+        const sel = present.get(wantedIds[0] ?? "");
+        if (sel) setSelectedId(sel);
+        return;
+      }
+      if (!quiet) {
+        // On a client-side navigation Next updates window.location AFTER the
+        // first render, so the state initializer above saw the previous URL
+        // and started false — the first-scan hero then sat there for the whole
+        // rebuild (Chris, 09-02: "hanging on this screen for 5-7 seconds").
+        // Set here, past the effect's synchronous body (react-hooks rule), a
+        // microtask later and long before any network answer.
+        await Promise.resolve();
+        setResuming(true);
+        setResumeHint({
+          name: resumeIds.length === 1 ? hintName : null,
+          image:
+            resumeIds.length === 1 && hintPhotoAt
+              ? apiPath(`/api/card-image/${resumeIds[0]}?v=${hintPhotoAt}`)
+              : resumeIds.length === 1
+                ? hintImage
+                : null,
+        });
+      }
       const eagerSearch = hintName
         ? searchCards(hintName, hintNumber || null, "en", undefined, hintGame).catch(() => null)
         : null;
@@ -1359,19 +1366,54 @@ export default function AppPage() {
             });
         }
       }
-    })();
-  }, [askCategory, commit, loadEbayComps, patchItem]);
+    },
+    [askCategory, commit, loadEbayComps, patchItem],
+  );
+  useEffect(() => {
+    if (resumedRef.current) return;
+    const params = new URLSearchParams(window.location.search);
+    // One id, or several comma-joined: My Cards' "Move to listings" sends a
+    // whole selection here so they can be verified in one sitting instead
+    // of one round trip each (Chris, 09-03).
+    const resumeIds = (params.get("resume") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+    if (resumeIds.length === 0) return;
+    resumedRef.current = true;
+    // My Cards passes the card's identity alongside the id so the catalog
+    // search runs in PARALLEL with the ledger fetch — sequentially they were
+    // two-plus seconds of blank stare on a cold function (Chris, 09-02).
+    const hints = { name: params.get("rn"), number: params.get("rnum"), game: parseGame(params.get("rg")), photoAt: params.get("rp"), image: params.get("ri") };
+    // The iPhone app's camera just scanned these (10-29, the first build's handoff): they count as this
+    // session's scans, so the page asks "Which category?" over them.
+    const justScanned = params.get("ask") === "category";
+    window.history.replaceState(null, "", window.location.pathname);
+    void resumeFromLedger(resumeIds, hints, { justScanned, quiet: false });
+  }, [resumeFromLedger]);
+  // The iPhone app's camera (mobile/src/app/scan.tsx toQueue -> (app)/scanTab.tsx inject): its new scans,
+  // the tapped one first, into the queue in place.
+  useEffect(() => {
+    const onResume = (e: Event) => {
+      const detail = (e as CustomEvent<{ ids?: unknown }>).detail;
+      const ids = Array.isArray(detail?.ids) ? detail.ids.filter((x): x is string => typeof x === "string" && x.length > 0) : [];
+      if (ids.length === 0) return;
+      void resumeFromLedger(ids, { name: null, number: null, game: gameRef.current, photoAt: null, image: null }, { justScanned: true, quiet: true });
+    };
+    window.addEventListener("cardflip:resume", onResume);
+    return () => window.removeEventListener("cardflip:resume", onResume);
+  }, [resumeFromLedger]);
 
 
   const openCamera = useCallback(() => {
     // Inside the iPhone app this page is the site's own scanner page (10-29, Chris: "match the website almost
     // 1:1"); the camera itself is the app's (the Dual Wide lens, the native reveal). The app scans, then comes
     // back here with ?resume=<ids>&ask=category, which is this page's post-scan state.
-    if (postToApp({ type: "scan" })) return;
     // A toast left over from the previous session would flash a stale result.
     setCameraItemId(null);
     categoryAskedRef.current = false;
     sessionItemIdsRef.current = [];
+    // The app's camera hands its scans back into this page in place (the "cardflip:resume" event below),
+    // the queue untouched, like this page's own camera sheet closing (Chris 10-29 1:32am: "it's supposed to
+    // just add to the list").
+    if (postToApp({ type: "scan" })) return;
     setCameraOpen(true);
   }, []);
 

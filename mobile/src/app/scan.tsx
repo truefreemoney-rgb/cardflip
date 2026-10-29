@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { ActivityIndicator, Animated, Linking, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, View, type LayoutChangeEvent, type StyleProp, type TextStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { openSitePage } from "~/components/AppHeader";
+import { emitScanResult } from "~/lib/scanBus";
 import { useAuth } from "~/lib/auth";
 import { GAMES, fetchCardById, pictureUrl, publicGames, type GameId, type PokemonCard } from "~/lib/catalog";
 import {
@@ -713,11 +714,14 @@ export default function Scan() {
       // Home's "Scans left" follows the session: re-read it so the number matches what the scanner showed.
       void refresh();
       const ids = first ? [first, ...sessionIds.current.filter((s) => s !== first)] : [...sessionIds.current];
-      if (ids.length === 0) {
+      // The Scanner tab's page is still open underneath: hand the scans into it in place (lib/scanBus) and
+      // just close, the way the site's own camera sheet closes over its queue.
+      if (ids.length === 0 || emitScanResult({ ids })) {
         if (router.canGoBack()) router.back();
         else router.replace("/(app)/scanTab");
         return;
       }
+      // Nobody listening (the tab was never mounted): reload it with the ids instead.
       const card = phase.kind === "result" && phase.savedId === ids[0] ? phase.card : null;
       router.replace({
         pathname: "/(app)/scanTab",
