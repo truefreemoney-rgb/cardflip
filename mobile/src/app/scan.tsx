@@ -26,7 +26,7 @@ import {
   type ScanQuota,
   type VisionCardRead,
 } from "~/lib/scan";
-import { colors, radius, space } from "~/lib/theme";
+import { colors, fonts, radius, space } from "~/lib/theme";
 
 /** A real card is 63×88 mm; the guide is one card, 82% of the camera's height (the website's CameraCapture). */
 const GUIDE_RATIO = 63 / 88;
@@ -303,7 +303,7 @@ export default function Scan() {
     // Home's "Scans left" follows the session: re-read it so the number matches what the scanner showed.
     void refresh();
     if (router.canGoBack()) router.back();
-    else router.replace("/(app)/home");
+    else router.replace("/(app)/cards");
   }, [refresh]);
 
   const top = insets.top + space.sm;
@@ -619,7 +619,7 @@ const styles = StyleSheet.create({
   sheet: { backgroundColor: colors.surfaceRaised, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, paddingTop: space.md, paddingHorizontal: space.lg },
   sheetTall: { maxHeight: "75%" },
   sheetTitle: { color: colors.white, fontSize: 18, fontWeight: "700", marginBottom: space.xs },
-  cardName: { color: colors.white, fontSize: 22, fontWeight: "700", textAlign: "center", marginTop: space.md, paddingHorizontal: space.lg },
+  cardName: { color: colors.white, fontSize: 24, fontFamily: fonts.displaySemi, letterSpacing: -0.3, textAlign: "center", marginTop: space.md, paddingHorizontal: space.lg },
   cardSub: { color: colors.muted, fontSize: 14, textAlign: "center", marginTop: 2, paddingHorizontal: space.lg },
   bigMoney: { color: colors.money, fontSize: 52, fontWeight: "800", textAlign: "center", marginTop: space.xs, letterSpacing: -1 },
   moneyLabel: { color: colors.faint, fontSize: 13, textAlign: "center", marginTop: 2 },

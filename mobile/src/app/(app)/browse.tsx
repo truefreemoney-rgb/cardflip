@@ -3,8 +3,11 @@ import { router } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import AppHeader from "~/components/AppHeader";
+import Pill from "~/components/Pill";
+import Screen from "~/components/Screen";
 import { GAMES, fetchSetCards, fetchSets, publicGames, pictureUrl, searchTyped, setKey, shownPrice, type GameId, type PokemonCard, type SetInfo } from "~/lib/catalog";
-import { colors, radius, space } from "~/lib/theme";
+import { colors, fonts, radius, space } from "~/lib/theme";
 
 const MIN_CHARS = 2;
 const DEBOUNCE_MS = 350;
@@ -119,13 +122,14 @@ export default function Browse() {
   const showingCards = cards !== null;
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top + space.sm }]}>
-      <Text style={styles.h1}>Browse</Text>
+    <Screen>
+    <AppHeader />
+    <View style={styles.screen}>
+      <Text style={styles.h1}>Search</Text>
+      <Text style={styles.lede}>Look a card up by name or number, or open a set. Free, no scan used.</Text>
       <View style={styles.chips}>
         {games.map((g) => (
-          <Pressable key={g} onPress={() => pickGame(g)} style={[styles.chip, g === game && styles.chipOn]} hitSlop={4}>
-            <Text style={[styles.chipText, g === game && styles.chipTextOn]}>{GAMES[g].label}</Text>
-          </Pressable>
+          <Pill key={g} label={GAMES[g].label} on={g === game} onPress={() => pickGame(g)} />
         ))}
       </View>
       <TextInput
@@ -172,6 +176,7 @@ export default function Browse() {
         />
       )}
     </View>
+    </Screen>
   );
 }
 
@@ -204,14 +209,11 @@ function SetRow({ set, onPress }: { set: SetInfo; onPress: () => void }) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background, paddingHorizontal: space.lg },
-  h1: { color: colors.white, fontSize: 24, fontWeight: "700" },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: space.sm },
-  chip: { borderColor: colors.edge, borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
-  chipOn: { backgroundColor: colors.brand, borderColor: colors.brand },
-  chipText: { color: colors.muted, fontSize: 13, fontWeight: "600" },
-  chipTextOn: { color: colors.white },
-  search: { marginTop: space.sm, marginBottom: space.md, backgroundColor: "rgba(0,0,0,0.4)", borderColor: colors.edge, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 11, color: colors.white, fontSize: 16 },
+  screen: { flex: 1, paddingHorizontal: space.lg, paddingTop: space.lg },
+  h1: { color: colors.white, fontSize: 28, fontFamily: fonts.displaySemi, letterSpacing: -0.5 },
+  lede: { color: colors.faint, fontSize: 14, marginTop: 4, lineHeight: 20 },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: space.md },
+  search: { marginTop: space.md, marginBottom: space.md, backgroundColor: "rgba(0,0,0,0.4)", borderColor: colors.edge, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 11, color: colors.white, fontSize: 16 },
   error: { color: colors.danger, fontSize: 13, marginBottom: space.sm },
   backRow: { flexDirection: "row", alignItems: "center", gap: space.sm, marginBottom: space.sm },
   back: { color: colors.brandSoft, fontSize: 15, fontWeight: "600" },

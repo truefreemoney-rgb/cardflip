@@ -5,7 +5,7 @@ import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from "
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GAMES, pictureUrl, type GameId } from "~/lib/catalog";
 import { fetchMissing, fetchSetProgress, formatMoney, type MissingCard, type SetProgress } from "~/lib/collection";
-import { colors, radius, space } from "~/lib/theme";
+import { colors, fonts, radius, space } from "~/lib/theme";
 
 /**
  * Set completion (the website's /app/collection/sets): every set the seller
@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background, paddingHorizontal: space.lg },
   backBtn: { alignSelf: "flex-start", paddingVertical: 6 },
   back: { color: colors.brandSoft, fontSize: 16, fontWeight: "600" },
-  h1: { color: colors.white, fontSize: 24, fontWeight: "700", marginTop: 2 },
+  h1: { color: colors.white, fontSize: 28, fontFamily: fonts.displaySemi, letterSpacing: -0.5, marginTop: 2 },
   sub: { color: colors.muted, fontSize: 13, marginTop: 2 },
   error: { color: colors.danger, fontSize: 13, marginTop: space.sm },
   empty: { color: colors.muted, fontSize: 14, marginTop: space.lg, textAlign: "center" },

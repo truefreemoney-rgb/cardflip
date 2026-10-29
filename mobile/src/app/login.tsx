@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CodeRequiredError, useAuth } from "~/lib/auth";
-import { colors, radius, space } from "~/lib/theme";
+import { colors, fonts, radius, space } from "~/lib/theme";
 
 /**
  * Sign in: email + password, then a 6-digit code when the account has
@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
   scroll: { flexGrow: 1, justifyContent: "center", paddingHorizontal: space.lg },
   logo: { color: colors.white, fontSize: 28, fontWeight: "700", textAlign: "center", marginBottom: space.xl, letterSpacing: -0.5 },
   card: { backgroundColor: colors.surface, borderColor: colors.edge, borderWidth: 1, borderRadius: radius.xl, padding: space.xl },
-  h1: { color: colors.white, fontSize: 20, fontWeight: "600" },
+  h1: { color: colors.white, fontSize: 24, fontFamily: fonts.displaySemi, letterSpacing: -0.4 },
   sub: { color: colors.muted, fontSize: 14, marginTop: 4, marginBottom: space.md },
   label: { color: "#d4d4d8", fontSize: 14, fontWeight: "500", marginTop: space.md, marginBottom: 6 },
   field: { backgroundColor: "rgba(0,0,0,0.4)", borderColor: colors.edge, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 12, color: colors.white, fontSize: 16 },

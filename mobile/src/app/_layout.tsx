@@ -1,3 +1,4 @@
+import { BricolageGrotesque_600SemiBold, BricolageGrotesque_700Bold, useFonts } from "@expo-google-fonts/bricolage-grotesque";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
@@ -7,12 +8,14 @@ import { colors } from "~/lib/theme";
 
 SplashScreen.preventAutoHideAsync();
 
-/** Holds the splash until the stored session has been checked, so nobody sees a sign-in flash. */
+/** Holds the splash until the stored session has been checked and the headline font is in, so nobody sees a sign-in flash or a font swap. */
 function Root() {
   const { user } = useAuth();
+  const [fontsReady, fontError] = useFonts({ BricolageGrotesque_600SemiBold, BricolageGrotesque_700Bold });
   useEffect(() => {
-    if (user !== undefined) SplashScreen.hideAsync();
-  }, [user]);
+    if (user !== undefined && (fontsReady || fontError)) SplashScreen.hideAsync();
+  }, [user, fontsReady, fontError]);
+  if (!fontsReady && !fontError) return null;
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
       <Stack.Protected guard={user === null}>

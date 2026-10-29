@@ -13,5 +13,5 @@ export default function Index() {
       </View>
     );
   }
-  return <Redirect href={user ? "/(app)/home" : "/login"} />;
+  return <Redirect href={user ? "/(app)/cards" : "/login"} />;
 }

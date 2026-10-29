@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GAMES, pictureUrl, type GameId } from "~/lib/catalog";
 import { fetchInsights, formatMoney, type Insights, type Mover } from "~/lib/collection";
 import { useAuth } from "~/lib/auth";
-import { colors, radius, space } from "~/lib/theme";
+import { colors, fonts, radius, space } from "~/lib/theme";
 
 /**
  * Insights (the website's /app/collection/insights): what the collection is
@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background, paddingHorizontal: space.lg },
   backBtn: { alignSelf: "flex-start", paddingVertical: 6 },
   back: { color: colors.brandSoft, fontSize: 16, fontWeight: "600" },
-  h1: { color: colors.white, fontSize: 24, fontWeight: "700", marginTop: 2 },
+  h1: { color: colors.white, fontSize: 28, fontFamily: fonts.displaySemi, letterSpacing: -0.5, marginTop: 2 },
   h2: { color: colors.muted, fontSize: 12, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 6 },
   sub: { color: colors.muted, fontSize: 13, marginTop: 2 },
   empty: { color: colors.muted, fontSize: 14, marginTop: space.lg, textAlign: "center" },
