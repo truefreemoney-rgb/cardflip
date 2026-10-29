@@ -3,7 +3,7 @@ import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import AppleSignInButton from "~/components/AppleSignInButton";
+import SocialSignIn from "~/components/SocialSignIn";
 import { useAuth } from "~/lib/auth";
 import { pictureUrl } from "~/lib/catalog";
 import { getGuestScan, type GuestScan } from "~/lib/guestScan";
@@ -77,6 +77,7 @@ export default function Signup() {
         <View style={styles.card}>
           <Text style={styles.h1}>Create your account</Text>
           <Text style={styles.sub}>5 free scans. No credit card.</Text>
+          <SocialSignIn mode="signup" onError={setError} />
 
           <Text style={styles.label}>Username</Text>
           <TextInput style={styles.field} value={name} onChangeText={setName} placeholder="Enter username" placeholderTextColor={colors.faint} autoCapitalize="words" autoComplete="username" textContentType="username" returnKeyType="next" editable={!busy} />
@@ -96,7 +97,6 @@ export default function Signup() {
           <Pressable onPress={submit} disabled={busy} style={({ pressed }) => [styles.button, pressed && { backgroundColor: colors.brandHover }, busy && { opacity: 0.7 }]}>
             {busy ? <ActivityIndicator color={colors.white} /> : <Text style={styles.buttonText}>Create Account</Text>}
           </Pressable>
-          <AppleSignInButton mode="signup" onError={setError} />
 
           <Pressable onPress={() => router.replace("/login")} hitSlop={8} style={{ alignSelf: "center", marginTop: space.lg }}>
             <Text style={styles.link}>I already have an account</Text>

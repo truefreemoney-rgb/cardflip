@@ -1,13 +1,12 @@
 import * as AppleAuthentication from "expo-apple-authentication";
 import { useEffect, useState } from "react";
-import { Platform, StyleSheet, Text, View } from "react-native";
+import { Platform, StyleSheet } from "react-native";
 import { useAuth } from "~/lib/auth";
-import { colors, space } from "~/lib/theme";
 
 /**
  * Sign in with Apple (docs/APP-PLAN.md step 6; Apple guideline 4.8: an app
- * with other sign-ins must offer Apple's). Apple's own black button, the
- * size and corner radius of the screen's brand button, under an "or" rule.
+ * with other sign-ins must offer Apple's). Apple's own white button, the
+ * size and corner radius of the Google button above it (components/SocialSignIn.tsx).
  * Shows only where it can run: iOS with the capability (a dev / TestFlight
  * / App Store build; Expo Go and the web preview cannot, so nothing shows
  * there). Cancelling is silent; any other failure prints the server's words.
@@ -46,27 +45,16 @@ export default function AppleSignInButton({ mode, onError }: { mode: "login" | "
   }
 
   return (
-    <View style={styles.wrap}>
-      <View style={styles.rule}>
-        <View style={styles.line} />
-        <Text style={styles.or}>or</Text>
-        <View style={styles.line} />
-      </View>
-      <AppleAuthentication.AppleAuthenticationButton
-        buttonType={mode === "signup" ? AppleAuthentication.AppleAuthenticationButtonType.SIGN_UP : AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-        buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
-        cornerRadius={12}
-        style={[styles.button, busy && { opacity: 0.7 }]}
-        onPress={press}
-      />
-    </View>
+    <AppleAuthentication.AppleAuthenticationButton
+      buttonType={mode === "signup" ? AppleAuthentication.AppleAuthenticationButtonType.SIGN_UP : AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+      buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
+      cornerRadius={12}
+      style={[styles.button, busy && { opacity: 0.7 }]}
+      onPress={press}
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { marginTop: space.md },
-  rule: { flexDirection: "row", alignItems: "center", gap: space.sm, marginBottom: space.md },
-  line: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.edgeStrong },
-  or: { color: colors.muted, fontSize: 13 },
   button: { width: "100%", height: 48 },
 });

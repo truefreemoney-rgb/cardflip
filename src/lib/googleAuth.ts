@@ -46,6 +46,49 @@ export interface GoogleState {
   touch: Touch | null;
   /** /signup came from the /scan ad page (the signup form's from=scan). */
   fromScan: boolean;
+  /** Set when the iPhone app started the round trip (see GoogleAppState); absent for the website. */
+  app?: GoogleAppState;
+}
+
+/**
+ * "Continue with Google" from the iPhone app (10-29). The app has no cookie jar of its own, so it
+ * opens /api/auth/google/start in the system browser sheet (ASWebAuthenticationSession) and the
+ * callback sends the sheet back to the app's own URL with a sealed one-time ticket instead of
+ * setting the website's cookies. The ticket is useless without the PKCE verifier only the app
+ * holds, so another app that registered our URL scheme learns nothing.
+ */
+export interface GoogleAppState {
+  /** PKCE S256 challenge: base64url(sha256(verifier)), the verifier stays on the phone. */
+  pkce: string;
+  /** Where the browser sheet hands control back: cardflip://auth (the real app), exp://… (Expo Go, dev only). */
+  back: string;
+  /** The app's install id (x-cardflip-device), carried because the browser sheet does not send that header. */
+  device: string | null;
+}
+
+/** How long the app has to trade the ticket in the return URL for its session (one browser hop). */
+export const GOOGLE_APP_TICKET_MAX_AGE_S = 2 * 60;
+
+/**
+ * Only the app's own addresses: the release build's cardflip://auth, and Expo Go / the web
+ * preview (exp://, exps://, http://localhost:PORT/…) while developing. Anything else is an open
+ * redirect waiting to happen, so it is refused and the sign-in never starts.
+ */
+export function appReturnAllowed(back: string | null | undefined, devAllowed: boolean): back is string {
+  if (!back || back.length > 300 || /[\s\\#]/.test(back)) return false;
+  if (back === "cardflip://auth") return true;
+  if (!devAllowed) return false;
+  return /^exps?:\/\/[A-Za-z0-9.\-]+(?::\d{2,5})?\/--\/auth$/.test(back) || /^http:\/\/(localhost|127\.0\.0\.1)(?::\d{2,5})?\/auth$/.test(back);
+}
+
+function parseAppState(v: unknown, devAllowed: boolean): GoogleAppState | null | undefined {
+  if (v === undefined || v === null) return undefined;
+  if (typeof v !== "object") return null;
+  const a = v as Record<string, unknown>;
+  if (typeof a.pkce !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(a.pkce)) return null;
+  if (!appReturnAllowed(typeof a.back === "string" ? a.back : null, devAllowed)) return null;
+  const device = typeof a.device === "string" && /^[A-Za-z0-9-]{8,64}$/.test(a.device) ? a.device : null;
+  return { pkce: a.pkce, back: a.back as string, device };
 }
 
 /** A same-site path or null. Mirrors lib/client/auth.safeNextPath (no backslashes, no whitespace, no //host). */
@@ -60,13 +103,21 @@ export function encodeState(st: GoogleState): string {
   return Buffer.from(JSON.stringify(st), "utf8").toString("base64url");
 }
 
-export function decodeState(raw: string | null | undefined): GoogleState | null {
+/** Expo Go / web-preview return addresses are only honoured outside production (appReturnAllowed). */
+export function devReturnsAllowed(): boolean {
+  return process.env.NODE_ENV !== "production";
+}
+
+export function decodeState(raw: string | null | undefined, devAllowed: boolean = devReturnsAllowed()): GoogleState | null {
   if (!raw) return null;
   try {
     const v = JSON.parse(Buffer.from(raw, "base64url").toString("utf8")) as Record<string, unknown>;
     if (typeof v.s !== "string" || typeof v.n !== "string" || v.s.length < 16 || v.n.length < 16) return null;
     if (v.mode !== "signup" && v.mode !== "login") return null;
     const ref = typeof v.ref === "string" && /^[A-Za-z0-9]{4,16}$/.test(v.ref) ? v.ref.toUpperCase() : null;
+    // An app state that does not pass muster poisons the whole cookie: never fall back to the website's flow.
+    const app = parseAppState(v.app, devAllowed);
+    if (app === null) return null;
     return {
       s: v.s,
       n: v.n,
@@ -75,6 +126,7 @@ export function decodeState(raw: string | null | undefined): GoogleState | null 
       ref,
       touch: parseTouch(v.touch),
       fromScan: v.fromScan === true,
+      ...(app ? { app } : {}),
     };
   } catch {
     return null;

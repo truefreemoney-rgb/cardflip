@@ -4,11 +4,14 @@ import { useQuickActionRouting } from "expo-quick-actions/router";
 import { router, Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
+import * as WebBrowser from "expo-web-browser";
 import { useEffect, useRef } from "react";
 import { AuthProvider, useAuth } from "~/lib/auth";
 import { colors } from "~/lib/theme";
 
 SplashScreen.preventAutoHideAsync();
+// Web preview only: the Google sign-in popup lands back on /auth?ticket=…, hands the URL to the opener and closes (no-op elsewhere).
+WebBrowser.maybeCompleteAuthSession();
 
 /**
  * The scanner shortcuts (docs/APP-PLAN.md step 6, 10-29): a Home Screen quick

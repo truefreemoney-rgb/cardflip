@@ -322,6 +322,91 @@ for (const [label, body, opts] of [["no credential", { credential: "" }], ["not 
 const notJson = await onetap.POST(new Request("https://cardflip.io/api/auth/google/onetap", { method: "POST", headers: ipHeader(), body: "not json" }));
 check("onetap: body not JSON → 400", notJson.status, 400);
 
+// --- The iPhone app (app=1: PKCE, return address, sealed ticket, POST /api/auth/google/finish) ----------------
+const finish = await import(at("app/api/auth/google/finish/route.ts"));
+const { sealAppTicket, openAppTicket } = await import(at("lib/server/googleAuth.ts"));
+const { pkceChallenge } = await import(at("lib/xAuth.ts"));
+const VERIFIER = "v".repeat(64);
+const PKCE = pkceChallenge(VERIFIER);
+const APP_BACK = "cardflip://auth";
+const APP_DEVICE = "a1b2c3d4e5f60718293a4b5c6d7e8f90";
+
+check("app: release and dev return addresses", [
+  g.appReturnAllowed("cardflip://auth", false),
+  g.appReturnAllowed("exp://192.168.1.20:8081/--/auth", true),
+  g.appReturnAllowed("exp://c-cardflip-7o335d-mvtnjeifzjke84ri.on.expo.app/--/auth", true),
+  g.appReturnAllowed("http://localhost:8081/auth", true),
+], [true, true, true, true]);
+check("app: dev addresses refused in production, foreign ones always", [
+  g.appReturnAllowed("exp://192.168.1.20:8081/--/auth", false),
+  g.appReturnAllowed("http://localhost:8081/auth", false),
+  g.appReturnAllowed("https://evil.example/auth", true),
+  g.appReturnAllowed("cardflip://auth#x", true),
+  g.appReturnAllowed("cardflip://evil", true),
+  g.appReturnAllowed("", true),
+  g.appReturnAllowed(null, true),
+], [false, false, false, false, false, false, false]);
+const appSt = { ...st, app: { pkce: PKCE, back: "exp://192.168.1.20:8081/--/auth", device: APP_DEVICE } };
+check("app: state round trip keeps the app part", g.decodeState(g.encodeState(appSt), true)?.app, appSt.app);
+check("app: a dev return address in the state is refused in production (whole cookie dies)", g.decodeState(g.encodeState(appSt), false), null);
+check("app: a bad pkce or address in the state kills the cookie", [
+  g.decodeState(g.encodeState({ ...st, app: { ...appSt.app, pkce: "short" } }), true),
+  g.decodeState(g.encodeState({ ...st, app: { ...appSt.app, back: "https://evil.example/auth" } }), true),
+], [null, null]);
+check("app: website state has no app part", "app" in g.decodeState(g.encodeState(st)), false);
+
+const ticket = sealAppTicket({ token: "a".repeat(64), expiresAt: NOW + 1000 }, PKCE, "secret", NOW);
+check("ticket: opens with the verifier, inside two minutes", openAppTicket(ticket, VERIFIER, "secret", NOW + 60_000), { token: "a".repeat(64), expiresAt: NOW + 1000 });
+check("ticket: wrong verifier, wrong secret, too old, tampered, junk → null", [
+  openAppTicket(ticket, "w".repeat(64), "secret", NOW),
+  openAppTicket(ticket, VERIFIER, "other", NOW),
+  openAppTicket(ticket, VERIFIER, "secret", NOW + 121_000),
+  openAppTicket(ticket.slice(0, -2) + "AA", VERIFIER, "secret", NOW),
+  openAppTicket("abc", VERIFIER, "secret", NOW),
+  openAppTicket(ticket, "short", "secret", NOW),
+], [null, null, null, null, null, null]);
+check("ticket: nothing readable inside", Buffer.from(ticket, "base64url").toString("latin1").includes("a".repeat(16)), false);
+
+const appQ = (over = {}) => new URLSearchParams({ app: "1", mode: "login", pkce: PKCE, back: APP_BACK, device: APP_DEVICE, ...over });
+const sA = await start.GET(new Request(`https://cardflip.io/api/auth/google/start?${appQ()}`, { headers: ipHeader() }));
+const stA = g.decodeState(sA.cookies.get("cf_gstate")?.value);
+check("app start: goes to Google with the app part in the state cookie", [new URL(sA.headers.get("location")).hostname, stA?.app], ["accounts.google.com", { pkce: PKCE, back: APP_BACK, device: APP_DEVICE }]);
+const sBadBack = await start.GET(new Request(`https://cardflip.io/api/auth/google/start?${appQ({ back: "https://evil.example/auth" })}`, { headers: ipHeader() }));
+check("app start: a foreign return address never gets a ticket (website login page instead)", sBadBack.headers.get("location"), "https://cardflip.io/login?google_error=1");
+const sBadPkce = await start.GET(new Request(`https://cardflip.io/api/auth/google/start?${appQ({ pkce: "nope" })}`, { headers: ipHeader() }));
+check("app start: a bad challenge sends the app its error", sBadPkce.headers.get("location"), "cardflip://auth?google_error=1");
+
+/** The app's round trip: start with app=1 → Google → callback → the app's return URL. */
+async function appRoundTrip({ claims = {}, error, back = APP_BACK, device = APP_DEVICE, mode = "signup" } = {}) {
+  testCookies.clear();
+  const s = await start.GET(new Request(`https://cardflip.io/api/auth/google/start?${appQ({ back, device, mode })}`, { headers: ipHeader() }));
+  const loc = new URL(s.headers.get("location"));
+  testCookies.set("cf_gstate", s.cookies.get("cf_gstate").value);
+  const state = loc.searchParams.get("state");
+  tokenReply = jwt(goodClaims({ nonce: loc.searchParams.get("nonce"), exp: Math.floor(Date.now() / 1000) + 3600, ...claims }));
+  const params = new URLSearchParams(error ? { error, state } : { code: "authcode", state });
+  const res = await callback.GET(new Request(`https://cardflip.io/api/auth/google/callback?${params}`, { headers: ipHeader() }));
+  return { res, to: new URL(res.headers.get("location")) };
+}
+const appPost = (body, headers = {}) => finish.POST(new Request("https://cardflip.io/api/auth/google/finish", { method: "POST", headers: { "content-type": "application/json", "x-cardflip-app": "ios/1.0.0", ...ipHeader(), ...headers }, body: typeof body === "string" ? body : JSON.stringify(body) }));
+
+const a1 = await appRoundTrip({ claims: { sub: "app-sub-1", email: "AppUser@Gmail.com", given_name: "Appy" } });
+check("app callback: new account → the app's address with a ticket, new=1, no website cookies", [a1.to.protocol + "//" + a1.to.host, a1.to.searchParams.get("new"), Boolean(a1.to.searchParams.get("ticket")), a1.res.cookies.get(SESSION_COOKIE)?.value ?? null, a1.res.cookies.get("cf_gstate")?.value], ["cardflip://auth", "1", true, null, ""]);
+const appUser = await findUserByEmail("appuser@gmail.com");
+check("app callback: account made like the website's, Google id stored, device from the state logged", [appUser?.name, appUser?.googleSub, (await db.prepare("SELECT device_id FROM signup_log WHERE user_id = ?").get(appUser.id))?.device_id], ["Appy", "app-sub-1", APP_DEVICE]);
+const f1 = await appPost({ ticket: a1.to.searchParams.get("ticket"), verifier: VERIFIER });
+const f1b = await f1.json();
+check("app finish: ticket + verifier → the user and a live session token", [f1.status, f1b.user?.email, /^[0-9a-f]{64}$/.test(f1b.session?.token ?? ""), (await getSessionUserId(f1b.session.token)) === appUser.id], [200, "appuser@gmail.com", true, true]);
+check("app finish: wrong verifier → 401", (await appPost({ ticket: a1.to.searchParams.get("ticket"), verifier: "x".repeat(64) })).status, 401);
+check("app finish: website caller (no app header) → 404", (await finish.POST(new Request("https://cardflip.io/api/auth/google/finish", { method: "POST", headers: { "content-type": "application/json", ...ipHeader() }, body: JSON.stringify({ ticket: a1.to.searchParams.get("ticket"), verifier: VERIFIER }) }))).status, 404);
+check("app finish: junk → 400 / 401", [(await appPost("not json")).status, (await appPost({})).status], [400, 401]);
+const a2 = await appRoundTrip({ claims: { sub: "app-sub-1", email: "appuser@gmail.com" }, mode: "login" });
+check("app callback: the same Google account again → new=0, same user", [a2.to.searchParams.get("new"), (await appPost({ ticket: a2.to.searchParams.get("ticket"), verifier: VERIFIER }).then((r) => r.json())).user?.id === appUser.id], ["0", true]);
+check("app callback: a linked website account opens in the app", (await appPost({ ticket: (await appRoundTrip({ claims: { sub: "1234567890", email: "pat.smith@gmail.com" }, mode: "login" })).to.searchParams.get("ticket"), verifier: VERIFIER }).then((r) => r.json())).user?.id === u1.id, true);
+check("app callback: denied consent → the app's address with the error", (await appRoundTrip({ error: "access_denied" })).to.href, "cardflip://auth?google_error=1");
+const a3 = await appRoundTrip({ back: "exp://192.168.1.20:8081/--/auth", claims: { sub: "app-sub-1", email: "appuser@gmail.com" }, mode: "login" });
+check("app callback: Expo Go's address works in dev", [a3.to.protocol, a3.to.pathname, Boolean(a3.to.searchParams.get("ticket"))], ["exp:", "/--/auth", true]);
+
 // Not configured: the routes refuse politely.
 delete process.env.GOOGLE_CLIENT_ID;
 check("no keys: one tap → 503", (await tap({ claims: { sub: "tap-off", email: "off@example.com" } })).res.status, 503);

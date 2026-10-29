@@ -85,7 +85,7 @@ From cardflip.io/privacy (effective Oct 17 2026). Nothing is used for tracking a
   more scans happens on cardflip.io; the app links out."
 - Guideline 4.2 (minimum functionality) risk: web pages inside the app. Mitigation in the notes: the first screen,
   the scanner, the reveal and the free-scan flow are native; the web pages are the user's own account data.
-- Sign in with Apple: present (guideline 4.8), alongside Google and email.
+- Sign in with Apple: present (guideline 4.8), alongside Google (BUILT in the app 10-29 1:35pm, the website's own Google login in the browser sheet, works in Expo Go) and email.
 - Contact: Chris, support@cardflip.io, phone number in App Store Connect.
 
 ## Screenshots (6.9" iPhone 1320x2868 and 6.5" 1284x2778; Google phone 1080x1920 or taller)

@@ -18,7 +18,7 @@ Status: FINAL 10-28 10:12 PM ET. Chris: "going to rely on you for most of this."
 7. Wishlist
 8. Rewards
 9. Account / settings
-10. Sign up, sign in, forgot, reset, confirm (plus Sign in with Apple, required by Apple when other sign-ins exist)
+10. Sign up, sign in, forgot, reset, confirm (plus Sign in with Apple, required by Apple when other sign-ins exist; Continue with Google BUILT 10-29 1:35pm via the website's own Google login in the browser sheet, TO-TEST 10-29 1:35PM)
 11. Connect eBay
 12. Browse / search (search-to-add stays free)
 13. Profile

@@ -1,7 +1,10 @@
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as Crypto from "expo-crypto";
+import * as Linking from "expo-linking";
+import * as WebBrowser from "expo-web-browser";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { api, ApiError } from "./api";
+import { api, ApiError, API_URL } from "./api";
+import { deviceId } from "./device";
 import { claimGuestScan, getGuestScan } from "./guestScan";
 import { readToken, writeToken } from "./tokenStore";
 
@@ -39,6 +42,8 @@ interface AuthState {
   signUp(name: string, email: string, password: string): Promise<void>;
   /** Apple's sheet, then /api/auth/apple; rejects with code ERR_REQUEST_CANCELED when dismissed. */
   signInWithApple(): Promise<void>;
+  /** The website's Google login in the system browser sheet, then /api/auth/google/finish; resolves false when dismissed. */
+  signInWithGoogle(mode: "login" | "signup"): Promise<boolean>;
   signOut(): Promise<void>;
   refresh(): Promise<void>;
 }
@@ -125,6 +130,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(body.user);
   }, []);
 
+  /**
+   * "Continue with Google" (10-29): the website's own Google login, run in the system browser sheet
+   * (ASWebAuthenticationSession; a popup on the web preview) against /api/auth/google/start with app=1.
+   * No second Google client: an account made with Google on cardflip.io opens here. The sheet comes back
+   * to this app's own address (cardflip://auth; exp://… in Expo Go) with a sealed ticket that only the
+   * PKCE verifier minted here can open, and /api/auth/google/finish turns it into the session. The
+   * install id rides along so the sign-up guards and the waiting first scan see the same device.
+   * Resolves false when the sheet was closed; throws with the server's words on anything else.
+   */
+  const signInWithGoogle = useCallback(async (mode: "login" | "signup") => {
+    const verifier = Array.from(Crypto.getRandomBytes(32), (b) => b.toString(16).padStart(2, "0")).join("");
+    const digest = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, verifier, { encoding: Crypto.CryptoEncoding.BASE64 });
+    const pkce = digest.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    const back = Linking.createURL("auth");
+    const scan = await getGuestScan();
+    const q = [
+      ["app", "1"],
+      ["mode", mode],
+      ["pkce", pkce],
+      ["back", back],
+      ["device", await deviceId()],
+      ...(scan ? [["from", "scan"]] : []),
+    ]
+      .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
+      .join("&");
+    const result = await WebBrowser.openAuthSessionAsync(`${API_URL}/api/auth/google/start?${q}`, back);
+    if (result.type !== "success") return false;
+    const params = Linking.parse(result.url).queryParams ?? {};
+    const ticket = typeof params.ticket === "string" ? params.ticket : "";
+    if (!ticket) {
+      throw new Error(params.google_error === "2" ? "That account has extra security. Log in with your email and password." : "Google sign-in didn't finish. Try again or use email.");
+    }
+    const body = await api<{ user: SessionUser }>("/api/auth/google/finish", { body: { ticket, verifier } });
+    await landGuestScan(body.user);
+    setUser(body.user);
+    return true;
+  }, []);
+
   const signOut = useCallback(async () => {
     try {
       await api("/api/auth/logout", { method: "POST", body: {} });
@@ -135,7 +178,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
-  const value = useMemo(() => ({ user, signIn, signUp, signInWithApple, signOut, refresh }), [user, signIn, signUp, signInWithApple, signOut, refresh]);
+  const value = useMemo(() => ({ user, signIn, signUp, signInWithApple, signInWithGoogle, signOut, refresh }), [user, signIn, signUp, signInWithApple, signInWithGoogle, signOut, refresh]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
