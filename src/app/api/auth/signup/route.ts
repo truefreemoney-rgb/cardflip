@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { TRIAL_SCANS, createUser, findUserByEmail, needsEmailConfirm, totpEnabled, trialScansLeft, type User } from "@/lib/server/users";
 import { createSession, sessionCookieOptions } from "@/lib/server/sessions";
 import { SESSION_COOKIE } from "@/lib/server/auth";
+import { appSessionBody } from "@/lib/server/appSession";
 import { verifyPassword } from "@/lib/server/password";
 import { passwordProblem } from "@/lib/passwordRules";
 import { LIMITS, clientIp } from "@/lib/server/rateLimit";
@@ -67,6 +68,7 @@ async function resumeSignup(existing: User, req: Request) {
     emailSent: conf.emailSent,
     emailProblem: conf.problem,
     resumed: true,
+    ...appSessionBody(req, session),
   });
   res.cookies.set(SESSION_COOKIE, session.token, sessionCookieOptions(session.expiresAt));
   setHomeCookie(res, existing.id, existing.homeCountry, session.token);
@@ -208,7 +210,7 @@ export async function POST(req: Request) {
     });
   }
 
-  const res = NextResponse.json({ user: await publicUserWithEmailState(user), emailSent, emailProblem }, { status: 201 });
+  const res = NextResponse.json({ user: await publicUserWithEmailState(user), emailSent, emailProblem, ...appSessionBody(req, session) }, { status: 201 });
   res.cookies.set(SESSION_COOKIE, session.token, sessionCookieOptions(session.expiresAt));
   setHomeCookie(res, user.id, user.homeCountry, session.token);
   res.cookies.set(DEVICE_COOKIE, deviceId, {

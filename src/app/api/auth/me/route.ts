@@ -1,6 +1,7 @@
 import { NextResponse, after } from "next/server";
 import { cookies } from "next/headers";
 import { getCurrentUser, SESSION_COOKIE } from "@/lib/server/auth";
+import { currentSessionToken } from "@/lib/server/appSession";
 import { sessionCookieOptions, touchSession } from "@/lib/server/sessions";
 import { markSeen, seenDue } from "@/lib/server/users";
 import { publicUserWithEmailState } from "@/lib/server/emailVerify";
@@ -17,10 +18,15 @@ import { HOME_COOKIE, clearHomeCookie, homeCookieDue, setHomeCookie } from "@/li
  */
 export async function GET() {
   const user = await getCurrentUser();
+  // The iPhone app holds its session as a bearer token (lib/server/appSession.ts): a renewal reaches it in the
+  // body, since it has no cookie jar. The cookie path below is untouched.
+  const current = user ? await currentSessionToken() : null;
+  const bearerRenewed = current?.via === "bearer" ? await touchSession(current.token) : null;
   const res = NextResponse.json({
     user: user
       ? { ...(await publicUserWithEmailState(user)), features: await (async () => { const g = await gameFeaturesFor(user); return { magic: g.mtg, ...g }; })(), hasCards: await userHasCards(user.id) }
       : null,
+    ...(bearerRenewed ? { session: { token: bearerRenewed.token, expiresAt: bearerRenewed.expiresAt } } : {}),
   });
   // Every app page load passes through here, which makes it a heartbeat for
   // the once-a-day price refresh — kicked off after the response is sent.

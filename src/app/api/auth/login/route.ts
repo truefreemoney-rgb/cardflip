@@ -3,6 +3,7 @@ import { acceptTotpStep, findUserByEmail, spendTotpBackupCode, toPublicUser, tot
 import { hashBackupCode, totpMatchStep } from "@/lib/server/totp";
 import { hashPassword, verifyPassword } from "@/lib/server/password";
 import { createSession, sessionCookieOptions } from "@/lib/server/sessions";
+import { appSessionBody } from "@/lib/server/appSession";
 
 let dummy: string | null = null;
 /** A real scrypt hash of nothing anyone types, made once per instance. */
@@ -97,7 +98,8 @@ export async function POST(req: Request) {
   }
 
   const session = await createSession(user.id);
-  const res = NextResponse.json({ user: toPublicUser(user) });
+  // The iPhone app gets the token in the body (lib/server/appSession.ts); the website gets only the cookie.
+  const res = NextResponse.json({ user: toPublicUser(user), ...appSessionBody(req, session) });
   res.cookies.set(SESSION_COOKIE, session.token, sessionCookieOptions(session.expiresAt));
   setHomeCookie(res, user.id, user.homeCountry, session.token);
   return res;

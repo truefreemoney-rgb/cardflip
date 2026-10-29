@@ -1,4 +1,4 @@
-import { defineConfig, globalIgnores } from "eslint/config";
+﻿import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 
@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Saved scanner research scripts (CommonJS, not app code).
     "scripts/outline-eval/**",
+    // The iPhone app (docs/APP-PLAN.md) has its own package, config and lint.
+    "mobile/**",
   ]),
 ]);
 

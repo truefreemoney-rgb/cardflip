@@ -207,6 +207,22 @@ check("login: public user returned", (await good.json()).user.email, "sam@exampl
 const loginToken = sessionCookie(good);
 check("login: session cookie is live", Boolean(loginToken && await getSessionUserId(loginToken)));
 check("login: cookie is httpOnly", good.cookies.get(SESSION_COOKIE)?.httpOnly, true);
+check("login: the website never gets the token in the body", "session" in (await (await login.POST(post({ email: "sam@example.com", password: "hunter22" }))).json()), false);
+
+// iPhone app (10-28, lib/server/appSession.ts): the x-cardflip-app header earns the session token in the body.
+const appPost = (body) => {
+  const r = post(body);
+  r.headers.set("x-cardflip-app", "ios/1.0.0");
+  return r;
+};
+const appLogin = await login.POST(appPost({ email: "sam@example.com", password: "hunter22" }));
+const appBody = await appLogin.json();
+check("login (app): session token in the body", /^[0-9a-f]{64}$/.test(appBody.session?.token ?? ""), true);
+check("login (app): body token matches the cookie", appBody.session?.token, sessionCookie(appLogin));
+check("login (app): body token is live", Boolean(appBody.session?.token && await getSessionUserId(appBody.session.token)));
+check("login (app): expiry about 30 days out", Math.round((appBody.session?.expiresAt - Date.now()) / 86400000), 30);
+const appSignup = await signup.POST(appPost({ name: "App", email: "app-user@example.com", password: "hunter22" }));
+check("signup (app): session token in the body", /^[0-9a-f]{64}$/.test((await appSignup.json()).session?.token ?? ""), true);
 
 const admin = await createUser("Ops", "admin@cardflip.dev", "adminpass", "admin");
 check("login: bare 'admin' hits the admin account", (await (await login.POST(post({ email: "admin", password: "adminpass" }))).json()).user.email, "admin@cardflip.dev");

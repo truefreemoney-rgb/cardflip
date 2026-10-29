@@ -4,17 +4,18 @@ import { cookies } from "next/headers";
 import { getSessionUserId, destroyOtherSessions, destroySession } from "@/lib/server/sessions";
 import { NextResponse } from "next/server";
 import { HOME_COOKIE, SESSION_COOKIE_NAME } from "@/lib/homeCookie";
+import { currentSessionToken } from "@/lib/server/appSession";
 import { creditFirstUse, needsFirstUseCredit } from "@/lib/server/billingCredits";
 import { canUseApp, findUserById, needsEmailConfirm, scanTier, type User } from "@/lib/server/users";
 
 export const SESSION_COOKIE = SESSION_COOKIE_NAME;
 
 export async function getCurrentUser(): Promise<User | null> {
-  const store = await cookies();
-  const token = store.get(SESSION_COOKIE)?.value;
-  if (!token) return null;
+  // Browser cookie, or the iPhone app's bearer header (lib/server/appSession.ts).
+  const current = await currentSessionToken();
+  if (!current) return null;
 
-  const userId = await getSessionUserId(token);
+  const userId = await getSessionUserId(current.token);
   if (!userId) return null;
 
   const user = await findUserById(userId);
@@ -46,9 +47,9 @@ export async function requireAdminOwner(): Promise<void> {
 }
 
 export async function clearSessionCookie(): Promise<void> {
+  const current = await currentSessionToken();
+  if (current) await destroySession(current.token); // the app's bearer session ends the same way
   const store = await cookies();
-  const token = store.get(SESSION_COOKIE)?.value;
-  if (token) await destroySession(token);
   store.delete(SESSION_COOKIE);
   store.delete(HOME_COOKIE); // signed out = no travel pass (lib/homeCookie.ts)
 }
@@ -58,8 +59,7 @@ export async function clearSessionCookie(): Promise<void> {
  * like a password change). No cookie, or a cookie for someone else: every session of theirs goes.
  */
 export async function signOutOtherDevices(userId: string): Promise<number> {
-  const store = await cookies();
-  return destroyOtherSessions(userId, store.get(SESSION_COOKIE)?.value ?? null);
+  return destroyOtherSessions(userId, (await currentSessionToken())?.token ?? null);
 }
 
 export class AuthError extends Error {}
