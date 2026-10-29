@@ -11,7 +11,6 @@ import OnboardingSteps, { CONFIRM_STEPS } from "@/components/OnboardingSteps";
 import ConfirmEmailPanel from "@/components/ConfirmEmailPanel";
 import DevLoginButton from "@/components/DevLoginButton";
 import GoogleButton, { googleErrorFromUrl } from "@/components/GoogleButton";
-import { xErrorFromUrl } from "@/components/XButton";
 import { isValidEmail } from "@/lib/emailAddress";
 import { pixelTrack } from "@/lib/client/pixel";
 import { fetchCurrentUser, signup, type SessionUser } from "@/lib/client/auth";
@@ -54,7 +53,7 @@ export default function SignupPage() {
   }, [error]);
   // Sent back from Google without finishing (/api/auth/google/callback): say so in the same error slot.
   useEffect(() => {
-    const fromGoogle = googleErrorFromUrl() ?? xErrorFromUrl();
+    const fromGoogle = googleErrorFromUrl();
     // eslint-disable-next-line react-hooks/set-state-in-effect -- the URL is browser-only, read once after hydration
     if (fromGoogle) setError(fromGoogle);
   }, []);

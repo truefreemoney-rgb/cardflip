@@ -332,7 +332,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 
 - (10-08) TikTok 7pm Most Valuable re-run on Sun 10-11 7pm: fresh render with that day's prices, rotated opener, NEW library sound (the 10-08 one died twice and is pinned on the profile instead). Not a repost of the 10-08 file.
 
-- Sign in with X (Chris asked 10-10): our X app can do OAuth 2.0 login, but X returns no email, so we would still ask for one. Build only if X signups become steady.
+- Sign in with X: built 10-10, REMOVED 10-29 (Chris: nobody used it, people are put off by x.com). Never again on the site or the app.
 
 ## IMPORTANT (10-13, Chris): automatic new cards + pictures
 Nightly cron for all five games: add new sets/cards, self-host pictures, stand-in + nightly retry (TCGplayer/Yugipedia/Scryfall/TCGdex only, free), admin list of cards still borrowing. Build right after the picture runs. Memory: cardflip-auto-new-cards.
