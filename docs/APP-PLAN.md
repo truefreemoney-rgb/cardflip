@@ -25,6 +25,11 @@ Status: FINAL 10-28 10:12 PM ET. Chris: "going to rely on you for most of this."
 14. Help / support
 15. Subscribe (opens the Stripe web page, see Money)
 
+## Hybrid (decided 10-28 11:25 PM ET, Chris: "do the hybrid to get it done faster and change screens to native down the line ... I just want it to look and be professional")
+- Native now: scanner, scan reveal (layout A, card straight), My Cards + sets + insights, Browse, card detail, sign in.
+- Website pages inside the app (one native web screen, session handed over): account, packs, wishlist, rewards, help, price check, subscribe. Two site changes: an app mode that hides the marketing menu and footer when opened inside the app; a bearer-token-to-cookie handoff. In-app pages never say "open in Safari" and never show the website's own sign-in.
+- Later: any web screen becomes native by building it and repointing the tab. Never a wrapper-only app; the first screen a reviewer sees is native.
+
 ## What stays web only
 - Admin, social autopilot, board, marketing pages, SEO card pages, legal (terms, privacy).
 - The app links out to legal pages when Apple needs them shown.

@@ -3,7 +3,7 @@ import { Image } from "expo-image";
 import { SaveFormat, manipulateAsync } from "expo-image-manipulator";
 import { router } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Animated, Platform, Pressable, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent } from "react-native";
+import { ActivityIndicator, Animated, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "~/lib/auth";
 import { GAMES, fetchCardById, pictureUrl, publicGames, type GameId, type PokemonCard } from "~/lib/catalog";
@@ -38,7 +38,7 @@ type Phase =
   | { kind: "camera" }
   | { kind: "reading"; photo: string }
   | { kind: "miss"; photo: string; message: string; wrongGame: GameId | null; read: VisionCardRead | null; scanId: string | null; quota: boolean }
-  | { kind: "result"; photo: string; found: Identified; card: PokemonCard; condition: Condition; variant: string | null; savedId: string | null; saving: boolean; picking: boolean };
+  | { kind: "result"; photo: string; found: Identified; card: PokemonCard; condition: Condition; variant: string | null; savedId: string | null; saving: boolean };
 
 interface Box {
   x: number;
@@ -74,6 +74,47 @@ function cropFor(view: { w: number; h: number }, pic: { w: number; h: number }, 
   return { originX: x, originY: y, width: Math.max(1, w), height: Math.max(1, h) };
 }
 
+/** Parses "$1,234.56" back to a number for the count-up; null when there is no number. */
+function moneyValue(text: string | null): number | null {
+  if (!text) return null;
+  const n = Number(text.replace(/[^0-9.]/g, ""));
+  return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * The price, counted up from $0.00 the moment the card lands (the reveal is
+ * the exciting part, Chris). A later change (condition, printing) shows the
+ * new number at once; only a new card counts again.
+ */
+function CountUpMoney({ text, revealKey }: { text: string | null; revealKey: string }) {
+  const [shown, setShown] = useState<string | null>(text);
+  const lastKey = useRef<string | null>(null);
+  useEffect(() => {
+    const target = moneyValue(text);
+    if (target == null || lastKey.current === revealKey) {
+      setShown(text);
+      return;
+    }
+    lastKey.current = revealKey;
+    const start = Date.now();
+    const ms = 700;
+    let raf = 0;
+    const tick = () => {
+      const t = Math.min(1, (Date.now() - start) / ms);
+      const eased = 1 - Math.pow(1 - t, 3);
+      if (t >= 1) {
+        setShown(text);
+        return;
+      }
+      setShown(`$${(target * eased).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [text, revealKey]);
+  return <Text style={styles.bigMoney}>{shown ?? "—"}</Text>;
+}
+
 /**
  * The scanner (docs/APP-PLAN.md step 4): the camera with a one-card guide,
  * a Capture button and nothing else — no auto-scan (Chris), no photo upload.
@@ -96,6 +137,7 @@ export default function Scan() {
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [bar] = useState(() => new Animated.Value(0));
+  const [sheet, setSheet] = useState<"copy" | "pick" | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -151,7 +193,7 @@ export default function Scan() {
         return;
       }
       const condition: Condition = "Near Mint";
-      setPhase({ kind: "result", photo, found, card: found.card, condition, variant: found.variant, savedId: null, saving: true, picking: false });
+      setPhase({ kind: "result", photo, found, card: found.card, condition, variant: found.variant, savedId: null, saving: true });
       const saved = await saveScan(found.card, as, condition, found.variant, outcome.scanId);
       setPhase((p) => (p.kind === "result" && p.photo === photo ? { ...p, savedId: saved?.id ?? null, saving: false } : p));
       if (!saved) setNote("Couldn't save — check your connection and scan again");
@@ -244,7 +286,7 @@ export default function Scan() {
       if (phase.kind !== "result") return;
       // The pick keeps the printing's default line; a Magic finish the read saw stays when the pick has it.
       const variant = phase.variant && (card.finishes ?? []).includes(phase.variant) ? phase.variant : null;
-      setPhase({ ...phase, card, variant, picking: false, found: { ...phase.found, doubt: null } });
+      setPhase({ ...phase, card, variant, found: { ...phase.found, doubt: null } });
       if (phase.savedId && !(await swapSavedCard(phase.savedId, card, phase.condition, variant))) setNote("Couldn't change the card — check your connection");
     },
     [phase],
@@ -269,70 +311,131 @@ export default function Scan() {
 
   // ---------------------------------------------------------------- reveal
   if (phase.kind === "result") {
-    const { card, condition, variant, found, savedId, saving, picking } = phase;
+    const { card, condition, variant, found, savedId, saving } = phase;
     const price = revealPrice(card, condition, variant);
     const lines = card.prices.filter((p) => p.currency === "USD" && p.market != null && p.market > 0);
-    const showLines = lines.length > 1 ? lines : [];
     const options = printingOptions(card, found.candidates);
+    const activeVariant = variant ?? defaultVariantOf(card);
     return (
       <View style={[styles.screen, { paddingTop: top }]}>
         <View style={styles.topRow}>
           <Pressable onPress={close} hitSlop={12} style={styles.iconBtn}>
             <Text style={styles.iconText}>✕</Text>
           </Pressable>
-          <Text style={styles.topTitle}>{saving ? "Saving…" : savedId ? "Saved to My Cards" : "Not saved"}</Text>
+          <Text style={styles.topTitle}>{scansLeft === null ? "Unlimited scans" : scansLeft === undefined ? "" : `${scansLeft} scan${scansLeft === 1 ? "" : "s"} left`}</Text>
           <View style={styles.iconBtn} />
         </View>
-        <ScrollView contentContainerStyle={{ paddingBottom: bottom + 80 }} keyboardShouldPersistTaps="handled">
-          <View style={styles.revealPics}>
-            <Image source={{ uri: phase.photo }} style={styles.shot} contentFit="cover" />
-            <Image source={{ uri: pictureUrl(card.imageLarge || card.imageSmall) ?? undefined }} style={styles.catalogPic} contentFit="contain" />
+        <ScrollView contentContainerStyle={[styles.revealBody, { paddingBottom: space.lg }]} keyboardShouldPersistTaps="handled">
+          <View style={styles.glowWrap}>
+            <View style={styles.glow} />
+            <Image source={{ uri: pictureUrl(card.imageLarge || card.imageSmall) ?? undefined }} style={styles.heroCard} contentFit="contain" transition={200} />
           </View>
+          <CountUpMoney text={price.text} revealKey={card.id} />
+          <Text style={styles.moneyLabel}>{price.note ?? `${price.label} · ${condition}`}</Text>
           <Text style={styles.cardName}>{card.englishName || card.name}</Text>
           <Text style={styles.cardSub}>
             {card.setName} · #{card.number}
             {card.rarity ? ` · ${card.rarity}` : ""}
           </Text>
-          <Text style={styles.bigMoney}>{price.text ?? "—"}</Text>
-          <Text style={styles.moneyLabel}>{price.note ?? price.label}</Text>
+          <View style={[styles.pill, !saving && !savedId && styles.pillOff]}>
+            <Text style={[styles.pillText, !saving && !savedId && styles.pillTextOff]}>{saving ? "Saving…" : savedId ? "✓ Saved to My Cards" : "Not saved"}</Text>
+          </View>
           {found.doubt ? <Text style={styles.doubt}>{found.doubt}</Text> : null}
           {note ? <Text style={styles.error}>{note}</Text> : null}
 
-          <Text style={styles.section}>Condition</Text>
-          <View style={styles.chips}>
-            {CONDITIONS.map((c) => (
-              <Pressable key={c} onPress={() => pickCondition(c)} style={[styles.chip, condition === c && styles.chipOn]}>
-                <Text style={[styles.chipText, condition === c && styles.chipTextOn]}>{c}</Text>
+          <Pressable onPress={() => setSheet("copy")} style={({ pressed }) => [styles.copyRow, pressed && { opacity: 0.85 }]}>
+            <View>
+              <Text style={styles.copyLabel}>This copy</Text>
+              <Text style={styles.copyValue}>
+                {condition}
+                {lines.length > 1 ? ` · ${lines.find((p) => p.variant === activeVariant)?.label ?? price.label}` : ""}
+              </Text>
+            </View>
+            <Text style={styles.chev}>›</Text>
+          </Pressable>
+          <View style={styles.linkRow}>
+            {options.length > 1 ? (
+              <Pressable onPress={() => setSheet("pick")} hitSlop={8}>
+                <Text style={styles.link}>Not this card?</Text>
               </Pressable>
-            ))}
-          </View>
-
-          {showLines.length ? (
-            <>
-              <Text style={styles.section}>Printing</Text>
-              <View style={styles.chips}>
-                {showLines.map((p) => {
-                  const active = p.variant === (variant ?? defaultVariantOf(card));
-                  return (
-                    <Pressable key={p.variant} onPress={() => pickVariant(p.variant)} style={[styles.chip, active && styles.chipOn]}>
-                      <Text style={[styles.chipText, active && styles.chipTextOn]}>{p.label}</Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </>
-          ) : null}
-
-          {options.length > 1 ? (
-            <Pressable onPress={() => setPhase({ ...phase, picking: !picking })} style={styles.linkRow}>
-              <Text style={styles.link}>{picking ? "Hide other printings" : "Not this card?"}</Text>
+            ) : (
+              <View />
+            )}
+            <Pressable onPress={remove} hitSlop={8}>
+              <Text style={styles.textBtnDanger}>Remove</Text>
             </Pressable>
-          ) : null}
-          {picking
-            ? options.map((c) => {
+          </View>
+        </ScrollView>
+        <View style={[styles.revealBar, { paddingBottom: bottom }]}>
+          <Pressable onPress={scanAgain} style={({ pressed }) => [styles.primary, pressed && { opacity: 0.85 }]}>
+            <Text style={styles.primaryText}>Scan another</Text>
+          </Pressable>
+          <Pressable onPress={close} hitSlop={8} style={styles.doneBtn}>
+            <Text style={styles.textBtnText}>Done</Text>
+          </Pressable>
+        </View>
+
+        {/* "This copy": condition, and the printing when the card is priced in several. */}
+        <Modal visible={sheet === "copy"} transparent animationType="slide" onRequestClose={() => setSheet(null)}>
+          <Pressable style={styles.scrim} onPress={() => setSheet(null)} />
+          <View style={[styles.sheet, { paddingBottom: bottom }]}>
+            <Text style={styles.sheetTitle}>This copy</Text>
+            <Text style={styles.section}>Condition</Text>
+            <View style={styles.chips}>
+              {CONDITIONS.map((c) => {
+                const p = revealPrice(card, c, variant);
+                return (
+                  <Pressable key={c} onPress={() => pickCondition(c)} style={[styles.chip, condition === c && styles.chipOn]}>
+                    <Text style={[styles.chipText, condition === c && styles.chipTextOn]}>
+                      {c}
+                      {p.text ? ` ${p.text}` : ""}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            {lines.length > 1 ? (
+              <>
+                <Text style={styles.section}>Printing</Text>
+                <View style={styles.chips}>
+                  {lines.map((p) => {
+                    const active = p.variant === activeVariant;
+                    const rp = revealPrice(card, condition, p.variant);
+                    return (
+                      <Pressable key={p.variant} onPress={() => pickVariant(p.variant)} style={[styles.chip, active && styles.chipOn]}>
+                        <Text style={[styles.chipText, active && styles.chipTextOn]}>
+                          {p.label}
+                          {rp.text ? ` ${rp.text}` : ""}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </>
+            ) : null}
+            <Pressable onPress={() => setSheet(null)} style={({ pressed }) => [styles.primary, { marginTop: space.lg }, pressed && { opacity: 0.85 }]}>
+              <Text style={styles.primaryText}>Done</Text>
+            </Pressable>
+          </View>
+        </Modal>
+
+        {/* "Not this card?": every printing the catalog matched, the pick first. */}
+        <Modal visible={sheet === "pick"} transparent animationType="slide" onRequestClose={() => setSheet(null)}>
+          <Pressable style={styles.scrim} onPress={() => setSheet(null)} />
+          <View style={[styles.sheet, styles.sheetTall, { paddingBottom: bottom }]}>
+            <Text style={styles.sheetTitle}>Which card is it?</Text>
+            <ScrollView style={{ flexGrow: 0 }}>
+              {options.map((c) => {
                 const p = revealPrice(c, condition, null);
                 return (
-                  <Pressable key={c.id} onPress={() => pickCard(c)} style={[styles.row, c.id === card.id && styles.rowOn]}>
+                  <Pressable
+                    key={c.id}
+                    onPress={() => {
+                      setSheet(null);
+                      void pickCard(c);
+                    }}
+                    style={[styles.row, c.id === card.id && styles.rowOn]}
+                  >
                     <Image source={{ uri: pictureUrl(c.imageSmall) ?? undefined }} style={styles.thumb} contentFit="cover" />
                     <View style={{ flex: 1 }}>
                       <Text style={styles.rowName} numberOfLines={1}>
@@ -345,20 +448,10 @@ export default function Scan() {
                     <Text style={styles.rowMoney}>{p.text ?? "—"}</Text>
                   </Pressable>
                 );
-              })
-            : null}
-        </ScrollView>
-        <View style={[styles.bottomBar, { paddingBottom: bottom }]}>
-          <Pressable onPress={remove} hitSlop={8} style={styles.textBtn}>
-            <Text style={styles.textBtnDanger}>Remove</Text>
-          </Pressable>
-          <Pressable onPress={scanAgain} style={({ pressed }) => [styles.primary, pressed && { opacity: 0.85 }]}>
-            <Text style={styles.primaryText}>Scan another</Text>
-          </Pressable>
-          <Pressable onPress={close} hitSlop={8} style={styles.textBtn}>
-            <Text style={styles.textBtnText}>Done</Text>
-          </Pressable>
-        </View>
+              })}
+            </ScrollView>
+          </View>
+        </Modal>
       </View>
     );
   }
@@ -509,23 +602,38 @@ const styles = StyleSheet.create({
   textBtn: { paddingVertical: 10, paddingHorizontal: 6 },
   textBtnText: { color: colors.foreground, fontSize: 15, fontWeight: "600" },
   textBtnDanger: { color: colors.danger, fontSize: 15, fontWeight: "600" },
-  revealPics: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: space.md, marginTop: space.md },
-  shot: { width: 96, height: 134, borderRadius: 8, backgroundColor: colors.surface },
-  catalogPic: { width: 172, height: 240, borderRadius: 10, backgroundColor: colors.surface },
+  revealBody: { alignItems: "center", paddingHorizontal: space.lg },
+  glowWrap: { marginTop: 0, alignItems: "center", justifyContent: "center", width: 200 + 48, height: 280 + 48 },
+  glow: { position: "absolute", width: 200 + 40, height: 280 + 40, borderRadius: 150, backgroundColor: "rgba(52,211,153,0.12)" },
+  heroCard: { width: 200, height: 280, borderRadius: 10, backgroundColor: colors.surface, shadowColor: colors.money, shadowOpacity: 0.45, shadowRadius: 28, shadowOffset: { width: 0, height: 10 }, elevation: 12 },
+  pill: { marginTop: space.md, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, backgroundColor: "rgba(52,211,153,0.15)" },
+  pillOff: { backgroundColor: "rgba(248,113,113,0.15)" },
+  pillText: { color: colors.money, fontSize: 12, fontWeight: "700" },
+  pillTextOff: { color: colors.danger },
+  copyRow: { alignSelf: "stretch", marginTop: space.lg, backgroundColor: colors.surface, borderColor: colors.edge, borderWidth: 1, borderRadius: radius.lg, paddingVertical: 12, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  copyValue: { color: colors.foreground, fontSize: 15, fontWeight: "600", marginTop: 3 },
+  chev: { color: colors.muted, fontSize: 22 },
+  revealBar: { paddingHorizontal: space.lg, paddingTop: space.sm, backgroundColor: colors.background },
+  doneBtn: { alignItems: "center", paddingVertical: 12 },
+  scrim: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)" },
+  sheet: { backgroundColor: colors.surfaceRaised, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, paddingTop: space.md, paddingHorizontal: space.lg },
+  sheetTall: { maxHeight: "75%" },
+  sheetTitle: { color: colors.white, fontSize: 18, fontWeight: "700", marginBottom: space.xs },
   cardName: { color: colors.white, fontSize: 22, fontWeight: "700", textAlign: "center", marginTop: space.md, paddingHorizontal: space.lg },
   cardSub: { color: colors.muted, fontSize: 14, textAlign: "center", marginTop: 2, paddingHorizontal: space.lg },
-  bigMoney: { color: colors.money, fontSize: 40, fontWeight: "800", textAlign: "center", marginTop: space.sm },
-  moneyLabel: { color: colors.faint, fontSize: 13, textAlign: "center", marginTop: 0 },
+  bigMoney: { color: colors.money, fontSize: 52, fontWeight: "800", textAlign: "center", marginTop: space.xs, letterSpacing: -1 },
+  moneyLabel: { color: colors.faint, fontSize: 13, textAlign: "center", marginTop: 2 },
   doubt: { color: "#fcd34d", fontSize: 13, fontWeight: "600", textAlign: "center", marginTop: space.sm, paddingHorizontal: space.lg },
   error: { color: colors.danger, fontSize: 13, textAlign: "center", marginTop: space.sm, paddingHorizontal: space.lg },
-  section: { color: colors.muted, fontSize: 12, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5, marginTop: space.lg, marginBottom: 6, paddingHorizontal: space.lg },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: 6, paddingHorizontal: space.lg },
+  section: { color: colors.muted, fontSize: 12, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5, marginTop: space.lg, marginBottom: 6 },
+  copyLabel: { color: colors.muted, fontSize: 12, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5 },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   chip: { borderColor: colors.edge, borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
   chipDark: { backgroundColor: "rgba(10,11,17,0.7)" },
   chipOn: { backgroundColor: colors.brand, borderColor: colors.brand },
   chipText: { color: colors.muted, fontSize: 13, fontWeight: "600" },
   chipTextOn: { color: colors.white },
-  linkRow: { marginTop: space.lg, paddingHorizontal: space.lg },
+  linkRow: { alignSelf: "stretch", marginTop: space.sm, paddingVertical: 8, paddingHorizontal: 4, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   link: { color: colors.brandSoft, fontSize: 15, fontWeight: "600" },
   row: { flexDirection: "row", alignItems: "center", gap: space.md, paddingVertical: 8, paddingHorizontal: space.lg, borderBottomColor: colors.edge, borderBottomWidth: StyleSheet.hairlineWidth },
   rowOn: { backgroundColor: "rgba(99,102,241,0.12)" },

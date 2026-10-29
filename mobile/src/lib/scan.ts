@@ -285,8 +285,7 @@ export function defaultVariantOf(card: PokemonCard): string | null {
 /** The headline the scanner shows: the website's headlinePrice (TCG market for this copy's condition). */
 export function revealPrice(card: PokemonCard, condition: Condition, variant: string | null): RevealPrice {
   const override = variant ?? undefined;
-  const line = (override && card.prices.find((p) => p.variant === override)?.label) || pickPrice(card)?.label || "Market";
-  const label = condition === "Near Mint" ? line : `${line} · ${condition}`;
+  const label = (override && card.prices.find((p) => p.variant === override)?.label) || pickPrice(card)?.label || "Market";
   const flag = priceFlagOf(card, override);
   if (flag) {
     return typeof flag.fallback === "number" && flag.fallback > 0
