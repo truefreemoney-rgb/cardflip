@@ -269,7 +269,7 @@ function RevealChip({
           </Pressable>
         ) : null}
       </View>
-      {doubt ? <Text style={styles.chipDoubt}>{doubt}</Text> : null}
+      {/* The site's chip (CameraCapture.tsx RevealChip) only turns the label amber to CHECK MATCH; the doubt sentence is not on the chip (Chris 10-29 1:29am "we don't need that yellow text"). */}
     </View>
   );
 }
@@ -1155,7 +1155,6 @@ const styles = StyleSheet.create({
   verifyMoney: { color: colors.white, fontSize: 14, fontWeight: "600", fontVariant: ["tabular-nums"] },
   swap: { borderRadius: 999, borderWidth: 1, borderColor: colors.edge, paddingHorizontal: 12, paddingVertical: 10 },
   swapText: { color: "#e4e4e7", fontSize: 14, fontWeight: "500" },
-  chipDoubt: { color: "#fcd34d", fontSize: 12, fontWeight: "600" },
 
   // The card big (the site's ScanResultSheet).
   sheetDone: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, borderWidth: 1, borderColor: colors.edge, backgroundColor: SURFACE_2 },
