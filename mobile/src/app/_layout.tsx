@@ -65,6 +65,8 @@ function Root() {
       {/* Shared: the camera (the free first scan before an account, then the signed-in scanner) and a site page (the guest card page). */}
       <Stack.Screen name="scan" options={{ presentation: "fullScreenModal", animation: "slide_from_bottom" }} />
       <Stack.Screen name="web" />
+      {/* Step 2 of sign-up ("You're in", How will you use it?), the site's welcome step; signed in by then. */}
+      <Stack.Screen name="welcome" />
       <Stack.Protected guard={Boolean(user)}>
         <Stack.Screen name="(app)" />
       </Stack.Protected>

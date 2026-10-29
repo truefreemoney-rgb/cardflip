@@ -1,4 +1,5 @@
 import * as AppleAuthentication from "expo-apple-authentication";
+import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Platform, StyleSheet } from "react-native";
 import { useAuth } from "~/lib/auth";
@@ -34,7 +35,8 @@ export default function AppleSignInButton({ mode, onError }: { mode: "login" | "
     onError(null);
     setBusy(true);
     try {
-      await signInWithApple();
+      const done = await signInWithApple();
+      if (done.isNew) router.replace("/welcome");
     } catch (err) {
       const code = (err as { code?: string })?.code;
       if (code === "ERR_REQUEST_CANCELED") return;

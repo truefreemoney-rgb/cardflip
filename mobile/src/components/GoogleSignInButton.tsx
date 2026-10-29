@@ -1,3 +1,4 @@
+import { router } from "expo-router";
 import { useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text } from "react-native";
 import Svg, { Path } from "react-native-svg";
@@ -32,7 +33,8 @@ export default function GoogleSignInButton({ mode, onError }: { mode: "login" | 
     onError(null);
     setBusy(true);
     try {
-      await signInWithGoogle(mode);
+      const done = await signInWithGoogle(mode);
+      if (done?.isNew) router.replace("/welcome");
     } catch (err) {
       onError(err instanceof Error ? err.message : "Google sign-in didn't finish. Try again or use email.");
     } finally {

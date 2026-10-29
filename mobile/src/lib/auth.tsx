@@ -41,11 +41,13 @@ interface AuthState {
   /** The launch check could not reach the server while a token is stored: index.tsx shows "No connection" + Try again. */
   offline: boolean;
   signIn(email: string, password: string, code?: string): Promise<void>;
-  signUp(name: string, email: string, password: string): Promise<void>;
+  signUp(name: string, email: string, password: string): Promise<SessionUser>;
   /** Apple's sheet, then /api/auth/apple; rejects with code ERR_REQUEST_CANCELED when dismissed. */
-  signInWithApple(): Promise<void>;
+  /** Resolves with whether the account was just made (the site then shows its welcome step). */
+  signInWithApple(): Promise<{ isNew: boolean }>;
   /** The website's Google login in the system browser sheet, then /api/auth/google/finish; resolves false when dismissed. */
-  signInWithGoogle(mode: "login" | "signup"): Promise<boolean>;
+  /** Resolves null when the sheet was closed, else whether the account was just made. */
+  signInWithGoogle(mode: "login" | "signup"): Promise<{ isNew: boolean } | null>;
   signOut(): Promise<void>;
   refresh(): Promise<void>;
 }
@@ -132,6 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const body = await api<{ user: SessionUser }>("/api/auth/signup", { body: { name, email, password } });
     await landGuestScan(body.user);
     setUser(body.user);
+    return body.user;
   }, []);
 
   /**
@@ -150,9 +153,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!cred.identityToken) throw new Error("Sign in with Apple didn't finish.");
     const name = [cred.fullName?.givenName, cred.fullName?.familyName].filter(Boolean).join(" ");
     const scan = await getGuestScan();
-    const body = await api<{ user: SessionUser }>("/api/auth/apple", { body: { identityToken: cred.identityToken, nonce, name, fromScan: Boolean(scan) } });
+    const body = await api<{ user: SessionUser; isNew?: boolean }>("/api/auth/apple", { body: { identityToken: cred.identityToken, nonce, name, fromScan: Boolean(scan) } });
     await landGuestScan(body.user);
     setUser(body.user);
+    return { isNew: Boolean(body.isNew) && !body.user.mustConfirmEmail };
   }, []);
 
   /**
@@ -181,7 +185,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
       .join("&");
     const result = await WebBrowser.openAuthSessionAsync(`${API_URL}/api/auth/google/start?${q}`, back);
-    if (result.type !== "success") return false;
+    if (result.type !== "success") return null;
     const params = Linking.parse(result.url).queryParams ?? {};
     const ticket = typeof params.ticket === "string" ? params.ticket : "";
     if (!ticket) {
@@ -190,7 +194,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const body = await api<{ user: SessionUser }>("/api/auth/google/finish", { body: { ticket, verifier } });
     await landGuestScan(body.user);
     setUser(body.user);
-    return true;
+    // The callback says whether it just made the account (?new=1): the site shows its welcome step then.
+    return { isNew: params.new === "1" && !body.user.mustConfirmEmail };
   }, []);
 
   const signOut = useCallback(async () => {

@@ -45,8 +45,9 @@ export default function Signup() {
     if (pwProblem) return setError(pwProblem);
     setBusy(true);
     try {
-      await signUp(name.trim(), email.trim(), password);
-      // The root layout swaps to the signed-in screens on its own.
+      const user = await signUp(name.trim(), email.trim(), password);
+      // The site's step 2 ("You're in", How will you use it?); still waiting on the emailed code = straight in, the wall shows in the tabs.
+      if (!user.mustConfirmEmail) router.replace("/welcome");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign up failed.");
     } finally {
