@@ -88,8 +88,10 @@ export default function Intro() {
         {PAGES.map((p) => (
           <View key={p.title} style={[styles.page, { width: WIDTH }]}>
             <View style={styles.still}>{p.picture()}</View>
-            <Text style={styles.title}>{p.title}</Text>
-            <Text style={styles.body}>{p.body}</Text>
+            <View style={styles.words}>
+              <Text style={styles.title}>{p.title}</Text>
+              <Text style={styles.body}>{p.body}</Text>
+            </View>
           </View>
         ))}
       </ScrollView>
@@ -218,6 +220,8 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     marginBottom: space.lg,
   },
+  /* Room for a two-line title and a two-line body on every card, so the picture panel is the same height on all three. */
+  words: { minHeight: 114, justifyContent: "center" },
   title: { color: colors.white, fontSize: 28, lineHeight: 32, fontFamily: fonts.display, letterSpacing: -0.5, textAlign: "center" },
   body: { color: colors.muted, fontSize: 15, lineHeight: 21, textAlign: "center", marginTop: space.sm, paddingHorizontal: space.sm },
   bottom: { paddingHorizontal: space.lg, paddingTop: space.md },
