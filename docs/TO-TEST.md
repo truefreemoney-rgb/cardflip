@@ -1,5 +1,10 @@
 # To test later
 
+## 10-29 10:55AM ET: app sign-ups skip the email-confirm wall (Chris 10:49am "but its only off for the app correct?"; site only, unpushed, bulk push)
+- [x] What: api/auth/signup: confirm = the admin switch AND not an app request (x-cardflip-app header). The website keeps whatever the switch says; app accounts are created without emailPending and get the welcome mail path. In-app code screen = later (APP-PLAN).
+- [x] tsc + lint clean.
+- [ ] After the bulk push, with the switch ON on /admin/switches: a website sign-up still gets the code screen; an app sign-up (Expo against cardflip.io, or local with the switch on) lands straight in the tabs, no pending flag (admin Users shows the account confirmed). With the switch OFF nothing changes.
+
 ## 10-29 10:45AM ET: free first scan = full-page result + chart, first-scan page = Scan Your Card + Create an account (Chris 10:27-10:28am; unpushed, bulk push)
 - [x] What: first-scan.tsx subtitle names the five games; "Scan Your Card" (a scan already waiting on the phone reopens its result page, not the camera); "Create an account" → /signup; sign-in link stays. first-card.tsx (new): the result page (MATCH FOUND, card, set line, green price, condition, 90-day chart, Sign up to keep it, free line, sign-in link). PriceChart.tsx (new, react-native-svg): the site's price history, one USD series, 90 days, coloured by the 30-day change. scan.tsx: the guest read lands → router.replace(/first-card), the camera closes (no reveal left open in the back = no second free read from it).
 - [x] Pane (mobile web 8081, 375 px): first-scan page (shot first-scan-two-buttons-phone.jpg); /first-card with a seeded Charizard (shot first-card-full-page-phone.jpg: chart ▼13% in 30 days, .79/.10, Jul 31–Oct 29). tsc + lint clean. Sent 10:45am.

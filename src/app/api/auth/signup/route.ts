@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { TRIAL_SCANS, createUser, findUserByEmail, needsEmailConfirm, totpEnabled, trialScansLeft, type User } from "@/lib/server/users";
 import { createSession, sessionCookieOptions } from "@/lib/server/sessions";
 import { SESSION_COOKIE } from "@/lib/server/auth";
-import { appSessionBody } from "@/lib/server/appSession";
+import { appSessionBody, isAppRequest } from "@/lib/server/appSession";
 import { verifyPassword } from "@/lib/server/password";
 import { passwordProblem } from "@/lib/passwordRules";
 import { LIMITS, clientIp } from "@/lib/server/rateLimit";
@@ -153,7 +153,9 @@ export async function POST(req: Request) {
 
   // Email confirmation is on only while the admin switch says exactly "1"
   // AND a code can actually be delivered (emailVerify.ts). Off = today.
-  const confirm = await emailConfirmEnabled();
+  // The app never asks for it (Chris 10-29 10:48am: nobody leaves the app to verify; Apple/Google sign-ins arrive
+  // verified). An in-app code screen is the later work in docs/APP-PLAN.md; until then app sign-ups skip the wall.
+  const confirm = (await emailConfirmEnabled()) && !isAppRequest(req);
   if (confirm) {
     // A code is about to be mailed to whatever address was typed: cap it per
     // network per day (so one script cannot spend the day's shared mail budget
