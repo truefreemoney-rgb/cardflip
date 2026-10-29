@@ -4,8 +4,8 @@ import { Image } from "expo-image";
 import { SaveFormat, manipulateAsync } from "expo-image-manipulator";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { ActivityIndicator, Animated, Linking, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, View, type LayoutChangeEvent, type StyleProp, type TextStyle } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { ActivityIndicator, Animated, Linking, Modal, PanResponder, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, View, type LayoutChangeEvent, type StyleProp, type TextStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { openSitePage } from "~/components/AppHeader";
 import { emitScanResult } from "~/lib/scanBus";
@@ -342,11 +342,40 @@ function Row({ label, hint, on, onChange, last, children }: { label: string; hin
 
 type ResultPhase = Extract<Phase, { kind: "result" }>;
 
+/** How far the handle must travel before letting go closes the sheet (the site's Sheet.tsx: 56 px). */
+const CLOSE_DRAG_PX = 56;
+
 /**
- * The sheets off the result chip: the card big (the site's ScanResultSheet:
- * picture, set line, market, the copy pill, Not this card?, Done), "This
- * copy" (condition and printing chips, each with its price), and "Which card
- * is it?" (every printing the catalog matched).
+ * The grab bar at the top of every bottom sheet, the site's SheetHandle: drag it down (or tap it) to
+ * close. A plain PanResponder, so no gesture-handler root is needed.
+ */
+function SheetHandle({ onClose }: { onClose: () => void }) {
+  const pan = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: (_e, g) => g.dy > 4,
+        onPanResponderRelease: (_e, g) => {
+          if (g.dy > CLOSE_DRAG_PX || Math.abs(g.dy) < 4) onClose();
+        },
+      }),
+    [onClose],
+  );
+  return (
+    <View {...pan.panHandlers} style={styles.handleRow} accessibilityRole="button" accessibilityLabel="Close">
+      <View style={styles.handle} />
+    </View>
+  );
+}
+
+/**
+ * The sheets off the result chip, ONE Modal whose content follows `sheet`
+ * (two Modals swapped in one tap do nothing on iOS): the card big (the
+ * site's ScanResultSheet: picture, set line, market, the copy pill, Not this
+ * card?, Done), "This copy" (condition and printing chips, each with its
+ * price), and "Which card is it?" (every printing the catalog matched).
+ * Like the site's Sheet.tsx: capped at 85% of the screen, the body scrolls,
+ * the buttons stay pinned under it, a drag handle on top.
  */
 function ResultSheets({
   phase,
@@ -377,135 +406,166 @@ function ResultSheets({
   const printing = lines.length > 1 ? (lines.find((p) => p.variant === activeVariant)?.label ?? price.label) : null;
   const copy = [condition, printing].filter(Boolean).join(" · ");
   const close = () => setSheet(null);
-  return (
-    <>
-      {/* The card big. */}
-      <Modal visible={sheet === "big"} transparent animationType="slide" onRequestClose={close}>
-        <Pressable style={styles.scrim} onPress={close} />
-        <View style={[styles.sheet, { paddingBottom: bottom }]}>
-          <View style={styles.sheetHead}>
-            <Text style={styles.sheetTitle} numberOfLines={1}>
-              {card.englishName || card.name}
+  const name = card.englishName || card.name;
+
+  let head: ReactNode = null;
+  let body: ReactNode = null;
+  let footer: ReactNode = null;
+
+  if (sheet === "big") {
+    head = (
+      <View style={styles.sheetHead}>
+        <Text style={styles.sheetTitle} numberOfLines={1}>
+          {name}
+        </Text>
+        <Pressable onPress={close} hitSlop={8} style={styles.sheetDone}>
+          <Text style={styles.sheetDoneText}>Done</Text>
+        </Pressable>
+      </View>
+    );
+    body = (
+      <>
+        <Image source={{ uri: pictureUrl(card.imageLarge || card.imageSmall) ?? undefined }} style={styles.bigArt} contentFit="cover" transition={200} />
+        <Text style={styles.bigSet}>
+          {card.setName}
+          {card.rarity ? ` · ${card.rarity}` : ""}
+          {card.number ? ` · #${card.number}` : ""}
+        </Text>
+        <Text style={styles.bigPrice}>{price.text ?? "No price yet"}</Text>
+        {price.text ? <Text style={styles.bigPriceLabel}>market price</Text> : null}
+        <View style={{ gap: 8, marginTop: 16 }}>
+          <Pressable onPress={() => setSheet("copy")} style={({ pressed }) => [styles.bigCopy, pressed && { opacity: 0.85 }]}>
+            <Text style={styles.bigCopyText} numberOfLines={1}>
+              {copy}
             </Text>
-            <Pressable onPress={close} hitSlop={8} style={styles.sheetDone}>
-              <Text style={styles.sheetDoneText}>Done</Text>
+            <Text style={styles.bigCopyChange}>Change</Text>
+          </Pressable>
+          {options.length > 1 ? (
+            <Pressable onPress={() => setSheet("pick")} style={({ pressed }) => [styles.bigSwap, pressed && { opacity: 0.85 }]}>
+              <Text style={styles.bigSwapText}>Not this card?</Text>
             </Pressable>
-          </View>
-          <Image source={{ uri: pictureUrl(card.imageLarge || card.imageSmall) ?? undefined }} style={styles.bigArt} contentFit="cover" transition={200} />
-          <Text style={styles.bigSet}>
-            {card.setName}
-            {card.rarity ? ` · ${card.rarity}` : ""}
-            {card.number ? ` · #${card.number}` : ""}
-          </Text>
-          <Text style={styles.bigPrice}>{price.text ?? "No price yet"}</Text>
-          {price.text ? <Text style={styles.bigPriceLabel}>market price</Text> : null}
-          <View style={{ gap: 8, marginTop: 16 }}>
-            <Pressable onPress={() => setSheet("copy")} style={({ pressed }) => [styles.bigCopy, pressed && { opacity: 0.85 }]}>
-              <Text style={styles.bigCopyText} numberOfLines={1}>
-                {copy}
-              </Text>
-              <Text style={styles.bigCopyChange}>Change</Text>
-            </Pressable>
-            {options.length > 1 ? (
-              <Pressable onPress={() => setSheet("pick")} style={({ pressed }) => [styles.bigSwap, pressed && { opacity: 0.85 }]}>
-                <Text style={styles.bigSwapText}>Not this card?</Text>
-              </Pressable>
-            ) : null}
-          </View>
-        </View>
-      </Modal>
-
-      {/* "This copy": condition, and the printing when the card is priced in several. */}
-      <Modal visible={sheet === "copy"} transparent animationType="slide" onRequestClose={close}>
-        <Pressable style={styles.scrim} onPress={close} />
-        <View style={[styles.sheet, { paddingBottom: bottom }]}>
-          <Text style={styles.sheetTitle}>This copy</Text>
-          <Text style={styles.section}>Condition</Text>
-          <View style={styles.chips}>
-            {CONDITIONS.map((c) => {
-              const p = revealPrice(card, c, variant);
-              const on = condition === c;
-              return (
-                <Pressable key={c} onPress={() => pickCondition(c)} style={[styles.chip, styles.chipSurface, styles.chipDotted, on && { borderColor: DOT[c], backgroundColor: `${DOT[c]}26` }]}>
-                  <View style={[styles.dot, { backgroundColor: DOT[c] }]} />
-                  <Text style={[styles.chipText, on && styles.chipTextOn]}>
-                    {c}
-                    {p.text ? ` ${p.text}` : ""}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-          {lines.length > 1 ? (
-            <>
-              <Text style={styles.section}>Printing</Text>
-              <View style={styles.chips}>
-                {lines.map((p) => {
-                  const active = p.variant === activeVariant;
-                  const rp = revealPrice(card, condition, p.variant);
-                  return (
-                    <Pressable key={p.variant} onPress={() => pickVariant(p.variant)} style={[styles.chip, styles.chipSurface, active && styles.chipOn]}>
-                      <Text style={[styles.chipText, active && styles.chipTextOn]}>
-                        {p.label}
-                        {rp.text ? ` ${rp.text}` : ""}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </>
           ) : null}
-          {note ? <Text style={styles.error}>{note}</Text> : null}
-          <Pressable onPress={close} style={({ pressed }) => [styles.primary, { marginTop: space.lg }, pressed && { opacity: 0.85 }]}>
-            <Text style={styles.primaryText}>Done</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => {
-              close();
-              remove();
-            }}
-            hitSlop={8}
-            style={styles.removeBtn}
-          >
-            <Text style={styles.removeText}>Remove this card from Inventory</Text>
-          </Pressable>
         </View>
-      </Modal>
+        {/* Off the "This copy" sheet (the site keeps that one to condition + printing): the card itself owns Remove. */}
+        <Pressable
+          onPress={() => {
+            close();
+            remove();
+          }}
+          hitSlop={8}
+          style={styles.removeBtn}
+        >
+          <Text style={styles.removeText}>Remove this card from Inventory</Text>
+        </Pressable>
+      </>
+    );
+  } else if (sheet === "copy") {
+    head = (
+      <View style={styles.sheetHead}>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={styles.sheetTitle}>This copy</Text>
+          <Text style={styles.sheetSub} numberOfLines={1}>
+            {name}
+          </Text>
+        </View>
+        <Pressable onPress={close} hitSlop={8} style={styles.sheetDone}>
+          <Text style={styles.sheetDoneText}>Done</Text>
+        </Pressable>
+      </View>
+    );
+    body = (
+      <>
+        <Text style={[styles.section, { marginTop: 0 }]}>Condition</Text>
+        <View style={styles.chips}>
+          {CONDITIONS.map((c) => {
+            const p = revealPrice(card, c, variant);
+            const on = condition === c;
+            return (
+              <Pressable key={c} onPress={() => pickCondition(c)} style={[styles.chip, styles.chipSurface, styles.chipDotted, on && { borderColor: DOT[c], backgroundColor: `${DOT[c]}26` }]}>
+                <View style={[styles.dot, { backgroundColor: DOT[c] }]} />
+                <Text style={[styles.chipText, on && styles.chipTextOn]}>
+                  {c}
+                  {p.text ? ` ${p.text}` : ""}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        {lines.length > 1 ? (
+          <>
+            <Text style={styles.section}>Printing</Text>
+            <View style={styles.chips}>
+              {lines.map((p) => {
+                const active = p.variant === activeVariant;
+                const rp = revealPrice(card, condition, p.variant);
+                return (
+                  <Pressable key={p.variant} onPress={() => pickVariant(p.variant)} style={[styles.chip, styles.chipSurface, active && styles.chipOn]}>
+                    <Text style={[styles.chipText, active && styles.chipTextOn]}>
+                      {p.label}
+                      {rp.text ? ` ${rp.text}` : ""}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </>
+        ) : null}
+        {note ? <Text style={styles.error}>{note}</Text> : null}
+        <Text style={styles.sheetNote}>Changes apply as you tap. Anything else is in the card itself.</Text>
+      </>
+    );
+    footer = (
+      <Pressable onPress={close} style={({ pressed }) => [styles.primary, pressed && { opacity: 0.85 }]}>
+        <Text style={styles.primaryText}>Done</Text>
+      </Pressable>
+    );
+  } else if (sheet === "pick") {
+    head = (
+      <View style={styles.sheetHead}>
+        <Text style={styles.sheetTitle}>Which card is it?</Text>
+        <Pressable onPress={close} hitSlop={8} style={styles.sheetDone}>
+          <Text style={styles.sheetDoneText}>Done</Text>
+        </Pressable>
+      </View>
+    );
+    body = options.map((c) => {
+      const p = revealPrice(c, condition, null);
+      return (
+        <Pressable
+          key={c.id}
+          onPress={() => {
+            close();
+            pickCard(c);
+          }}
+          style={[styles.row, c.id === card.id && styles.rowOn]}
+        >
+          <Image source={{ uri: pictureUrl(c.imageSmall) ?? undefined }} style={styles.thumb} contentFit="cover" />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.rowName} numberOfLines={1}>
+              {c.englishName || c.name}
+            </Text>
+            <Text style={styles.rowSub} numberOfLines={1}>
+              {c.setName} · #{c.number}
+            </Text>
+          </View>
+          <Text style={styles.rowMoney}>{p.text ?? "—"}</Text>
+        </Pressable>
+      );
+    });
+  }
 
-      {/* "Not this card?": every printing the catalog matched, the pick first. */}
-      <Modal visible={sheet === "pick"} transparent animationType="slide" onRequestClose={close}>
-        <Pressable style={styles.scrim} onPress={close} />
-        <View style={[styles.sheet, styles.sheetTall, { paddingBottom: bottom }]}>
-          <Text style={styles.sheetTitle}>Which card is it?</Text>
-          <ScrollView style={{ flexGrow: 0, flexShrink: 1 }}>
-            {options.map((c) => {
-              const p = revealPrice(c, condition, null);
-              return (
-                <Pressable
-                  key={c.id}
-                  onPress={() => {
-                    close();
-                    pickCard(c);
-                  }}
-                  style={[styles.row, c.id === card.id && styles.rowOn]}
-                >
-                  <Image source={{ uri: pictureUrl(c.imageSmall) ?? undefined }} style={styles.thumb} contentFit="cover" />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.rowName} numberOfLines={1}>
-                      {c.englishName || c.name}
-                    </Text>
-                    <Text style={styles.rowSub} numberOfLines={1}>
-                      {c.setName} · #{c.number}
-                    </Text>
-                  </View>
-                  <Text style={styles.rowMoney}>{p.text ?? "—"}</Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        </View>
-      </Modal>
-    </>
+  return (
+    <Modal visible={sheet !== null} transparent animationType="slide" onRequestClose={close}>
+      <Pressable style={styles.scrim} onPress={close} accessibilityLabel="Close" />
+      <View style={[styles.sheet, styles.sheetCap, { paddingBottom: bottom }]}>
+        <SheetHandle onClose={close} />
+        {head}
+        <ScrollView style={styles.sheetBody} contentContainerStyle={sheet === "pick" ? styles.sheetBodyEdge : undefined} keyboardShouldPersistTaps="handled">
+          {body}
+        </ScrollView>
+        {footer ? <View style={styles.sheetFoot}>{footer}</View> : null}
+      </View>
+    </Modal>
   );
 }
 
@@ -1005,6 +1065,7 @@ export default function Scan() {
       <Modal visible={options} transparent animationType="slide" onRequestClose={() => setOptions(false)}>
         <Pressable style={styles.scrim} onPress={() => setOptions(false)} />
         <View style={[styles.sheet, styles.optSheet, { paddingBottom: bottom }]}>
+          <SheetHandle onClose={() => setOptions(false)} />
           <View style={styles.sheetHead}>
             <Text style={styles.sheetTitle}>Scanner options</Text>
             <Pressable onPress={() => setOptions(false)} accessibilityLabel="Close" hitSlop={8} style={styles.sheetX}>
@@ -1213,7 +1274,14 @@ const styles = StyleSheet.create({
   primaryText: { color: colors.white, fontSize: 16, fontWeight: "700" },
   scrim: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)" },
   sheet: { backgroundColor: colors.surfaceRaised, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, paddingTop: space.md, paddingHorizontal: space.lg },
-  sheetTall: { maxHeight: "75%" },
+  sheetCap: { maxHeight: "85%" },
+  sheetBody: { flexGrow: 0, flexShrink: 1 },
+  sheetBodyEdge: { marginHorizontal: -space.lg },
+  sheetFoot: { paddingTop: space.md },
+  sheetSub: { color: colors.muted, fontSize: 13, marginTop: -2 },
+  sheetNote: { marginTop: space.md, color: colors.faint, fontSize: 12, textAlign: "center" },
+  handleRow: { height: 24, marginTop: -space.sm, alignItems: "center", justifyContent: "center" },
+  handle: { width: 40, height: 5, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.25)" },
   sheetTitle: { flexShrink: 1, color: colors.white, fontSize: 18, fontWeight: "700", marginBottom: space.xs },
   error: { color: colors.danger, fontSize: 13, textAlign: "center", marginTop: space.sm, paddingHorizontal: space.lg },
   section: { color: colors.muted, fontSize: 12, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5, marginTop: space.lg, marginBottom: 6 },
