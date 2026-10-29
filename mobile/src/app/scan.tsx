@@ -5,7 +5,7 @@ import { SaveFormat, manipulateAsync } from "expo-image-manipulator";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { ActivityIndicator, Animated, Linking, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, View, type LayoutChangeEvent } from "react-native";
+import { ActivityIndicator, Animated, Linking, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, View, type LayoutChangeEvent, type StyleProp, type TextStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { openSitePage } from "~/components/AppHeader";
 import { useAuth } from "~/lib/auth";
@@ -96,7 +96,7 @@ function formatMoney(n: number): string {
  * the exciting part, Chris). A later change (condition, printing) shows the
  * new number at once; only a new card counts again.
  */
-function CountUpMoney({ text, revealKey }: { text: string | null; revealKey: string }) {
+function CountUpMoney({ text, revealKey, style }: { text: string | null; revealKey: string; style?: StyleProp<TextStyle> }) {
   const [shown, setShown] = useState<string | null>(text);
   const lastKey = useRef<string | null>(null);
   useEffect(() => {
@@ -122,7 +122,138 @@ function CountUpMoney({ text, revealKey }: { text: string | null; revealKey: str
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [text, revealKey]);
-  return <Text style={styles.bigMoney}>{shown ?? "—"}</Text>;
+  return <Text style={[styles.chipPrice, style]}>{shown ?? "—"}</Text>;
+}
+
+/** The website's reveal tiers (lib/client/scanFx.ts): the label and colours grow with the card's market. */
+function tierOf(market: number | null, doubt: boolean): { label: string; color: string; border: string } {
+  if (doubt) return { label: "CHECK MATCH", color: "#fcd34d", border: "rgba(251,191,36,0.4)" };
+  if (market != null && market >= 500) return { label: "BIG ONE", color: HOLO_PINK, border: "rgba(240,171,252,0.6)" };
+  if (market != null && market >= 100) return { label: "NICE PULL", color: "#fcd34d", border: "rgba(252,211,77,0.5)" };
+  return { label: "MATCH FOUND", color: colors.money, border: "rgba(52,211,153,0.3)" };
+}
+
+/** The site's .reveal-art: the matched card's picture pops up out of the chip with a slight tilt that settles. */
+function RevealArt({ uri, revealKey }: { uri: string | undefined; revealKey: string }) {
+  const [t] = useState(() => new Animated.Value(0));
+  useEffect(() => {
+    t.setValue(0);
+    Animated.spring(t, { toValue: 1, friction: 6, tension: 60, useNativeDriver: true }).start();
+  }, [t, revealKey]);
+  return (
+    <Animated.View
+      style={[
+        styles.chipArt,
+        {
+          transform: [
+            { translateY: t.interpolate({ inputRange: [0, 1], outputRange: [24, 0] }) },
+            { rotate: t.interpolate({ inputRange: [0, 1], outputRange: ["-8deg", "0deg"] }) },
+            { scale: t.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }) },
+          ],
+        },
+      ]}
+    >
+      {uri ? <Image source={{ uri }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} /> : <Text style={styles.chipArtTick}>✓</Text>}
+    </Animated.View>
+  );
+}
+
+/**
+ * The website's result chip (CameraCapture.tsx RevealChip, layout A, Chris
+ * 10-20): row 1 the art, MATCH FOUND, name, set · rarity · #, Clear; row 2
+ * the price band, market big and green on the left, this copy's pill on the
+ * right; row 3 Verify Your Scan and Not this card?. Tapping the card opens
+ * it big.
+ */
+function RevealChip({
+  card,
+  condition,
+  variant,
+  doubt,
+  saving,
+  savedId,
+  canSwap,
+  onExpand,
+  onClear,
+  onEdit,
+  onVerify,
+  onSwap,
+}: {
+  card: PokemonCard;
+  condition: Condition;
+  variant: string | null;
+  doubt: string | null;
+  saving: boolean;
+  savedId: string | null;
+  canSwap: boolean;
+  onExpand: () => void;
+  onClear: () => void;
+  onEdit: () => void;
+  onVerify: () => void;
+  onSwap: () => void;
+}) {
+  const price = revealPrice(card, condition, variant);
+  const market = moneyValue(price.text);
+  const tier = tierOf(market, Boolean(doubt));
+  const lines = card.prices.filter((p) => p.currency === "USD" && p.market != null && p.market > 0);
+  const printing = lines.length > 1 ? (lines.find((p) => p.variant === (variant ?? defaultVariantOf(card)))?.label ?? price.label) : null;
+  const copy = [condition, printing].filter(Boolean).join(" · ");
+  return (
+    <View style={[styles.chip2, { borderColor: tier.border }]}>
+      <View style={styles.chipRow}>
+        <Pressable onPress={onExpand} accessibilityLabel={`Open ${card.englishName || card.name} big`} style={({ pressed }) => [styles.chipMain, pressed && { opacity: 0.85 }]}>
+          <RevealArt uri={pictureUrl(card.imageSmall) ?? undefined} revealKey={card.id} />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={[styles.chipKicker, { color: tier.color }]}>{tier.label}</Text>
+            <Text style={styles.chipName} numberOfLines={2}>
+              {card.englishName || card.name}
+            </Text>
+            <Text style={styles.chipSet} numberOfLines={2}>
+              {card.setName}
+              {card.rarity ? ` · ${card.rarity}` : ""}
+              {card.number ? ` · #${card.number}` : ""}
+            </Text>
+          </View>
+        </Pressable>
+        <Pressable onPress={onClear} accessibilityLabel={`Clear ${card.englishName || card.name} from the list (it stays in your Inventory)`} hitSlop={8} style={({ pressed }) => [styles.chipClear, pressed && { opacity: 0.85 }]}>
+          <Text style={styles.chipClearText}>Clear</Text>
+        </Pressable>
+      </View>
+      <View style={styles.chipBand}>
+        <View style={styles.chipPriceBox}>
+          {market != null ? (
+            <>
+              <CountUpMoney text={price.text} revealKey={card.id} style={{ color: tier.label === "MATCH FOUND" || tier.label === "CHECK MATCH" ? "#6ee7b7" : tier.color }} />
+              <Text style={styles.chipPriceLabel}>{condition !== "Near Mint" ? `${condition} value` : "market price"}</Text>
+            </>
+          ) : (
+            <Text style={[styles.chipPriceLabel, price.note && { color: "#fcd34d" }]}>{price.note ? "price looks off" : "no price yet"}</Text>
+          )}
+        </View>
+        <Pressable onPress={onEdit} accessibilityLabel={`Change condition or printing: ${copy}`} style={({ pressed }) => [styles.chipCopy, pressed && { opacity: 0.85 }]}>
+          <View style={[styles.dot, { backgroundColor: DOT[condition] }]} />
+          <Text style={styles.chipCopyText} numberOfLines={1}>
+            {copy}
+          </Text>
+          <Text style={styles.chipCopyPen}>✎</Text>
+        </Pressable>
+      </View>
+      <View style={styles.chipRow}>
+        <Pressable onPress={onVerify} style={({ pressed }) => [styles.verify, pressed && { opacity: 0.85 }]}>
+          <Text style={styles.verifyText} numberOfLines={1}>
+            {saving ? "Saving…" : savedId ? "Verify Your Scan" : "Not saved"}
+          </Text>
+          {market != null ? <Text style={styles.verifyMoney}>{formatMoney(market)}</Text> : null}
+        </Pressable>
+        {canSwap ? (
+          <Pressable onPress={onSwap} style={({ pressed }) => [styles.swap, pressed && { opacity: 0.85 }]}>
+            <Text style={styles.swapText}>Not this card?</Text>
+          </Pressable>
+        ) : null}
+      </View>
+      {doubt ? <Text style={styles.chipDoubt}>{doubt}</Text> : null}
+    </View>
+  );
 }
 
 /** The website's .scan-sweep: a holo-pink band that runs down the guide while the card is being read. */
@@ -177,6 +308,175 @@ function Row({ label, hint, on, onChange, last, children }: { label: string; hin
   );
 }
 
+type ResultPhase = Extract<Phase, { kind: "result" }>;
+
+/**
+ * The sheets off the result chip: the card big (the site's ScanResultSheet:
+ * picture, set line, market, the copy pill, Not this card?, Done), "This
+ * copy" (condition and printing chips, each with its price), and "Which card
+ * is it?" (every printing the catalog matched).
+ */
+function ResultSheets({
+  phase,
+  sheet,
+  setSheet,
+  bottom,
+  pickCondition,
+  pickVariant,
+  pickCard,
+  remove,
+  note,
+}: {
+  phase: ResultPhase;
+  sheet: "copy" | "pick" | "big" | null;
+  setSheet: (s: "copy" | "pick" | "big" | null) => void;
+  bottom: number;
+  pickCondition: (c: Condition) => void;
+  pickVariant: (v: string | null) => void;
+  pickCard: (c: PokemonCard) => void;
+  remove: () => void;
+  note: string | null;
+}) {
+  const { card, condition, variant, found } = phase;
+  const price = revealPrice(card, condition, variant);
+  const lines = card.prices.filter((p) => p.currency === "USD" && p.market != null && p.market > 0);
+  const options = printingOptions(card, found.candidates);
+  const activeVariant = variant ?? defaultVariantOf(card);
+  const printing = lines.length > 1 ? (lines.find((p) => p.variant === activeVariant)?.label ?? price.label) : null;
+  const copy = [condition, printing].filter(Boolean).join(" · ");
+  const close = () => setSheet(null);
+  return (
+    <>
+      {/* The card big. */}
+      <Modal visible={sheet === "big"} transparent animationType="slide" onRequestClose={close}>
+        <Pressable style={styles.scrim} onPress={close} />
+        <View style={[styles.sheet, { paddingBottom: bottom }]}>
+          <View style={styles.sheetHead}>
+            <Text style={styles.sheetTitle} numberOfLines={1}>
+              {card.englishName || card.name}
+            </Text>
+            <Pressable onPress={close} hitSlop={8} style={styles.sheetDone}>
+              <Text style={styles.sheetDoneText}>Done</Text>
+            </Pressable>
+          </View>
+          <Image source={{ uri: pictureUrl(card.imageLarge || card.imageSmall) ?? undefined }} style={styles.bigArt} contentFit="cover" transition={200} />
+          <Text style={styles.bigSet}>
+            {card.setName}
+            {card.rarity ? ` · ${card.rarity}` : ""}
+            {card.number ? ` · #${card.number}` : ""}
+          </Text>
+          <Text style={styles.bigPrice}>{price.text ?? "No price yet"}</Text>
+          {price.text ? <Text style={styles.bigPriceLabel}>market price</Text> : null}
+          <View style={{ gap: 8, marginTop: 16 }}>
+            <Pressable onPress={() => setSheet("copy")} style={({ pressed }) => [styles.bigCopy, pressed && { opacity: 0.85 }]}>
+              <Text style={styles.bigCopyText} numberOfLines={1}>
+                {copy}
+              </Text>
+              <Text style={styles.bigCopyChange}>Change</Text>
+            </Pressable>
+            {options.length > 1 ? (
+              <Pressable onPress={() => setSheet("pick")} style={({ pressed }) => [styles.bigSwap, pressed && { opacity: 0.85 }]}>
+                <Text style={styles.bigSwapText}>Not this card?</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        </View>
+      </Modal>
+
+      {/* "This copy": condition, and the printing when the card is priced in several. */}
+      <Modal visible={sheet === "copy"} transparent animationType="slide" onRequestClose={close}>
+        <Pressable style={styles.scrim} onPress={close} />
+        <View style={[styles.sheet, { paddingBottom: bottom }]}>
+          <Text style={styles.sheetTitle}>This copy</Text>
+          <Text style={styles.section}>Condition</Text>
+          <View style={styles.chips}>
+            {CONDITIONS.map((c) => {
+              const p = revealPrice(card, c, variant);
+              const on = condition === c;
+              return (
+                <Pressable key={c} onPress={() => pickCondition(c)} style={[styles.chip, styles.chipSurface, styles.chipDotted, on && { borderColor: DOT[c], backgroundColor: `${DOT[c]}26` }]}>
+                  <View style={[styles.dot, { backgroundColor: DOT[c] }]} />
+                  <Text style={[styles.chipText, on && styles.chipTextOn]}>
+                    {c}
+                    {p.text ? ` ${p.text}` : ""}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          {lines.length > 1 ? (
+            <>
+              <Text style={styles.section}>Printing</Text>
+              <View style={styles.chips}>
+                {lines.map((p) => {
+                  const active = p.variant === activeVariant;
+                  const rp = revealPrice(card, condition, p.variant);
+                  return (
+                    <Pressable key={p.variant} onPress={() => pickVariant(p.variant)} style={[styles.chip, styles.chipSurface, active && styles.chipOn]}>
+                      <Text style={[styles.chipText, active && styles.chipTextOn]}>
+                        {p.label}
+                        {rp.text ? ` ${rp.text}` : ""}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </>
+          ) : null}
+          {note ? <Text style={styles.error}>{note}</Text> : null}
+          <Pressable onPress={close} style={({ pressed }) => [styles.primary, { marginTop: space.lg }, pressed && { opacity: 0.85 }]}>
+            <Text style={styles.primaryText}>Done</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              close();
+              remove();
+            }}
+            hitSlop={8}
+            style={styles.removeBtn}
+          >
+            <Text style={styles.removeText}>Remove this card from Inventory</Text>
+          </Pressable>
+        </View>
+      </Modal>
+
+      {/* "Not this card?": every printing the catalog matched, the pick first. */}
+      <Modal visible={sheet === "pick"} transparent animationType="slide" onRequestClose={close}>
+        <Pressable style={styles.scrim} onPress={close} />
+        <View style={[styles.sheet, styles.sheetTall, { paddingBottom: bottom }]}>
+          <Text style={styles.sheetTitle}>Which card is it?</Text>
+          <ScrollView style={{ flexGrow: 0, flexShrink: 1 }}>
+            {options.map((c) => {
+              const p = revealPrice(c, condition, null);
+              return (
+                <Pressable
+                  key={c.id}
+                  onPress={() => {
+                    close();
+                    pickCard(c);
+                  }}
+                  style={[styles.row, c.id === card.id && styles.rowOn]}
+                >
+                  <Image source={{ uri: pictureUrl(c.imageSmall) ?? undefined }} style={styles.thumb} contentFit="cover" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.rowName} numberOfLines={1}>
+                      {c.englishName || c.name}
+                    </Text>
+                    <Text style={styles.rowSub} numberOfLines={1}>
+                      {c.setName} · #{c.number}
+                    </Text>
+                  </View>
+                  <Text style={styles.rowMoney}>{p.text ?? "—"}</Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+      </Modal>
+    </>
+  );
+}
+
 /**
  * The scanner (docs/APP-PLAN.md step 4), the website's phone scanner
  * (src/components/CameraCapture.tsx) built native: the top bar (Close, the
@@ -189,7 +489,7 @@ function Row({ label, hint, on, onChange, last, children }: { label: string; hin
  */
 export default function Scan() {
   const insets = useSafeAreaInsets();
-  const { user, refresh } = useAuth();
+  const { refresh } = useAuth();
   const [permission, requestPermission] = useCameraPermissions();
   const camera = useRef<CameraView>(null);
   const [cameraReady, setCameraReady] = useState(false);
@@ -197,10 +497,9 @@ export default function Scan() {
   const [games, setGames] = useState<GameId[]>(["pokemon"]);
   const [game, setGame] = useState<GameId>("pokemon");
   const [phase, setPhase] = useState<Phase>({ kind: "camera" });
-  const [scansLeft, setScansLeft] = useState<number | null | undefined>(user?.scans?.remaining);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
-  const [sheet, setSheet] = useState<"copy" | "pick" | null>(null);
+  const [sheet, setSheet] = useState<"copy" | "pick" | "big" | null>(null);
   const [options, setOptions] = useState(false);
   const [torch, setTorch] = useState(false);
   const [tipsOn, setTipsOn] = useState(true);
@@ -235,7 +534,6 @@ export default function Scan() {
   const applyBalance = useCallback(
     (usage: ScanQuota | null) => {
       if (!usage) return;
-      setScansLeft(usage.remaining);
       // The last scan just went: the session's own flags (appAccess) follow (the site re-reads too).
       if (usage.remaining === 0) void refresh();
     },
@@ -392,155 +690,7 @@ export default function Scan() {
     }
   }, []);
 
-  const top = insets.top + space.sm;
   const bottom = insets.bottom + space.lg;
-
-  // ---------------------------------------------------------------- reveal
-  if (phase.kind === "result") {
-    const { card, condition, variant, found, savedId, saving } = phase;
-    const price = revealPrice(card, condition, variant);
-    const lines = card.prices.filter((p) => p.currency === "USD" && p.market != null && p.market > 0);
-    const options = printingOptions(card, found.candidates);
-    const activeVariant = variant ?? defaultVariantOf(card);
-    return (
-      <View style={[styles.screen, { paddingTop: top }]}>
-        <View style={styles.topRow}>
-          <Pressable onPress={close} hitSlop={12} style={styles.iconBtn}>
-            <Text style={styles.iconText}>✕</Text>
-          </Pressable>
-          <Text style={styles.topTitle}>{scansLeft === null ? "Unlimited scans" : scansLeft === undefined ? "" : `${scansLeft} scan${scansLeft === 1 ? "" : "s"} left`}</Text>
-          <View style={styles.iconBtn} />
-        </View>
-        <ScrollView contentContainerStyle={[styles.revealBody, { paddingBottom: space.lg }]} keyboardShouldPersistTaps="handled">
-          <View style={styles.glowWrap}>
-            <View style={styles.glow} />
-            <Image source={{ uri: pictureUrl(card.imageLarge || card.imageSmall) ?? undefined }} style={styles.heroCard} contentFit="contain" transition={200} />
-          </View>
-          <CountUpMoney text={price.text} revealKey={card.id} />
-          <Text style={styles.moneyLabel}>{price.note ?? `${price.label} · ${condition}`}</Text>
-          <Text style={styles.cardName}>{card.englishName || card.name}</Text>
-          <Text style={styles.cardSub}>
-            {card.setName} · #{card.number}
-            {card.rarity ? ` · ${card.rarity}` : ""}
-          </Text>
-          <View style={[styles.pill, !saving && !savedId && styles.pillOff]}>
-            <Text style={[styles.pillText, !saving && !savedId && styles.pillTextOff]}>{saving ? "Saving…" : savedId ? "✓ Saved to My Cards" : "Not saved"}</Text>
-          </View>
-          {found.doubt ? <Text style={styles.doubt}>{found.doubt}</Text> : null}
-          {note ? <Text style={styles.error}>{note}</Text> : null}
-
-          <Pressable onPress={() => setSheet("copy")} style={({ pressed }) => [styles.copyRow, pressed && { opacity: 0.85 }]}>
-            <View>
-              <Text style={styles.copyLabel}>This copy</Text>
-              <Text style={styles.copyValue}>
-                {condition}
-                {lines.length > 1 ? ` · ${lines.find((p) => p.variant === activeVariant)?.label ?? price.label}` : ""}
-              </Text>
-            </View>
-            <Text style={styles.chev}>›</Text>
-          </Pressable>
-          <View style={styles.linkRow}>
-            {options.length > 1 ? (
-              <Pressable onPress={() => setSheet("pick")} hitSlop={8}>
-                <Text style={styles.link}>Not this card?</Text>
-              </Pressable>
-            ) : (
-              <View />
-            )}
-            <Pressable onPress={remove} hitSlop={8}>
-              <Text style={styles.textBtnDanger}>Remove</Text>
-            </Pressable>
-          </View>
-        </ScrollView>
-        <View style={[styles.revealBar, { paddingBottom: bottom }]}>
-          <Pressable onPress={scanAgain} style={({ pressed }) => [styles.primary, pressed && { opacity: 0.85 }]}>
-            <Text style={styles.primaryText}>Scan another</Text>
-          </Pressable>
-          <Pressable onPress={close} hitSlop={8} style={styles.doneBtn}>
-            <Text style={styles.textBtnText}>Done</Text>
-          </Pressable>
-        </View>
-
-        {/* "This copy": condition, and the printing when the card is priced in several. */}
-        <Modal visible={sheet === "copy"} transparent animationType="slide" onRequestClose={() => setSheet(null)}>
-          <Pressable style={styles.scrim} onPress={() => setSheet(null)} />
-          <View style={[styles.sheet, { paddingBottom: bottom }]}>
-            <Text style={styles.sheetTitle}>This copy</Text>
-            <Text style={styles.section}>Condition</Text>
-            <View style={styles.chips}>
-              {CONDITIONS.map((c) => {
-                const p = revealPrice(card, c, variant);
-                return (
-                  <Pressable key={c} onPress={() => pickCondition(c)} style={[styles.chip, condition === c && styles.chipOn]}>
-                    <Text style={[styles.chipText, condition === c && styles.chipTextOn]}>
-                      {c}
-                      {p.text ? ` ${p.text}` : ""}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-            {lines.length > 1 ? (
-              <>
-                <Text style={styles.section}>Printing</Text>
-                <View style={styles.chips}>
-                  {lines.map((p) => {
-                    const active = p.variant === activeVariant;
-                    const rp = revealPrice(card, condition, p.variant);
-                    return (
-                      <Pressable key={p.variant} onPress={() => pickVariant(p.variant)} style={[styles.chip, active && styles.chipOn]}>
-                        <Text style={[styles.chipText, active && styles.chipTextOn]}>
-                          {p.label}
-                          {rp.text ? ` ${rp.text}` : ""}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </>
-            ) : null}
-            <Pressable onPress={() => setSheet(null)} style={({ pressed }) => [styles.primary, { marginTop: space.lg }, pressed && { opacity: 0.85 }]}>
-              <Text style={styles.primaryText}>Done</Text>
-            </Pressable>
-          </View>
-        </Modal>
-
-        {/* "Not this card?": every printing the catalog matched, the pick first. */}
-        <Modal visible={sheet === "pick"} transparent animationType="slide" onRequestClose={() => setSheet(null)}>
-          <Pressable style={styles.scrim} onPress={() => setSheet(null)} />
-          <View style={[styles.sheet, styles.sheetTall, { paddingBottom: bottom }]}>
-            <Text style={styles.sheetTitle}>Which card is it?</Text>
-            <ScrollView style={{ flexGrow: 0 }}>
-              {options.map((c) => {
-                const p = revealPrice(c, condition, null);
-                return (
-                  <Pressable
-                    key={c.id}
-                    onPress={() => {
-                      setSheet(null);
-                      void pickCard(c);
-                    }}
-                    style={[styles.row, c.id === card.id && styles.rowOn]}
-                  >
-                    <Image source={{ uri: pictureUrl(c.imageSmall) ?? undefined }} style={styles.thumb} contentFit="cover" />
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.rowName} numberOfLines={1}>
-                        {c.englishName || c.name}
-                      </Text>
-                      <Text style={styles.rowSub} numberOfLines={1}>
-                        {c.setName} · #{c.number}
-                      </Text>
-                    </View>
-                    <Text style={styles.rowMoney}>{p.text ?? "—"}</Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          </View>
-        </Modal>
-      </View>
-    );
-  }
 
   // ------------------------------------------------ camera / reading / miss
   // One screen, the website's: the camera stays live while a card is read
@@ -658,7 +808,26 @@ export default function Scan() {
       {/* The chip slot under the viewfinder: the how-to until the first scan, then the reading / miss chip. */}
       {quotaNote ? <Text style={styles.quotaNote}>{quotaNote}</Text> : null}
       <View style={styles.slot}>
-        {reading ? (
+        {phase.kind === "result" ? (
+          <RevealChip
+            card={phase.card}
+            condition={phase.condition}
+            variant={phase.variant}
+            doubt={phase.found.doubt ?? null}
+            saving={phase.saving}
+            savedId={phase.savedId}
+            canSwap={printingOptions(phase.card, phase.found.candidates).length > 1}
+            onExpand={() => setSheet("big")}
+            onClear={() => setPhase({ kind: "camera" })}
+            onEdit={() => setSheet("copy")}
+            onVerify={() => {
+              // The site's Verify opens the scan to check; the app's Inventory row is that scan.
+              void refresh();
+              router.replace("/(app)/cards");
+            }}
+            onSwap={() => setSheet("pick")}
+          />
+        ) : reading ? (
           <View style={styles.toast}>
             <View style={styles.toastIcon}>
               <View style={styles.toastDot} />
@@ -726,6 +895,8 @@ export default function Scan() {
           </Pressable>
         ) : null}
       </View>
+
+      {phase.kind === "result" ? <ResultSheets phase={phase} sheet={sheet} setSheet={setSheet} bottom={bottom} pickCondition={pickCondition} pickVariant={pickVariant} pickCard={pickCard} remove={remove} note={note} /> : null}
 
       {/* ⋯ Scanner options: the site's sheet (10-15): game, starting condition, light and tips, share, help. */}
       <Modal visible={options} transparent animationType="slide" onRequestClose={() => setOptions(false)}>
@@ -892,47 +1063,60 @@ const styles = StyleSheet.create({
   optBtn: { borderRadius: 999, borderWidth: 1, borderColor: colors.edge, backgroundColor: SURFACE_2, paddingHorizontal: 16, paddingVertical: 8 },
   optBtnText: { color: colors.white, fontSize: 14, fontWeight: "600" },
 
-  // Reveal (layout A; the next pass makes it the site's result chip).
-  topRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: space.md },
-  iconBtn: { width: 36, height: 36, alignItems: "center", justifyContent: "center", borderRadius: 18 },
-  iconText: { color: colors.white, fontSize: 18 },
-  topTitle: { color: colors.foreground, fontSize: 14, fontWeight: "600" },
-  primary: { flex: 1, backgroundColor: colors.brand, borderRadius: 999, paddingVertical: 14, alignItems: "center" },
+  // The result chip (the site's RevealChip: rounded-2xl, bg-black/80, a border in the tier's colour).
+  chip2: { borderRadius: 16, borderWidth: 1, backgroundColor: "rgba(0,0,0,0.8)", paddingHorizontal: 12, paddingVertical: 10, gap: 8 },
+  chipRow: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
+  chipMain: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "flex-start", gap: 12 },
+  chipArt: { width: 46, height: 64, borderRadius: 6, overflow: "hidden", backgroundColor: colors.surfaceRaised, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOpacity: 0.6, shadowRadius: 8, shadowOffset: { width: 0, height: 4 } },
+  chipArtTick: { color: colors.white, fontSize: 18 },
+  chipKicker: { fontSize: 10, fontWeight: "600", letterSpacing: 2 },
+  chipName: { color: colors.white, fontSize: 16, fontFamily: fonts.displaySemi, lineHeight: 19 },
+  chipSet: { color: colors.muted, fontSize: 12, lineHeight: 15 },
+  chipClear: { height: 28, justifyContent: "center", paddingHorizontal: 10, borderRadius: 999, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)" },
+  chipClearText: { color: colors.muted, fontSize: 12, fontWeight: "500" },
+  chipBand: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, borderRadius: 12, backgroundColor: "rgba(52,211,153,0.07)", paddingHorizontal: 12, paddingVertical: 6 },
+  chipPriceBox: { height: 46, justifyContent: "center" },
+  chipPrice: { fontSize: 30, lineHeight: 32, fontFamily: fonts.display, fontVariant: ["tabular-nums"], textShadowColor: "rgba(52,211,153,0.35)", textShadowRadius: 14, textShadowOffset: { width: 0, height: 0 } },
+  chipPriceLabel: { color: colors.faint, fontSize: 10, letterSpacing: 1.5, textTransform: "uppercase" },
+  chipCopy: { flexShrink: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 999, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)", backgroundColor: "rgba(255,255,255,0.05)", paddingVertical: 6, paddingLeft: 10, paddingRight: 8 },
+  chipCopyText: { flexShrink: 1, color: "#e4e4e7", fontSize: 12, fontWeight: "500" },
+  chipCopyPen: { color: colors.faint, fontSize: 12 },
+  verify: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, borderRadius: 999, backgroundColor: "#10b981", paddingHorizontal: 16, paddingVertical: 10 },
+  verifyText: { flexShrink: 1, color: colors.white, fontSize: 14, fontWeight: "600" },
+  verifyMoney: { color: colors.white, fontSize: 14, fontWeight: "600", fontVariant: ["tabular-nums"] },
+  swap: { borderRadius: 999, borderWidth: 1, borderColor: colors.edge, paddingHorizontal: 12, paddingVertical: 10 },
+  swapText: { color: "#e4e4e7", fontSize: 14, fontWeight: "500" },
+  chipDoubt: { color: "#fcd34d", fontSize: 12, fontWeight: "600" },
+
+  // The card big (the site's ScanResultSheet).
+  sheetDone: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, borderWidth: 1, borderColor: colors.edge, backgroundColor: SURFACE_2 },
+  sheetDoneText: { color: colors.white, fontSize: 14, fontWeight: "600" },
+  bigArt: { alignSelf: "center", width: 240, height: 336, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)" },
+  bigSet: { marginTop: 12, textAlign: "center", color: colors.muted, fontSize: 14, lineHeight: 18 },
+  bigPrice: { marginTop: 8, textAlign: "center", color: colors.white, fontSize: 30, fontFamily: fonts.displaySemi, fontVariant: ["tabular-nums"] },
+  bigPriceLabel: { textAlign: "center", color: colors.faint, fontSize: 10, letterSpacing: 1.5, textTransform: "uppercase" },
+  bigCopy: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, borderRadius: 999, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)", backgroundColor: "rgba(255,255,255,0.05)", paddingHorizontal: 16, paddingVertical: 10 },
+  bigCopyText: { flexShrink: 1, color: "#e4e4e7", fontSize: 14, fontWeight: "500" },
+  bigCopyChange: { color: colors.brand300, fontSize: 14, fontWeight: "500" },
+  bigSwap: { alignItems: "center", borderRadius: 999, borderWidth: 1, borderColor: colors.edge, paddingHorizontal: 16, paddingVertical: 10 },
+  bigSwapText: { color: "#e4e4e7", fontSize: 14, fontWeight: "500" },
+  removeBtn: { alignItems: "center", paddingVertical: 12 },
+  removeText: { color: colors.danger, fontSize: 13, fontWeight: "600" },
+
+  // Shared sheet bits.
+  primary: { backgroundColor: colors.brand, borderRadius: 999, paddingVertical: 14, alignItems: "center" },
   primaryText: { color: colors.white, fontSize: 16, fontWeight: "700" },
-  textBtnText: { color: colors.foreground, fontSize: 15, fontWeight: "600" },
-  textBtnDanger: { color: colors.danger, fontSize: 15, fontWeight: "600" },
-  revealBody: { alignItems: "center", paddingHorizontal: space.lg },
-  glowWrap: { marginTop: 0, alignItems: "center", justifyContent: "center", width: 200 + 48, height: 280 + 48 },
-  glow: { position: "absolute", width: 200 + 40, height: 280 + 40, borderRadius: 150, backgroundColor: "rgba(52,211,153,0.12)" },
-  heroCard: { width: 200, height: 280, borderRadius: 10, backgroundColor: colors.surface, shadowColor: colors.money, shadowOpacity: 0.45, shadowRadius: 28, shadowOffset: { width: 0, height: 10 }, elevation: 12 },
-  pill: { marginTop: space.md, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, backgroundColor: "rgba(52,211,153,0.15)" },
-  pillOff: { backgroundColor: "rgba(248,113,113,0.15)" },
-  pillText: { color: colors.money, fontSize: 12, fontWeight: "700" },
-  pillTextOff: { color: colors.danger },
-  copyRow: { alignSelf: "stretch", marginTop: space.lg, backgroundColor: colors.surface, borderColor: colors.edge, borderWidth: 1, borderRadius: radius.lg, paddingVertical: 12, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  copyValue: { color: colors.foreground, fontSize: 15, fontWeight: "600", marginTop: 3 },
-  chev: { color: colors.muted, fontSize: 22 },
-  revealBar: { paddingHorizontal: space.lg, paddingTop: space.sm, backgroundColor: colors.background },
-  doneBtn: { alignItems: "center", paddingVertical: 12 },
   scrim: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)" },
   sheet: { backgroundColor: colors.surfaceRaised, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, paddingTop: space.md, paddingHorizontal: space.lg },
   sheetTall: { maxHeight: "75%" },
-  sheetTitle: { color: colors.white, fontSize: 18, fontWeight: "700", marginBottom: space.xs },
-  cardName: { color: colors.white, fontSize: 24, fontFamily: fonts.displaySemi, letterSpacing: -0.3, textAlign: "center", marginTop: space.md, paddingHorizontal: space.lg },
-  cardSub: { color: colors.muted, fontSize: 14, textAlign: "center", marginTop: 2, paddingHorizontal: space.lg },
-  bigMoney: { color: colors.money, fontSize: 52, fontWeight: "800", textAlign: "center", marginTop: space.xs, letterSpacing: -1 },
-  moneyLabel: { color: colors.faint, fontSize: 13, textAlign: "center", marginTop: 2 },
-  doubt: { color: "#fcd34d", fontSize: 13, fontWeight: "600", textAlign: "center", marginTop: space.sm, paddingHorizontal: space.lg },
+  sheetTitle: { flexShrink: 1, color: colors.white, fontSize: 18, fontWeight: "700", marginBottom: space.xs },
   error: { color: colors.danger, fontSize: 13, textAlign: "center", marginTop: space.sm, paddingHorizontal: space.lg },
   section: { color: colors.muted, fontSize: 12, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5, marginTop: space.lg, marginBottom: 6 },
-  copyLabel: { color: colors.muted, fontSize: 12, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: { borderColor: colors.edge, borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
   chipOn: { backgroundColor: colors.brand, borderColor: colors.brand },
   chipText: { color: colors.muted, fontSize: 14, fontWeight: "500" },
   chipTextOn: { color: colors.white },
-  linkRow: { alignSelf: "stretch", marginTop: space.sm, paddingVertical: 8, paddingHorizontal: 4, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  link: { color: colors.brandSoft, fontSize: 15, fontWeight: "600" },
   row: { flexDirection: "row", alignItems: "center", gap: space.md, paddingVertical: 8, paddingHorizontal: space.lg, borderBottomColor: colors.edge, borderBottomWidth: StyleSheet.hairlineWidth },
   rowOn: { backgroundColor: "rgba(99,102,241,0.12)" },
   thumb: { width: 44, height: 62, borderRadius: 6, backgroundColor: colors.surfaceRaised },
