@@ -541,9 +541,7 @@ function ResultSheets({
             {name}
           </Text>
         </View>
-        <Pressable onPress={close} hitSlop={8} style={styles.sheetDone}>
-          <Text style={styles.sheetDoneText}>Done</Text>
-        </Pressable>
+        {/* No Done up here: the big Done pinned at the bottom is the one (Chris 10-29 5:34pm "we don't need two"). */}
       </View>
     );
     body = (
