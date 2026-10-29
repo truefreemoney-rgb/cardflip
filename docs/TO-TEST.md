@@ -1,5 +1,10 @@
 # To test later
 
+## 10-29 10:25AM ET: the free first scan ends in a card POP-UP, not the website card page (Chris 10:13am; chip's green bar gone; unpushed, bulk push)
+- [x] What: scan.tsx guest mode: the bottom See This Card (and a chip tap) open the big sheet = the card picture, set line, green market price, condition line, "Sign up to keep it" → /signup with the card above the form, the free line; no Change / Not this card?; the chip's third row (See This Card  bar) is gone for guests. The /web guest card page is no longer used by the scanner.
+- [x] Pane (mobile web 8081, 375 px): Test photo → Charizard Pokémon GO .38 → See This Card → the pop-up (shot docs/shots/guest-card-popup-phone.jpg, sent 10:22am) → Sign up to keep it → /signup shows YOUR FIRST SCAN Charizard .38 above the form. tsc + lint clean.
+- [ ] Phone (Expo 8090, QR 10:25am): step 4 again from the reveal: no green bar in the chip; See This Card = the pop-up with the real card picture; Sign up to keep it → the sign-up form with the card; Create Account → the tabs, the card in Inventory.
+
 ## 10-29 10:08AM ET: intro card 1 = the welcome (Chris 10:00am: the first card had no welcome feeling + the Capture pill looked tappable; 10:01am keep the Pikachu + scan idea; unpushed, bulk push)
 - [x] What: intro.tsx card 1 = "Welcome to CardFlip" / "Point your phone at any card. CardFlip finds the exact printing and what it is worth."; the Pikachu VMAX in the guide, 72% wide, no Capture pill; the button on card 1 reads "Let's get started" (card 2 Next, card 3 Get started).
 - [x] Pane (mobile web 8081, 390 px): shot docs/shots/intro-1-welcome-phone.jpg sent 10:08am. tsc + lint clean.

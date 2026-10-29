@@ -11,7 +11,7 @@ import { openSitePage } from "~/components/AppHeader";
 import { emitScanResult } from "~/lib/scanBus";
 import { useAuth } from "~/lib/auth";
 import { setGuestScan } from "~/lib/guestScan";
-import { cardKey, cardPath } from "@/lib/cardPages";
+import PrimaryButton from "~/components/PrimaryButton";
 import { GAMES, fetchCardById, pictureUrl, publicGames, type GameId, type PokemonCard } from "~/lib/catalog";
 import {
   CONDITIONS,
@@ -269,6 +269,7 @@ function RevealChip({
           {guest ? null : <Text style={styles.chipCopyPen}>✎</Text>}
         </Pressable>
       </View>
+      {guest ? null : (
       <View style={styles.chipRow}>
         <Pressable onPress={onVerify} style={({ pressed }) => [styles.verify, pressed && { opacity: 0.85 }]}>
           <Text style={styles.verifyText} numberOfLines={1}>
@@ -282,6 +283,7 @@ function RevealChip({
           </Pressable>
         ) : null}
       </View>
+      )}
       {/* The site's chip (CameraCapture.tsx RevealChip) only turns the label amber to CHECK MATCH; the doubt sentence is not on the chip (Chris 10-29 1:29am "we don't need that yellow text"). */}
     </View>
   );
@@ -357,6 +359,8 @@ function ResultSheets({
   pickCard,
   remove,
   note,
+  guest = false,
+  onSignUp,
 }: {
   phase: ResultPhase;
   sheet: "copy" | "pick" | "big" | null;
@@ -367,6 +371,9 @@ function ResultSheets({
   pickCard: (c: PokemonCard) => void;
   remove: () => void;
   note: string | null;
+  /** The free first scan: the big sheet is the card pop-up (picture, price, Sign up to keep it), no Change / Not this card? (Chris 10-29 10:13am). */
+  guest?: boolean;
+  onSignUp?: () => void;
 }) {
   const { card, condition, variant, found } = phase;
   const price = revealPrice(card, condition, variant);
@@ -396,8 +403,17 @@ function ResultSheets({
             {card.rarity ? ` · ${card.rarity}` : ""}
             {card.number ? ` · #${card.number}` : ""}
           </Text>
-          <Text style={styles.bigPrice}>{price.text ?? "No price yet"}</Text>
+          <Text style={[styles.bigPrice, guest && { color: colors.money }]}>{price.text ?? "No price yet"}</Text>
           {price.text ? <Text style={styles.bigPriceLabel}>market price</Text> : null}
+          {guest ? (
+            <View style={{ marginTop: 16 }}>
+              <Text style={styles.bigGuestCopy}>{copy}</Text>
+              <View style={{ marginTop: 12 }}>
+                <PrimaryButton label="Sign up to keep it" onPress={onSignUp ?? close} />
+              </View>
+              <Text style={styles.bigDeal}>Free · No credit card · This card lands in your Inventory</Text>
+            </View>
+          ) : (
           <View style={{ gap: 8, marginTop: 16 }}>
             <Pressable onPress={() => setSheet("copy")} style={({ pressed }) => [styles.bigCopy, pressed && { opacity: 0.85 }]}>
               <Text style={styles.bigCopyText} numberOfLines={1}>
@@ -411,6 +427,7 @@ function ResultSheets({
               </Pressable>
             ) : null}
           </View>
+          )}
         </View>
       </Modal>
 
@@ -765,15 +782,17 @@ export default function Scan() {
   }, [toQueue, guest]);
 
   /**
-   * The public card page (prices, the history chart, the set) and then the sign-up (Chris 10-29 2:20am: the card
-   * page sells the app). The set slug is a placeholder: only the key picks the card, the page redirects to its own address.
+   * The free first scan's "See This Card": the card pop-up (the big sheet with Sign up to keep it), not the public
+   * card page (Chris 10-29 10:13am: the page opens links everywhere and asks to scan the card just scanned).
    */
   const seeCard = useCallback(() => {
     if (phase.kind !== "result") return;
-    const c = phase.card;
-    const path = cardPath(game, "set", c.englishName || c.name, cardKey(game, { id: c.id, setCode: c.setCode ?? null, number: c.number ?? null }));
-    router.push({ pathname: "/web", params: { path, title: c.englishName || c.name, guest: "1" } });
-  }, [phase, game]);
+    setSheet("big");
+  }, [phase]);
+  const signUp = useCallback(() => {
+    setSheet(null);
+    router.push("/signup");
+  }, []);
 
   const share = useCallback(async () => {
     try {
@@ -1002,7 +1021,7 @@ export default function Scan() {
         ) : null}
       </View>
 
-      {phase.kind === "result" ? <ResultSheets phase={phase} sheet={sheet} setSheet={setSheet} bottom={bottom} pickCondition={pickCondition} pickVariant={pickVariant} pickCard={pickCard} remove={remove} note={note} /> : null}
+      {phase.kind === "result" ? <ResultSheets phase={phase} sheet={sheet} setSheet={setSheet} bottom={bottom} pickCondition={pickCondition} pickVariant={pickVariant} pickCard={pickCard} guest={guest} onSignUp={signUp} remove={remove} note={note} /> : null}
 
       {/* ⋯ Scanner options: the site's sheet (10-15): game, starting condition, light and tips, share, help. */}
       <Modal visible={options} transparent animationType="slide" onRequestClose={() => setOptions(false)}>
@@ -1203,6 +1222,8 @@ const styles = StyleSheet.create({
   bigSet: { marginTop: 12, textAlign: "center", color: colors.muted, fontSize: 14, lineHeight: 18 },
   bigPrice: { marginTop: 8, textAlign: "center", color: colors.white, fontSize: 30, fontFamily: fonts.displaySemi, fontVariant: ["tabular-nums"] },
   bigPriceLabel: { textAlign: "center", color: colors.faint, fontSize: 10, letterSpacing: 1.5, textTransform: "uppercase" },
+  bigGuestCopy: { textAlign: "center", color: colors.foreground, fontSize: 14 },
+  bigDeal: { color: "#6ee7b7", fontSize: 12, fontWeight: "600", textAlign: "center", marginTop: space.sm },
   bigCopy: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, borderRadius: 999, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)", backgroundColor: "rgba(255,255,255,0.05)", paddingHorizontal: 16, paddingVertical: 10 },
   bigCopyText: { flexShrink: 1, color: "#e4e4e7", fontSize: 14, fontWeight: "500" },
   bigCopyChange: { color: colors.brand300, fontSize: 14, fontWeight: "500" },
