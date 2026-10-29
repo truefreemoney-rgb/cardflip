@@ -284,24 +284,36 @@ export default async function Home() {
           <LandingSteps prefix="/home" />
           {/* Plain column on phones and tablets, grid only from lg: one less
               layout mode for iOS to get wrong on rotation. */}
-          <div className="relative mx-auto flex w-full max-w-6xl flex-col items-center gap-8 px-6 pb-6 pt-10 sm:pt-12 lg:grid lg:grid-cols-[1.05fr_0.95fr] lg:gap-6 lg:pb-8">
+          <div className="relative mx-auto flex w-full max-w-6xl flex-col items-center gap-5 px-6 pb-6 pt-5 sm:gap-8 sm:pt-12 lg:grid lg:grid-cols-[1.05fr_0.95fr] lg:gap-6 lg:pb-8">
             {/* Centered until the two-column layout kicks in at lg: between
                 640 and 1023px (iPhone landscape, iPad) the phone sits centered
-                below the copy, so left-aligned copy read as lopsided. */}
-            <div className="flex flex-col items-center gap-6 text-center lg:items-start lg:text-left">
-              <LiveStatsStrip stats={stats} className="text-left" />
-              {/* Each name stays whole; a phone wraps between names, never inside one ("Yu-Gi-" / "Oh!", 10-07). */}
-              <div className="animate-fade-up foil-edge inline-flex flex-wrap items-center justify-center gap-x-1.5 rounded-full px-4 py-1.5 text-xs font-medium text-zinc-200">
+                below the copy, so left-aligned copy read as lopsided.
+                Below lg (Chris 10-28, layout D): 7 of 8 Instagram ad visitors left without a touch when the first
+                screen was stats + headline and the button sat under Safari's bar. Phones now open on the button and
+                the free deal, then games, headline and the scanner; the stats, paragraph and bullets show from lg. */}
+            <div className="flex flex-col items-center gap-4 text-center sm:gap-6 lg:items-start lg:text-left">
+              <LiveStatsStrip stats={stats} className="text-left max-lg:hidden" />
+              {/* Each name stays whole; a phone wraps between names, never inside one ("Yu-Gi-" / "Oh!", 10-07).
+                  One line on phones (Chris 10-28, the lone "Yu-Gi-Oh!" row "looks kinda bad"): "Pokémon" without TCG
+                  and 11px type under 400px wide, so all five fit from a 360px Android up. */}
+              <div className="animate-fade-up foil-edge order-3 inline-flex flex-wrap items-center justify-center gap-x-1.5 rounded-full px-3.5 py-1.5 text-[11px] font-medium text-zinc-200 min-[400px]:px-4 min-[400px]:text-xs lg:order-none">
                 {games.map((g, i) => (
                   <span key={g} className="whitespace-nowrap">
-                    {g === "pokemon" ? "Pokémon TCG" : GAMES[g].label}
+                    {g === "pokemon" ? <>Pokémon<span className="max-sm:hidden"> TCG</span></> : GAMES[g].label}
                     {i < games.length - 1 ? " ·" : ""}
                   </span>
                 ))}
               </div>
 
+              {/* The free deal before sign-up (Acorn's bad reviews, 10-28: the surprise paywall is the #1 complaint). */}
+              <ul className="order-2 flex flex-wrap justify-center gap-x-4 gap-y-1 text-sm font-medium text-emerald-300 lg:hidden">
+                {[`${SCANS.trial} free scans`, "No credit card", "Real market prices"].map((line) => (
+                  <li key={line} className="whitespace-nowrap">✓ {line}</li>
+                ))}
+              </ul>
+
               <h1
-                className="animate-fade-up font-display text-5xl font-bold leading-[1.02] tracking-tight sm:text-7xl"
+                className="animate-fade-up order-4 font-display text-4xl font-bold leading-[1.02] tracking-tight sm:text-7xl lg:order-none"
                 style={{ animationDelay: "60ms" }}
               >
                 Your binder is
@@ -311,24 +323,24 @@ export default async function Home() {
                 <span className="holo-text">Find out how much.</span>
               </h1>
 
-              <p className="animate-fade-up max-w-md text-lg leading-relaxed text-zinc-400" style={{ animationDelay: "120ms" }}>
+              <p className="animate-fade-up max-w-md text-lg leading-relaxed text-zinc-400 max-lg:hidden" style={{ animationDelay: "120ms" }}>
                 {/* Both jobs (ticket #1001, 10-16): a binder's worth, not only selling. */}
                 Point your phone at a card. CardFlip finds the exact printing and
                 its live market price, and adds up what your whole binder is worth.
                 Selling? It writes the eBay listing. You tap Post.
               </p>
 
-              <div className="animate-fade-up flex w-full max-w-xs flex-col gap-3 sm:w-auto sm:max-w-none sm:flex-row" style={{ animationDelay: "180ms" }}>
+              <div className="animate-fade-up order-1 flex w-full max-w-xs flex-col gap-3 sm:w-auto sm:max-w-none sm:flex-row lg:order-none" style={{ animationDelay: "180ms" }}>
                 <TrialCta className="sheen rounded-full bg-brand-500 px-8 py-3.5 text-center text-sm font-semibold text-white shadow-lg shadow-brand-500/30 transition hover:-translate-y-0.5 hover:bg-brand-400" />
                 <a
                   href="#how-it-works"
-                  className="rounded-full border border-edge px-8 py-3.5 text-center text-sm font-semibold text-zinc-200 transition hover:-translate-y-0.5 hover:bg-surface-2"
+                  className="rounded-full border border-edge px-8 py-3.5 text-center text-sm font-semibold text-zinc-200 transition hover:-translate-y-0.5 hover:bg-surface-2 max-lg:hidden"
                 >
                   See How It Works
                 </a>
               </div>
 
-              <ul className="animate-fade-up mt-2 flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs text-zinc-500 lg:justify-start" style={{ animationDelay: "240ms" }}>
+              <ul className="animate-fade-up mt-2 flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs text-zinc-500 max-lg:hidden lg:justify-start" style={{ animationDelay: "240ms" }}>
                 {[
                   `${catalogLabel} printings, each priced on its own`,
                   "Market price plus live eBay comps",

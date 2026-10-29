@@ -81,15 +81,57 @@ export default function MarketingNav() {
   // TAP_4 grows each 36px link and button to a 44px tap target without changing its look (review 10-19 #24).
   const link = `${TAP_4} whitespace-nowrap px-2.5 py-2 text-sm text-zinc-400 transition hover:text-white`;
 
+  // Log In / Get Started (or Log out / Open the App). Rendered twice: beside the logo on phones, at the row's end from sm.
+  const account = (where: string) =>
+    user || (!known && hinted) ? (
+      <div className={`items-center ${where}`}>
+        <button
+          type="button"
+          onClick={() => {
+            // A failed call still reloads: the page then shows whether the session really ended (review 10-19 marketing #20).
+            void logout()
+              .then(() => setUser(null))
+              .catch(() => undefined)
+              .finally(() => window.location.reload());
+          }}
+          className={link}
+        >
+          Log out
+        </button>
+        <Link
+          href="/app"
+          className={`${TAP_4} ml-1 whitespace-nowrap rounded-full bg-brand-500 px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-brand-400 min-[400px]:px-4`}
+        >
+          Open the App
+        </Link>
+      </div>
+    ) : (
+      <div className={`items-center ${where}`}>
+        <Link href="/login" className={`${link} ${known ? "" : "invisible"}`}>
+          Log In
+        </Link>
+        <Link
+          href="/signup"
+          className={`${TAP_4} ml-1 whitespace-nowrap rounded-full bg-brand-500 px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-brand-400 min-[400px]:px-4 ${known ? "" : "invisible"}`}
+        >
+          Get Started
+        </Link>
+      </div>
+    );
+
   return (
     <>
     {bottomNav && <PublicBottomNav />}
     <header className="sticky top-0 z-50 bg-background/85 backdrop-blur-md after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-holo-violet/25 after:to-transparent">
-      <nav className="mx-auto flex w-full max-w-6xl flex-col items-center gap-1 px-4 py-2 sm:h-14 sm:flex-row sm:justify-between sm:gap-0 sm:px-6 sm:py-0">
-        <Logo />
-        {/* Phones (Chris 10-14: "the top nav is missing How it works, Features and card prices"): every link shows and the
-            row wraps into two lines (search + the three pages, then Pricing / Log In / Get Started). One row from sm up. */}
-        <div className="flex flex-wrap items-center justify-center gap-1 sm:flex-nowrap sm:gap-2">
+      <nav className="mx-auto flex w-full max-w-6xl flex-col items-center gap-0.5 px-3 py-1.5 min-[400px]:px-4 sm:h-14 sm:flex-row sm:justify-between sm:gap-0 sm:px-6 sm:py-0">
+        {/* Phones (Chris 10-28, "i hate how pricing adds an extra row"): two rows, not three. Row 1 = a smaller logo
+            with the account pair beside it; row 2 = search + the pages. "How It Works" left the nav (same flow as
+            Features; the home page section stays). One row from sm up. */}
+        <div className="flex w-full items-center justify-between sm:w-auto">
+          <Logo size="nav" />
+          {account("flex sm:hidden")}
+        </div>
+        <div className="flex items-center justify-center gap-1 sm:gap-2">
           {/* Search first (Chris 10-08: left of How It Works, not in the middle of the links). */}
           <button
             type="button"
@@ -102,9 +144,6 @@ export default function MarketingNav() {
               {searching ? <path d="M6 6l12 12M18 6L6 18" /> : <><circle cx="11" cy="11" r="7" /><path d="M20 20l-4-4" /></>}
             </svg>
           </button>
-          <Link href="/#how-it-works" className={link}>
-            How It Works
-          </Link>
           <Link href="/features" className={link}>
             Features
           </Link>
@@ -114,41 +153,7 @@ export default function MarketingNav() {
           <Link href="/pricing" className={link}>
             Pricing
           </Link>
-          {user || (!known && hinted) ? (
-            <>
-              <button
-                type="button"
-                onClick={() => {
-                  // A failed call still reloads: the page then shows whether the session really ended (review 10-19 marketing #20).
-                  void logout()
-                    .then(() => setUser(null))
-                    .catch(() => undefined)
-                    .finally(() => window.location.reload());
-                }}
-                className={link}
-              >
-                Log out
-              </button>
-              <Link
-                href="/app"
-                className={`${TAP_4} ml-1 whitespace-nowrap rounded-full bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-400`}
-              >
-                Open the App
-              </Link>
-            </>
-          ) : (
-            <>
-              <Link href="/login" className={`${link} ${known ? "" : "invisible"}`}>
-                Log In
-              </Link>
-              <Link
-                href="/signup"
-                className={`${TAP_4} ml-1 whitespace-nowrap rounded-full bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-400 ${known ? "" : "invisible"}`}
-              >
-                Get Started
-              </Link>
-            </>
-          )}
+          {account("hidden sm:flex")}
         </div>
       </nav>
       {searching && (

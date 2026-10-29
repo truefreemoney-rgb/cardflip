@@ -12,9 +12,10 @@ import logo from "../../public/brand/cardflip-logo.png";
  * Replaced the inline "Spin Cycle" SVG mark + "CardFlip" text. The favicon
  * and app icon are the same CF card mark (app/icon.png, app/apple-icon.png, 09-10).
  */
-export default function Logo({ size = "md", href = "/" }: { size?: "sm" | "md"; href?: string }) {
+export default function Logo({ size = "md", href = "/" }: { size?: "sm" | "md" | "nav"; href?: string }) {
   // sm = the app header: 24px under 400px wide so logo + help + scans + eBay fit one row (Chris 09-30).
-  const box = size === "sm" ? "h-6 min-[400px]:h-7" : "h-8";
+  // nav = the public nav: same phone sizes so Log In + Get Started fit beside it (10-28), full size from sm.
+  const box = size === "sm" ? "h-6 min-[400px]:h-7" : size === "nav" ? "h-6 min-[400px]:h-7 sm:h-8" : "h-8";
   return (
     <Link href={href} aria-label="CardFlip" className="flex items-center">
       <Image src={logo} alt="CardFlip" priority className={`${box} w-auto`} />
