@@ -31,6 +31,14 @@ Status: FINAL 10-28 10:12 PM ET. Chris: "going to rely on you for most of this."
 - Later: any web screen becomes native by building it and repointing the tab. Never a wrapper-only app; the first screen a reviewer sees is native.
 - 10-29 1:23 AM ET, Chris on the real phone: "the app has to match the website almost 1:1, everywhere and anywhere possible". Applied all the way: every tab is the site's own page inside the app (Scanner /app, Inventory /app/collection, Search /app/price-check, Watchlist, Account); only sign-in, the tab bar, the header and the camera + reveal are native. The site's Add Cards asks the app for the camera (lib/appMode.ts postToApp); the camera hands scans into the open page ("cardflip:resume"); tabs re-sync on focus ("cardflip:focus"). The native My Cards/Sets/Insights/Browse/card page screens from 10-28 are retired in git (before commit 4aeef9da) for when those go native again. Apple 4.2 (wrapper) risk accepted as moderate: the first screens a reviewer touches are native.
 
+## First open (decided 10-29 1:51 AM ET, Chris: "directly after the intro, it goes right into scanning their first card then signup")
+1. Launch screen: logo on the dark background, no wait.
+2. Intro, once, skippable (Skip in the corner, dots): three pages, still images of the real screens for now (Scan any card / See what it is worth in seconds / Track your collection or sell on eBay). Chris: the intro gets made in Blender when the time comes; the pages are built so the stills swap for the Blender clips without touching the flow.
+3. Straight into the camera: the new user scans their first card before any account (the guest scan). The reveal is the real one, money green.
+4. Sign up to keep it: the sign-up screen (mirrors the site's, plus Sign in with Apple) with the scanned card shown above it; on sign-up the scan lands in the new account's Inventory. "I already have an account" → sign in, same hand-over.
+5. Returning users see none of it: Inventory, as now.
+Guest scan, server side (the one feature-freeze exception, Chris's call 10-29): a device-keyed guest token from the app (one free scan per device, a second needs an account), an IP cap on top (the 10-20/10-21 bot wave: the firewall + 20 guest scans per IP per day, 429 past it), the scan saved under the guest token and claimed by the account at sign-up. Cost ceiling: a scan is about $0.03 (10-21: 21 scans = $0.63), so 1,000 first-opens = about $30 before any of them pays.
+
 ## What stays web only
 - Admin, social autopilot, board, marketing pages, SEO card pages, legal (terms, privacy).
 - The app links out to legal pages when Apple needs them shown.
