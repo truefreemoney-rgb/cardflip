@@ -43,7 +43,9 @@ async function handoff(req: Request, redirectTo: string | null): Promise<NextRes
   const user = userId && expiresAt ? await findUserById(userId) : null;
   if (!user || !expiresAt) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
 
-  const res = redirectTo ? NextResponse.redirect(new URL(withAppFlag(redirectTo), req.url), 303) : new NextResponse(null, { status: 204 });
+  // A relative Location on purpose: req.url names the server's own host (localhost:3000 behind the dev tunnel), and the
+  // WebView must come back through whatever host it used. Browsers and WKWebView resolve it against the request.
+  const res = redirectTo ? new NextResponse(null, { status: 303, headers: { location: withAppFlag(redirectTo) } }) : new NextResponse(null, { status: 204 });
   res.cookies.set(SESSION_COOKIE, token, sessionCookieOptions(expiresAt));
   setHomeCookie(res, user.id, user.homeCountry, token);
   // Readable by the page's inline script (lib/appMode.ts), so not httpOnly.
