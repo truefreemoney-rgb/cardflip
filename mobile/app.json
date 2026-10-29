@@ -32,11 +32,33 @@
           "imageWidth": 76
         }
       ],
-      "expo-apple-authentication"
+      "expo-apple-authentication",
+      [
+        "expo-quick-actions",
+        {
+          "iosActions": [
+            {
+              "id": "scan",
+              "title": "Scan a card",
+              "subtitle": "See what it is worth",
+              "icon": "symbol:camera.viewfinder",
+              "params": {
+                "href": "/scan"
+              }
+            }
+          ]
+        }
+      ],
+      "expo-app-intents"
     ],
     "experiments": {
       "typedRoutes": true,
-      "reactCompiler": true
+      "reactCompiler": true,
+      "inlineModules": {
+        "watchedDirectories": [
+          "app-intents"
+        ]
+      }
     }
   }
 }

@@ -60,7 +60,7 @@ Guest scan, server side (the one feature-freeze exception, Chris's call 10-29): 
 - Easy cancel, plain trial wording, never ask for a rating next to a paywall.
 - Kid and parent friendly: plain words, Sign in with Apple/Google, parent pays.
 - Answer every App Store review. Ship updates often.
-- Lock Screen / Action Button scanner shortcut.
+- Lock Screen / Action Button scanner shortcut. BUILT 10-29 12:50pm (Home Screen quick action + "Scan a card" App Shortcut; TO-TEST 10-29 12:50PM, needs the dev build).
 - Check Japanese/foreign card reading before launch.
 
 ## Test flow
