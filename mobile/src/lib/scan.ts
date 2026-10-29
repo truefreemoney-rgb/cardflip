@@ -393,7 +393,9 @@ export async function swapSavedCard(id: string, card: PokemonCard, condition: Co
         variant,
         price: quotePrice(card, condition, "quick", override)?.suggested ?? 0,
         scanMarket: market.text && !market.note ? Number(market.text.replace(/[^0-9.]/g, "")) || null : null,
-        verifiedAt: Date.now(),
+        // No verifiedAt: a pick is a correction, not a verification; the site's swapCard leaves the row
+        // unverified and the queue's Verify is still the person's call (Chris 10-29 5:44pm: "any card picked
+        // is auto verified … without actually pressing it").
       },
     });
     return true;

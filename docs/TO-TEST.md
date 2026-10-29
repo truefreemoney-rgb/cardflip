@@ -1,5 +1,9 @@
 # To test later
 
+## 10-29 5:50PM ET: a Not this card? pick no longer auto-verifies the scan (Chris 5:44pm phone bug; tsc + eslint clean; app only, unpushed, bulk push)
+What changed (mobile/src/lib/scan.ts swapSavedCard): the pick sent verifiedAt=now; the site's swapCard sends none. Removed, so a corrected card still waits for Verify like on the site.
+- [ ] CHRIS, phone: 1. Scan a card, Not this card?, pick another card, Done on the camera: on the scanner page the card is in the queue WAITING to verify (Verify button shown), not already verified. 2. Pick the original card back: same, still waiting.
+
 ## 10-29 5:45PM ET: Scanner tab no longer turns into Inventory after Done (Chris 5:41pm phone bug; tsc + eslint clean; app only, unpushed, bulk push)
 What changed (mobile/src/components/SiteWebView.tsx): the site's Done on the scanner page is a client-side jump to /app/collection and the Scanner tab's page followed it. Now a tab's page heading for another tab's page (collection / price-check / wishlist / account) switches to that tab and the page goes back where it was (history.back). Pushed pages with the Back bar keep their links.
 - [ ] CHRIS, phone: 1. Scanner tab, Add Cards, scan a card, Done on the camera, then Done on the scanner page: you should land on the INVENTORY tab (Inventory lit at the bottom) with the new card in the list. 2. Tap Scanner: the scanner page (Add Cards), not Inventory. 3. Inventory tab, Set Completion/Insights links still open inside Inventory (same tab, those are not tab pages).
