@@ -112,14 +112,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refresh();
   }, [refresh]);
 
-  // Waiting on the emailed code: the person taps the link in Mail and comes back, so re-check on return.
+  // Back to the foreground: re-check the account (Chris 10-29 5:26pm "how will they refresh?"). The scan count
+  // changes behind the app's back: a subscription or Booster pack paid on the Stripe page, a code waiting in
+  // Mail, the admin granting scans. One /api/auth/me per return, not more than once every 10 s.
+  const signedIn = !!user;
   useEffect(() => {
-    if (!user?.mustConfirmEmail) return;
+    if (!signedIn) return;
+    let last = 0;
     const sub = AppState.addEventListener("change", (state) => {
-      if (state === "active") void refresh();
+      if (state !== "active" || Date.now() - last < 10_000) return;
+      last = Date.now();
+      void refresh();
     });
     return () => sub.remove();
-  }, [user?.mustConfirmEmail, refresh]);
+  }, [signedIn, refresh]);
 
   // A 401 on any signed-in call (lib/api.ts): the session died behind the app's back, so re-check at once.
   useEffect(() => {

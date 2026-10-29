@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-nati
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import PrimaryButton from "~/components/PrimaryButton";
 import SiteWebView, { safeSitePath } from "~/components/SiteWebView";
+import { useAuth } from "~/lib/auth";
 import { colors, fonts, space } from "~/lib/theme";
 
 /**
@@ -22,7 +23,14 @@ export default function WebScreen() {
   const guest = (Array.isArray(params.guest) ? params.guest[0] : params.guest) === "1";
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
-  const back = () => (router.canGoBack() ? router.back() : router.replace(guest ? "/first-scan" : "/(app)/cards"));
+  const { user, refresh } = useAuth();
+  const back = () => {
+    // Pricing, packs or rewards may have changed the scan count on the server: re-read it so the native
+    // header is right the moment the page closes (Chris 10-29 5:26pm "how will they refresh?").
+    if (user) void refresh();
+    if (router.canGoBack()) router.back();
+    else router.replace(guest ? "/first-scan" : "/(app)/cards");
+  };
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
