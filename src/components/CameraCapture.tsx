@@ -79,6 +79,33 @@ async function preferCloseUpCamera(stream: MediaStream, edge: number): Promise<M
   }
 }
 
+/** The close-up lens's device id from the last scan, so the next open asks for it first instead of swapping mid-open. */
+const LENS_KEY = "cf:lens";
+function rememberedLens(): string | null {
+  try {
+    return localStorage.getItem(LENS_KEY);
+  } catch {
+    return null;
+  }
+}
+function rememberLens(stream: MediaStream): void {
+  try {
+    const track = stream.getVideoTracks()[0];
+    if (!track || !/dual wide|triple/i.test(track.label)) return;
+    const id = track.getSettings().deviceId;
+    if (id) localStorage.setItem(LENS_KEY, id);
+  } catch {
+    // Private mode: next open swaps once more, as before.
+  }
+}
+function forgetLens(): void {
+  try {
+    localStorage.removeItem(LENS_KEY);
+  } catch {
+    // Nothing to forget.
+  }
+}
+
 /** ?dbg=outline's panel, frame dumps and photo input: dev builds only, production never builds it. */
 const CameraOutlineDebug =
   process.env.NODE_ENV === "production" ? null : dynamic(() => import("@/components/CameraOutlineDebug"), { ssr: false });
@@ -548,7 +575,17 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
           { video: true },
         ];
         let stream: MediaStream | null = null;
-        for (let i = 0; i < attempts.length; i++) {
+        // The lens that scanned last time opens straight away (one camera start, no swap mid-open: the swap
+        // showed as a freeze on Chris's iPhone, 10-29 9:53am). A stale id just falls through to the usual asks.
+        const remembered = rememberedLens();
+        if (remembered) {
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: remembered }, width: { ideal: edge }, height: { ideal: edge } } });
+          } catch {
+            forgetLens();
+          }
+        }
+        for (let i = 0; !stream && i < attempts.length; i++) {
           try {
             stream = await navigator.mediaDevices.getUserMedia(attempts[i]);
             break;
@@ -559,6 +596,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
         }
         if (!stream) throw new DOMException("no stream", "NotReadableError");
         stream = await preferCloseUpCamera(stream, edge);
+        rememberLens(stream);
 
         if (cancelled) {
           stream.getTracks().forEach((track) => track.stop());
