@@ -19,6 +19,8 @@ function Root() {
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
       <Stack.Protected guard={user === null}>
+        {/* First open: the three swipe cards, once per install (intro.tsx). */}
+        <Stack.Screen name="intro" />
         <Stack.Screen name="login" />
       </Stack.Protected>
       <Stack.Protected guard={Boolean(user)}>
