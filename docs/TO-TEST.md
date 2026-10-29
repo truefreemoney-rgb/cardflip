@@ -1,5 +1,10 @@
 # To test later
 
+## 10-29 10:08AM ET: intro card 1 = the welcome (Chris 10:00am: the first card had no welcome feeling + the Capture pill looked tappable; 10:01am keep the Pikachu + scan idea; unpushed, bulk push)
+- [x] What: intro.tsx card 1 = "Welcome to CardFlip" / "Point your phone at any card. CardFlip finds the exact printing and what it is worth."; the Pikachu VMAX in the guide, 72% wide, no Capture pill; the button on card 1 reads "Let's get started" (card 2 Next, card 3 Get started).
+- [x] Pane (mobile web 8081, 390 px): shot docs/shots/intro-1-welcome-phone.jpg sent 10:08am. tsc + lint clean.
+- [ ] Chris: yes on the look. Phone (Expo 8089, QR 10:08am; needs the intro flag cleared = sign out + reinstall Expo Go's copy): first card is the welcome, no button inside the picture, "Let's get started" swipes to card 2.
+
 ## 10-29 10:05AM ET: the camera opens on the close-up lens, no lens switch after the preview (Chris 9:53am: the Dual Wide swap glitched/froze for a second on app AND site; unpushed, bulk push)
 - [x] What: app scan.tsx mounts CameraView on the Dual Wide (expo-camera falls back to the default when the lens is missing); the lens list is still read on camera ready and only a phone whose pick differs changes lens. Site CameraCapture.tsx remembers the close-up lens deviceId (localStorage cf:lens) after a session on a Dual Wide/Triple track and asks for it first next open = one camera start; a stale id is forgotten and the old path runs. First-ever site open still swaps once.
 - [x] tsc + lint clean (app and site); pane /app loads, no console errors (desktop webcam has no Dual Wide label, so the remembered path stays empty there).

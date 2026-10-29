@@ -27,8 +27,8 @@ type Page = { title: string; body: string; picture: () => ReactElement };
 
 const PAGES: Page[] = [
   {
-    title: "Scan any card",
-    body: "Point your phone at a card. CardFlip finds the exact printing.",
+    title: "Welcome to CardFlip",
+    body: "Point your phone at any card. CardFlip finds the exact printing and what it is worth.",
     picture: () => <ScannerStill />,
   },
   {
@@ -102,13 +102,13 @@ export default function Intro() {
           ))}
         </View>
         <Text style={styles.deal}>✓ {FREE_SCANS} free scans · No credit card · Real market prices</Text>
-        <PrimaryButton label={last ? "Get started" : "Next"} onPress={next} />
+        <PrimaryButton label={last ? "Get started" : page === 0 ? "Let's get started" : "Next"} onPress={next} />
       </View>
     </Screen>
   );
 }
 
-/** Card 1: the scanner guide with a card lined up in it, as scan.tsx draws it. */
+/** Card 1 (the welcome, Chris 10-29 10:00am): the scanner guide with a card lined up in it, as scan.tsx draws it; no Capture button, it looked tappable. */
 function ScannerStill() {
   return (
     <View style={stills.frame}>
@@ -120,9 +120,6 @@ function ScannerStill() {
         <Corner at="br" />
       </View>
       <Text style={stills.hint}>{"Line the card's edges up with the corners"}</Text>
-      <View style={stills.capture}>
-        <Text style={stills.captureText}>Capture</Text>
-      </View>
     </View>
   );
 }
@@ -232,12 +229,10 @@ const styles = StyleSheet.create({
 
 const stills = StyleSheet.create({
   frame: { flex: 1, alignItems: "center", justifyContent: "center", padding: space.lg },
-  guide: { width: "58%", aspectRatio: 63 / 88, borderRadius: 10, overflow: "visible" },
+  guide: { width: "72%", aspectRatio: 63 / 88, borderRadius: 10, overflow: "visible" },
   guideCard: { width: "100%", height: "100%", borderRadius: 10 },
   corner: { position: "absolute", width: 32, height: 32, borderColor: BRACKET },
   hint: { color: colors.foreground, fontSize: 13, marginTop: space.lg, textAlign: "center" },
-  capture: { marginTop: space.md, backgroundColor: colors.brand, borderRadius: 999, paddingVertical: 10, paddingHorizontal: 44 },
-  captureText: { color: colors.white, fontSize: 16, fontWeight: "700" },
   revealCard: { width: "52%", aspectRatio: 63 / 88, borderRadius: 12 },
   price: { color: colors.money, fontSize: 44, lineHeight: 50, fontFamily: fonts.display, marginTop: space.md, letterSpacing: -1 },
   priceSub: { color: colors.muted, fontSize: 14, marginTop: 2 },
