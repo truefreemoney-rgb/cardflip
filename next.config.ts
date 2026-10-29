@@ -39,7 +39,21 @@ const nextConfig: NextConfig = {
   // The social pictures read their fonts the same way (lib/server/ogFonts.ts).
   outputFileTracingIncludes: { "/admin": ["./docs/BOARD.md"], "/api/social/image": ["./src/assets/fonts/*"], "/api/share/card": ["./src/assets/fonts/*"], "/api/share/collection": ["./src/assets/fonts/*"] },
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    const rules = [{ source: "/:path*", headers: securityHeaders }];
+    // Dev only (10-28, docs/APP-PLAN.md): the iPhone app's web preview (expo start --web, port 8081) calls this dev
+    // server's API from another origin so the app screens can be checked in the browser pane without a phone. Never
+    // in a production build: the live API answers browsers on cardflip.io only.
+    if (process.env.NODE_ENV !== "production") {
+      rules.push({
+        source: "/api/:path*",
+        headers: [
+          { key: "Access-Control-Allow-Origin", value: "http://localhost:8081" },
+          { key: "Access-Control-Allow-Methods", value: "GET, POST, PUT, PATCH, DELETE, OPTIONS" },
+          { key: "Access-Control-Allow-Headers", value: "content-type, authorization, x-cardflip-app" },
+        ],
+      });
+    }
+    return rules;
   },
   // Search Console 10-22 lists /home as a 404 (an old link somewhere): the front page is /.
   async redirects() {

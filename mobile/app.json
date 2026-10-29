@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "CardFlip",
+    "slug": "cardflip",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "cardflip",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0a0b11",
+    "ios": {
+      "bundleIdentifier": "io.cardflip.app",
+      "supportsTablet": false,
+      "icon": "./assets/expo.icon",
+      "infoPlist": {
+        "NSCameraUsageDescription": "CardFlip uses the camera to scan your cards and show what they are worth."
+      }
+    },
+    "web": {
+      "output": "single",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#0a0b11",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 76
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}

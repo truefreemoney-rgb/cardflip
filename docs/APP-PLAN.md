@@ -1,4 +1,4 @@
-﻿# CardFlip iPhone app plan (draft 10-28-2026, 10 PM ET)
+# CardFlip iPhone app plan (draft 10-28-2026, 10 PM ET)
 
 Status: FINAL 10-28 10:12 PM ET. Chris: "going to rely on you for most of this." Decisions are Claude's; Chris does phone steps, Apple account/payments, and the yes on looks.
 
