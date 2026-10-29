@@ -9,6 +9,7 @@ import CardImage from "@/components/CardImage";
 import Price from "@/components/Price";
 import CardDetailModal from "@/components/CardDetailModal";
 import CategorySheet, { distinctCategories } from "@/components/CategorySheet";
+import { AUTO_CATEGORY, resolveCategory } from "@/lib/categories";
 import CategoryManager from "@/components/CategoryManager";
 import { fetchCardById, searchCards } from "@/lib/cards";
 import { pickPrinting } from "@/lib/cardNumber";
@@ -3588,14 +3589,16 @@ export default function CollectionPage() {
       {categoryTarget && (
         <CategorySheet
           title={`Category for ${categoryTarget.cardName}`}
-          hint="Pick a category, or type a new one. Choose No category to clear it."
+          hint="Pick a category, or type a new one. Auto files it under its set; No category clears it."
           categories={categories}
           current={categoryTarget.category}
           confirmLabel="Move card"
           busy={moving}
+          auto="add"
           onClose={() => setCategoryTarget(null)}
-          onPick={async (next) => {
+          onPick={async (pick) => {
             const target = cards.find((c) => c.id === categoryTarget.id) ?? categoryTarget;
+            const next = resolveCategory(pick, parseGame(target.game), target.setName, categories);
             if (target.category !== next) {
               setMoving(true);
               const ok = await applyPatch(target, { category: next });
@@ -3609,7 +3612,7 @@ export default function CollectionPage() {
       {moveSheet && (
         <CategorySheet
           title={`Move ${selected.size} card${selected.size === 1 ? "" : "s"} to…`}
-          hint="Pick a category, or type a new one. Choose No category to clear it."
+          hint="Pick a category, or type a new one. Auto files each card under its set; No category clears it."
           categories={categories}
           current={(() => {
             const first = cards.find((c) => selected.has(c.id));
@@ -3617,15 +3620,19 @@ export default function CollectionPage() {
           })()}
           confirmLabel="Move"
           busy={moving}
+          auto="add"
           onClose={() => setMoveSheet(false)}
-          onPick={async (next) => {
-            const targets = cards.filter((c) => selected.has(c.id) && c.category !== next);
+          onPick={async (pick) => {
+            // Auto (10-29): each card to its own set's category.
+            const targetFor = (c: ServerCard) => resolveCategory(pick, parseGame(c.game), c.setName, categories);
+            const targets = cards.filter((c) => selected.has(c.id) && c.category !== targetFor(c));
             setMoving(true);
-            const moved = (await Promise.all(targets.map((c) => applyPatch(c, { category: next })))).filter(Boolean).length;
+            const moved = (await Promise.all(targets.map((c) => applyPatch(c, { category: targetFor(c) })))).filter(Boolean).length;
             setMoving(false);
             setMoveSheet(false);
             setSelected(new Set());
-            if (moved > 0) toast(next ? `${moved} moved to ${next}` : `${moved} uncategorized`, moved === targets.length ? undefined : "err");
+            const where = pick === AUTO_CATEGORY ? "their sets" : pick;
+            if (moved > 0) toast(where ? `${moved} moved to ${where}` : `${moved} uncategorized`, moved === targets.length ? undefined : "err");
           }}
         />
       )}

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Sheet from "@/components/Sheet";
 
-import { CATEGORY_MAX } from "@/lib/categories";
+import { AUTO_CATEGORY, CATEGORY_MAX } from "@/lib/categories";
 export { CATEGORY_MAX };
 
 /**
@@ -12,6 +12,9 @@ export { CATEGORY_MAX };
  * Existing categories are one-tap chips; "New category" is a text field.
  * "No category" leaves the card uncategorized. Shared by the scanner
  * (pre-scan prompt) and Inventory (bulk move).
+ * "Auto" (10-29, Chris) files each card under its own set (lib/categories.ts
+ * setCategoryFor): the scanner's sheet shows it in place of "No category",
+ * Inventory's move sheets show both.
  */
 export default function CategorySheet({
   title,
@@ -20,6 +23,7 @@ export default function CategorySheet({
   current,
   confirmLabel = "Continue",
   busy = false,
+  auto,
   onClose,
   onPick,
 }: {
@@ -31,11 +35,14 @@ export default function CategorySheet({
   current: string | null;
   confirmLabel?: string;
   busy?: boolean;
+  /** "replace": Auto stands where "No category" was (the scanner); "add": both (Inventory's moves). */
+  auto?: "replace" | "add";
   onClose: () => void;
-  /** null = no category. */
+  /** null = no category; AUTO_CATEGORY = each card's own set. */
   onPick: (category: string | null) => void;
 }) {
-  const [choice, setChoice] = useState<string | null>(current);
+  // Auto is the default when nothing is remembered and the sheet offers it (10-29).
+  const [choice, setChoice] = useState<string | null>(current ?? (auto === "replace" ? AUTO_CATEGORY : null));
   // Never start in "new" mode: on an iPhone the autofocused field raised
   // the keyboard over the sheet before the seller saw it (Chris, 09-04).
   const [creating, setCreating] = useState(false);
@@ -63,16 +70,31 @@ export default function CategorySheet({
   return (
     <Sheet title={title} hint={hint} onClose={onClose} backId="category">
         <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              setCreating(false);
-              setChoice(null);
-            }}
-            className={chip(!creating && choice === null)}
-          >
-            No category
-          </button>
+          {auto && (
+            <button
+              type="button"
+              onClick={() => {
+                setCreating(false);
+                setChoice(AUTO_CATEGORY);
+              }}
+              className={chip(!creating && choice === AUTO_CATEGORY)}
+              title="Each card goes in a category named after its set"
+            >
+              Auto · by set
+            </button>
+          )}
+          {auto !== "replace" && (
+            <button
+              type="button"
+              onClick={() => {
+                setCreating(false);
+                setChoice(null);
+              }}
+              className={chip(!creating && choice === null)}
+            >
+              No category
+            </button>
+          )}
           {categories.map((c) => (
             <button
               key={c}
@@ -135,7 +157,7 @@ export default function CategorySheet({
 export function distinctCategories(cards: { category: string | null }[]): string[] {
   const seen = new Map<string, string>();
   for (const c of cards) {
-    if (c.category && !seen.has(c.category.toLowerCase())) seen.set(c.category.toLowerCase(), c.category);
+    if (c.category && c.category !== AUTO_CATEGORY && !seen.has(c.category.toLowerCase())) seen.set(c.category.toLowerCase(), c.category);
   }
   return [...seen.values()].sort((a, b) => a.localeCompare(b));
 }

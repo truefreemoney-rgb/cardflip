@@ -58,6 +58,7 @@ import { GAMES, isGameId, parseGame, readSavedGame, saveGame } from "@/lib/games
 import { TAP_8 } from "@/lib/tap";
 import { OPEN_SCAN_NOTE, readActivePackId, readSavedCategory, readSavedCondition, readSavedStrategy, saveCategory } from "@/lib/client/scanPrefs";
 import CategorySheet, { distinctCategories } from "@/components/CategorySheet";
+import { resolveCategory } from "@/lib/categories";
 import ActivePackBar from "@/components/ActivePackBar";
 import {
   createServerCard,
@@ -301,6 +302,8 @@ export default function AppPage() {
     scanCategoryRef.current = scanCategory;
   }, [scanCategory]);
   const [categoryPrompt, setCategoryPrompt] = useState<{ existing: string[] } | null>(null);
+  // The account's categories as last fetched, so an Auto pick reuses an existing spelling of a set.
+  const knownCategoriesRef = useRef<string[]>([]);
   // Asked once per camera session, AFTER the first capture (Chris, 09-04:
   // "move it to after the picture is taken") — no gate before shooting.
   const categoryAskedRef = useRef(false);
@@ -937,7 +940,8 @@ export default function AppPage() {
               game: next.game,
               catalogCardId: card.id || null,
               rarity: card.rarity ?? null,
-              category: scanCategoryRef.current,
+              // Auto (10-29) = this card's own set.
+              category: resolveCategory(scanCategoryRef.current, next.game, card.setName, knownCategoriesRef.current),
               // Pulls from an open pack (Open a Pack) are tied to it.
               packId: readActivePackId(userIdRef.current),
               // The finish the scan read (Magic foil / etched), set on the
@@ -1219,6 +1223,7 @@ export default function AppPage() {
       categoryAskedRef.current = true;
       setCategoryPrompt({ existing: [] });
       void fetchCategories(gameRef.current).then((list) => {
+        knownCategoriesRef.current = list;
         setCategoryPrompt((p) => (p ? { existing: list } : p));
       });
     }
@@ -2161,9 +2166,10 @@ export default function AppPage() {
             // follow the pick; unsaved ones read the ref at create time.
             for (const itemId of sessionItemIdsRef.current) {
               const it = itemsRef.current.find((i) => i.id === itemId);
-              if (it?.serverId) void updateServerCard(it.serverId, { category });
+              if (it?.serverId) void updateServerCard(it.serverId, { category: resolveCategory(category, it.game, it.card?.setName, knownCategoriesRef.current) });
             }
           }}
+          auto="replace"
         />
       )}
     </>
