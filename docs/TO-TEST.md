@@ -10,6 +10,7 @@
 - [x] Pane (mobile web 8081, 375 px): first-scan page (shot first-scan-two-buttons-phone.jpg); /first-card with a seeded Charizard (shot first-card-full-page-phone.jpg: chart ▼13% in 30 days, .79/.10, Jul 31–Oct 29). tsc + lint clean. Sent 10:45am.
 - [ ] BLOCKED locally until the Testing workspace cap is raised (Anthropic console, Chris; it reset itself Nov 1): the local trial read 400s "workspace API usage limits". Phone (Expo 8094, QR 10:45am) once reads work: Scan Your Card → camera → read lands → the full page with the real card + chart (no camera behind it) → Sign up to keep it → form with the card → Create Account → tabs, card in Inventory. Also: Create an account from the first-scan page → the plain sign-up form; relaunch after a scan without signing up → Scan Your Card reopens the result page.
 - [x] 10:41am Chris on 8094: Scan Your Card went straight to the card page (his phone still held the 10:11am Geeta) = the remembered scan; "this is fine i guess" → the button now reads "See Your Card" when a scan is waiting (commit after f182e5f4, Expo 8095).
+- [x] 10:52am Chris, build 8095 on the phone: the full first open ran (first-scan page → See Your Card → sign-up form; four 400s were a bad address he typed, then "signing in works and takes me to the inventory page"). Still to hear: the Geeta row in Inventory.
 - [ ] Chris: yes on the two looks (shots).
 
 ## 10-29 10:30AM ET: launch with the intro seen and no account = the first-scan page, not login (Chris 10:19am "it brings me directly to a log in page"; unpushed, bulk push)
