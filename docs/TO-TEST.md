@@ -1,6 +1,6 @@
 # To test later
 
-## 10-29 1:10AM ET: scanner lens = Dual Wide, app AND site (unpushed, bulk push)
+## 10-29 1:10AM ET: scanner lens = Dual Wide, app AND site (PUSHED 1:11am in the bulk push cc7e16e0; CI run 40821943913)
 - [x] Why: on Chris's iPhone the app's preview was a blur at card distance while TCGplayer was sharp at the same distance, and the object sat smaller in our frame = expo-camera had come up on the 0.5x ultra-wide (no autofocus on most iPhones). A lens picker settled it 1:05am: "Dual Wide" matches TCGplayer. App: selectedLens = Dual Wide > Triple > wide (commit af8968d1). Site: CameraCapture.tsx preferCloseUpCamera swaps Safari's plain "Back Camera" for "Back Dual Wide Camera" / "Back Triple Camera" once the labels are readable (after the first stream), keeps the first stream on any failure.
 - [x] Phone (Expo Go, Dual Wide chip): sharp at card distance, scanned. Also fixed on the phone tonight: the guide is the site's size (60% width, b7b1ba60), the dim's corners curve with the brackets, a tap on the preview refocuses with the site's ring.
 - [ ] Phone, Dual Wide baked in (QR 1:09am): the preview comes up sharp without touching ⋯; the Victini chip says MATCH FOUND with the right print; Verify Your Scan → Inventory; row → the site's card page; Watchlist + Account tabs load.
