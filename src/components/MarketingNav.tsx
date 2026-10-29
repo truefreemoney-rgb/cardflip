@@ -122,7 +122,7 @@ export default function MarketingNav() {
   return (
     <>
     {bottomNav && <PublicBottomNav />}
-    <header className="sticky top-0 z-50 bg-background/85 backdrop-blur-md after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-holo-violet/25 after:to-transparent">
+    <header data-app-hide className="sticky top-0 z-50 bg-background/85 backdrop-blur-md after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-holo-violet/25 after:to-transparent">
       <nav className="mx-auto flex w-full max-w-6xl flex-col items-center gap-0.5 px-3 py-1.5 min-[400px]:px-4 sm:h-14 sm:flex-row sm:justify-between sm:gap-0 sm:px-6 sm:py-0">
         {/* Phones (Chris 10-28, "i hate how pricing adds an extra row"): two rows, not three. Row 1 = a smaller logo
             with the account pair beside it; row 2 = search + the pages. "How It Works" left the nav (same flow as

@@ -24,6 +24,8 @@ function Root() {
         <Stack.Screen name="card/[id]" />
         <Stack.Screen name="cards/sets" />
         <Stack.Screen name="cards/insights" />
+        {/* A cardflip.io page inside the app (account, packs, wishlist, rewards, help, price check, subscribe). */}
+        <Stack.Screen name="web" />
       </Stack.Protected>
     </Stack>
   );

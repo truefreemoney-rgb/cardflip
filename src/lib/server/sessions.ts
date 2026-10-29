@@ -81,6 +81,18 @@ export async function createSession(userId: string): Promise<SessionInfo> {
   return { token, expiresAt };
 }
 
+/**
+ * When a live session runs out, or null for an unknown / expired token. The
+ * app-to-website handoff (api/auth/app-cookie) needs it to give the cookie
+ * the same end date the session already has.
+ */
+export async function sessionExpiresAt(token: string): Promise<number | null> {
+  const row = await findSession(token);
+  if (!row) return null;
+  const end = Math.min(row.expires_at, hardEnd(row.created_at));
+  return end > Date.now() ? end : null;
+}
+
 export async function getSessionUserId(token: string): Promise<string | null> {
   const row = await findSession(token);
   if (!row) return null;

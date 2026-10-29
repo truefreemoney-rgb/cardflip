@@ -9,7 +9,7 @@ import { NOT_AFFILIATED } from "@/lib/games";
  */
 export default function Footer() {
   return (
-    <footer className="relative px-4 pt-6 sm:px-6 pb-[calc(2rem+var(--bottom-nav-h,0px))] before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-holo-violet/20 before:to-transparent">
+    <footer data-app-hide className="relative px-4 pt-6 sm:px-6 pb-[calc(2rem+var(--bottom-nav-h,0px))] before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-holo-violet/20 before:to-transparent">
       <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-2 text-sm text-zinc-400 sm:flex-row">
         <span>© {new Date().getFullYear()} CardFlip</span>
         <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-0.5">

@@ -39,6 +39,7 @@ const ALLOWLIST = {
   "/auth/forgot": "password-reset request: public by design, IP and account rate limited",
   "/auth/google/onetap": "the Google id_token in the body is the credential (signature checked by Google's tokeninfo, aud + nonce checked here); IP rate limited; refused with a session cookie",
   "/auth/logout": "ends the caller's own session cookie",
+  "/auth/app-cookie": "the iPhone app's bearer session token is the credential (x-cardflip-app + getSessionUserId); it only re-issues that same session as the website cookie",
   "/auth/x/finish": "signed x_pending cookie from the X callback is the credential (no session yet); IP rate limited",
   "/auth/reset": "emailed one-time reset token is the credential; IP rate limited",
   "/vision/trial": "ad-landing free scan: public by design, gated by device/IP limits and a daily budget",

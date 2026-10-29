@@ -86,6 +86,7 @@ export default function BottomTabBar() {
   return (
     <nav
       aria-label="Main"
+      data-app-hide
       className="fixed inset-x-0 bottom-0 z-40 border-t border-edge-strong bg-[#0d0e15] pb-[env(safe-area-inset-bottom)] md:hidden"
     >
       <div className="flex h-14 items-stretch">

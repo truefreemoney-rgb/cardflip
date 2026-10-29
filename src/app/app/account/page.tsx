@@ -80,6 +80,7 @@ function Row({
   action,
   open = false,
   hint,
+  appHide = false,
   children,
 }: {
   title: string;
@@ -87,10 +88,12 @@ function Row({
   action?: React.ReactNode;
   open?: boolean;
   hint?: string;
+  /** Hidden inside the iPhone app (lib/appMode.ts): rows about Safari / the Home Screen make no sense there. */
+  appHide?: boolean;
   children?: React.ReactNode;
 }) {
   return (
-    <div className="px-4 py-3.5 sm:px-5">
+    <div className="px-4 py-3.5 sm:px-5" data-app-hide={appHide ? "" : undefined}>
       {/* Wraps: on a phone the trial Plan row's two buttons squeezed the text
           into a one-word column (10-01); they drop under it instead. */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -1088,6 +1091,7 @@ function AccountSettings({
         </Row>
         <Row
           title="Phone notifications"
+          appHide
           status={
             <>
               <Dot on={push === "on"} />

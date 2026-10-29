@@ -122,7 +122,7 @@ export default function AppHeader() {
   );
 
   return (
-    <header className="sticky top-0 z-40 flex flex-col gap-1.5 bg-background/85 px-3 py-1.5 pt-[max(0.375rem,env(safe-area-inset-top))] sm:gap-2 sm:py-3 sm:pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-holo-violet/25 after:to-transparent sm:px-6">
+    <header data-app-hide className="sticky top-0 z-40 flex flex-col gap-1.5 bg-background/85 px-3 py-1.5 pt-[max(0.375rem,env(safe-area-inset-top))] sm:gap-2 sm:py-3 sm:pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-holo-violet/25 after:to-transparent sm:px-6">
       {/* Phones: TWO rows — logo + the personal strip share the first line,
           the tab pill takes the second (it is w-full there, so it wraps).
           From sm the grid keeps the tabs centered; the third cell is the

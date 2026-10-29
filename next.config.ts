@@ -44,14 +44,20 @@ const nextConfig: NextConfig = {
     // server's API from another origin so the app screens can be checked in the browser pane without a phone. Never
     // in a production build: the live API answers browsers on cardflip.io only.
     if (process.env.NODE_ENV !== "production") {
+      // Allow-Credentials (10-28, the in-app web screen): the preview's sign-in handoff (fetch with
+      // credentials: "include" to /api/auth/app-cookie) has to be allowed to store the cookie it gets back.
       rules.push({
         source: "/api/:path*",
         headers: [
           { key: "Access-Control-Allow-Origin", value: "http://localhost:8081" },
+          { key: "Access-Control-Allow-Credentials", value: "true" },
           { key: "Access-Control-Allow-Methods", value: "GET, POST, PUT, PATCH, DELETE, OPTIONS" },
           { key: "Access-Control-Allow-Headers", value: "content-type, authorization, x-cardflip-app" },
         ],
       });
+      // The preview shows website pages in an <iframe> from port 8081 (the phone uses a real WebView, which no
+      // frame header touches), so the dev server alone drops X-Frame-Options. Production keeps SAMEORIGIN.
+      rules[0] = { source: "/:path*", headers: securityHeaders.filter((h) => h.key !== "X-Frame-Options") };
     }
     return rules;
   },

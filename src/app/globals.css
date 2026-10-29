@@ -1010,3 +1010,17 @@ p {
     font-size: max(1rem, 1em);
   }
 }
+
+/* ---------------------------------------------------------------
+   App mode (lib/appMode.ts): a website page shown inside the iPhone app.
+   The root layout's inline script sets <html data-app="1"> before paint;
+   everything marked data-app-hide (marketing nav, app header, tab bar,
+   footers, "add to Home Screen" rows) goes, and the bottom-bar padding
+   the /app layout reserves (data-app-shell) is zero.
+   --------------------------------------------------------------- */
+html[data-app="1"] [data-app-hide] {
+  display: none !important;
+}
+html[data-app="1"] [data-app-shell] {
+  --bottom-nav-h: 0px !important;
+}

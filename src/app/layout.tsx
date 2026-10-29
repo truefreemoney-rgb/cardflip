@@ -9,6 +9,7 @@ import DeferredAnalytics from "@/components/DeferredAnalytics";
 import GoogleOneTap from "@/components/GoogleOneTap";
 import { googleConfigured } from "@/lib/server/googleAuth";
 import { DESCRIPTION } from "@/lib/structuredData";
+import { APP_MODE_SCRIPT } from "@/lib/appMode";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -78,8 +79,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       data-scroll-behavior="smooth"
       className={`${geistSans.variable} ${geistMono.variable} ${bricolage.variable} h-full antialiased`}
+      // The app-mode script below adds data-app="1" to this element before React hydrates (lib/appMode.ts).
+      suppressHydrationWarning
     >
       <body className="flex min-h-full flex-col bg-background text-foreground">
+        {/* Inside the iPhone app (lib/appMode.ts): hides the website chrome before the first paint. */}
+        <script dangerouslySetInnerHTML={{ __html: APP_MODE_SCRIPT }} />
         {children}
         <AttributionCapture />
         <VisitPing />

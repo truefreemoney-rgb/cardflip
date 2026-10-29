@@ -106,6 +106,7 @@ const GATE_EXEMPT_PREFIXES = [
   "/api/waitlist",
   "/api/geo",
   "/api/auth/login",
+  "/api/auth/app-cookie", // the iPhone app handing its session to a web page (sets cf_home itself)
   "/api/auth/me",
   "/api/auth/logout",
   "/api/auth/forgot",
