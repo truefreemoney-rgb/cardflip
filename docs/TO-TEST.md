@@ -2,7 +2,7 @@
 
 ## 10-29 5:35PM ET: app re-reads the account on foreground + on Back from a site page (Chris 5:26pm "how will they refresh?"; tsc + eslint clean; app only, unpushed, bulk push)
 What changed: lib/auth.tsx = signed in, every return to the foreground re-reads /api/auth/me (was: only while an email waited for its code), at most once per 10 s; app/web.tsx = the Back button on Pricing/packs/rewards/help re-reads the account first, so a subscription or Booster pack paid on the Stripe page shows in the native header the moment the page closes. Scans themselves already update the count per scan.
-- [ ] CHRIS, phone: 1. Signed in, note the header count. 2. (I change the count in the local DB.) Swipe up to home, tap back into Expo Go: the header shows the new count within a second. 3. Tap Subscribe/Pricing in the header, then Back: the header count is current.
+- [x] PASSED Chris 5:37pm ("i got the scans": 3 -> 5 on return to the foreground). CHRIS, phone: 1. Signed in, note the header count. 2. (I change the count in the local DB.) Swipe up to home, tap back into Expo Go: the header shows the new count within a second. 3. Tap Subscribe/Pricing in the header, then Back: the header count is current.
 - [ ] Prod, after the bulk push + the first TestFlight build: subscribe from the in-app Pricing page, tap Back: the header reads the plan scans, not "free scans".
 
 ## 10-29 5:05PM ET (PHONE-CHECKED by Chris 5:34pm, pass; the paywall at step 3 was the device/network free-scan rule, not a bug): app MIRRORS the site, part 2 (login, sign-up, welcome step, scanner, header, first card; tsc + eslint clean; checked in the web preview at 390 wide against the site; app only, unpushed, bulk push)
