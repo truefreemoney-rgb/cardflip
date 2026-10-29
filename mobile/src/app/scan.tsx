@@ -5,13 +5,13 @@ import { SaveFormat, manipulateAsync } from "expo-image-manipulator";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ActivityIndicator, Animated, Linking, Modal, PanResponder, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, View, type LayoutChangeEvent, type StyleProp, type TextStyle } from "react-native";
+import { ActivityIndicator, Animated, Linking, Modal, PanResponder, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, TextInput, View, type LayoutChangeEvent, type StyleProp, type TextStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { openSitePage } from "~/components/AppHeader";
 import { emitScanResult } from "~/lib/scanBus";
 import { useAuth } from "~/lib/auth";
 import { setGuestScan } from "~/lib/guestScan";
-import { GAMES, fetchCardById, pictureUrl, publicGames, type GameId, type PokemonCard } from "~/lib/catalog";
+import { GAMES, fetchCardById, pictureUrl, publicGames, searchTyped, type GameId, type PokemonCard } from "~/lib/catalog";
 import {
   CONDITIONS,
   defaultVariantOf,
@@ -151,6 +151,55 @@ function CountUpMoney({ text, revealKey, style }: { text: string | null; revealK
 }
 
 /** The website's reveal tiers (lib/client/scanFx.ts): the label and colours grow with the card's market. */
+/** The site's revealTier (lib/client/scanFx.ts): the stamp's words and colour by market value. */
+type RevealTier = "plain" | "nice" | "big" | "grail";
+function revealTier(market: number | null): RevealTier {
+  if (market == null || market < 20) return "plain";
+  if (market < 100) return "nice";
+  if (market < 500) return "big";
+  return "grail";
+}
+const STAMP: Record<RevealTier, { text: string; color: string; ring: string }> = {
+  plain: { text: "Found!", color: colors.white, ring: "#34d399" },
+  nice: { text: "Found!", color: "#6ee7b7", ring: "#34d399" },
+  big: { text: "Nice pull!", color: "#fcd34d", ring: "#fcd34d" },
+  grail: { text: "Big one!", color: HOLO_PINK, ring: HOLO_PINK },
+};
+
+/**
+ * The site's RevealStamp: "Found!" slams into the middle of the guide the instant the scan resolves
+ * (scale 2 → 1, a small tilt settling), a ring kicks outward from the brackets, and both clear in
+ * about 1.4 s so the chip below carries the detail. Keyed per scan by the caller.
+ */
+function RevealStamp({ market }: { market: number | null }) {
+  const tier = revealTier(market);
+  const [t] = useState(() => new Animated.Value(0));
+  useEffect(() => {
+    Animated.timing(t, { toValue: 1, duration: 1400, useNativeDriver: true }).start();
+  }, [t]);
+  const opacity = t.interpolate({ inputRange: [0, 0.12, 0.75, 1], outputRange: [0, 1, 1, 0] });
+  const scale = t.interpolate({ inputRange: [0, 0.18, 1], outputRange: [2, 1, 1] });
+  const rotate = t.interpolate({ inputRange: [0, 0.18, 1], outputRange: ["-10deg", "-3deg", "-3deg"] });
+  const ringScale = t.interpolate({ inputRange: [0, 0.6, 1], outputRange: [0.96, 1.06, 1.06] });
+  const ringOpacity = t.interpolate({ inputRange: [0, 0.1, 0.6, 1], outputRange: [0, 1, 0, 0] });
+  return (
+    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      <Animated.View style={[styles.stampRing, { borderColor: STAMP[tier].ring, opacity: ringOpacity, transform: [{ scale: ringScale }] }]} />
+      <Animated.View style={[StyleSheet.absoluteFill, { alignItems: "center", justifyContent: "center", opacity, transform: [{ scale }, { rotate }] }]}>
+        <Text style={[styles.stampText, { color: STAMP[tier].color }]}>{STAMP[tier].text}</Text>
+      </Animated.View>
+    </View>
+  );
+}
+
+/** "5 Scans Waiting To Verify" (the site's verifyLabel): shorter once the numbers get long so the money keeps its room. */
+function verifyLabel(count: number, value: number, narrow = false): string {
+  const noun = count === 1 ? "Scan" : "Scans";
+  if (narrow) return count >= 10 || value >= 1000 ? (count === 1 ? "Verify Scan" : "Verify All") : `Verify ${count} ${noun}`;
+  const long = count >= 10 || value >= 1000;
+  return `${count} ${noun} ${long ? "To Verify" : "Waiting To Verify"}`;
+}
+
 function tierOf(market: number | null, doubt: boolean): { label: string; color: string; border: string } {
   if (doubt) return { label: "CHECK MATCH", color: "#fcd34d", border: "rgba(251,191,36,0.4)" };
   if (market != null && market >= 500) return { label: "BIG ONE", color: HOLO_PINK, border: "rgba(240,171,252,0.6)" };
@@ -203,6 +252,7 @@ function RevealChip({
   onEdit,
   onVerify,
   onSwap,
+  verify,
   guest = false,
 }: {
   card: PokemonCard;
@@ -217,6 +267,8 @@ function RevealChip({
   onEdit: () => void;
   onVerify: () => void;
   onSwap: () => void;
+  /** This session's scans waiting and their total: "5 Scans Waiting To Verify · $23.40" on the green button, like the site. */
+  verify: { count: number; value: number } | null;
   /** The free first scan: one job, the card page then the sign-up; no Clear, no edit, no Verify, no "Not this card?" (Chris 10-29 2:18am). */
   guest?: boolean;
 }) {
@@ -272,9 +324,9 @@ function RevealChip({
       <View style={styles.chipRow}>
         <Pressable onPress={onVerify} style={({ pressed }) => [styles.verify, pressed && { opacity: 0.85 }]}>
           <Text style={styles.verifyText} numberOfLines={1}>
-            {guest ? "See This Card" : saving ? "Saving…" : savedId ? "Verify Your Scan" : "Not saved"}
+            {guest ? "See This Card" : saving ? "Saving…" : !savedId ? "Not saved" : verify ? verifyLabel(verify.count, verify.value, canSwap) : "Verify Your Scan"}
           </Text>
-          {market != null ? <Text style={styles.verifyMoney}>{formatMoney(market)}</Text> : null}
+          {verify && verify.value > 0 ? <Text style={styles.verifyMoney}>{formatMoney(verify.value)}</Text> : market != null && !verify ? <Text style={styles.verifyMoney}>{formatMoney(market)}</Text> : null}
         </Pressable>
         {canSwap && !guest ? (
           <Pressable onPress={onSwap} style={({ pressed }) => [styles.swap, pressed && { opacity: 0.85 }]}>
@@ -387,8 +439,10 @@ function ResultSheets({
   pickCard,
   remove,
   note,
+  game,
 }: {
   phase: ResultPhase;
+  game: GameId;
   sheet: "copy" | "pick" | "big" | null;
   setSheet: (s: "copy" | "pick" | "big" | null) => void;
   bottom: number;
@@ -407,6 +461,27 @@ function ResultSheets({
   const copy = [condition, printing].filter(Boolean).join(" · ");
   const close = () => setSheet(null);
   const name = card.englishName || card.name;
+  // "Select Your Card" (the site's CandidatePicker): the matcher's other candidates, or a name search.
+  const [term, setTerm] = useState("");
+  const [foundCards, setFoundCards] = useState<PokemonCard[] | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const others = found.candidates.filter((c) => c.id !== card.id).slice(0, 6);
+  const picks = foundCards ?? (options.length > 1 ? options.filter((c) => c.id !== card.id) : others);
+  async function runSearch() {
+    if (!term.trim() || searching) return;
+    setSearching(true);
+    setSearchError(null);
+    try {
+      const cards = (await searchTyped(term, game, found.language, { limit: 24, exact: false })) ?? [];
+      if (cards.length === 0) setSearchError("No cards matched that search.");
+      setFoundCards(cards.length > 0 ? cards : null);
+    } catch {
+      setSearchError("Search failed — check your connection.");
+    } finally {
+      setSearching(false);
+    }
+  }
 
   let head: ReactNode = null;
   let body: ReactNode = null;
@@ -440,11 +515,9 @@ function ResultSheets({
             </Text>
             <Text style={styles.bigCopyChange}>Change</Text>
           </Pressable>
-          {options.length > 1 ? (
-            <Pressable onPress={() => setSheet("pick")} style={({ pressed }) => [styles.bigSwap, pressed && { opacity: 0.85 }]}>
-              <Text style={styles.bigSwapText}>Not this card?</Text>
-            </Pressable>
-          ) : null}
+          <Pressable onPress={() => setSheet("pick")} style={({ pressed }) => [styles.bigSwap, pressed && { opacity: 0.85 }]}>
+            <Text style={styles.bigSwapText}>Not this card?</Text>
+          </Pressable>
         </View>
         {/* Off the "This copy" sheet (the site keeps that one to condition + printing): the card itself owns Remove. */}
         <Pressable
@@ -522,36 +595,48 @@ function ResultSheets({
   } else if (sheet === "pick") {
     head = (
       <View style={styles.sheetHead}>
-        <Text style={styles.sheetTitle}>Which card is it?</Text>
+        <Text style={styles.sheetTitle}>Select Your Card</Text>
         <Pressable onPress={close} hitSlop={8} style={styles.sheetDone}>
           <Text style={styles.sheetDoneText}>Done</Text>
         </Pressable>
       </View>
     );
-    body = options.map((c) => {
-      const p = revealPrice(c, condition, null);
-      return (
-        <Pressable
-          key={c.id}
-          onPress={() => {
-            close();
-            pickCard(c);
-          }}
-          style={[styles.row, c.id === card.id && styles.rowOn]}
-        >
-          <Image source={{ uri: pictureUrl(c.imageSmall) ?? undefined }} style={styles.thumb} contentFit="cover" />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.rowName} numberOfLines={1}>
-              {c.englishName || c.name}
-            </Text>
-            <Text style={styles.rowSub} numberOfLines={1}>
-              {c.setName} · #{c.number}
-            </Text>
-          </View>
-          <Text style={styles.rowMoney}>{p.text ?? "—"}</Text>
-        </Pressable>
-      );
-    });
+    body = (
+      <>
+        <View style={styles.findRow}>
+          <TextInput value={term} onChangeText={setTerm} placeholder="Find matches" placeholderTextColor={colors.faint} accessibilityLabel="Find matches by card name" returnKeyType="search" onSubmitEditing={() => void runSearch()} autoCapitalize="words" style={styles.findInput} />
+          <Pressable onPress={() => void runSearch()} disabled={searching} style={({ pressed }) => [styles.findBtn, (pressed || searching) && { opacity: 0.7 }]}>
+            {searching ? <ActivityIndicator color={colors.white} size="small" /> : null}
+            <Text style={styles.findBtnText}>Search</Text>
+          </Pressable>
+        </View>
+        {searchError ? <Text style={styles.findError}>{searchError}</Text> : null}
+        {picks.length === 0 && !searchError ? <Text style={styles.findEmpty}>No other matches. Type the card&apos;s name above.</Text> : null}
+        <View style={styles.grid}>
+          {picks.map((c) => (
+            <Pressable
+              key={c.id}
+              onPress={() => {
+                close();
+                pickCard(c);
+              }}
+              style={({ pressed }) => [styles.tile, pressed && { borderColor: colors.edgeStrong, transform: [{ scale: 0.98 }] }]}
+            >
+              <Image source={{ uri: pictureUrl(c.imageSmall) ?? undefined }} style={styles.tileArt} contentFit="cover" transition={150} />
+              <View style={styles.tileText}>
+                <Text style={styles.tileName} numberOfLines={2}>
+                  {c.name}
+                </Text>
+                <Text style={styles.tileSet} numberOfLines={2}>
+                  {c.setName}
+                </Text>
+                <Text style={styles.tileNum}>#{c.number}</Text>
+              </View>
+            </Pressable>
+          ))}
+        </View>
+      </>
+    );
   }
 
   return (
@@ -560,7 +645,7 @@ function ResultSheets({
       <View style={[styles.sheet, styles.sheetCap, { paddingBottom: bottom }]}>
         <SheetHandle onClose={close} />
         {head}
-        <ScrollView style={styles.sheetBody} contentContainerStyle={sheet === "pick" ? styles.sheetBodyEdge : undefined} keyboardShouldPersistTaps="handled">
+        <ScrollView style={styles.sheetBody} keyboardShouldPersistTaps="handled">
           {body}
         </ScrollView>
         {footer ? <View style={styles.sheetFoot}>{footer}</View> : null}
@@ -855,7 +940,9 @@ export default function Scan() {
   const quotaNote = miss?.quota ? miss.message : null;
   const ready = granted && cameraReady;
   const guestResult = guest && phase.kind === "result";
-  const captureLabel = guestResult ? "See This Card" : quotaNote ? (guest ? "Sign Up For 5 Free Scans" : "Get More Scans") : `Capture ${GAMES[game].label} Card`;
+  // Out of scans: the site keeps the Capture label and says "You're out of scans. Tap Capture to get more." under the viewfinder.
+  const captureLabel = guestResult ? "See This Card" : quotaNote && guest ? "Sign Up For 5 Free Scans" : `Capture ${GAMES[game].label} Card`;
+  const quotaWords = quotaNote ? (guest ? quotaNote : "You're out of scans. Tap Capture to get more.") : null;
   const captureDisabled = !quotaNote && !guestResult && (busy || reading || !ready);
   const hintTop = guide ? (guide.y >= 32 ? guide.y / 2 : guide.y + 18) : 0;
   const lightShown = Platform.OS !== "web";
@@ -929,6 +1016,7 @@ export default function Scan() {
             <View style={[styles.dim, { left: guide.x - DIM, top: guide.y - DIM, width: guide.w + DIM * 2, height: guide.h + DIM * 2 }]} />
             <View style={[styles.guide, { left: guide.x, top: guide.y, width: guide.w, height: guide.h }]}>
               {reading ? <Sweep height={guide.h} /> : null}
+              {phase.kind === "result" ? <RevealStamp key={phase.card.id} market={moneyValue(revealPrice(phase.card, phase.condition, phase.variant).text)} /> : null}
               <View style={[styles.corner, styles.cornerTL]} />
               <View style={[styles.corner, styles.cornerTR]} />
               <View style={[styles.corner, styles.cornerBL]} />
@@ -971,7 +1059,7 @@ export default function Scan() {
       </View>
 
       {/* The chip slot under the viewfinder: the how-to until the first scan, then the reading / miss chip. */}
-      {quotaNote ? <Text style={styles.quotaNote}>{quotaNote}</Text> : null}
+      {quotaWords ? <Text style={styles.quotaNote}>{quotaWords}</Text> : null}
       <View style={styles.slot}>
         {phase.kind === "result" ? (
           <RevealChip
@@ -981,7 +1069,8 @@ export default function Scan() {
             doubt={phase.found.doubt ?? null}
             saving={phase.saving}
             savedId={phase.savedId}
-            canSwap={printingOptions(phase.card, phase.found.candidates).length > 1}
+            canSwap={!guest}
+            verify={tally.count > 0 ? tally : null}
             onExpand={() => setSheet("big")}
             onClear={() => setPhase({ kind: "camera" })}
             onEdit={() => setSheet("copy")}
@@ -1052,6 +1141,15 @@ export default function Scan() {
             {busy || reading ? <ActivityIndicator color={colors.white} /> : <Text style={styles.captureText}>{captureLabel}</Text>}
           </LinearGradient>
         </Pressable>
+        {tally.count > 0 && !guest ? (
+          // The site's tray button: the session's scans waiting, the count on a green badge; it opens the queue.
+          <Pressable onPress={() => toQueue(null)} accessibilityLabel={`${tally.count} ${tally.count === 1 ? "scan" : "scans"} waiting to verify, open the list`} style={({ pressed }) => [styles.tray, pressed && { borderColor: colors.edgeStrong }]}>
+            <Ionicons name="albums-outline" size={20} color="#e4e4e7" />
+            <View style={styles.trayBadge}>
+              <Text style={styles.trayBadgeText}>{tally.count}</Text>
+            </View>
+          </Pressable>
+        ) : null}
         {devTest ? (
           <Pressable onPress={devTestPhoto} disabled={busy} style={styles.devBtn}>
             <Text style={styles.devBtnText}>Test photo</Text>
@@ -1059,7 +1157,7 @@ export default function Scan() {
         ) : null}
       </View>
 
-      {phase.kind === "result" ? <ResultSheets phase={phase} sheet={sheet} setSheet={setSheet} bottom={bottom} pickCondition={pickCondition} pickVariant={pickVariant} pickCard={pickCard} remove={remove} note={note} /> : null}
+      {phase.kind === "result" ? <ResultSheets phase={phase} sheet={sheet} setSheet={setSheet} bottom={bottom} pickCondition={pickCondition} pickVariant={pickVariant} pickCard={pickCard} remove={remove} note={note} game={game} /> : null}
 
       {/* ⋯ Scanner options: the site's sheet (10-15): game, starting condition, light and tips, share, help. */}
       <Modal visible={options} transparent animationType="slide" onRequestClose={() => setOptions(false)}>
@@ -1276,7 +1374,24 @@ const styles = StyleSheet.create({
   sheet: { backgroundColor: colors.surfaceRaised, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, paddingTop: space.md, paddingHorizontal: space.lg },
   sheetCap: { maxHeight: "85%" },
   sheetBody: { flexGrow: 0, flexShrink: 1 },
-  sheetBodyEdge: { marginHorizontal: -space.lg },
+  findRow: { flexDirection: "row", gap: 8 },
+  findInput: { flex: 1, minWidth: 0, borderRadius: 999, borderWidth: 1, borderColor: colors.edge, backgroundColor: SURFACE_2, paddingHorizontal: 16, paddingVertical: 10, color: colors.white, fontSize: 16 },
+  findBtn: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 999, backgroundColor: colors.brand, paddingHorizontal: 16, paddingVertical: 10 },
+  findBtnText: { color: colors.white, fontSize: 14, fontWeight: "600" },
+  findError: { marginTop: 8, color: colors.danger, fontSize: 12 },
+  findEmpty: { marginTop: 12, color: colors.muted, fontSize: 14 },
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginTop: 12 },
+  tile: { width: "47.5%", borderRadius: 12, borderWidth: 1, borderColor: colors.edge, backgroundColor: SURFACE_2, overflow: "hidden" },
+  tileArt: { width: "100%", aspectRatio: 63 / 88, backgroundColor: "rgba(0,0,0,0.4)" },
+  tileText: { paddingHorizontal: 8, paddingVertical: 8 },
+  tileName: { color: colors.white, fontSize: 14, fontWeight: "600", lineHeight: 17 },
+  tileSet: { color: colors.muted, fontSize: 12, lineHeight: 15, marginTop: 4 },
+  tileNum: { color: colors.faint, fontSize: 12 },
+  stampRing: { position: "absolute", left: 0, right: 0, top: 0, bottom: 0, borderRadius: 12, borderWidth: 2 },
+  stampText: { fontFamily: fonts.display, fontSize: 48, letterSpacing: -1, textShadowColor: "rgba(0,0,0,0.6)", textShadowRadius: 24, textShadowOffset: { width: 0, height: 2 } },
+  tray: { width: 48, height: 48, borderRadius: 24, borderWidth: 1, borderColor: colors.edge, backgroundColor: SURFACE_2, alignItems: "center", justifyContent: "center" },
+  trayBadge: { position: "absolute", right: -4, top: -4, minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 6, backgroundColor: "#10b981", alignItems: "center", justifyContent: "center" },
+  trayBadgeText: { color: colors.white, fontSize: 11, fontWeight: "700", fontVariant: ["tabular-nums"] },
   sheetFoot: { paddingTop: space.md },
   sheetSub: { color: colors.muted, fontSize: 13, marginTop: -2 },
   sheetNote: { marginTop: space.md, color: colors.faint, fontSize: 12, textAlign: "center" },
@@ -1290,10 +1405,4 @@ const styles = StyleSheet.create({
   chipOn: { backgroundColor: colors.brand, borderColor: colors.brand },
   chipText: { color: colors.muted, fontSize: 14, fontWeight: "500" },
   chipTextOn: { color: colors.white },
-  row: { flexDirection: "row", alignItems: "center", gap: space.md, paddingVertical: 8, paddingHorizontal: space.lg, borderBottomColor: colors.edge, borderBottomWidth: StyleSheet.hairlineWidth },
-  rowOn: { backgroundColor: "rgba(99,102,241,0.12)" },
-  thumb: { width: 44, height: 62, borderRadius: 6, backgroundColor: colors.surfaceRaised },
-  rowName: { color: colors.foreground, fontSize: 15, fontWeight: "600" },
-  rowSub: { color: colors.faint, fontSize: 12, marginTop: 1 },
-  rowMoney: { color: colors.money, fontSize: 15, fontWeight: "700" },
 });

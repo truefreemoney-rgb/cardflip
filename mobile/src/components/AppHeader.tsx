@@ -4,8 +4,12 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import RobotBuddy from "~/components/RobotBuddy";
 import { useAuth, type SessionUser } from "~/lib/auth";
 import { colors, gradients, space } from "~/lib/theme";
+
+/** The site's bg-surface-2 (the Help button's pressed state). */
+const SURFACE_2 = "rgba(175,185,255,0.12)";
 
 /**
  * The website's app header (src/components/AppHeader.tsx), phone row: the
@@ -25,8 +29,9 @@ export default function AppHeader() {
       <View style={styles.row}>
         <Image source={require("../../assets/images/cardflip-logo.png")} style={styles.logo} contentFit="contain" accessibilityLabel="CardFlip" />
         <View style={styles.right}>
-          <Pressable onPress={() => openSitePage("/app/help", "Help")} hitSlop={8} style={styles.help}>
-            <Ionicons name="chatbubble-ellipses-outline" size={20} color={colors.brand300} />
+          {/* The site's NavRobot: the robot with "Help" captioned under him (phones); a tap opens the help page. */}
+          <Pressable onPress={() => openSitePage("/app/help", "Help")} accessibilityLabel="Help" hitSlop={8} style={({ pressed }) => [styles.help, pressed && { backgroundColor: SURFACE_2 }]}>
+            <RobotBuddy size={26} />
             <Text style={styles.helpText}>Help</Text>
           </Pressable>
           {user && !user.mustConfirmEmail && <ScanCounter user={user} />}
@@ -110,8 +115,8 @@ const styles = StyleSheet.create({
   row: { height: 48, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: space.md },
   logo: { width: 128, height: 24 },
   right: { flexDirection: "row", alignItems: "center", gap: space.sm },
-  help: { alignItems: "center", justifyContent: "center", minWidth: 36 },
-  helpText: { color: colors.foreground, fontSize: 10, marginTop: -1 },
+  help: { height: 36, alignItems: "center", justifyContent: "center", minWidth: 36, borderRadius: 999, paddingHorizontal: 4, paddingVertical: 2 },
+  helpText: { color: "#d4d4d8", fontSize: 9, lineHeight: 9, fontWeight: "500" },
   pill: { flexDirection: "row", alignItems: "center", gap: 5, borderRadius: 999, borderWidth: 1, paddingHorizontal: 9, paddingVertical: 5 },
   pillQuiet: { borderColor: colors.edge, backgroundColor: "rgba(0,0,0,0.25)" },
   pillLow: { borderColor: "rgba(251,191,36,0.4)", backgroundColor: "rgba(251,191,36,0.1)" },

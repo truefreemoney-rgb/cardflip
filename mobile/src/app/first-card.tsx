@@ -63,17 +63,17 @@ export default function FirstCard() {
           {card.rarity ? ` · ${card.rarity}` : ""}
           {card.number ? ` · #${card.number}` : ""}
         </Text>
-        <Text style={styles.price}>{price.text ?? "No price yet"}</Text>
-        {price.text ? <Text style={styles.priceLabel}>MARKET PRICE</Text> : null}
-        <Text style={styles.copy}>{copy}</Text>
+        <Text style={styles.price}>{price.text ?? "No trusted market price for this one yet"}</Text>
+        {/* The site's first-scan result (components/TrialScanner.tsx): "Market price today, Near Mint" under the price. */}
+        {price.text ? <Text style={styles.priceLabel}>Market price today, {copy}</Text> : null}
         <View style={{ marginTop: space.md, alignSelf: "stretch" }}>
           <PriceChart cardId={card.id} variant={variant ?? defaultVariantOf(card)} width={width - space.lg * 2} />
         </View>
       </ScrollView>
 
       <View style={[styles.bottom, { paddingBottom: insets.bottom + space.lg }]}>
-        <PrimaryButton label="Sign up to keep it" onPress={() => router.replace("/signup")} />
-        <Text style={styles.deal}>Free · No credit card · This card lands in your Inventory</Text>
+        <PrimaryButton label="Save It + 5 Free Scans" onPress={() => router.replace("/signup")} />
+        <Text style={styles.deal}>It goes straight into your Inventory. No card needed.</Text>
         <Pressable onPress={() => router.replace("/login")} hitSlop={8} style={{ alignSelf: "center", marginTop: space.md }}>
           <Text style={styles.link}>I already have an account</Text>
         </Pressable>
@@ -91,9 +91,8 @@ const styles = StyleSheet.create({
   name: { color: colors.white, fontSize: 24, lineHeight: 28, fontFamily: fonts.display, letterSpacing: -0.4, textAlign: "center", marginTop: space.md },
   set: { color: colors.muted, fontSize: 14, lineHeight: 18, textAlign: "center", marginTop: 4 },
   price: { color: colors.money, fontSize: 36, lineHeight: 42, fontFamily: fonts.displaySemi, fontVariant: ["tabular-nums"], textAlign: "center", marginTop: space.md },
-  priceLabel: { color: colors.faint, fontSize: 10, letterSpacing: 1.5, textAlign: "center" },
-  copy: { color: colors.foreground, fontSize: 14, textAlign: "center", marginTop: space.sm },
+  priceLabel: { color: colors.faint, fontSize: 12, textAlign: "center", marginTop: 2 },
   bottom: { paddingHorizontal: space.lg, paddingTop: space.md },
-  deal: { color: "#6ee7b7", fontSize: 12, fontWeight: "600", textAlign: "center", marginTop: space.sm },
+  deal: { color: colors.faint, fontSize: 12, textAlign: "center", marginTop: space.sm },
   link: { color: colors.brandSoft, fontSize: 15, fontWeight: "600" },
 });
