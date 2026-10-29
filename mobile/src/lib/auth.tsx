@@ -1,8 +1,10 @@
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as Crypto from "expo-crypto";
 import * as Linking from "expo-linking";
+import * as SecureStore from "expo-secure-store";
 import * as WebBrowser from "expo-web-browser";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { AppState } from "react-native";
 import { api, ApiError, API_URL, setUnauthorizedHandler } from "./api";
 import { deviceId } from "./device";
 import { claimGuestScan, getGuestScan } from "./guestScan";
@@ -110,6 +112,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refresh();
   }, [refresh]);
 
+  // Waiting on the emailed code: the person taps the link in Mail and comes back, so re-check on return.
+  useEffect(() => {
+    if (!user?.mustConfirmEmail) return;
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") void refresh();
+    });
+    return () => sub.remove();
+  }, [user?.mustConfirmEmail, refresh]);
+
   // A 401 on any signed-in call (lib/api.ts): the session died behind the app's back, so re-check at once.
   useEffect(() => {
     setUnauthorizedHandler(() => void refresh());
@@ -151,7 +162,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       nonce,
     });
     if (!cred.identityToken) throw new Error("Sign in with Apple didn't finish.");
-    const name = [cred.fullName?.givenName, cred.fullName?.familyName].filter(Boolean).join(" ");
+    // Apple hands the name over ONCE, on the first sign-in: keep it on the phone so a retry after a
+    // failed POST (no signal) still names the new account instead of "Card Collector".
+    const given = [cred.fullName?.givenName, cred.fullName?.familyName].filter(Boolean).join(" ");
+    const nameKey = `cardflip_apple_name_${cred.user.replace(/[^A-Za-z0-9._-]/g, "")}`;
+    let name = given;
+    try {
+      if (given) await SecureStore.setItemAsync(nameKey, given);
+      else name = (await SecureStore.getItemAsync(nameKey)) ?? "";
+    } catch {
+      // No keychain = no memory of the name; the server falls back as before.
+    }
     const scan = await getGuestScan();
     const body = await api<{ user: SessionUser; isNew?: boolean }>("/api/auth/apple", { body: { identityToken: cred.identityToken, nonce, name, fromScan: Boolean(scan) } });
     await landGuestScan(body.user);

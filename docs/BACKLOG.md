@@ -332,6 +332,7 @@ Tick items here; move finished narrative to HISTORY.md, not STATE.md.
 
 - (10-08) TikTok 7pm Most Valuable re-run on Sun 10-11 7pm: fresh render with that day's prices, rotated opener, NEW library sound (the 10-08 one died twice and is pinned on the profile instead). Not a repost of the 10-08 file.
 
+- App sign-in hardening, low (audit 10-29): an Apple identity token could be replayed to /api/auth/apple inside its ~10 min life (needs a used-token record in the DB); a Google app ticket can be opened again within 2 min by whoever also holds the PKCE verifier (needs the same one-time record). Both need the attacker on the phone already. Build when the app has users.
 - Sign in with X: built 10-10, REMOVED 10-29 (Chris: nobody used it, people are put off by x.com). Never again on the site or the app.
 
 ## IMPORTANT (10-13, Chris): automatic new cards + pictures

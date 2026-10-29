@@ -10,6 +10,8 @@ import * as SecureStore from "expo-secure-store";
  */
 const KEY = "cardflip_device";
 let cached: string | null = null;
+/** The read in flight: two early callers (the session check and a guest scan) share one id instead of minting two. */
+let pending: Promise<string> | null = null;
 
 function makeId(): string {
   let s = "";
@@ -17,7 +19,13 @@ function makeId(): string {
   return s;
 }
 
-export async function deviceId(): Promise<string> {
+export function deviceId(): Promise<string> {
+  if (cached) return Promise.resolve(cached);
+  if (!pending) pending = readOrMake().finally(() => (pending = null));
+  return pending;
+}
+
+async function readOrMake(): Promise<string> {
   if (cached) return cached;
   try {
     const stored = Platform.OS === "web" ? globalThis.localStorage?.getItem(KEY) : await SecureStore.getItemAsync(KEY);

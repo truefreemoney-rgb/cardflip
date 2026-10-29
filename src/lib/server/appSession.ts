@@ -33,10 +33,14 @@ export function bearerToken(h: Headers): string | null {
  * else the app's bearer header. Works in route handlers and server components.
  */
 export async function currentSessionToken(): Promise<{ token: string; via: "cookie" | "bearer" } | null> {
+  const h = await headers();
+  const fromHeader = bearerToken(h);
+  // The app's own call: its bearer wins. The in-app pages share a cookie jar with it, and a dead
+  // cookie left there must not shadow the live token the app just signed in with (10-29).
+  if (fromHeader && isAppRequest({ headers: h })) return { token: fromHeader, via: "bearer" };
   const jar = await cookies();
   const fromCookie = jar.get(SESSION_COOKIE_NAME)?.value;
   if (fromCookie) return { token: fromCookie, via: "cookie" };
-  const fromHeader = bearerToken(await headers());
   return fromHeader ? { token: fromHeader, via: "bearer" } : null;
 }
 
