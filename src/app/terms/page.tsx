@@ -9,6 +9,7 @@ const sections: LegalSection[] = [
     heading: "What CardFlip is",
     paragraphs: [
       "CardFlip is a tool for people selling Pokémon, Magic: The Gathering, Disney Lorcana, Yu-Gi-Oh! and One Piece trading cards. It identifies cards from photos or search, shows market price information for the matched printing, generates listing titles and descriptions, and keeps a ledger of what you have drafted, listed, and sold. Listings are placed on eBay under your own eBay account — CardFlip is not a marketplace, does not host sales, and never handles the money from your sales.",
+      "The CardFlip iPhone app (from the App Store) is the same service under these same terms. Your first scan in the app works without an account; buying scans or a subscription happens on cardflip.io, not inside the app.",
     ],
   },
   {
@@ -92,7 +93,7 @@ export default function TermsPage() {
   return (
     <LegalArticle
       title="Terms of Service"
-      effectiveDate="September 2, 2026"
+      effectiveDate="October 29, 2026"
       intro="These terms are an agreement between you and CardFlip covering your use of the CardFlip website and app. They are written to be read — if anything is unclear, ask us before relying on it."
       sections={sections}
     />

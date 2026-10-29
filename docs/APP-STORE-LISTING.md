@@ -89,7 +89,7 @@ From cardflip.io/privacy (effective Oct 17 2026). Nothing is used for tracking a
 - Contact: Chris, support@cardflip.io, phone number in App Store Connect.
 
 ## Screenshots (6.9" iPhone 1320x2868 and 6.5" 1284x2778; Google phone 1080x1920 or taller)
-MADE 10-29 12:20 PM ET, waiting on Chris's yes per shot (screenshot rule). Files: docs/shots/appstore/
+MADE 10-29 12:20 PM ET, APPROVED by Chris 12:24pm (all six). Files: docs/shots/appstore/
 NN-name-6.9.png + -6.5.png (upload as is) + -preview.jpg (660 wide, what Chris was sent). One line of text
 above each, the app's dark background, a phone bezel that bleeds off the bottom:
 1. 01-first-scan: "Scan Your First Card!" page (the fan) — "Your first scan is free"
@@ -120,6 +120,6 @@ Google Play (later): the 6.9" files, Google accepts any 16:9..2:1 portrait PNG u
 - [ ] Production build (EAS) pointed at cardflip.io, the site half of the app commits pushed
 - [ ] The TikTok pixel / GA4 stay off inside the app (afbecf77) — verify on the production build
 - [ ] Demo account made; notes pasted
-- [ ] Screenshots approved by Chris
+- [x] Screenshots approved by Chris (10-29 12:24pm "yes", all six; shot 6 after the comma fix)
 - [ ] Privacy answers entered exactly as the table above
-- [ ] cardflip.io/privacy and /terms mention the app (one line each)
+- [x] cardflip.io/privacy and /terms mention the app (one paragraph each, 10-29 12:35pm, held for the bulk push; effective dates moved to Oct 29)

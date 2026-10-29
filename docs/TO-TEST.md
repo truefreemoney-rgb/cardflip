@@ -1,5 +1,10 @@
 # To test later
 
+## 10-29 12:35PM ET: privacy + terms name the iPhone app, one paragraph each (App Store checklist; site, unpushed, bulk push)
+- [x] What: /privacy "What we collect" gets a paragraph on the app (free first scan photo read and not stored; the app's own random device ID, not Apple's; no cross-app tracking); /terms "What CardFlip is" gets one (same service, same terms; first scan without an account; scans/subscriptions bought on cardflip.io). Both effective dates → October 29, 2026. tsc + lint clean; phone shots docs/shots/legal-privacy-app-line-phone.jpg + legal-terms-app-line-phone.jpg sent 12:35pm.
+- [ ] After the bulk push: cardflip.io/privacy and /terms show "Effective date: October 29, 2026" and the new paragraph; the App Store privacy answers (APP-STORE-LISTING.md table) still match the page.
+- [ ] Chris: yes on the two shots.
+
 ## 10-29 12:30PM ET: money inputs show the thousands comma ("2,554.73") (Chris 12:22pm on App Store shot 6; site, unpushed, bulk push)
 - [x] What: components/PriceInput.tsx (every Your price / What you paid field, 6 uses): shows n.toLocaleString en-US with 2 decimals; parse strips commas (before, a focus-then-blur on "2,554.73" would have read 2). Typing still strips commas as before. tsc + lint clean; shot 6 recaptured.
 - [ ] After the bulk push, phone, Seller mode, a card over $1,000: the editor's Your price reads "$ 2,554.73"; tap it, type 2600, tap away → "2,600.00" and the price saves as 2600 (card tile shows $2,600.00); tap it and tap away without typing → unchanged.

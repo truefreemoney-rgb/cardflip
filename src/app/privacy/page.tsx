@@ -9,6 +9,7 @@ const sections: LegalSection[] = [
     paragraphs: [
       "Account details: your name, email address, and password. Passwords are stored hashed — we cannot read them. We also record when you last opened the app, so we can see which accounts are in use.",
       "If you sign in with Google or X: we receive your name, email address and that account’s ID, and nothing else. We never post anything to those accounts or read your contacts.",
+      "The CardFlip iPhone app: your first scan works before you have an account — that photo is read to name the card and is not stored. The app makes its own random device ID (not Apple’s advertising ID) so the free scan is one per phone, and it does not track you across other apps or websites.",
       "Help and support: messages you type to the help chat, and support tickets with any photos you add. Help chat messages go to our AI provider (Anthropic) to write the answer.",
       "Phone notifications, if you turn them on: the address your browser gives us for sending them. Turn them off in Account at any time.",
       "Your selling data: the card photos you take, the cards you match, the conditions, grades, and prices you set, your watchlist, and the status of each item (draft, listed, sold). This is the product — it is what the app stores so your inventory is there when you come back.",
@@ -83,7 +84,7 @@ export default function PrivacyPage() {
   return (
     <LegalArticle
       title="Privacy Policy"
-      effectiveDate="October 17, 2026"
+      effectiveDate="October 29, 2026"
       intro="CardFlip collects the minimum it needs to identify, price, and track the cards you sell. This page lists exactly what that is, where it goes, and how to get it deleted."
       sections={sections}
     />
