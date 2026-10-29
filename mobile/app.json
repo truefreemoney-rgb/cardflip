@@ -60,6 +60,12 @@
           "app-intents"
         ]
       }
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "9d77fb7b-b993-4c2c-8d71-d0bd6829db09"
+      }
+    },
+    "owner": "cardflip"
   }
 }
