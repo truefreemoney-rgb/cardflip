@@ -31,8 +31,15 @@ import {
 } from "~/lib/scan";
 import { colors, fonts, gradients, radius, space } from "~/lib/theme";
 
-/** A real card is 63×88 mm; the guide is one card, 82% of the camera's height (the website's CameraCapture). */
+/**
+ * A real card is 63×88 mm. The guide is one card at 60% of the viewfinder's
+ * width (the website's phone guide, docs/shots/camera-24-phone.jpg: 222 px on
+ * a 375 px phone), never taller than 82% of it. Chris 10-29 12:45am: the
+ * first guide ran edge to edge, so the card sat too close for the lens to
+ * focus.
+ */
 const GUIDE_RATIO = 63 / 88;
+const GUIDE_WIDTH = 0.6;
 const GUIDE_HEIGHT = 0.82;
 
 /** The website's scanner colours (globals.css): the guide's brand-400 corners, the holo-pink sweep. */
@@ -55,11 +62,11 @@ interface Box {
 
 /** Where the guide sits inside a camera view of this size. */
 function guideBox(w: number, h: number): Box {
-  let gh = h * GUIDE_HEIGHT;
-  let gw = gh * GUIDE_RATIO;
-  if (gw > w - space.lg * 2) {
-    gw = w - space.lg * 2;
-    gh = gw / GUIDE_RATIO;
+  let gw = w * GUIDE_WIDTH;
+  let gh = gw / GUIDE_RATIO;
+  if (gh > h * GUIDE_HEIGHT) {
+    gh = h * GUIDE_HEIGHT;
+    gw = gh * GUIDE_RATIO;
   }
   return { x: (w - gw) / 2, y: (h - gh) / 2, w: gw, h: gh };
 }
@@ -504,6 +511,9 @@ export default function Scan() {
   const [torch, setTorch] = useState(false);
   const [tipsOn, setTipsOn] = useState(true);
   const [flash, setFlash] = useState(false);
+  /** Tap to focus (the site's tapToFocus): a one-shot refocus, the ring at the tap, then back to following the card. */
+  const [focusOnce, setFocusOnce] = useState(false);
+  const [focusRing, setFocusRing] = useState<{ x: number; y: number; key: number } | null>(null);
   /** The condition new scans start as (the site's "New scans start as"); Near Mint unless changed in ⋯. */
   const [startCondition, setStartCondition] = useState<Condition>("Near Mint");
   /** This session's tally for the top pill: cards landed and their market total, as on the site. */
@@ -754,14 +764,28 @@ export default function Scan() {
 
       {/* The viewfinder. */}
       <View style={styles.cameraWrap} onLayout={onLayout}>
-        {granted ? <CameraView ref={camera} style={StyleSheet.absoluteFill} facing="back" enableTorch={torch} onCameraReady={() => setCameraReady(true)} animateShutter={false} /> : null}
+        {granted ? (
+          <>
+            <CameraView ref={camera} style={StyleSheet.absoluteFill} facing="back" enableTorch={torch} autofocus={focusOnce ? "on" : "off"} onCameraReady={() => setCameraReady(true)} animateShutter={false} />
+            {/* The tap layer: expo-camera has no focus point, so a tap asks for one fresh focus ("on" = focus once), then continuous again. */}
+            <Pressable
+              style={StyleSheet.absoluteFill}
+              onPress={(e) => {
+                const at = { x: e.nativeEvent.locationX, y: e.nativeEvent.locationY, key: Date.now() };
+                setFocusRing(at);
+                setFocusOnce(true);
+                setTimeout(() => setFocusRing((f) => (f?.key === at.key ? null : f)), 700);
+                setTimeout(() => setFocusOnce(false), 2500);
+              }}
+            />
+          </>
+        ) : null}
+        {focusRing ? <View key={focusRing.key} pointerEvents="none" style={[styles.focusRing, { left: focusRing.x - 28, top: focusRing.y - 28 }]} /> : null}
         {ready && guide ? (
           <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-            {/* The dimmed surround (the site's 9999px box-shadow), four rectangles around the guide. */}
-            <View style={[styles.dim, { left: 0, right: 0, top: 0, height: guide.y }]} />
-            <View style={[styles.dim, { left: 0, right: 0, top: guide.y + guide.h, bottom: 0 }]} />
-            <View style={[styles.dim, { left: 0, width: guide.x, top: guide.y, height: guide.h }]} />
-            <View style={[styles.dim, { right: 0, width: view.w - guide.x - guide.w, top: guide.y, height: guide.h }]} />
+            {/* The dimmed surround (the site's 9999px box-shadow on a rounded box): one huge border whose inner
+                edge is the guide, rounded like the brackets (inner radius = outer radius − border). */}
+            <View style={[styles.dim, { left: guide.x - DIM, top: guide.y - DIM, width: guide.w + DIM * 2, height: guide.h + DIM * 2 }]} />
             <View style={[styles.guide, { left: guide.x, top: guide.y, width: guide.w, height: guide.h }]}>
               {reading ? <Sweep height={guide.h} /> : null}
               <View style={[styles.corner, styles.cornerTL]} />
@@ -966,6 +990,8 @@ export default function Scan() {
 }
 
 const CORNER = 32;
+/** The dim border's thickness: wider than any phone screen, so the dim always reaches the viewfinder's edges. */
+const DIM = 2000;
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
 
@@ -986,7 +1012,8 @@ const styles = StyleSheet.create({
 
   // Viewfinder.
   cameraWrap: { flex: 1, backgroundColor: "#000", overflow: "hidden" },
-  dim: { position: "absolute", backgroundColor: "rgba(0,0,0,0.45)" },
+  dim: { position: "absolute", borderWidth: DIM, borderRadius: DIM + 12, borderColor: "rgba(0,0,0,0.45)", backgroundColor: "transparent" },
+  focusRing: { position: "absolute", width: 56, height: 56, borderRadius: 28, borderWidth: 2, borderColor: "rgba(255,255,255,0.9)" },
   guide: { position: "absolute", borderRadius: 12, overflow: "hidden" },
   corner: { position: "absolute", width: CORNER, height: CORNER, borderColor: BRACKET },
   cornerTL: { left: -1, top: -1, borderLeftWidth: 3, borderTopWidth: 3, borderTopLeftRadius: 12 },
