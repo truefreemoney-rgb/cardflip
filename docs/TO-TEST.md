@@ -1,5 +1,11 @@
 # To test later
 
+## 10-28 10:45PM ET: iPhone app step 2, browse / search / set browser / card detail (app code only, nothing on the website; unpushed)
+- [x] Why: docs/APP-PLAN.md order of work step 2. Prices come from the website's own lib/listing.ts pickPrice + lib/money.ts run inside the app (metro watches ../src/lib), so the app and the site cannot disagree on a number.
+- [x] Pane web preview vs local dev: Pokémon "charizard" grid (prices = site's rows, pictures load from /pics), Pitch Black set list -> cards, Magic "lightning bolt ltr" typed search (two requests, the site's own fallback), card detail 30th-c-001 "Market price · Holofoil $156.67". tsc + expo lint green.
+- [ ] On the phone (Expo Go, after a tunnel): pictures must load from cardflip.io/pics with NO Referer (the hotlink Firewall rule must allow an empty referer, an app has none). If tiles are blank on the phone, that rule is the first suspect.
+- [ ] Cold start always lands on Home (deep links to /card/... are not kept yet); fine until the Lock Screen shortcut step.
+
 ## 10-28 10:50PM ET: iPhone app step 1 (bearer sessions on the server + Expo app skeleton; unpushed, rides Chris's bulk push)
 - [x] Why: docs/APP-PLAN.md (final 10-28, Chris: "rely on you"). The native app has no cookie jar: a request with x-cardflip-app gets its session token in the login/signup/me body and sends it back as Authorization: Bearer. Website cookie path untouched (lib/server/appSession.ts).
 - [x] test:authroutes 163 pass (new: app header -> token in body, website never gets it). tsc + eslint green on both the site and mobile/. Local dev: signup/login with the header -> token; bearer alone -> /api/auth/me user; bogus -> null; logout kills it. App web preview in the pane: sign in -> Home (name, email, scans left), reload keeps it, Sign out -> sign-in screen.
