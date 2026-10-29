@@ -1,5 +1,9 @@
 # To test later
 
+## 10-29 5:45PM ET: Scanner tab no longer turns into Inventory after Done (Chris 5:41pm phone bug; tsc + eslint clean; app only, unpushed, bulk push)
+What changed (mobile/src/components/SiteWebView.tsx): the site's Done on the scanner page is a client-side jump to /app/collection and the Scanner tab's page followed it. Now a tab's page heading for another tab's page (collection / price-check / wishlist / account) switches to that tab and the page goes back where it was (history.back). Pushed pages with the Back bar keep their links.
+- [ ] CHRIS, phone: 1. Scanner tab, Add Cards, scan a card, Done on the camera, then Done on the scanner page: you should land on the INVENTORY tab (Inventory lit at the bottom) with the new card in the list. 2. Tap Scanner: the scanner page (Add Cards), not Inventory. 3. Inventory tab, Set Completion/Insights links still open inside Inventory (same tab, those are not tab pages).
+
 ## 10-29 5:35PM ET: app re-reads the account on foreground + on Back from a site page (Chris 5:26pm "how will they refresh?"; tsc + eslint clean; app only, unpushed, bulk push)
 What changed: lib/auth.tsx = signed in, every return to the foreground re-reads /api/auth/me (was: only while an email waited for its code), at most once per 10 s; app/web.tsx = the Back button on Pricing/packs/rewards/help re-reads the account first, so a subscription or Booster pack paid on the Stripe page shows in the native header the moment the page closes. Scans themselves already update the count per scan.
 - [x] PASSED Chris 5:37pm ("i got the scans": 3 -> 5 on return to the foreground). CHRIS, phone: 1. Signed in, note the header count. 2. (I change the count in the local DB.) Swipe up to home, tap back into Expo Go: the header shows the new count within a second. 3. Tap Subscribe/Pricing in the header, then Back: the header count is current.

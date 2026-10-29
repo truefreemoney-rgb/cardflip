@@ -37,6 +37,8 @@ const LEAVE_PATHS = new Set(["/", "/login", "/signup"]);
 const KEEP_HOSTS = /(^|\.)(auth|signin)\.ebay\.(com|co\.uk|ca|com\.au|ie)$|(^|\.)(checkout|billing)\.stripe\.com$/i;
 /** The query a link to /app may carry into the Scanner tab (the site's My Cards Resume / Verify / "Move to listings", the eBay return). */
 const SCANNER_PARAMS = ["resume", "ask", "rn", "rnum", "rg", "ri", "ebay"] as const;
+/** The site page behind each tab (the Scanner tab's /app goes through toScanner, query and all). */
+const TAB_PATHS = { "/app/collection": "/(app)/cards", "/app/price-check": "/(app)/browse", "/app/wishlist": "/(app)/watchlist", "/app/account": "/(app)/account" } as const;
 
 function withAppFlag(path: string): string {
   return /[?&]app=1(?:&|$)/.test(path) ? path : `${path}${path.includes("?") ? "&" : "?"}app=1`;
@@ -104,6 +106,20 @@ const SiteWebView = forwardRef<SiteWebViewHandle, { path: string; onLeave?: () =
     if (onLeave) onLeave();
   }
 
+  /**
+   * A tab's page moving to ANOTHER tab's page switches tabs instead (the site's Done on the scanner page is a
+   * client-side jump to /app/collection: it turned the Scanner tab into Inventory with no way back, Chris
+   * 10-29 5:41pm). The page itself is put back where it was by onNavigationStateChange. Pushed pages (/web,
+   * the Back bar) are not tabs and keep their links.
+   */
+  function toTab(u: URL): boolean {
+    const mine = path.split("?")[0];
+    const target = (TAB_PATHS as Record<string, (typeof TAB_PATHS)[keyof typeof TAB_PATHS] | undefined>)[u.pathname];
+    if (!target || !(scanner || mine in TAB_PATHS) || u.pathname === mine) return false;
+    router.navigate(target);
+    return true;
+  }
+
   /** Hand a link to /app to the Scanner tab, query and all; true when it was one. */
   function toScanner(u: URL): boolean {
     if (u.pathname !== "/app" || scanner) return false;
@@ -129,7 +145,7 @@ const SiteWebView = forwardRef<SiteWebViewHandle, { path: string; onLeave?: () =
         void Linking.openURL(url);
         return false;
       }
-      if (toScanner(u)) return false;
+      if (toScanner(u) || toTab(u)) return false;
       if (guest && (u.pathname === "/signup" || u.pathname === "/login")) {
         router.replace(u.pathname === "/signup" ? "/signup" : "/login");
         return false;
