@@ -57,8 +57,7 @@ export default function Intro() {
 
   async function finish() {
     await writeIntroSeen();
-    // Next: the "Scan Your First Card!" screen (APP-PLAN step 3). Until it exists, sign in.
-    router.replace("/login");
+    router.replace("/first-scan");
   }
 
   function next() {

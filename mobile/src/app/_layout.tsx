@@ -21,6 +21,8 @@ function Root() {
       <Stack.Protected guard={user === null}>
         {/* First open: the three swipe cards, once per install (intro.tsx). */}
         <Stack.Screen name="intro" />
+        {/* Scan Your First Card! (first-scan.tsx), the screen after the intro. */}
+        <Stack.Screen name="first-scan" />
         <Stack.Screen name="login" />
       </Stack.Protected>
       <Stack.Protected guard={Boolean(user)}>
