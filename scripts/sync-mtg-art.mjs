@@ -32,7 +32,7 @@
 // card in a scan (number "4s" is not the printed "4"); a seller picks it from
 // the card's other printings.
 //
-//   --twins     run the twin pass (opt-in until Chris's yes on the sample sheet, 10-29)
+//   --no-twins  skip the twin pass
 //   --dry       no writes at all: skip Scryfall, read the mirror, report the twins
 //   --sample N  print N twins (dearest first, then a spread) with plain vs gold prices
 import { DatabaseSync } from "node:sqlite";
@@ -48,9 +48,8 @@ const PAGE_DELAY_MS = 120;
 const argv = process.argv.slice(2);
 const prodFlag = argv.includes("--prod");
 const dry = argv.includes("--dry");
-// Opt-in until Chris's yes on the sample sheet (10-29): the 2am nightly runs the working tree and push-catalog would
-// carry the rows to prod. Flip to `!argv.includes("--no-twins")` on his yes.
-const twinsFlag = argv.includes("--twins");
+// On by default since Chris's yes on the sample sheet (10-29 1:12pm); --no-twins skips the pass.
+const twinsFlag = !argv.includes("--no-twins");
 const sampleN = argv.includes("--sample") ? Number(argv[argv.indexOf("--sample") + 1]) || 20 : 0;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const num = (v) => (v == null || v === "" ? null : Number.isFinite(Number(v)) ? Number(v) : null);
