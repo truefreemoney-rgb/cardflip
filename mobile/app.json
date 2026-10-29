@@ -13,7 +13,8 @@
       "supportsTablet": false,
       "icon": "./assets/expo.icon",
       "infoPlist": {
-        "NSCameraUsageDescription": "CardFlip uses the camera to scan your cards and show what they are worth."
+        "NSCameraUsageDescription": "CardFlip uses the camera to scan your cards and show what they are worth.",
+        "ITSAppUsesNonExemptEncryption": false
       },
       "usesAppleSignIn": true
     },
