@@ -87,6 +87,8 @@ export interface User {
   googleSub: string | null;
   /** X account id when the account signs in with X; null = never. */
   xSub: string | null;
+  /** Apple user id (identity token sub) when the account signs in with Apple (the iPhone app); null = never. */
+  appleSub: string | null;
 }
 
 export interface UserRow {
@@ -136,6 +138,7 @@ export interface UserRow {
   home_country: string | null;
   google_sub: string | null;
   x_sub: string | null;
+  apple_sub: string | null;
 }
 
 function parseBackupCodes(raw: string | null): string[] {
@@ -199,6 +202,7 @@ export function fromRow(row: UserRow): User {
     homeCountry: row.home_country ?? null,
     googleSub: row.google_sub ?? null,
     xSub: row.x_sub ?? null,
+    appleSub: row.apple_sub ?? null,
   };
 }
 
@@ -648,7 +652,7 @@ export async function linkGoogleSub(userId: string, sub: string, wipePassword = 
   // It loses any X link too (10-16 audit): an X signup with a typed, unproven email kept x_sub and walked back in.
   const res = await db
     .prepare(
-      `UPDATE users SET google_sub = ?, email_verified_at = COALESCE(email_verified_at, ?)${wipePassword ? ", password_hash = ?, x_sub = NULL" : ""}
+      `UPDATE users SET google_sub = ?, email_verified_at = COALESCE(email_verified_at, ?)${wipePassword ? ", password_hash = ?, x_sub = NULL, apple_sub = NULL" : ""}
         WHERE id = ? AND google_sub IS NULL`,
     )
     .run(sub, Date.now(), ...(wipePassword ? [NO_PASSWORD] : []), userId);
@@ -673,8 +677,24 @@ export async function findUserByXSub(sub: string): Promise<User | null> {
 export async function linkXSub(userId: string, sub: string, wipePassword = false): Promise<boolean> {
   const res = await db
     .prepare(
-      `UPDATE users SET x_sub = ?, email_verified_at = COALESCE(email_verified_at, ?)${wipePassword ? ", password_hash = ?, google_sub = NULL" : ""}
+      `UPDATE users SET x_sub = ?, email_verified_at = COALESCE(email_verified_at, ?)${wipePassword ? ", password_hash = ?, google_sub = NULL, apple_sub = NULL" : ""}
         WHERE id = ? AND x_sub IS NULL`,
+    )
+    .run(sub, Date.now(), ...(wipePassword ? [NO_PASSWORD] : []), userId);
+  return Number(res.changes) === 1;
+}
+
+export async function findUserByAppleSub(sub: string): Promise<User | null> {
+  const row = (await db.prepare("SELECT * FROM users WHERE apple_sub = ?").get(sub)) as UserRow | undefined;
+  return row ? fromRow(row) : null;
+}
+
+/** Same as linkGoogleSub, for Sign in with Apple (Apple vouched for the email, relay or real). An unproven link drops the other ids too. True when it wrote. */
+export async function linkAppleSub(userId: string, sub: string, wipePassword = false): Promise<boolean> {
+  const res = await db
+    .prepare(
+      `UPDATE users SET apple_sub = ?, email_verified_at = COALESCE(email_verified_at, ?)${wipePassword ? ", password_hash = ?, google_sub = NULL, x_sub = NULL" : ""}
+        WHERE id = ? AND apple_sub IS NULL`,
     )
     .run(sub, Date.now(), ...(wipePassword ? [NO_PASSWORD] : []), userId);
   return Number(res.changes) === 1;
@@ -689,7 +709,7 @@ export async function createUser(
    * emailPending: only the public signup route passes true, and only while email confirmation is on.
    * homeCountry: the signup route's x-vercel-ip-country; null off Vercel / admin-made accounts.
    */
-  opts: { emailPending?: boolean; homeCountry?: string | null; googleSub?: string; xSub?: string; emailVerified?: boolean } = {},
+  opts: { emailPending?: boolean; homeCountry?: string | null; googleSub?: string; xSub?: string; appleSub?: string; emailVerified?: boolean } = {},
 ): Promise<User> {
   const id = randomUUID();
   const createdAt = Date.now();
@@ -697,18 +717,20 @@ export async function createUser(
   const googleSub = opts.googleSub ?? null;
   // Made through X: no password either. emailVerified is true only when X handed over an email it confirmed.
   const xSub = opts.xSub ?? null;
-  const verified = Boolean(googleSub) || opts.emailVerified === true;
-  const passwordHash = googleSub || xSub ? NO_PASSWORD : hashPassword(password);
+  // Made through Apple (the iPhone app): no password, and Apple proved the inbox (a relay address is still Apple's own).
+  const appleSub = opts.appleSub ?? null;
+  const verified = Boolean(googleSub) || Boolean(appleSub) || opts.emailVerified === true;
+  const passwordHash = googleSub || xSub || appleSub ? NO_PASSWORD : hashPassword(password);
   const normalizedEmail = email.trim().toLowerCase();
   const emailPending = opts.emailPending === true;
   const homeCountry = opts.homeCountry ?? null;
 
   await db
     .prepare(
-      `INSERT INTO users (id, name, email, password_hash, role, ebay_connected, created_at, email_pending, home_country, google_sub, x_sub, email_verified_at)
-       VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO users (id, name, email, password_hash, role, ebay_connected, created_at, email_pending, home_country, google_sub, x_sub, apple_sub, email_verified_at)
+       VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(id, name.trim(), normalizedEmail, passwordHash, role, createdAt, emailPending ? 1 : 0, homeCountry, googleSub, xSub, verified ? createdAt : null);
+    .run(id, name.trim(), normalizedEmail, passwordHash, role, createdAt, emailPending ? 1 : 0, homeCountry, googleSub, xSub, appleSub, verified ? createdAt : null);
 
   return {
     id,
@@ -757,6 +779,7 @@ export async function createUser(
     homeCountry,
     googleSub,
     xSub,
+    appleSub,
   };
 }
 

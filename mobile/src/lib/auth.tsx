@@ -1,6 +1,8 @@
+import * as AppleAuthentication from "expo-apple-authentication";
+import * as Crypto from "expo-crypto";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { api, ApiError } from "./api";
-import { claimGuestScan } from "./guestScan";
+import { claimGuestScan, getGuestScan } from "./guestScan";
 import { readToken, writeToken } from "./tokenStore";
 
 /** The signed-in account as /api/auth/me returns it (the site's lib/client/auth.ts SessionUser). */
@@ -35,6 +37,8 @@ interface AuthState {
   user: SessionUser | null | undefined;
   signIn(email: string, password: string, code?: string): Promise<void>;
   signUp(name: string, email: string, password: string): Promise<void>;
+  /** Apple's sheet, then /api/auth/apple; rejects with code ERR_REQUEST_CANCELED when dismissed. */
+  signInWithApple(): Promise<void>;
   signOut(): Promise<void>;
   refresh(): Promise<void>;
 }
@@ -100,6 +104,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(body.user);
   }, []);
 
+  /**
+   * Sign in with Apple (docs/APP-PLAN.md step 6): iOS shows Apple's sheet, hands back an identity token
+   * (and the name, first time only), and POST /api/auth/apple makes / links / opens the account like Google
+   * on the website. The nonce: a random string, hashed here and given to Apple, so the token names this one
+   * request and a replayed token is refused. Throws Apple's ERR_REQUEST_CANCELED when the sheet is dismissed.
+   */
+  const signInWithApple = useCallback(async () => {
+    const raw = Array.from(Crypto.getRandomBytes(32), (b) => b.toString(16).padStart(2, "0")).join("");
+    const nonce = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, raw);
+    const cred = await AppleAuthentication.signInAsync({
+      requestedScopes: [AppleAuthentication.AppleAuthenticationScope.FULL_NAME, AppleAuthentication.AppleAuthenticationScope.EMAIL],
+      nonce,
+    });
+    if (!cred.identityToken) throw new Error("Sign in with Apple didn't finish.");
+    const name = [cred.fullName?.givenName, cred.fullName?.familyName].filter(Boolean).join(" ");
+    const scan = await getGuestScan();
+    const body = await api<{ user: SessionUser }>("/api/auth/apple", { body: { identityToken: cred.identityToken, nonce, name, fromScan: Boolean(scan) } });
+    await landGuestScan(body.user);
+    setUser(body.user);
+  }, []);
+
   const signOut = useCallback(async () => {
     try {
       await api("/api/auth/logout", { method: "POST", body: {} });
@@ -110,7 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
-  const value = useMemo(() => ({ user, signIn, signUp, signOut, refresh }), [user, signIn, signUp, signOut, refresh]);
+  const value = useMemo(() => ({ user, signIn, signUp, signInWithApple, signOut, refresh }), [user, signIn, signUp, signInWithApple, signOut, refresh]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 

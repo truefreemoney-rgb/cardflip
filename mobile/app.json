@@ -14,7 +14,8 @@
       "icon": "./assets/expo.icon",
       "infoPlist": {
         "NSCameraUsageDescription": "CardFlip uses the camera to scan your cards and show what they are worth."
-      }
+      },
+      "usesAppleSignIn": true
     },
     "web": {
       "output": "single",
@@ -30,7 +31,8 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
-      ]
+      ],
+      "expo-apple-authentication"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -1319,6 +1319,9 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
     // "Continue with X" (lib/xAuth.ts): the X account id (users/me id, digits) tied to this user;
     // NULL = never signed in with X. Unique index below.
     "x_sub TEXT",
+    // "Sign in with Apple" (lib/server/appleAuth.ts, the iPhone app): the Apple user id (the identity
+    // token's sub, stable per developer team) tied to this user; NULL = never. Unique index below.
+    "apple_sub TEXT",
   ]],
   [
     // The address a reset link was mailed to (passwordReset.ts), so consuming
@@ -1406,6 +1409,8 @@ async function initSchema(): Promise<void> {
   await client.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_sub ON users(google_sub) WHERE google_sub IS NOT NULL");
   // One X identity per account, same shape as the Google one.
   await client.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_x_sub ON users(x_sub) WHERE x_sub IS NOT NULL");
+  // One Apple identity per account, same shape (the iPhone app's Sign in with Apple, 10-29).
+  await client.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_apple_sub ON users(apple_sub) WHERE apple_sub IS NOT NULL");
   // One free trial per inbox (signupGuard.repeatSignup); an added column, so after the probe too.
   await client.execute("CREATE INDEX IF NOT EXISTS idx_signup_log_inbox ON signup_log (inbox_key)");
   // Admin overview per-game card counts; game is an added column, so after the probe.

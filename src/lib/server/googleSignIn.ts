@@ -5,8 +5,10 @@ import type { Touch } from "@/lib/attribution";
 import {
   TRIAL_SCANS,
   createUser,
+  findUserByAppleSub,
   findUserByEmail,
   findUserByGoogleSub,
+  linkAppleSub,
   linkGoogleSub,
   totpEnabled,
   trialScansLeft,
@@ -50,6 +52,9 @@ export type GoogleSignInResult =
   | {
       ok: true;
       isNew: boolean;
+      /** The signed-in account and its new session (the app's JSON answer; the website only needs apply). */
+      user: User;
+      session: { token: string; expiresAt: number };
       /** Same-site path to send the browser to. */
       dest: string;
       /** Sets the session (and device / home) cookies on the response that carries `dest`. */
@@ -67,13 +72,22 @@ export async function completeGoogleSignIn(
   req: Request,
   claims: { sub: string; email: string; name: string },
   ctx: GoogleSignInContext,
+  /**
+   * Sign in with Apple (the iPhone app, api/auth/apple, 10-29) runs the very same rules: the Apple
+   * user id is the sub, Apple vouched for the email (a Hide My Email relay address included).
+   * privateEmail: Apple's relay only forwards mail from a sender registered with Apple, so the
+   * welcome email waits until cardflip.io is registered there (docs/APP-STORE-LISTING.md).
+   */
+  provider: { kind: "google" } | { kind: "apple"; privateEmail: boolean } = { kind: "google" },
 ): Promise<GoogleSignInResult> {
-  const bySub = await findUserByGoogleSub(claims.sub);
+  const apple = provider.kind === "apple";
+  const bySub = apple ? await findUserByAppleSub(claims.sub) : await findUserByGoogleSub(claims.sub);
   const byEmail = bySub ? null : await findUserByEmail(claims.email);
   const second = (u: User) => u.role === "admin" || totpEnabled(u);
   const decision = decideAccount({
     bySub: bySub ? { hasSecondStep: second(bySub) } : null,
-    byEmail: byEmail ? { hasSecondStep: second(byEmail), googleSub: byEmail.googleSub } : null,
+    // "googleSub" here means "already tied to a different id of THIS provider": never re-pointed.
+    byEmail: byEmail ? { hasSecondStep: second(byEmail), googleSub: apple ? byEmail.appleSub : byEmail.googleSub } : null,
   });
   if (decision === "refuse-stronger-account") return { ok: false, code: 2 };
 
@@ -96,14 +110,14 @@ export async function completeGoogleSignIn(
     const inbox = inboxKey(claims.email);
     const repeat = Boolean(await repeatSignup(ipHash, knownDevice, inbox, clientIp(req)));
     // Google proved the inbox, so no confirmation step: emailPending stays false.
-    const created = await createUser(claims.name, claims.email, "", "user", { homeCountry: here, googleSub: claims.sub });
+    const created = await createUser(claims.name, claims.email, "", "user", apple ? { homeCountry: here, appleSub: claims.sub } : { homeCountry: here, googleSub: claims.sub });
     await countSignup(ipHash);
     await recordSignup(created.id, ipHash, deviceId, repeat, here, Date.now(), ctx.touch, inbox);
     user = repeat ? { ...created, trialScansUsed: TRIAL_SCANS } : created;
     if (ctx.ref) await attachReferral(user.id, ctx.ref).catch(() => {});
     isNew = true;
     deviceToSet = deviceId;
-    if (isMailConfigured()) {
+    if (isMailConfigured() && !(apple && provider.privateEmail)) {
       const to = user.email;
       const first = claims.name.split(" ")[0];
       const left = trialScansLeft(user);
@@ -121,7 +135,7 @@ export async function completeGoogleSignIn(
     if (here && !isAllowedCountry(here) && user.homeCountry && !isAllowedCountry(user.homeCountry)) return { ok: false, code: 1 };
     if (decision === "link") {
       unproven = !user.emailVerifiedAt;
-      if (!(await linkGoogleSub(user.id, claims.sub, unproven))) return { ok: false, code: 1 };
+      if (!(await (apple ? linkAppleSub : linkGoogleSub)(user.id, claims.sub, unproven))) return { ok: false, code: 1 };
       // Google vouched for this inbox: an account still waiting on its emailed code is through.
       if (user.emailPending) {
         await markEmailConfirmed(user.id, { verified: true, email: claims.email });
@@ -131,12 +145,14 @@ export async function completeGoogleSignIn(
 
   const session = await createSession(user.id);
   if (unproven) await destroyOtherSessions(user.id, session.token);
-  const dest = isNew ? `/signup?step=welcome&google=new${ctx.fromScan ? "&from=scan" : ""}` : ctx.next ?? "/app";
+  const dest = isNew ? `/signup?step=welcome&${apple ? "apple" : "google"}=new${ctx.fromScan ? "&from=scan" : ""}` : ctx.next ?? "/app";
   const home = user.homeCountry;
   const userId = user.id;
   return {
     ok: true,
     isNew,
+    user,
+    session: { token: session.token, expiresAt: session.expiresAt },
     dest,
     apply(res) {
       res.cookies.set(SESSION_COOKIE, session.token, sessionCookieOptions(session.expiresAt));

@@ -116,7 +116,7 @@ Google Play (later): the 6.9" files, Google accepts any 16:9..2:1 portrait PNG u
 
 ## Checklist before submitting
 - [ ] Apple developer enrollment approved (Chris, in progress 10-29)
-- [ ] Sign in with Apple built and tested on the phone
+- [ ] Sign in with Apple: BUILT 10-29 1:00pm (site + app, TO-TEST 10-29 1:00PM), untested until the enrollment: Chris ticks Sign in with Apple on io.cardflip.app + registers cardflip.io for Hide-My-Email relay mail; then an EAS dev build on the phone
 - [ ] Production build (EAS) pointed at cardflip.io, the site half of the app commits pushed
 - [ ] The TikTok pixel / GA4 stay off inside the app (afbecf77) — verify on the production build
 - [ ] Demo account made; notes pasted
