@@ -21,7 +21,7 @@ const FREE_SCANS = 5; // src/lib/pricing.ts PRICING.trial.scans
 
 const umbreon = require("../../assets/images/intro/umbreon.webp");
 const charizard = require("../../assets/images/intro/charizard.webp");
-const latias = require("../../assets/images/intro/latias.webp");
+const pikachu = require("../../assets/images/intro/pikachu-vmax.webp");
 
 type Page = { title: string; body: string; picture: () => ReactElement };
 
@@ -69,7 +69,7 @@ export default function Intro() {
   return (
     <Screen>
       <View style={[styles.top, { paddingTop: insets.top + space.sm }]}>
-        <Text style={styles.logo}>CardFlip</Text>
+        <Image source={require("../../assets/images/cardflip-logo.png")} style={styles.logo} contentFit="contain" accessibilityLabel="CardFlip" />
         <Pressable onPress={finish} hitSlop={12} accessibilityRole="button">
           <Text style={styles.skip}>Skip</Text>
         </Pressable>
@@ -112,7 +112,7 @@ function ScannerStill() {
   return (
     <View style={stills.frame}>
       <View style={stills.guide}>
-        <Image source={umbreon} style={stills.guideCard} contentFit="cover" />
+        <Image source={pikachu} style={stills.guideCard} contentFit="cover" />
         <Corner at="tl" />
         <Corner at="tr" />
         <Corner at="bl" />
@@ -169,13 +169,13 @@ function InventoryStill() {
   const rows = [
     { pic: charizard, name: "Charizard", set: "Skyridge · 146", price: "$2,999.99" },
     { pic: umbreon, name: "Umbreon VMAX", set: "Evolving Skies · 215", price: "$2,209.75" },
-    { pic: latias, name: "Latias & Latios GX", set: "Team Up · 170", price: "$4,499.66" },
+    { pic: pikachu, name: "Pikachu VMAX", set: "Vivid Voltage · 188", price: "$167.96" },
   ];
   return (
     <View style={[stills.frame, { justifyContent: "center" }]}>
       <View style={stills.total}>
         <Text style={stills.totalLabel}>Unsold</Text>
-        <Text style={stills.totalValue}>$9,709.40</Text>
+        <Text style={stills.totalValue}>$5,377.70</Text>
         <Text style={[stills.totalLabel, { marginLeft: space.md }]}>Sold</Text>
         <Text style={[stills.totalValue, { color: colors.money }]}>$0.00</Text>
       </View>
@@ -205,7 +205,7 @@ function InventoryStill() {
 
 const styles = StyleSheet.create({
   top: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: space.lg },
-  logo: { color: colors.white, fontSize: 20, fontFamily: fonts.display, letterSpacing: -0.4 },
+  logo: { width: 128, height: 24 },
   skip: { color: colors.muted, fontSize: 16, fontWeight: "600", paddingVertical: 6 },
   pager: { flex: 1 },
   page: { flex: 1, paddingHorizontal: space.lg, paddingTop: space.md },
