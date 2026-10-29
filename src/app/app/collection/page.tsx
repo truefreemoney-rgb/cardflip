@@ -1317,6 +1317,13 @@ export default function CollectionPage() {
   const userId = user?.id;
   const [loadFailed, setLoadFailed] = useState(false);
   const [reloadTick, setReloadTick] = useState(0);
+  // The iPhone app's Inventory tab coming back into view after a scan (SessionProvider's "cardflip:focus"):
+  // the rows are re-read so the new cards are there without a pull.
+  useEffect(() => {
+    const onFocus = () => setReloadTick((t) => t + 1);
+    window.addEventListener("cardflip:focus", onFocus);
+    return () => window.removeEventListener("cardflip:focus", onFocus);
+  }, []);
   const hadCards = useRef(false);
   const pendingDeletes = useRef(new Map<number, { entries: { card: ServerCard; index: number }[]; timer: ReturnType<typeof setTimeout> }>());
   const pendingDeleteSeq = useRef(0);

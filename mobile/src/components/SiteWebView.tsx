@@ -1,5 +1,5 @@
-import { router } from "expo-router";
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { router, useFocusEffect } from "expo-router";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import WebView, { type WebViewNavigation } from "react-native-webview";
 import { API_URL, APP_HEADER_VALUE } from "~/lib/api";
@@ -50,6 +50,14 @@ const SiteWebView = forwardRef<SiteWebViewHandle, { path: string; onLeave?: () =
   const { refresh } = useAuth();
   const web = useRef<React.ComponentRef<typeof WebView>>(null);
   useImperativeHandle(ref, () => ({ inject: (js: string) => web.current?.injectJavaScript(js) }), []);
+  // Each tab is its own page: when this one comes back into view, tell it (the site's SessionProvider
+  // re-reads the user, Inventory re-reads its rows), so Seller / Collector flipped on one tab reaches the
+  // others (Chris 10-29 1:38am). The first focus races the page load and is harmless.
+  useFocusEffect(
+    useCallback(() => {
+      web.current?.injectJavaScript(`window.dispatchEvent(new Event("cardflip:focus")); true;`);
+    }, []),
+  );
   const [token, setToken] = useState<string | null | undefined>(undefined);
   const [failed, setFailed] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);

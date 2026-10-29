@@ -129,6 +129,17 @@ export default function SessionProvider({ children }: { children: React.ReactNod
     setUserState((prev) => (prev ? { ...prev, ...patch } : prev));
   }, []);
 
+  // Inside the iPhone app every tab is its own page, so a change made on one (Seller / Collector on
+  // Inventory, eBay connected on Account) is news to the others. The app fires "cardflip:focus" into a page
+  // whenever its tab comes back into view (mobile SiteWebView useFocusEffect); the user is re-read, so
+  // `pricingOnly` and the rest follow (Chris 10-29 1:38am: Collector on Inventory, the Scanner tab's editor
+  // still showed the eBay fields).
+  useEffect(() => {
+    const onFocus = () => void refresh();
+    window.addEventListener("cardflip:focus", onFocus);
+    return () => window.removeEventListener("cardflip:focus", onFocus);
+  }, [refresh]);
+
   const value = useMemo<SessionContextValue>(
     () => ({ user, status, setUser, patchUser, refresh }),
     [user, status, setUser, patchUser, refresh],
