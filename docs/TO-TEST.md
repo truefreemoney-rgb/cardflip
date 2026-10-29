@@ -1,5 +1,11 @@
 # To test later
 
+## 10-28 10:50PM ET: iPhone app step 1 (bearer sessions on the server + Expo app skeleton; unpushed, rides Chris's bulk push)
+- [x] Why: docs/APP-PLAN.md (final 10-28, Chris: "rely on you"). The native app has no cookie jar: a request with x-cardflip-app gets its session token in the login/signup/me body and sends it back as Authorization: Bearer. Website cookie path untouched (lib/server/appSession.ts).
+- [x] test:authroutes 163 pass (new: app header -> token in body, website never gets it). tsc + eslint green on both the site and mobile/. Local dev: signup/login with the header -> token; bearer alone -> /api/auth/me user; bogus -> null; logout kills it. App web preview in the pane: sign in -> Home (name, email, scans left), reload keeps it, Sign out -> sign-in screen.
+- [ ] After the bulk push, on cardflip.io: `curl -s https://cardflip.io/api/auth/me -H "authorization: Bearer 000…0"` (64 zeros) answers {"user":null}; the website login still sets only the cookie (no "session" key in the JSON). A production response to /api/auth/me must carry NO Access-Control-Allow-Origin header (the CORS rule is dev-only).
+- [ ] Expo Go on Chris's iPhone against a tunnel to the local dev server: sign in, Home, sign out (needs Expo Go installed; no account needed to open the QR).
+
 ## 10-28 9:25PM ET: phone home page opens on the button + free deal; 2-row menu (pushed 9:25pm on Chris's "put it in now")
 - [x] Why: 7 of 8 IG traffic-ad visitors left with no touch; first phone screen was menu (3 rows) + stats + headline, button under Safari's bar (Chris's iPhone screenshot 9:17pm). Layout D picked by Chris; menu 2 rows; "How It Works" out of the nav; games pill one line.
 - [x] src/app/page.tsx (below lg: button, green checks, games, headline, scanner; stats/paragraph/bullets/See How It Works from lg), MarketingNav.tsx (row 1 logo + account pair on phones), Logo.tsx (size "nav"). tsc + eslint green. Playwright signed-out at 360/375/390/412/430: menu 2 rows, games pill 1 line, top row fits (shots sent 9:23pm).
