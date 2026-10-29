@@ -1,8 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useAuth } from "@/lib/auth";
-import { API_URL } from "@/lib/api";
-import { colors, radius, space } from "@/lib/theme";
+import { useAuth } from "~/lib/auth";
+import { API_URL } from "~/lib/api";
+import { colors, radius, space } from "~/lib/theme";
 
 /** Placeholder first screen: proves sign-in, the stored session and sign-out end to end. */
 export default function Home() {

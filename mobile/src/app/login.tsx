@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { CodeRequiredError, useAuth } from "@/lib/auth";
-import { colors, radius, space } from "@/lib/theme";
+import { CodeRequiredError, useAuth } from "~/lib/auth";
+import { colors, radius, space } from "~/lib/theme";
 
 /**
  * Sign in: email + password, then a 6-digit code when the account has

@@ -2,8 +2,8 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
-import { AuthProvider, useAuth } from "@/lib/auth";
-import { colors } from "@/lib/theme";
+import { AuthProvider, useAuth } from "~/lib/auth";
+import { colors } from "~/lib/theme";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -20,6 +20,7 @@ function Root() {
       </Stack.Protected>
       <Stack.Protected guard={Boolean(user)}>
         <Stack.Screen name="(app)" />
+        <Stack.Screen name="card/[id]" />
       </Stack.Protected>
     </Stack>
   );

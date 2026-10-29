@@ -1,7 +1,7 @@
 import { Redirect } from "expo-router";
 import { ActivityIndicator, View } from "react-native";
-import { useAuth } from "@/lib/auth";
-import { colors } from "@/lib/theme";
+import { useAuth } from "~/lib/auth";
+import { colors } from "~/lib/theme";
 
 /** Launch: the stored session decides where to land. */
 export default function Index() {
