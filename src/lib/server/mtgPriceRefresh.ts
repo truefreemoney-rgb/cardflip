@@ -263,6 +263,10 @@ export async function refreshMtgPricesFromBulk(day = todayUtc()): Promise<Refres
     readSeriesMap("mtg", CONVERTED_SOURCE),
     readSeriesMap("mtg", CARD_KINGDOM_SOURCE),
   ]);
+  // Gold-stamped Art Series twins (scripts/sync-mtg-art.mjs, id "<plain>-s") are ours, not Scryfall's: the bulk file
+  // never lists them, so they join the pending list blank and take TCGplayer's price with the other gaps (10-29).
+  const listed = new Set(pending.map((c) => c.id));
+  for (const id of mirror.keys()) if (id.endsWith("-s") && !listed.has(id)) pending.push({ id, usd: null, foil: null, etched: null, eur: null, eurFoil: null });
   // Printings Scryfall leaves without a dollar price (Art Series, Alpha/Beta,
   // Summer Magic…) take TCGplayer's (10-05). A failure only skips the fill.
   let tcgplayerFilled = 0;

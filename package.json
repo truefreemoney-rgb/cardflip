@@ -17,6 +17,7 @@
     "test:cardnumber": "node --experimental-strip-types --no-warnings scripts/test-card-number.mjs",
     "sync:en": "node scripts/sync-cards.mjs en en_cards",
     "sync:mtg": "node --experimental-strip-types --no-warnings scripts/sync-mtg.mjs",
+    "sync:mtgart": "node --experimental-strip-types --no-warnings scripts/sync-mtg-art.mjs",
     "sync:lorcana": "node --experimental-strip-types --no-warnings scripts/sync-lorcana.mjs",
     "pictures:save": "node --env-file=.env.local scripts/save-pictures.mjs",
     "sync:onepiece": "node --experimental-strip-types --no-warnings scripts/sync-onepiece.mjs --with-promos --with-don && node --experimental-strip-types --no-warnings scripts/sync-onepiece-tcg.mjs && node --experimental-strip-types --no-warnings scripts/sync-onepiece-images.mjs",

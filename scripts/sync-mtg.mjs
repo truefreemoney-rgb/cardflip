@@ -255,19 +255,21 @@ while (url) {
   if (url) await sleep(PAGE_DELAY_MS);
 }
 
+// Art Series cards are "extras" the search above never returns: scripts/sync-mtg-art.mjs
+// refreshes them (and their gold-stamped twins) BEFORE the sweep below, so they are
+// updated in place and keep their saved pictures. (Until 10-29 it ran after the sweep,
+// which deleted all ~2,775 art rows nightly and save-pictures re-saved every one.)
+{
+  const { execFileSync } = await import("node:child_process");
+  execFileSync(process.execPath, ["--experimental-strip-types", "--no-warnings", path.join(process.cwd(), "scripts/sync-mtg-art.mjs")], { stdio: "inherit" });
+}
+
 // Printings Scryfall no longer returns for this language (renamed / merged
 // ids) would otherwise linger forever with stale prices.
 const stale = db
   .prepare("DELETE FROM mtg_cards WHERE lang = ? AND synced_at < ?")
   .run(lang, now);
 console.log(`done: ${total} cards over ${page} pages, ${seenSets.size} sets, removed ${stale.changes} stale rows`);
-
-// Art Series cards are "extras" the search above never returns; the stale
-// sweep just removed them, so bring them back (scripts/sync-mtg-art.mjs).
-{
-  const { execFileSync } = await import("node:child_process");
-  execFileSync(process.execPath, [path.join(process.cwd(), "scripts/sync-mtg-art.mjs")], { stdio: "inherit" });
-}
 
 // ---------------------------------------------------------------------------
 // Price history: one point per priced finish per printing for today, in the

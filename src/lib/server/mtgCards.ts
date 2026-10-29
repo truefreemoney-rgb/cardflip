@@ -664,7 +664,10 @@ export async function hasListTwin(setCode: string, number: string): Promise<bool
  * Whether this printed key (set code + number) has a look-alike twin that
  * only a corner mark tells apart: The List reprint ("<SET>-<n>" in PLST), a
  * prerelease date stamp ("<n>s" in P<SET>), a promo-pack stamp ("<n>p"), or
- * a serialized copy ("<n>z"). The scan's second look fires on these.
+ * a serialized copy ("<n>z"). The scan's second look fires on these. Art
+ * Series sets are left out: their "<n>s" row is the gold-stamped signature
+ * twin (scripts/sync-mtg-art.mjs), told apart by the signature, not a corner
+ * date, and a corner look on every art card scan would be wasted (10-29).
  */
 export async function hasTwinPrinting(setCode: string, number: string): Promise<"list" | "prerelease" | "promo" | "serialized" | "embossed" | null> {
   const code = setCode.toLowerCase();
@@ -672,9 +675,10 @@ export async function hasTwinPrinting(setCode: string, number: string): Promise<
     const rows = (await db
       .prepare(
         `SELECT set_code, collector_number FROM mtg_cards
-          WHERE (set_code = 'plst' AND collector_number = ?)
+          WHERE set_name NOT LIKE '%Art Series'
+            AND ((set_code = 'plst' AND collector_number = ?)
              OR (set_code IN (?, ?) AND collector_number IN (?, ?, ?))
-             OR (set_code = ? AND collector_number = ? AND ',' || promo_types || ',' LIKE '%,embossed,%')
+             OR (set_code = ? AND collector_number = ? AND ',' || promo_types || ',' LIKE '%,embossed,%'))
           LIMIT 4`,
       )
       .all(`${setCode.toUpperCase()}-${number}`, code, `p${code}`, `${number}s`, `${number}p`, `${number}z`, `p${code}`, `${number}a`)) as unknown as Array<{ set_code: string; collector_number: string }>;

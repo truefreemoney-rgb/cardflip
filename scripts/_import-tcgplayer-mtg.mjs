@@ -85,8 +85,13 @@ for (const r of magic) {
   }
   if (!m && /^Art Series:/.test(r["Set Name"])) {
     const code = artSets.get(foldSet(r["Set Name"]));
-    const hit = code ? await db.prepare("SELECT id FROM mtg_cards WHERE set_code = ? AND collector_number = ?").get(code, r.Number) : null;
-    if (hit) m = { id: hit.id, finishes: ["nonfoil"], art: true, stamped: /Gold-Stamped/i.test(r["Product Name"]) };
+    const gold = /Gold-Stamped/i.test(r["Product Name"]);
+    const byNumber = (n) => (code ? db.prepare("SELECT id FROM mtg_cards WHERE set_code = ? AND collector_number = ?").get(code, n) : null);
+    // 10-29: a gold-stamped copy is its own catalog row ("<n>s", scripts/sync-mtg-art.mjs twins) with its own price;
+    // only where no twin exists yet does it fall back to the plain card, flagged and price-locked.
+    const twin = gold ? await byNumber(`${r.Number}s`) : null;
+    const hit = twin ?? (await byNumber(r.Number));
+    if (hit) m = { id: hit.id, finishes: ["nonfoil"], art: true, stamped: gold && !twin };
   }
   if (!m) { unmatched.push(`${r["Product Name"]} | ${r["Set Name"]} #${r.Number} (TCGplayer ${r["Product ID"]}${m === null ? ", Scryfall has no such product" : ", lookup failed"})`); continue; }
   if (!cardMemo.has(m.id)) cardMemo.set(m.id, (await mtgCardById(m.id))[0] ?? null);

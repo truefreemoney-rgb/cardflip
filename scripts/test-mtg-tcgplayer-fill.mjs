@@ -60,7 +60,8 @@ assert.deepEqual(
   [{ id: "e", usd: 20000, foil: null }],
 );
 
-const gr = [{ ...row("x", "Veteran Bodyguard", "41"), oracleId: "o1" }, { ...row("y", "Balance", "3"), oracleId: "o2" }];
+const lea = { setCode: "lea", setName: "Limited Edition Alpha" };
+const gr = [{ ...row("x", "Veteran Bodyguard", "41"), ...lea, oracleId: "o1" }, { ...row("y", "Balance", "3"), ...lea, oracleId: "o2" }];
 assert.deepEqual(
   guardFills([{ id: "x", usd: 6495, foil: null }, { id: "y", usd: 900, foil: null }], gr, new Map([["o1", 112], ["o2", 300]])),
   [{ id: "y", usd: 900, foil: null }],
@@ -119,6 +120,34 @@ assert.equal(serialFill[0].serial, true);
 
 // Outside Art Series a number miss never falls back to the name (it could be another printing).
 assert.deepEqual(got([{ ...art("s", "Ajani Goldmane // Ajani Goldmane", "745"), setCode: "sld", setName: "Secret Lair Drop" }], [p("Ajani Goldmane", "999", 1657)]), {});
+
+// 10-29 gold-stamped twins (TASKS C11b): the product id rides the fill (the twin's picture is that product's scan),
+// a stamped "46s" shifts like 46 in Karlov Manor, a stamped row never takes a plain product, and an Art Series
+// fill skips the 15x guard (an art card is not the spell it pictures).
+const { isStampedProduct, pricedProducts } = await import("../src/lib/server/mtgTcgplayerFill.ts");
+assert.deepEqual(
+  matchMtgProducts(
+    [mkm("as", "Aurelia, the Law Above", "46s"), mkm("cs", "Clue", "41s")],
+    [{ name: "Aurelia, the Law Above Art Card (41/49) (Gold-Stamped Signature)", number: "41", prices: { Normal: 2.5 }, productId: 777 }, { name: "Aurelia, the Law Above Art Card (41/49)", number: "41", prices: { Normal: 0.5 }, productId: 776 }],
+  ),
+  [{ id: "as", usd: 2.5, foil: null, productId: 777 }],
+);
+assert.deepEqual(
+  guardFills([{ id: "g", usd: 165, foil: null }, { id: "n", usd: 165, foil: null }], [{ ...art("g", "Aang", "1"), oracleId: "o9" }, { id: "n", name: "Aang", setCode: "tla", setName: "Avatar: The Last Airbender", number: "1", finishes: "nonfoil", oracleId: "o9" }], new Map([["o9", 2]])).map((f) => f.id),
+  ["g"],
+  "Art Series fills skip the 15x guard; the spell's own printings keep it",
+);
+assert.equal(isStampedProduct("Aang Art Card (Gold-Stamped Signature)"), true);
+assert.equal(isStampedProduct("Skyknight Squire Art Card (4/54) (Stamped Signature)"), true);
+assert.equal(isStampedProduct("Aang Art Card"), false);
+assert.deepEqual(
+  pricedProducts(
+    [{ productId: 1, name: "Aang Art Card", extendedData: [{ name: "Number", value: "1" }] }, { productId: 2, name: "No Price" }, { productId: 3, name: "Asking Only" }],
+    [{ productId: 1, subTypeName: "Normal", marketPrice: 0.3, lowPrice: 0.2 }, { productId: 3, subTypeName: "Normal", marketPrice: null, midPrice: 1200 }],
+  ),
+  [{ name: "Aang Art Card", number: "1", prices: { Normal: 0.3 }, lows: { Normal: 0.2 }, productId: 1 }],
+  "market else mid up to $20; the product id travels with the product",
+);
 
 console.log("mtg tcgplayer fill: all assertions passed");
 process.exit(0);
