@@ -5,7 +5,11 @@ import { useAuth } from "~/lib/auth";
 import { readIntroSeen } from "~/lib/introStore";
 import { colors } from "~/lib/theme";
 
-/** Launch: the stored session decides where to land; a first open goes to the intro (once). */
+/**
+ * Launch: the stored session decides where to land; a first open goes to the intro (once). Intro seen but no
+ * account yet = the "Scan Your First Card!" page, not the login (Chris 10-29 10:19am: the 8090 build landed him on
+ * the login page); that page has "I already have an account".
+ */
 export default function Index() {
   const { user } = useAuth();
   const [introSeen, setIntroSeen] = useState<boolean | undefined>(undefined);
@@ -20,5 +24,5 @@ export default function Index() {
     );
   }
   if (user) return <Redirect href="/(app)/cards" />;
-  return <Redirect href={introSeen ? "/login" : "/intro"} />;
+  return <Redirect href={introSeen ? "/first-scan" : "/intro"} />;
 }

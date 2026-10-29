@@ -1,5 +1,10 @@
 # To test later
 
+## 10-29 10:30AM ET: launch with the intro seen and no account = the first-scan page, not login (Chris 10:19am "it brings me directly to a log in page"; unpushed, bulk push)
+- [x] What: index.tsx: no session + intro seen → /first-scan (has "I already have an account"); intro not seen → /intro; session → the tabs.
+- [x] Pane (mobile web 8081): flag set + no session → launch lands on /first-scan. tsc + lint clean.
+- [ ] Phone (Expo 8091, QR 10:30am): open the app → "Scan Your First Card!" (no login) → Open the camera → scan → See This Card pop-up → Sign up to keep it → sign-up form with the card → Create Account → the tabs, card in Inventory.
+
 ## 10-29 10:25AM ET: the free first scan ends in a card POP-UP, not the website card page (Chris 10:13am; chip's green bar gone; unpushed, bulk push)
 - [x] What: scan.tsx guest mode: the bottom See This Card (and a chip tap) open the big sheet = the card picture, set line, green market price, condition line, "Sign up to keep it" → /signup with the card above the form, the free line; no Change / Not this card?; the chip's third row (See This Card  bar) is gone for guests. The /web guest card page is no longer used by the scanner.
 - [x] Pane (mobile web 8081, 375 px): Test photo → Charizard Pokémon GO .38 → See This Card → the pop-up (shot docs/shots/guest-card-popup-phone.jpg, sent 10:22am) → Sign up to keep it → /signup shows YOUR FIRST SCAN Charizard .38 above the form. tsc + lint clean.
