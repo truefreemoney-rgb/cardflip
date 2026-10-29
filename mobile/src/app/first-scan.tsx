@@ -1,5 +1,6 @@
 import { Image } from "expo-image";
 import { router } from "expo-router";
+import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import PrimaryButton from "~/components/PrimaryButton";
@@ -21,10 +22,17 @@ const umbreon = require("../../assets/images/intro/umbreon.webp");
 
 export default function FirstScan() {
   const insets = useSafeAreaInsets();
+  /** A scan already made on this phone: the button says so and reopens its result page, not the camera (one free read, Chris 10-29 10:27am + 10:41am). */
+  const [waiting, setWaiting] = useState(false);
+  useEffect(() => {
+    let live = true;
+    getGuestScan().then((s) => live && setWaiting(Boolean(s)));
+    return () => {
+      live = false;
+    };
+  }, []);
 
-  /** A scan already made on this phone opens its result page again, not the camera (one free read, Chris 10-29 10:27am). */
-  async function openCamera() {
-    const waiting = await getGuestScan();
+  function openCamera() {
     router.push(waiting ? "/first-card" : "/scan");
   }
 
@@ -39,7 +47,7 @@ export default function FirstScan() {
       </View>
 
       <View style={[styles.bottom, { paddingBottom: insets.bottom + space.lg }]}>
-        <PrimaryButton label="Scan Your Card" onPress={openCamera} />
+        <PrimaryButton label={waiting ? "See Your Card" : "Scan Your Card"} onPress={openCamera} />
         <Pressable onPress={() => router.replace("/signup")} style={({ pressed }) => [styles.secondary, pressed && { opacity: 0.85 }]}>
           <Text style={styles.secondaryText}>Create an account</Text>
         </Pressable>
