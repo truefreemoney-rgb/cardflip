@@ -7,9 +7,10 @@
  */
 export type ScanResult = { ids: string[] };
 
-const listeners = new Set<(r: ScanResult) => void>();
+/** A listener answers true only when it really handed the scans to a live scanner page (review 10-29). */
+const listeners = new Set<(r: ScanResult) => boolean>();
 
-export function onScanResult(fn: (r: ScanResult) => void): () => void {
+export function onScanResult(fn: (r: ScanResult) => boolean): () => void {
   listeners.add(fn);
   return () => {
     listeners.delete(fn);
@@ -17,6 +18,7 @@ export function onScanResult(fn: (r: ScanResult) => void): () => void {
 }
 
 export function emitScanResult(r: ScanResult): boolean {
-  for (const fn of listeners) fn(r);
-  return listeners.size > 0;
+  let handled = false;
+  for (const fn of listeners) if (fn(r)) handled = true;
+  return handled;
 }

@@ -50,6 +50,18 @@ export interface ApiOptions {
   timeoutS?: number;
 }
 
+/**
+ * Told when a request that carried the stored token came back 401 from anywhere but a sign-in
+ * route: the session died behind the app's back (signed out everywhere, password changed, expired),
+ * and AuthProvider re-checks /api/auth/me so the screens follow instead of showing a signed-in
+ * header over failing calls (review 10-29).
+ */
+let onUnauthorized: (() => void) | null = null;
+export function setUnauthorizedHandler(fn: (() => void) | null): void {
+  onUnauthorized = fn;
+}
+const SIGN_IN_PATHS = /^\/api\/auth\/(login|signup|apple|google\/finish|logout)\b/;
+
 /** JSON in, JSON out. Throws ApiError on a non-2xx answer with the server's own message. */
 export async function api<T = Record<string, unknown>>(path: string, opts: ApiOptions = {}): Promise<T> {
   const token = await readToken();
@@ -57,8 +69,11 @@ export async function api<T = Record<string, unknown>>(path: string, opts: ApiOp
   if (token) headers.authorization = `Bearer ${token}`;
   if (opts.body !== undefined) headers["content-type"] = "application/json";
   const ctl = new AbortController();
+  // The clock covers the whole answer, body included: a reply whose headers arrive and whose body then
+  // stalls on a weak signal used to hang the caller for good (the launch check held the splash forever).
   const timer = setTimeout(() => ctl.abort(), (opts.timeoutS ?? 20) * 1000);
   let res: Response;
+  let body: Record<string, unknown>;
   try {
     res = await fetch(`${API_URL}${path}`, {
       method: opts.method ?? (opts.body !== undefined ? "POST" : "GET"),
@@ -66,13 +81,16 @@ export async function api<T = Record<string, unknown>>(path: string, opts: ApiOp
       body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
       signal: ctl.signal,
     });
+    body = await readJson(res);
   } catch (err) {
     throw new ApiError(0, { error: (err as Error)?.name === "AbortError" ? "That took too long. Check your connection and try again." : "No connection. Check your signal and try again." });
   } finally {
     clearTimeout(timer);
   }
-  const body = await readJson(res);
-  if (!res.ok) throw new ApiError(res.status, body);
+  if (!res.ok) {
+    if (res.status === 401 && token && !SIGN_IN_PATHS.test(path)) onUnauthorized?.();
+    throw new ApiError(res.status, body);
+  }
   await keepSession(body);
   return body as T;
 }

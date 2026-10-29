@@ -3,7 +3,7 @@ import * as Crypto from "expo-crypto";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { api, ApiError, API_URL } from "./api";
+import { api, ApiError, API_URL, setUnauthorizedHandler } from "./api";
 import { deviceId } from "./device";
 import { claimGuestScan, getGuestScan } from "./guestScan";
 import { readToken, writeToken } from "./tokenStore";
@@ -38,6 +38,8 @@ export class CodeRequiredError extends Error {
 interface AuthState {
   /** undefined = still checking the stored token on launch. */
   user: SessionUser | null | undefined;
+  /** The launch check could not reach the server while a token is stored: index.tsx shows "No connection" + Try again. */
+  offline: boolean;
   signIn(email: string, password: string, code?: string): Promise<void>;
   signUp(name: string, email: string, password: string): Promise<void>;
   /** Apple's sheet, then /api/auth/apple; rejects with code ERR_REQUEST_CANCELED when dismissed. */
@@ -66,27 +68,50 @@ async function landGuestScan(me: SessionUser | null): Promise<void> {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SessionUser | null | undefined>(undefined);
+  const [offline, setOffline] = useState(false);
 
   const refresh = useCallback(async () => {
-    if (!(await readToken())) {
+    const token = await readToken();
+    if (!token) {
       setUser(null);
+      setOffline(false);
       return;
     }
     try {
       const { user: me } = await api<{ user: SessionUser | null }>("/api/auth/me");
+      // A sign-in or sign-out finished while this answer was in flight: theirs wins, this one is stale.
+      if ((await readToken()) !== token) return;
       await landGuestScan(me);
+      setOffline(false);
       setUser(me);
       if (!me) await writeToken(null); // the server no longer knows this token
     } catch (err) {
-      // A server hiccup is not a sign-out: keep whatever we had, or show the sign-in if nothing yet.
-      if (err instanceof ApiError && err.status >= 500) setUser((u) => u ?? null);
-      else setUser(null);
+      if ((await readToken()) !== token) return;
+      if (err instanceof ApiError && err.status === 401) {
+        // The server's own word that this session is gone.
+        await writeToken(null);
+        setUser(null);
+        return;
+      }
+      // No signal, a busy server, a wall (0, 429, 5xx, 403): not a sign-out. Keep the account we had; at
+      // launch, with nothing known yet, index.tsx shows "No connection" with Try again instead of the
+      // signed-out funnel (review 10-29: a dropped signal used to throw members out to the first-scan page).
+      setUser((u) => {
+        if (u === undefined) setOffline(true);
+        return u ?? null;
+      });
     }
   }, []);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- the keychain is read once on launch; every setState inside waits on that await
     refresh();
+  }, [refresh]);
+
+  // A 401 on any signed-in call (lib/api.ts): the session died behind the app's back, so re-check at once.
+  useEffect(() => {
+    setUnauthorizedHandler(() => void refresh());
+    return () => setUnauthorizedHandler(null);
   }, [refresh]);
 
   const signIn = useCallback(async (email: string, password: string, code?: string) => {
@@ -178,7 +203,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
-  const value = useMemo(() => ({ user, signIn, signUp, signInWithApple, signInWithGoogle, signOut, refresh }), [user, signIn, signUp, signInWithApple, signInWithGoogle, signOut, refresh]);
+  const value = useMemo(() => ({ user, offline, signIn, signUp, signInWithApple, signInWithGoogle, signOut, refresh }), [user, offline, signIn, signUp, signInWithApple, signInWithGoogle, signOut, refresh]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 

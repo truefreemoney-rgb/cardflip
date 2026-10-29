@@ -30,7 +30,8 @@ function ScannerShortcuts() {
     for (const invocation of pending) {
       if (invocation.name === "scanCard" && !handled.current.has(invocation.id)) {
         handled.current.add(invocation.id);
-        router.push("/scan");
+        // navigate, not push: with the camera already open, the shortcut lands on it instead of stacking a second one.
+        router.navigate("/scan");
       }
       await AppIntents.removePendingInvocationAsync(invocation.id);
     }

@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import PrimaryButton from "~/components/PrimaryButton";
 import Screen from "~/components/Screen";
-import { getGuestScan } from "~/lib/guestScan";
+import { hasGuestScan } from "~/lib/guestScan";
 import { colors, fonts, space } from "~/lib/theme";
 
 /**
@@ -22,18 +22,24 @@ const umbreon = require("../../assets/images/intro/umbreon.webp");
 
 export default function FirstScan() {
   const insets = useSafeAreaInsets();
-  /** A scan already made on this phone: the button says so and reopens its result page, not the camera (one free read, Chris 10-29 10:27am + 10:41am). */
-  const [waiting, setWaiting] = useState(false);
+  /**
+   * A scan already made on this phone: the button says so and reopens its result page, not the camera (one free
+   * read, Chris 10-29 10:27am + 10:41am). Read from the keychain alone (no network), and the button waits for that
+   * answer, so a relaunch or no signal can never send the guest into a second read (review 10-29).
+   */
+  const [waiting, setWaiting] = useState<boolean | undefined>(undefined);
   useEffect(() => {
     let live = true;
-    getGuestScan().then((s) => live && setWaiting(Boolean(s)));
+    hasGuestScan().then((has) => live && setWaiting(has));
     return () => {
       live = false;
     };
   }, []);
 
   function openCamera() {
-    router.push(waiting ? "/first-card" : "/scan");
+    if (waiting === undefined) return;
+    // navigate, not push: a double tap or the Action Button while the camera is already up reuses it (no second camera stacked).
+    router.navigate(waiting ? "/first-card" : "/scan");
   }
 
   return (
@@ -48,10 +54,11 @@ export default function FirstScan() {
 
       <View style={[styles.bottom, { paddingBottom: insets.bottom + space.lg }]}>
         <PrimaryButton label={waiting ? "See Your Card" : "Scan Your Card"} onPress={openCamera} />
-        <Pressable onPress={() => router.replace("/signup")} style={({ pressed }) => [styles.secondary, pressed && { opacity: 0.85 }]}>
+        {/* push, not replace: the forms keep a way back to this page (a back swipe), instead of a dead end (review 10-29). */}
+        <Pressable onPress={() => router.push("/signup")} style={({ pressed }) => [styles.secondary, pressed && { opacity: 0.85 }]}>
           <Text style={styles.secondaryText}>Create an account</Text>
         </Pressable>
-        <Pressable onPress={() => router.replace("/login")} hitSlop={8} style={{ alignSelf: "center", marginTop: space.md }}>
+        <Pressable onPress={() => router.push("/login")} hitSlop={8} style={{ alignSelf: "center", marginTop: space.md }}>
           <Text style={styles.link}>I already have an account</Text>
         </Pressable>
       </View>

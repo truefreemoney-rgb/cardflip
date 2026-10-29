@@ -19,16 +19,24 @@ import { colors, space } from "~/lib/theme";
  *
  * Steering: a page that sends the browser to /login, /signup or the home page
  * (a sign-out, a dead session) calls onLeave (default: re-check the app's own
- * session, which shows the app's sign-in when it is gone); a link to the
- * website's scanner page (/app) switches to the Scanner tab, which shows that
- * page (and the page's "Add Cards" opens the app's camera over the bridge);
- * mailto:/tel: links go to the phone's apps.
+ * session, which shows the app's sign-in when it is gone, or redo the handoff
+ * when it is not); a link to the website's scanner page (/app) switches to the
+ * Scanner tab with the link's query (resume=, the eBay return), which shows
+ * that page (and the page's "Add Cards" opens the app's camera over the
+ * bridge); mailto:/tel: links go to the phone's apps; any other site (eBay
+ * listings, TCGplayer, help links) opens in Safari, except the eBay sign-in
+ * and Stripe checkout hosts, which need this WebView's cookies to come back
+ * signed in (review 10-29).
  *
  * Web (the in-pane preview only, never shipped): react-native-webview has no
  * web build, so the handoff is a fetch with credentials and the page sits in
  * an <iframe>; the dev server drops X-Frame-Options for that (next.config.ts).
  */
 const LEAVE_PATHS = new Set(["/", "/login", "/signup"]);
+/** Other hosts that stay inside the WebView: flows that end by sending the browser back to cardflip.io. */
+const KEEP_HOSTS = /(^|\.)(auth|signin)\.ebay\.(com|co\.uk|ca|com\.au|ie)$|(^|\.)(checkout|billing)\.stripe\.com$/i;
+/** The query a link to /app may carry into the Scanner tab (the site's My Cards Resume / Verify / "Move to listings", the eBay return). */
+const SCANNER_PARAMS = ["resume", "ask", "rn", "rnum", "rg", "ri", "ebay"] as const;
 
 function withAppFlag(path: string): string {
   return /[?&]app=1(?:&|$)/.test(path) ? path : `${path}${path.includes("?") ? "&" : "?"}app=1`;
@@ -40,8 +48,8 @@ export function safeSitePath(raw: string | string[] | undefined): string {
   return p && p.startsWith("/") && !p.startsWith("//") ? p : "/app/account";
 }
 
-/** What a screen holding a ref can do with the page: run script in it (the Scanner tab's in-place resume). */
-export type SiteWebViewHandle = { inject(js: string): void };
+/** What a screen holding a ref can do with the page: run script in it (the Scanner tab's in-place resume), and ask where it is. */
+export type SiteWebViewHandle = { inject(js: string): void; currentPath(): string | null };
 
 /** guest: a public page with no session (the first-open card page, 10-29): no handoff, and the site's own Sign up / Log in links open the app's screens. */
 const SiteWebView = forwardRef<SiteWebViewHandle, { path: string; onLeave?: () => void; onLoading?: (loading: boolean) => void; scanner?: boolean; guest?: boolean }>(function SiteWebView(
@@ -50,7 +58,9 @@ const SiteWebView = forwardRef<SiteWebViewHandle, { path: string; onLeave?: () =
 ) {
   const { refresh } = useAuth();
   const web = useRef<React.ComponentRef<typeof WebView>>(null);
-  useImperativeHandle(ref, () => ({ inject: (js: string) => web.current?.injectJavaScript(js) }), []);
+  /** The page's current path (null until the first load): the Scanner tab only hands scans into the scanner page. */
+  const here = useRef<string | null>(null);
+  useImperativeHandle(ref, () => ({ inject: (js: string) => web.current?.injectJavaScript(js), currentPath: () => here.current }), []);
   // Each tab is its own page: when this one comes back into view, tell it (the site's SessionProvider
   // re-reads the user, Inventory re-reads its rows), so Seller / Collector flipped on one tab reaches the
   // others (Chris 10-29 1:38am). The first focus races the page load and is harmless.
@@ -72,29 +82,54 @@ const SiteWebView = forwardRef<SiteWebViewHandle, { path: string; onLeave?: () =
     };
   }, [attempt]);
 
+  // The error screen replaces the page: tell the holder the spinner can stop.
+  useEffect(() => {
+    if (failed) onLoading?.(false);
+  }, [failed, onLoading]);
+
+  const retry = () => {
+    setFailed(null);
+    setAttempt((a) => a + 1);
+  };
+
   function leave(): void {
     if (leaving.current) return;
     leaving.current = true;
-    void refresh();
+    void refresh().then(async () => {
+      // Still signed in on the app's side (the WebView's cookie went, the token did not): redo the handoff
+      // instead of leaving the tab sitting on the website's login page.
+      if (!onLeave && (await readToken())) retry();
+      leaving.current = false; // a tab stays; the next sign-out can steer again
+    });
     if (onLeave) onLeave();
-    else leaving.current = false; // a tab stays; the next sign-out can steer again
+  }
+
+  /** Hand a link to /app to the Scanner tab, query and all; true when it was one. */
+  function toScanner(u: URL): boolean {
+    if (u.pathname !== "/app" || scanner) return false;
+    const params: Record<string, string> = { t: String(Date.now()) };
+    for (const k of SCANNER_PARAMS) {
+      const v = u.searchParams.get(k);
+      if (v) params[k] = v;
+    }
+    router.navigate({ pathname: "/(app)/scanTab", params });
+    return true;
   }
 
   /** False = the app takes over instead of the page (see the file comment). */
-  function steer(url: string): boolean {
+  function steer(url: string, topFrame = true): boolean {
     if (/^(mailto|tel|sms):/i.test(url)) {
       void Linking.openURL(url);
       return false;
     }
     try {
       const u = new URL(url);
-      if (u.origin !== new URL(API_URL).origin) return true;
-      // The website's scanner page (/app) is the app's Scanner tab ((app)/scanTab.tsx, 10-29): a link to it
-      // from another page switches tabs; the Scanner tab itself loads it, with or without ?resume=.
-      if (u.pathname === "/app" && !scanner) {
-        router.navigate("/(app)/scanTab");
+      if (u.origin !== new URL(API_URL).origin) {
+        if (!topFrame || !/^https?:$/.test(u.protocol) || KEEP_HOSTS.test(u.hostname)) return true;
+        void Linking.openURL(url);
         return false;
       }
+      if (toScanner(u)) return false;
       if (guest && (u.pathname === "/signup" || u.pathname === "/login")) {
         router.replace(u.pathname === "/signup" ? "/signup" : "/login");
         return false;
@@ -120,6 +155,9 @@ const SiteWebView = forwardRef<SiteWebViewHandle, { path: string; onLeave?: () =
     return (
       <View style={styles.center}>
         <Text style={styles.message}>Sign in again to open this page.</Text>
+        <Pressable onPress={retry} style={styles.retry}>
+          <Text style={styles.retryText}>Try again</Text>
+        </Pressable>
       </View>
     );
   }
@@ -127,13 +165,7 @@ const SiteWebView = forwardRef<SiteWebViewHandle, { path: string; onLeave?: () =
     return (
       <View style={styles.center}>
         <Text style={styles.message}>{failed}</Text>
-        <Pressable
-          onPress={() => {
-            setFailed(null);
-            setAttempt((a) => a + 1);
-          }}
-          style={styles.retry}
-        >
+        <Pressable onPress={retry} style={styles.retry}>
           <Text style={styles.retryText}>Try again</Text>
         </Pressable>
       </View>
@@ -144,6 +176,13 @@ const SiteWebView = forwardRef<SiteWebViewHandle, { path: string; onLeave?: () =
   if (Platform.OS === "web") {
     return <WebPreview key={attempt} path={path} headers={headers} guest={guest} onLoad={() => onLoading?.(false)} onFail={setFailed} />;
   }
+  const ours = (url: string | undefined): boolean => {
+    try {
+      return Boolean(url) && new URL(url as string).origin === new URL(API_URL).origin;
+    } catch {
+      return false;
+    }
+  };
   return (
     <WebView
       ref={web}
@@ -155,17 +194,38 @@ const SiteWebView = forwardRef<SiteWebViewHandle, { path: string; onLeave?: () =
       onError={() => setFailed("Couldn't load the page. Check your connection and try again.")}
       onHttpError={(e) => {
         if (e.nativeEvent.statusCode === 401) leave();
+        // A server error on the page itself (not a picture or a call it made): the same Try again as no signal.
+        else if (e.nativeEvent.statusCode >= 500 && ours(e.nativeEvent.url) && !/\/api\/(?!auth\/app-cookie)/.test(e.nativeEvent.url)) setFailed("CardFlip couldn't load that page. Try again in a moment.");
       }}
       onNavigationStateChange={(nav: WebViewNavigation): void => {
-        steer(nav.url);
+        if (ours(nav.url)) {
+          try {
+            here.current = new URL(nav.url).pathname;
+          } catch {
+            here.current = null;
+          }
+        }
+        // An in-page navigation has already changed this page; when the app takes the link over
+        // (the Scanner tab, the phone's apps), put this page back where it was.
+        if (!steer(nav.url) && !nav.loading && !LEAVE_PATHS.has(here.current ?? "")) web.current?.injectJavaScript("history.back(); true;");
       }}
-      onShouldStartLoadWithRequest={(req): boolean => steer(req.url)}
+      onShouldStartLoadWithRequest={(req): boolean => steer(req.url, req.isTopFrame !== false)}
+      // target=_blank links: ours over the tabs with a Back bar, anything else in Safari.
+      onOpenWindow={(e) => {
+        const url = e.nativeEvent.targetUrl;
+        if (!url) return;
+        if (ours(url)) {
+          const u = new URL(url);
+          if (!toScanner(u)) router.push({ pathname: "/web", params: { path: u.pathname + u.search } });
+        } else void Linking.openURL(url);
+      }}
       // The page's own bridge (the site's lib/appMode.ts postToApp): the scanner page's "Add Cards" asks for
-      // the app's camera instead of the web one.
+      // the app's camera instead of the web one. Only our own pages get to ask.
       onMessage={(e) => {
+        if (!ours(e.nativeEvent.url)) return;
         try {
           const msg = JSON.parse(e.nativeEvent.data) as { type?: string };
-          if (msg.type === "scan") router.push("/scan");
+          if (msg.type === "scan") router.navigate("/scan");
         } catch {
           /* not ours */
         }

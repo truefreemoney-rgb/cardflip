@@ -22,17 +22,21 @@ function one(v: string | string[] | undefined): string | null {
  * tab was not mounted; `t` is a nonce so a second visit with the same ids still reloads.
  */
 export default function ScanTab() {
-  const params = useLocalSearchParams<{ resume?: string; ask?: string; rn?: string; rnum?: string; rg?: string; ri?: string; t?: string }>();
+  const params = useLocalSearchParams<{ resume?: string; ask?: string; rn?: string; rnum?: string; rg?: string; ri?: string; ebay?: string; t?: string }>();
   const web = useRef<SiteWebViewHandle>(null);
   useEffect(
     () =>
       onScanResult((r) => {
-        web.current?.inject(`window.dispatchEvent(new CustomEvent("cardflip:resume", { detail: ${JSON.stringify({ ids: r.ids })} })); true;`);
+        // Only a live scanner page can take the scans in place; anything else (the error screen, a sign-in
+        // bounce, another page the tab wandered to) tells the scanner to reload the tab with ?resume= instead.
+        if (!web.current || web.current.currentPath() !== "/app") return false;
+        web.current.inject(`window.dispatchEvent(new CustomEvent("cardflip:resume", { detail: ${JSON.stringify({ ids: r.ids })} })); true;`);
+        return true;
       }),
     [],
   );
   const q = new URLSearchParams();
-  for (const key of ["resume", "ask", "rn", "rnum", "rg", "ri", "t"] as const) {
+  for (const key of ["resume", "ask", "rn", "rnum", "rg", "ri", "ebay", "t"] as const) {
     const v = one(params[key]);
     if (v) q.set(key, v);
   }
