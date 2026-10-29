@@ -155,11 +155,11 @@ function Corner({ at }: { at: "tl" | "tr" | "bl" | "br" }) {
 function RevealStill() {
   return (
     <View style={stills.frame}>
-      <Image source={umbreon} style={stills.revealCard} contentFit="cover" />
-      <Text style={stills.price}>$2,209.75</Text>
-      <Text style={stills.priceSub}>Alternate Art · Near Mint</Text>
-      <Text style={stills.name}>Umbreon VMAX</Text>
-      <Text style={stills.nameSub}>Evolving Skies · #215</Text>
+      <Image source={pikachu} style={stills.revealCard} contentFit="cover" />
+      <Text style={stills.price}>$167.96</Text>
+      <Text style={stills.priceSub}>Holofoil · Near Mint</Text>
+      <Text style={stills.name}>Pikachu VMAX</Text>
+      <Text style={stills.nameSub}>Vivid Voltage · #188</Text>
     </View>
   );
 }
