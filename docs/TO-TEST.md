@@ -2,7 +2,7 @@
 
 ## 10-29 5:50PM ET: a Not this card? pick no longer auto-verifies the scan (Chris 5:44pm phone bug; tsc + eslint clean; app only, unpushed, bulk push)
 What changed (mobile/src/lib/scan.ts swapSavedCard): the pick sent verifiedAt=now; the site's swapCard sends none. Removed, so a corrected card still waits for Verify like on the site.
-- [ ] CHRIS, phone: 1. Scan a card, Not this card?, pick another card, Done on the camera: on the scanner page the card is in the queue WAITING to verify (Verify button shown), not already verified. 2. Pick the original card back: same, still waiting.
+- [x] PASSED Chris 5:50pm ("it passes"; needed a full Expo Go reload, hot reload had not reached lib/scan.ts). CHRIS, phone: 1. Scan a card, Not this card?, pick another card, Done on the camera: on the scanner page the card is in the queue WAITING to verify (Verify button shown), not already verified. 2. Pick the original card back: same, still waiting.
 
 ## 10-29 5:45PM ET: Scanner tab no longer turns into Inventory after Done (Chris 5:41pm phone bug; tsc + eslint clean; app only, unpushed, bulk push)
 What changed (mobile/src/components/SiteWebView.tsx): the site's Done on the scanner page is a client-side jump to /app/collection and the Scanner tab's page followed it. Now a tab's page heading for another tab's page (collection / price-check / wishlist / account) switches to that tab and the page goes back where it was (history.back). Pushed pages with the Back bar keep their links.
