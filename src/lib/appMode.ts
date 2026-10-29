@@ -26,3 +26,23 @@ export const APP_MODE_SCRIPT =
 export function inAppMode(): boolean {
   return typeof document !== "undefined" && document.documentElement.getAttribute(APP_MODE_ATTR) === "1";
 }
+
+/**
+ * The native app's message bridge (react-native-webview puts
+ * window.ReactNativeWebView on every page it shows). The site's scanner page
+ * hands the camera to the app through it: the app's camera is the one with
+ * the Dual Wide lens and the native reveal, the web camera inside a WebView is
+ * not (10-29). Returns false outside the app, so the caller carries on as the
+ * website.
+ */
+export function postToApp(message: { type: "scan" }): boolean {
+  if (typeof window === "undefined") return false;
+  const bridge = (window as unknown as { ReactNativeWebView?: { postMessage(data: string): void } }).ReactNativeWebView;
+  if (!bridge || !inAppMode()) return false;
+  try {
+    bridge.postMessage(JSON.stringify(message));
+    return true;
+  } catch {
+    return false;
+  }
+}

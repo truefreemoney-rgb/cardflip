@@ -10,6 +10,7 @@ import GameToggle from "@/components/GameToggle";
 import PricingModeToggle from "@/components/PricingModeToggle";
 import type { ShowcaseCard } from "@/components/Uploader";
 import CameraCapture from "@/components/CameraCaptureLazy";
+import { postToApp } from "@/lib/appMode";
 import StagedProgress from "@/components/StagedProgress";
 import QueueRow from "@/components/QueueRow";
 import ShareImageButton from "@/components/ShareImageButton";
@@ -1209,6 +1210,20 @@ export default function AppPage() {
   // starts from a camera scan). Existing sealed rows still open in
   // SealedEditor; nothing new can be added.
 
+  /** "Which category?" over the queue, once per scanning session, for the cards in sessionItemIdsRef.
+   *  A pack scan is filed under its pack, so no ask over it. Only when something was actually identified
+   *  (10-11, Chris: a floss box that "couldn't be read" still got asked "Which category?" and then had
+   *  nothing to file). */
+  const askCategory = useCallback((scanned: boolean) => {
+    if (scanned && !categoryAskedRef.current && !readActivePackId(userIdRef.current)) {
+      categoryAskedRef.current = true;
+      setCategoryPrompt({ existing: [] });
+      void fetchCategories(gameRef.current).then((list) => {
+        setCategoryPrompt((p) => (p ? { existing: list } : p));
+      });
+    }
+  }, []);
+
   // /app?resume=<ledger id>: reopen ONE draft from My cards in the editor
   // (Chris, 09-01 — he was rescanning cards just to get the build page
   // back). The search re-fetches the catalog card with prices; the row
@@ -1240,6 +1255,9 @@ export default function AppPage() {
     const hintGame = parseGame(params.get("rg"));
     const hintPhotoAt = params.get("rp");
     const hintImage = params.get("ri");
+    // The iPhone app's camera just scanned these (10-29): they count as this session's scans, so the page
+    // asks "Which category?" over them exactly as it does when its own camera closes.
+    const justScanned = params.get("ask") === "category";
     window.history.replaceState(null, "", window.location.pathname);
     void (async () => {
       // On a client-side navigation Next updates window.location AFTER the
@@ -1308,6 +1326,11 @@ export default function AppPage() {
       commit([...itemsRef.current, ...items]);
       setSelectedId(items[0].id);
       setResuming(false);
+      if (justScanned) {
+        categoryAskedRef.current = false;
+        sessionItemIdsRef.current = items.map((i) => i.id);
+        askCategory(true);
+      }
       for (const item of items) {
         if (item.status !== "listed" && item.card) void loadEbayComps(item.id, item.card);
         // The id fetch above is why reopening is instant, but it leaves the
@@ -1337,10 +1360,14 @@ export default function AppPage() {
         }
       }
     })();
-  }, [commit, loadEbayComps, patchItem]);
+  }, [askCategory, commit, loadEbayComps, patchItem]);
 
 
   const openCamera = useCallback(() => {
+    // Inside the iPhone app this page is the site's own scanner page (10-29, Chris: "match the website almost
+    // 1:1"); the camera itself is the app's (the Dual Wide lens, the native reveal). The app scans, then comes
+    // back here with ?resume=<ids>&ask=category, which is this page's post-scan state.
+    if (postToApp({ type: "scan" })) return;
     // A toast left over from the previous session would flash a stale result.
     setCameraItemId(null);
     categoryAskedRef.current = false;
@@ -1369,18 +1396,8 @@ export default function AppPage() {
   const closeCamera = useCallback(() => {
     scanOpenPending = false;
     setCameraOpen(false);
-    // A pack scan is filed under its pack, so no "which category?" over it.
-    // Only when something was actually identified (10-11, Chris: a floss box that "couldn't be read" still got
-    // asked "Which category?" and then had nothing to file).
-    const scannedACard = sessionItemIdsRef.current.some((id) => itemsRef.current.find((i) => i.id === id)?.card);
-    if (scannedACard && !categoryAskedRef.current && !readActivePackId(userIdRef.current)) {
-      categoryAskedRef.current = true;
-      setCategoryPrompt({ existing: [] });
-      void fetchCategories(gameRef.current).then((list) => {
-        setCategoryPrompt((p) => (p ? { existing: list } : p));
-      });
-    }
-  }, []);
+    askCategory(sessionItemIdsRef.current.some((id) => itemsRef.current.find((i) => i.id === id)?.card));
+  }, [askCategory]);
 
   /** Capture while out of scans (10-22): no burst, no photo. The scanner closes (clearing scanOpenPending), then the
    *  pricing page opens a beat later so the sheet-pop history.back() from the close lands first and can't eat the push. */

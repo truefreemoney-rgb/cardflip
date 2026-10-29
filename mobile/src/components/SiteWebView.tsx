@@ -20,8 +20,9 @@ import { colors, space } from "~/lib/theme";
  * Steering: a page that sends the browser to /login, /signup or the home page
  * (a sign-out, a dead session) calls onLeave (default: re-check the app's own
  * session, which shows the app's sign-in when it is gone); a link to the
- * website's scanner (/app) opens the app's own scanner; mailto:/tel: links go
- * to the phone's apps.
+ * website's scanner page (/app) switches to the Scanner tab, which shows that
+ * page (and the page's "Add Cards" opens the app's camera over the bridge);
+ * mailto:/tel: links go to the phone's apps.
  *
  * Web (the in-pane preview only, never shipped): react-native-webview has no
  * web build, so the handoff is a fetch with credentials and the page sits in
@@ -39,7 +40,7 @@ export function safeSitePath(raw: string | string[] | undefined): string {
   return p && p.startsWith("/") && !p.startsWith("//") ? p : "/app/account";
 }
 
-export default function SiteWebView({ path, onLeave, onLoading }: { path: string; onLeave?: () => void; onLoading?: (loading: boolean) => void }) {
+export default function SiteWebView({ path, onLeave, onLoading, scanner = false }: { path: string; onLeave?: () => void; onLoading?: (loading: boolean) => void; scanner?: boolean }) {
   const { refresh } = useAuth();
   const [token, setToken] = useState<string | null | undefined>(undefined);
   const [failed, setFailed] = useState<string | null>(null);
@@ -71,8 +72,10 @@ export default function SiteWebView({ path, onLeave, onLoading }: { path: string
     try {
       const u = new URL(url);
       if (u.origin !== new URL(API_URL).origin) return true;
-      if (u.pathname === "/app") {
-        router.push("/scan");
+      // The website's scanner page (/app) is the app's Scanner tab ((app)/scanTab.tsx, 10-29): a link to it
+      // from another page switches tabs; the Scanner tab itself loads it, with or without ?resume=.
+      if (u.pathname === "/app" && !scanner) {
+        router.navigate("/(app)/scanTab");
         return false;
       }
       if (LEAVE_PATHS.has(u.pathname)) {
@@ -134,6 +137,16 @@ export default function SiteWebView({ path, onLeave, onLoading }: { path: string
         steer(nav.url);
       }}
       onShouldStartLoadWithRequest={(req): boolean => steer(req.url)}
+      // The page's own bridge (the site's lib/appMode.ts postToApp): the scanner page's "Add Cards" asks for
+      // the app's camera instead of the web one.
+      onMessage={(e) => {
+        try {
+          const msg = JSON.parse(e.nativeEvent.data) as { type?: string };
+          if (msg.type === "scan") router.push("/scan");
+        } catch {
+          /* not ours */
+        }
+      }}
       allowsBackForwardNavigationGestures
       sharedCookiesEnabled
       startInLoadingState={false}

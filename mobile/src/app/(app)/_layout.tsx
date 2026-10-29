@@ -1,5 +1,5 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { Tabs, router } from "expo-router";
+import { Tabs } from "expo-router";
 import { StyleSheet, View, type ColorValue } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "~/lib/theme";
@@ -10,10 +10,9 @@ export const unstable_settings = { initialRouteName: "cards" };
 /**
  * The website's phone tab bar (src/components/BottomTabBar.tsx), tab for tab:
  * Inventory · Search · Scanner (the raised pill in the middle) · Watchlist ·
- * Account. Inventory, Search and the Scanner are native; Watchlist and
- * Account show the website's own pages inside the app (SiteWebView) until
- * their native screens land. Scanner is not a tab of its own: tapping it
- * opens the full-screen camera sheet.
+ * Account. Every tab shows the website's own page inside the app
+ * (SiteWebView), 1:1 with the site (Chris 10-29); only the camera is native
+ * (/scan), opened from the Scanner page's "Add Cards".
  */
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
 
@@ -50,12 +49,6 @@ export default function AppLayout() {
               <Ionicons name="scan-outline" size={24} color={colors.brand200} />
             </View>
           ),
-        }}
-        listeners={{
-          tabPress: (e) => {
-            e.preventDefault();
-            router.push("/scan");
-          },
         }}
       />
       <Tabs.Screen name="watchlist" options={{ title: "Watchlist", tabBarIcon: ({ color, focused }) => <TabIcon name="heart-outline" color={color} focused={focused} /> }} />

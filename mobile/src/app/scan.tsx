@@ -531,6 +531,9 @@ export default function Scan() {
   const [startCondition, setStartCondition] = useState<Condition>("Near Mint");
   /** This session's tally for the top pill: cards landed and their market total, as on the site. */
   const [tally, setTally] = useState({ count: 0, value: 0 });
+  // The ledger ids this session saved, newest last: Done / Verify hand them to the website's scanner page
+  // (the Scanner tab) as ?resume=<ids>&ask=category, its own post-scan state.
+  const sessionIds = useRef<string[]>([]);
 
   useEffect(() => {
     let live = true;
@@ -593,6 +596,7 @@ export default function Scan() {
       setTally((t) => ({ count: t.count + 1, value: t.value + (moneyValue(revealPrice(card, condition, found.variant).text) ?? 0) }));
       const saved = await saveScan(card, as, condition, found.variant, outcome.scanId);
       setPhase((p) => (p.kind === "result" && p.photo === photo ? { ...p, savedId: saved?.id ?? null, saving: false } : p));
+      if (saved) sessionIds.current.push(saved.id);
       if (!saved) setNote("Couldn't save — check your connection and scan again");
     },
     [refresh, applyBalance, startCondition],
@@ -695,15 +699,43 @@ export default function Scan() {
     if (phase.kind !== "result") return;
     const id = phase.savedId;
     setPhase({ kind: "camera" });
+    if (id) sessionIds.current = sessionIds.current.filter((s) => s !== id);
     if (id && !(await removeSavedCard(id))) setNote("Couldn't remove it — it is still in My Cards");
   }, [phase]);
 
-  const close = useCallback(() => {
-    // Home's "Scans left" follows the session: re-read it so the number matches what the scanner showed.
-    void refresh();
-    if (router.canGoBack()) router.back();
-    else router.replace("/(app)/cards");
-  }, [refresh]);
+  /**
+   * Back to the website's scanner page (the Scanner tab) the way the site's own camera closes: every card
+   * scanned this session in the queue, `first` (the tapped one) open in the editor, "Which category?" on
+   * top (the site's /app?resume= + ask=category, app/page.tsx). With nothing scanned, just close.
+   */
+  const toQueue = useCallback(
+    (first: string | null) => {
+      // Home's "Scans left" follows the session: re-read it so the number matches what the scanner showed.
+      void refresh();
+      const ids = first ? [first, ...sessionIds.current.filter((s) => s !== first)] : [...sessionIds.current];
+      if (ids.length === 0) {
+        if (router.canGoBack()) router.back();
+        else router.replace("/(app)/scanTab");
+        return;
+      }
+      const card = phase.kind === "result" && phase.savedId === ids[0] ? phase.card : null;
+      router.replace({
+        pathname: "/(app)/scanTab",
+        params: {
+          resume: ids.join(","),
+          ask: "category",
+          t: String(Date.now()),
+          // The single-card hints the site's My Cards passes (name, number, game, picture) so the editor
+          // fills while the ledger row loads.
+          ...(ids.length === 1 && card
+            ? { rn: card.name, rnum: card.number ?? "", rg: game, ri: pictureUrl(card.imageLarge || card.imageSmall) ?? "" }
+            : {}),
+        },
+      });
+    },
+    [refresh, phase, game],
+  );
+  const close = useCallback(() => toQueue(null), [toQueue]);
 
   const share = useCallback(async () => {
     try {
@@ -857,11 +889,8 @@ export default function Scan() {
             onExpand={() => setSheet("big")}
             onClear={() => setPhase({ kind: "camera" })}
             onEdit={() => setSheet("copy")}
-            onVerify={() => {
-              // The site's Verify opens the scan to check; the app's Inventory row is that scan.
-              void refresh();
-              router.replace("/(app)/cards");
-            }}
+            // The site's Verify (app/page.tsx onOpen) closes the camera and opens that scan in the editor.
+            onVerify={() => toQueue(phase.savedId)}
             onSwap={() => setSheet("pick")}
           />
         ) : reading ? (
