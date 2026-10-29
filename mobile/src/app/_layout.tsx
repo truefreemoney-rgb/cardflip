@@ -1,4 +1,5 @@
 import { BricolageGrotesque_600SemiBold, BricolageGrotesque_700Bold, useFonts } from "@expo-google-fonts/bricolage-grotesque";
+import { GEIST, applyGeistEverywhere } from "~/lib/fonts";
 import * as AppIntents from "expo-app-intents";
 import { useQuickActionRouting } from "expo-quick-actions/router";
 import { router, Stack } from "expo-router";
@@ -42,11 +43,13 @@ function ScannerShortcuts() {
 /** Holds the splash until the stored session has been checked and the headline font is in, so nobody sees a sign-in flash or a font swap. */
 function Root() {
   const { user } = useAuth();
-  const [fontsReady, fontError] = useFonts({ BricolageGrotesque_600SemiBold, BricolageGrotesque_700Bold });
+  const [fontsReady, fontError] = useFonts({ BricolageGrotesque_600SemiBold, BricolageGrotesque_700Bold, ...GEIST });
   useEffect(() => {
     if (user !== undefined && (fontsReady || fontError)) SplashScreen.hideAsync();
   }, [user, fontsReady, fontError]);
   if (!fontsReady && !fontError) return null;
+  // The site's body font on every Text (lib/fonts.ts); with the files missing the system font stays.
+  if (fontsReady) applyGeistEverywhere();
   return (
     <>
     <ScannerShortcuts />

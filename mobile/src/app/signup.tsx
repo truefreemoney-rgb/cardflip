@@ -1,8 +1,10 @@
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { StyleSheet, Text, View } from "react-native";
+import { openSitePage } from "~/components/AppHeader";
+import { AuthScreen, ErrorPill, Field, Input, PASSWORD_MIN, PasswordInput, SwitchLine, isValidEmail, passwordProblem } from "~/components/AuthForm";
+import PrimaryButton from "~/components/PrimaryButton";
 import SocialSignIn from "~/components/SocialSignIn";
 import { useAuth } from "~/lib/auth";
 import { pictureUrl } from "~/lib/catalog";
@@ -11,17 +13,15 @@ import { revealPrice } from "~/lib/scan";
 import { colors, fonts, radius, space } from "~/lib/theme";
 
 /**
- * Create an account: username, email, password, same words and order as the
- * website's /signup (src/app/signup/page.tsx). After the free first scan the
- * scanned card sits above the form with its price (docs/APP-PLAN.md "First
- * open" step 4): sign up and it lands in the new account's Inventory
- * (lib/guestScan.ts claims it inside AuthProvider).
+ * Create an account: username, email, password, same words, order and look as
+ * the website's /signup (src/app/signup/page.tsx), with its "1 Account — 2 Get
+ * Started" steps row over the card. After the free first scan the scanned
+ * card sits above the form with its price (docs/APP-PLAN.md "First open" step
+ * 4): sign up and it lands in the new account's Inventory (lib/guestScan.ts
+ * claims it inside AuthProvider).
  */
-const PASSWORD_MIN = 8;
-
 export default function Signup() {
   const { signUp } = useAuth();
-  const insets = useSafeAreaInsets();
   const [scan, setScan] = useState<GuestScan | null>(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -39,9 +39,10 @@ export default function Signup() {
 
   async function submit() {
     setError(null);
-    if (!name.trim()) return setError("Username is required.");
-    if (!email.trim()) return setError("Enter your email.");
-    if (password.length < PASSWORD_MIN) return setError(`Password must be at least ${PASSWORD_MIN} characters.`);
+    if (!name.trim()) return setError("Enter a username.");
+    if (!isValidEmail(email.trim())) return setError("Enter a valid email address.");
+    const pwProblem = passwordProblem(password);
+    if (pwProblem) return setError(pwProblem);
     setBusy(true);
     try {
       await signUp(name.trim(), email.trim(), password);
@@ -54,76 +55,71 @@ export default function Signup() {
   }
 
   const price = scan ? revealPrice(scan.card, scan.condition, scan.variant) : null;
+  const keep = scan ? (
+    <View style={styles.keep}>
+      <Image source={{ uri: pictureUrl(scan.card.imageSmall) ?? undefined }} style={styles.keepArt} contentFit="cover" />
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={styles.keepKicker}>YOUR FIRST SCAN</Text>
+        <Text style={styles.keepName} numberOfLines={1}>
+          {scan.card.englishName || scan.card.name}
+        </Text>
+        {price?.text ? <Text style={styles.keepPrice}>{price.text}</Text> : null}
+        <Text style={styles.keepNote}>Sign up and it lands in your Inventory.</Text>
+      </View>
+    </View>
+  ) : null;
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.screen}>
-      <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: insets.top + space.lg, paddingBottom: insets.bottom + space.xl }]} keyboardShouldPersistTaps="handled">
-        <Image source={require("../../assets/images/cardflip-logo.png")} style={styles.logo} contentFit="contain" accessibilityLabel="CardFlip" />
+    <AuthScreen steps={{ labels: ["Account", "Get Started"], current: 0 }} above={keep}>
+      <Text style={styles.h1}>Create your account</Text>
+      <Text style={styles.sub}>5 free scans, no card needed.</Text>
+      <SocialSignIn mode="signup" onError={setError} />
 
-        {scan ? (
-          <View style={styles.keep}>
-            <Image source={{ uri: pictureUrl(scan.card.imageSmall) ?? undefined }} style={styles.keepArt} contentFit="cover" />
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={styles.keepKicker}>YOUR FIRST SCAN</Text>
-              <Text style={styles.keepName} numberOfLines={1}>
-                {scan.card.englishName || scan.card.name}
-              </Text>
-              {price?.text ? <Text style={styles.keepPrice}>{price.text}</Text> : null}
-              <Text style={styles.keepNote}>Sign up and it lands in your Inventory.</Text>
-            </View>
-          </View>
-        ) : null}
+      <View style={styles.form}>
+        <Field label="Username">
+          <Input value={name} onChangeText={setName} placeholder="Enter username" maxLength={80} autoCapitalize="words" autoComplete="username" textContentType="username" returnKeyType="next" editable={!busy} />
+        </Field>
 
-        <View style={styles.card}>
-          <Text style={styles.h1}>Create your account</Text>
-          <Text style={styles.sub}>5 free scans. No credit card.</Text>
-          <SocialSignIn mode="signup" onError={setError} />
+        <Field label="Email">
+          <Input value={email} onChangeText={setEmail} placeholder="you@example.com" autoCapitalize="none" autoComplete="email" keyboardType="email-address" textContentType="emailAddress" returnKeyType="next" editable={!busy} />
+        </Field>
 
-          <Text style={styles.label}>Username</Text>
-          <TextInput style={styles.field} value={name} onChangeText={setName} placeholder="Enter username" placeholderTextColor={colors.faint} autoCapitalize="words" autoComplete="username" textContentType="username" returnKeyType="next" editable={!busy} />
+        <Field label="Password">
+          <PasswordInput hint value={password} onChangeText={setPassword} placeholder={`At least ${PASSWORD_MIN} characters`} autoComplete="new-password" textContentType="newPassword" returnKeyType="go" onSubmitEditing={submit} editable={!busy} />
+        </Field>
 
-          <Text style={styles.label}>Email</Text>
-          <TextInput style={styles.field} value={email} onChangeText={setEmail} placeholder="you@example.com" placeholderTextColor={colors.faint} autoCapitalize="none" autoComplete="email" keyboardType="email-address" textContentType="emailAddress" returnKeyType="next" editable={!busy} />
+        <ErrorPill message={error} />
 
-          <Text style={styles.label}>Password</Text>
-          <TextInput style={styles.field} value={password} onChangeText={setPassword} placeholder={`At least ${PASSWORD_MIN} characters`} placeholderTextColor={colors.faint} secureTextEntry autoComplete="new-password" textContentType="newPassword" returnKeyType="go" onSubmitEditing={submit} editable={!busy} />
+        <PrimaryButton compact busy={busy} label={busy ? "Creating Account…" : "Create Account"} onPress={submit} style={{ marginTop: 20 }} />
+      </View>
 
-          {error ? (
-            <Text style={styles.error} accessibilityRole="alert">
-              {error}
-            </Text>
-          ) : null}
+      <SwitchLine text="Already have an account?" link="Log In" onPress={() => router.replace("/login")} top={20} />
 
-          <Pressable onPress={submit} disabled={busy} style={({ pressed }) => [styles.button, pressed && { backgroundColor: colors.brandHover }, busy && { opacity: 0.7 }]}>
-            {busy ? <ActivityIndicator color={colors.white} /> : <Text style={styles.buttonText}>Create Account</Text>}
-          </Pressable>
-
-          <Pressable onPress={() => router.replace("/login")} hitSlop={8} style={{ alignSelf: "center", marginTop: space.lg }}>
-            <Text style={styles.link}>I already have an account</Text>
-          </Pressable>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      <Text style={styles.terms}>
+        By continuing you agree to the{" "}
+        <Text style={styles.termsLink} onPress={() => openSitePage("/terms", "Terms of Service")}>
+          Terms of Service
+        </Text>{" "}
+        and{" "}
+        <Text style={styles.termsLink} onPress={() => openSitePage("/privacy", "Privacy Policy")}>
+          Privacy Policy
+        </Text>
+        .
+      </Text>
+    </AuthScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  scroll: { flexGrow: 1, justifyContent: "center", paddingHorizontal: space.lg },
-  logo: { width: 128, height: 24, alignSelf: "center", marginBottom: space.lg },
   keep: { flexDirection: "row", alignItems: "center", gap: space.md, backgroundColor: colors.surface1, borderColor: colors.edge, borderWidth: 1, borderRadius: radius.lg, padding: space.md, marginBottom: space.md },
   keepArt: { width: 54, height: 75, borderRadius: 6 },
   keepKicker: { color: colors.brand300, fontSize: 11, fontWeight: "700", letterSpacing: 0.8 },
   keepName: { color: colors.white, fontSize: 16, fontWeight: "600", marginTop: 2 },
   keepPrice: { color: colors.money, fontSize: 20, fontFamily: fonts.display, marginTop: 2 },
   keepNote: { color: colors.muted, fontSize: 12, marginTop: 2 },
-  card: { backgroundColor: colors.surface, borderColor: colors.edge, borderWidth: 1, borderRadius: radius.xl, padding: space.xl },
-  h1: { color: colors.white, fontSize: 24, fontFamily: fonts.displaySemi, letterSpacing: -0.4 },
-  sub: { color: "#6ee7b7", fontSize: 14, fontWeight: "600", marginTop: 4, marginBottom: space.md },
-  label: { color: "#d4d4d8", fontSize: 14, fontWeight: "500", marginTop: space.md, marginBottom: 6 },
-  field: { backgroundColor: "rgba(0,0,0,0.4)", borderColor: colors.edge, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 12, color: colors.white, fontSize: 16 },
-  error: { color: colors.danger, fontSize: 14, marginTop: space.md },
-  button: { backgroundColor: colors.brand, borderRadius: radius.md, paddingVertical: 14, alignItems: "center", marginTop: space.xl },
-  buttonText: { color: colors.white, fontSize: 16, fontWeight: "600" },
-  link: { color: colors.brandSoft, fontSize: 15, fontWeight: "600" },
+  h1: { color: colors.white, fontSize: 20, fontWeight: "600", letterSpacing: -0.4, lineHeight: 28 },
+  sub: { color: colors.muted, fontSize: 14, marginTop: 4, lineHeight: 20 },
+  form: { marginTop: 20, gap: space.lg },
+  terms: { marginTop: 12, textAlign: "center", color: colors.muted, fontSize: 12, lineHeight: 16 },
+  termsLink: { textDecorationLine: "underline" },
 });

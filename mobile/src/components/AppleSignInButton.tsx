@@ -48,7 +48,7 @@ export default function AppleSignInButton({ mode, onError }: { mode: "login" | "
     <AppleAuthentication.AppleAuthenticationButton
       buttonType={mode === "signup" ? AppleAuthentication.AppleAuthenticationButtonType.SIGN_UP : AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
       buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
-      cornerRadius={12}
+      cornerRadius={22}
       style={[styles.button, busy && { opacity: 0.7 }]}
       onPress={press}
     />
@@ -56,5 +56,5 @@ export default function AppleSignInButton({ mode, onError }: { mode: "login" | "
 }
 
 const styles = StyleSheet.create({
-  button: { width: "100%", height: 48 },
+  button: { width: "100%", height: 44 },
 });

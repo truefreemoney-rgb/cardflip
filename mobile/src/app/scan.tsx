@@ -1148,7 +1148,7 @@ const styles = StyleSheet.create({
   tallyDivider: { width: 1, height: 12, backgroundColor: colors.edgeStrong },
   tallyMoney: { color: "#6ee7b7", fontSize: 12, fontWeight: "600", fontVariant: ["tabular-nums"], flexShrink: 1 },
   round: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: colors.edge, backgroundColor: SURFACE_2 },
-  roundOn: { backgroundColor: colors.amber, borderColor: "rgba(252,211,77,0.6)" },
+  roundOn: { backgroundColor: colors.torch, borderColor: "rgba(251,191,36,0.6)" },
 
   // Viewfinder.
   cameraWrap: { flex: 1, backgroundColor: "#000", overflow: "hidden" },

@@ -49,6 +49,6 @@ export default function GoogleSignInButton({ mode, onError }: { mode: "login" | 
 }
 
 const styles = StyleSheet.create({
-  button: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, width: "100%", height: 48, borderRadius: 12, backgroundColor: colors.white },
-  text: { color: "#27272a", fontSize: 15, fontWeight: "600" },
+  button: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, width: "100%", height: 44, borderRadius: 999, backgroundColor: colors.white, shadowColor: "#000", shadowOpacity: 0.3, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 4 },
+  text: { color: "#27272a", fontSize: 14, fontWeight: "600" },
 });

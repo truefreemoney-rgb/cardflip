@@ -24,8 +24,8 @@ export default function SocialSignIn({ mode, onError }: { mode: "login" | "signu
 }
 
 const styles = StyleSheet.create({
-  wrap: { marginTop: space.sm, gap: space.sm },
-  rule: { flexDirection: "row", alignItems: "center", gap: space.sm, marginTop: space.xs },
-  line: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.edgeStrong },
-  or: { color: colors.faint, fontSize: 11, letterSpacing: 2 },
+  wrap: { marginTop: 20, gap: space.md },
+  rule: { flexDirection: "row", alignItems: "center", gap: space.md, marginTop: space.xs },
+  line: { flex: 1, height: 1, backgroundColor: colors.edge },
+  or: { color: colors.faint, fontSize: 12, letterSpacing: 1.2, lineHeight: 16 },
 });
