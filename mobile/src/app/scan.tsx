@@ -1,10 +1,13 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { Image } from "expo-image";
 import { SaveFormat, manipulateAsync } from "expo-image-manipulator";
+import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Animated, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent } from "react-native";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { ActivityIndicator, Animated, Linking, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, View, type LayoutChangeEvent } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { openSitePage } from "~/components/AppHeader";
 import { useAuth } from "~/lib/auth";
 import { GAMES, fetchCardById, pictureUrl, publicGames, type GameId, type PokemonCard } from "~/lib/catalog";
 import {
@@ -26,17 +29,20 @@ import {
   type ScanQuota,
   type VisionCardRead,
 } from "~/lib/scan";
-import { colors, fonts, radius, space } from "~/lib/theme";
+import { colors, fonts, gradients, radius, space } from "~/lib/theme";
 
 /** A real card is 63×88 mm; the guide is one card, 82% of the camera's height (the website's CameraCapture). */
 const GUIDE_RATIO = 63 / 88;
 const GUIDE_HEIGHT = 0.82;
-/** The read's clock on screen: the server answers inside 8 s, the app gives up at 20 s (lib/scan.ts). */
-const READ_BAR_MS = 8_000;
+
+/** The website's scanner colours (globals.css): the guide's brand-400 corners, the holo-pink sweep. */
+const BRACKET = "#818cf8";
+const HOLO_PINK = "#f0abfc";
+const SURFACE_2 = "rgba(180,190,255,0.1)";
 
 type Phase =
   | { kind: "camera" }
-  | { kind: "reading"; photo: string }
+  | { kind: "reading"; photo: string; reread: GameId | null }
   | { kind: "miss"; photo: string; message: string; wrongGame: GameId | null; read: VisionCardRead | null; scanId: string | null; quota: boolean }
   | { kind: "result"; photo: string; found: Identified; card: PokemonCard; condition: Condition; variant: string | null; savedId: string | null; saving: boolean };
 
@@ -81,6 +87,10 @@ function moneyValue(text: string | null): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+function formatMoney(n: number): string {
+  return `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 /**
  * The price, counted up from $0.00 the moment the card lands (the reveal is
  * the exciting part, Chris). A later change (condition, printing) shows the
@@ -106,7 +116,7 @@ function CountUpMoney({ text, revealKey }: { text: string | null; revealKey: str
         setShown(text);
         return;
       }
-      setShown(`$${(target * eased).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+      setShown(formatMoney(target * eased));
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -115,13 +125,67 @@ function CountUpMoney({ text, revealKey }: { text: string | null; revealKey: str
   return <Text style={styles.bigMoney}>{shown ?? "—"}</Text>;
 }
 
+/** The website's .scan-sweep: a holo-pink band that runs down the guide while the card is being read. */
+function Sweep({ height }: { height: number }) {
+  const [y] = useState(() => new Animated.Value(0));
+  useEffect(() => {
+    const loop = Animated.loop(Animated.timing(y, { toValue: 1, duration: 2200, useNativeDriver: true }));
+    loop.start();
+    return () => loop.stop();
+  }, [y]);
+  const band = height * 0.22;
+  return (
+    <Animated.View pointerEvents="none" style={[styles.sweep, { height: band, transform: [{ translateY: y.interpolate({ inputRange: [0, 1], outputRange: [-band, height] }) }] }]}>
+      <LinearGradient colors={["rgba(240,171,252,0)", "rgba(240,171,252,0)", "rgba(240,171,252,0.28)", "rgba(240,171,252,0.92)", HOLO_PINK]} locations={[0, 0.55, 0.88, 0.97, 1]} style={StyleSheet.absoluteFill} />
+      <View style={styles.sweepEdge} />
+    </Animated.View>
+  );
+}
+
+/** The website's top-bar round button (40 px, bordered, surface-2). */
+function RoundButton({ onPress, label, on, children }: { onPress: () => void; label: string; on?: boolean; children: ReactNode }) {
+  return (
+    <Pressable onPress={onPress} accessibilityLabel={label} hitSlop={2} style={({ pressed }) => [styles.round, on && styles.roundOn, pressed && { opacity: 0.85 }]}>
+      {children}
+    </Pressable>
+  );
+}
+
+/** The condition dot colours: the same ladder as the website's result card and options sheet. */
+const DOT: Record<Condition, string> = {
+  "Near Mint": "#34d399",
+  "Lightly Played": "#38bdf8",
+  "Moderately Played": "#fbbf24",
+  "Heavily Played": "#fb923c",
+  Damaged: "#f87171",
+};
+
+function Heading({ children, first }: { children: string; first?: boolean }) {
+  return <Text style={[styles.heading, first && { marginTop: 0 }]}>{children}</Text>;
+}
+
+/** The site's options-sheet row: a label (and a hint) on the left, a switch or a button on the right. */
+function Row({ label, hint, on, onChange, last, children }: { label: string; hint?: string; on?: boolean; onChange?: () => void; last?: boolean; children?: ReactNode }) {
+  return (
+    <View style={[styles.optRow, last && { borderBottomWidth: 0 }]}>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={styles.optLabel}>{label}</Text>
+        {hint ? <Text style={styles.optHint}>{hint}</Text> : null}
+      </View>
+      {children ?? (onChange ? <Switch value={!!on} onValueChange={onChange} trackColor={{ false: SURFACE_2, true: colors.brand }} thumbColor={colors.white} ios_backgroundColor={SURFACE_2} /> : null)}
+    </View>
+  );
+}
+
 /**
- * The scanner (docs/APP-PLAN.md step 4): the camera with a one-card guide,
- * a Capture button and nothing else — no auto-scan (Chris), no photo upload.
- * One tap = one read; the reveal shows the card, its market in green and the
- * copy's condition (starts Near Mint), and the row is already saved to My
- * Cards, as on the website. A miss says why, is given back, and offers the
- * other game when the photo was that game's card.
+ * The scanner (docs/APP-PLAN.md step 4), the website's phone scanner
+ * (src/components/CameraCapture.tsx) built native: the top bar (Close, the
+ * "Scanning Pokémon" pill, the light, ⋯ options), the viewfinder with the
+ * one-card guide and its brand corners, the helper line and tips under it,
+ * the game chips, and one big Capture button. No auto-scan (Chris), no photo
+ * upload. One tap = one read; a miss says why in the chip under the
+ * viewfinder and the camera stays live; the camera stays live while it
+ * reads, with the site's sweep running down the guide.
  */
 export default function Scan() {
   const insets = useSafeAreaInsets();
@@ -136,8 +200,15 @@ export default function Scan() {
   const [scansLeft, setScansLeft] = useState<number | null | undefined>(user?.scans?.remaining);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
-  const [bar] = useState(() => new Animated.Value(0));
   const [sheet, setSheet] = useState<"copy" | "pick" | null>(null);
+  const [options, setOptions] = useState(false);
+  const [torch, setTorch] = useState(false);
+  const [tipsOn, setTipsOn] = useState(true);
+  const [flash, setFlash] = useState(false);
+  /** The condition new scans start as (the site's "New scans start as"); Near Mint unless changed in ⋯. */
+  const [startCondition, setStartCondition] = useState<Condition>("Near Mint");
+  /** This session's tally for the top pill: cards landed and their market total, as on the site. */
+  const [tally, setTally] = useState({ count: 0, value: 0 });
 
   useEffect(() => {
     let live = true;
@@ -150,6 +221,11 @@ export default function Scan() {
       live = false;
     };
   }, []);
+
+  // The browser asks for the camera the moment the site's scanner opens; the app does the same.
+  useEffect(() => {
+    if (permission && !permission.granted && permission.canAskAgain) void requestPermission();
+  }, [permission, requestPermission]);
 
   const onLayout = useCallback((e: LayoutChangeEvent) => {
     const { width, height } = e.nativeEvent.layout;
@@ -170,9 +246,7 @@ export default function Scan() {
   const runScan = useCallback(
     async (base64: string, as: GameId, reuse?: { read: VisionCardRead; scanId: string | null }) => {
       const photo = `data:image/jpeg;base64,${base64}`;
-      setPhase({ kind: "reading", photo });
-      bar.setValue(0);
-      Animated.timing(bar, { toValue: 1, duration: READ_BAR_MS, useNativeDriver: false }).start();
+      setPhase({ kind: "reading", photo, reread: reuse ? as : null });
 
       // "Switch to <game>": the wrong-game read already carries the card (name + number), so it is matched
       // under the other game instead of paying for a second read (Chris 10-22: one scan on the backend).
@@ -186,25 +260,29 @@ export default function Scan() {
       }
       const found = await identify(outcome.read, as);
       if (!found.card) {
-        setPhase({ kind: "miss", photo, message: found.error ?? "No match found — search by name to add it", wrongGame: found.wrongGame, read: outcome.read, scanId: outcome.scanId, quota: false });
+        setPhase({ kind: "miss", photo, message: found.error ?? "No match — line the card up in the guide and try again", wrongGame: found.wrongGame, read: outcome.read, scanId: outcome.scanId, quota: false });
         // Nothing found = not a scan (Chris 10-11). A wrong-game read with a switch on offer keeps its scan: the
         // switch reuses it; "Scan again" from there gives it back (below).
         if (!found.wrongGame && outcome.scanId) giveBackScan(outcome.scanId).then(applyBalance);
         return;
       }
-      const condition: Condition = "Near Mint";
-      setPhase({ kind: "result", photo, found, card: found.card, condition, variant: found.variant, savedId: null, saving: true });
-      const saved = await saveScan(found.card, as, condition, found.variant, outcome.scanId);
+      const condition: Condition = startCondition;
+      const card = found.card;
+      setPhase({ kind: "result", photo, found, card, condition, variant: found.variant, savedId: null, saving: true });
+      setTally((t) => ({ count: t.count + 1, value: t.value + (moneyValue(revealPrice(card, condition, found.variant).text) ?? 0) }));
+      const saved = await saveScan(card, as, condition, found.variant, outcome.scanId);
       setPhase((p) => (p.kind === "result" && p.photo === photo ? { ...p, savedId: saved?.id ?? null, saving: false } : p));
       if (!saved) setNote("Couldn't save — check your connection and scan again");
     },
-    [bar, refresh, applyBalance],
+    [refresh, applyBalance, startCondition],
   );
 
   const capture = useCallback(async () => {
     if (busy || !camera.current || !cameraReady) return;
     setBusy(true);
     setNote(null);
+    setFlash(true);
+    setTimeout(() => setFlash(false), 120);
     try {
       const shot = await camera.current.takePictureAsync({ quality: 0.92 });
       if (!shot?.uri) throw new Error("no frame");
@@ -305,6 +383,14 @@ export default function Scan() {
     if (router.canGoBack()) router.back();
     else router.replace("/(app)/cards");
   }, [refresh]);
+
+  const share = useCallback(async () => {
+    try {
+      await Share.share({ message: "Scan a card, see what it is worth. https://cardflip.io", url: "https://cardflip.io" });
+    } catch {
+      /* closing the phone's share sheet is not a failure */
+    }
+  }, []);
 
   const top = insets.top + space.sm;
   const bottom = insets.bottom + space.lg;
@@ -456,150 +542,363 @@ export default function Scan() {
     );
   }
 
-  // ------------------------------------------------------- reading / miss
-  if (phase.kind === "reading" || phase.kind === "miss") {
-    const missing = phase.kind === "miss";
-    return (
-      <View style={[styles.screen, { paddingTop: top }]}>
-        <View style={styles.topRow}>
-          <Pressable onPress={close} hitSlop={12} style={styles.iconBtn}>
-            <Text style={styles.iconText}>✕</Text>
-          </Pressable>
-          <Text style={styles.topTitle}>{GAMES[game].label}</Text>
-          <View style={styles.iconBtn} />
-        </View>
-        <View style={styles.shotWrap}>
-          <Image source={{ uri: phase.photo }} style={styles.bigShot} contentFit="contain" />
-        </View>
-        {missing ? (
-          <>
-            <Text style={styles.missText}>{phase.message}</Text>
-            <View style={[styles.bottomBar, { paddingBottom: bottom }]}>
-              {phase.wrongGame ? (
-                <Pressable onPress={switchGame} style={({ pressed }) => [styles.primary, pressed && { opacity: 0.85 }]}>
-                  <Text style={styles.primaryText}>Switch to {GAMES[phase.wrongGame].label}</Text>
-                </Pressable>
-              ) : null}
-              {phase.quota ? (
-                <Pressable onPress={close} style={({ pressed }) => [styles.primary, pressed && { opacity: 0.85 }]}>
-                  <Text style={styles.primaryText}>Done</Text>
-                </Pressable>
-              ) : (
-                <Pressable onPress={scanAgain} style={({ pressed }) => [phase.wrongGame ? styles.secondary : styles.primary, pressed && { opacity: 0.85 }]}>
-                  <Text style={phase.wrongGame ? styles.secondaryText : styles.primaryText}>Scan again</Text>
-                </Pressable>
-              )}
-            </View>
-          </>
-        ) : (
-          <View style={{ paddingHorizontal: space.lg, paddingBottom: bottom }}>
-            <Text style={styles.readingText}>Reading the card…</Text>
-            <View style={styles.barTrack}>
-              <Animated.View style={[styles.barFill, { width: bar.interpolate({ inputRange: [0, 1], outputRange: ["0%", "100%"] }) }]} />
-            </View>
-          </View>
-        )}
-      </View>
-    );
-  }
-
-  // ---------------------------------------------------------------- camera
+  // ------------------------------------------------ camera / reading / miss
+  // One screen, the website's: the camera stays live while a card is read
+  // and after a miss; the chip under the viewfinder says what is happening.
   const guide = view.w && view.h ? guideBox(view.w, view.h) : null;
   const granted = permission?.granted === true;
+  const blocked = permission != null && !permission.granted && !permission.canAskAgain;
+  const asking = permission != null && !permission.granted && permission.canAskAgain;
   const devTest = __DEV__ && Platform.OS === "web";
+  const reading = phase.kind === "reading";
+  const miss = phase.kind === "miss" ? phase : null;
+  const quotaNote = miss?.quota ? miss.message : null;
+  const ready = granted && cameraReady;
+  const captureLabel = quotaNote ? "Get More Scans" : `Capture ${GAMES[game].label} Card`;
+  const captureDisabled = !quotaNote && (busy || reading || !ready);
+  const hintTop = guide ? (guide.y >= 32 ? guide.y / 2 : guide.y + 18) : 0;
+  const lightShown = Platform.OS !== "web";
+
   return (
-    <View style={styles.screen}>
+    <View style={[styles.screen, { paddingTop: insets.top }]}>
+      {/* Top bar: every control that is not Capture lives here, off the viewfinder (the site, 10-02). */}
+      <View style={styles.bar}>
+        <Pressable onPress={close} accessibilityLabel={tally.count > 0 ? "Done, close scanner" : "Close scanner"} hitSlop={2} style={({ pressed }) => [styles.closeBtn, pressed && { opacity: 0.85 }]}>
+          <Text style={styles.closeText}>{tally.count > 0 ? "Done" : "Close"}</Text>
+        </Pressable>
+        <View style={styles.barMid}>
+          <View style={styles.tally}>
+            {tally.count > 0 ? (
+              <>
+                <Text style={styles.tallyCount}>
+                  {tally.count} {tally.count === 1 ? "card" : "cards"}
+                </Text>
+                {tally.value > 0 ? (
+                  <>
+                    <View style={styles.tallyDivider} />
+                    <Text style={styles.tallyMoney} numberOfLines={1}>
+                      {formatMoney(tally.value)}
+                    </Text>
+                  </>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <View style={styles.liveDot} />
+                <Text style={styles.tallyText} numberOfLines={1}>
+                  Scanning <Text style={styles.tallyGame}>{GAMES[game].label}</Text>
+                </Text>
+              </>
+            )}
+          </View>
+        </View>
+        {lightShown ? (
+          <RoundButton onPress={() => setTorch((t) => !t)} label="Camera light" on={torch}>
+            <Ionicons name="flash" size={18} color={torch ? "#000" : "#e4e4e7"} />
+          </RoundButton>
+        ) : null}
+        <RoundButton onPress={() => setOptions(true)} label="Scanner options">
+          <Ionicons name="ellipsis-horizontal" size={20} color="#e4e4e7" />
+        </RoundButton>
+      </View>
+
+      {/* The viewfinder. */}
       <View style={styles.cameraWrap} onLayout={onLayout}>
-        {granted ? (
-          <CameraView ref={camera} style={StyleSheet.absoluteFill} facing="back" onCameraReady={() => setCameraReady(true)} animateShutter={false} />
+        {granted ? <CameraView ref={camera} style={StyleSheet.absoluteFill} facing="back" enableTorch={torch} onCameraReady={() => setCameraReady(true)} animateShutter={false} /> : null}
+        {ready && guide ? (
+          <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+            {/* The dimmed surround (the site's 9999px box-shadow), four rectangles around the guide. */}
+            <View style={[styles.dim, { left: 0, right: 0, top: 0, height: guide.y }]} />
+            <View style={[styles.dim, { left: 0, right: 0, top: guide.y + guide.h, bottom: 0 }]} />
+            <View style={[styles.dim, { left: 0, width: guide.x, top: guide.y, height: guide.h }]} />
+            <View style={[styles.dim, { right: 0, width: view.w - guide.x - guide.w, top: guide.y, height: guide.h }]} />
+            <View style={[styles.guide, { left: guide.x, top: guide.y, width: guide.w, height: guide.h }]}>
+              {reading ? <Sweep height={guide.h} /> : null}
+              <View style={[styles.corner, styles.cornerTL]} />
+              <View style={[styles.corner, styles.cornerTR]} />
+              <View style={[styles.corner, styles.cornerBL]} />
+              <View style={[styles.corner, styles.cornerBR]} />
+            </View>
+            {/* The line above the guide, in the dimmed band, never on the card (Chris 10-16). */}
+            <View style={[styles.hintWrap, { top: hintTop }]}>
+              <View style={[styles.hint, note && styles.hintAmber]}>
+                <Text style={[styles.hintText, note && styles.hintTextAmber]} numberOfLines={1}>
+                  {note ?? "Line the card's edges up with the corners"}
+                </Text>
+              </View>
+            </View>
+          </View>
+        ) : null}
+        {flash ? <View pointerEvents="none" style={styles.flash} /> : null}
+        {granted && !cameraReady ? (
+          <View pointerEvents="none" style={styles.starting}>
+            <Text style={styles.startingText}>Starting camera…</Text>
+          </View>
+        ) : null}
+        {!granted ? (
+          // Over the viewfinder, with a way out: the site's blocked-camera panel, in the app's words.
+          <View style={styles.errorPanel}>
+            <Text style={styles.errorText}>
+              {blocked
+                ? "Camera access is blocked for CardFlip. Turn it on in Settings (Privacy & Security → Camera), then try again. Every listing needs a photo you take here, so there is no photo upload."
+                : "CardFlip scans from a live camera only, so there is no photo upload. Allow the camera to start scanning."}
+            </Text>
+            <View style={styles.errorButtons}>
+              <Pressable onPress={() => (blocked ? Linking.openSettings() : void requestPermission())} style={({ pressed }) => [styles.errorPrimary, pressed && { opacity: 0.85 }]}>
+                <Text style={styles.errorPrimaryText}>{blocked ? "Open Settings" : asking ? "Allow the camera" : "Try the camera again"}</Text>
+              </Pressable>
+              <Pressable onPress={close} style={({ pressed }) => [styles.errorSecondary, pressed && { opacity: 0.85 }]}>
+                <Text style={styles.errorSecondaryText}>Close</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
+      </View>
+
+      {/* The chip slot under the viewfinder: the how-to until the first scan, then the reading / miss chip. */}
+      {quotaNote ? <Text style={styles.quotaNote}>{quotaNote}</Text> : null}
+      <View style={styles.slot}>
+        {reading ? (
+          <View style={styles.toast}>
+            <View style={styles.toastIcon}>
+              <View style={styles.toastDot} />
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={styles.toastKicker}>{phase.reread ? "SAME PHOTO" : "IDENTIFYING"}</Text>
+              <Text style={styles.toastText}>{phase.reread ? `Reading it again as ${GAMES[phase.reread].label}…` : "Reading the card…"}</Text>
+            </View>
+          </View>
+        ) : miss && !miss.quota ? (
+          <View style={[styles.toast, styles.toastMiss]}>
+            <View style={[styles.toastIcon, styles.toastIconMiss]}>
+              <Text style={styles.toastQ}>?</Text>
+            </View>
+            <Text style={styles.toastMissText}>{miss.message}</Text>
+            {miss.wrongGame ? (
+              <Pressable onPress={switchGame} style={({ pressed }) => [styles.switchBtn, pressed && { opacity: 0.85 }]}>
+                <Text style={styles.switchText}>Switch to {GAMES[miss.wrongGame].label}</Text>
+              </Pressable>
+            ) : null}
+          </View>
         ) : (
-          <View style={[StyleSheet.absoluteFill, styles.permissionBox, { paddingTop: top + 100 }]}>
-            <Text style={styles.permissionTitle}>CardFlip needs the camera</Text>
-            <Text style={styles.permissionText}>Every card is scanned from a live camera — there is no photo upload. Allow the camera to start scanning.</Text>
-            <Pressable onPress={() => requestPermission()} style={({ pressed }) => [styles.allow, pressed && { opacity: 0.85 }]}>
-              <Text style={styles.primaryText}>Allow camera</Text>
-            </Pressable>
+          <View style={{ alignItems: "center" }}>
+            <Text style={styles.howTo}>Fill the guide with one card, then tap Capture.</Text>
+            {tipsOn ? (
+              <View style={styles.tipsRow}>
+                <Text style={styles.tipsText}>Lay It Flat · No Glare · Sleeves OK, No Slabs</Text>
+                <Pressable onPress={() => setTipsOn(false)} accessibilityLabel="Hide camera tips" hitSlop={10} style={styles.gotIt}>
+                  <Text style={styles.gotItText}>Got It</Text>
+                </Pressable>
+              </View>
+            ) : null}
           </View>
         )}
-        {guide ? (
-          <View pointerEvents="none" style={[styles.guide, { left: guide.x, top: guide.y, width: guide.w, height: guide.h }]}>
-            <View style={[styles.corner, styles.cornerTL]} />
-            <View style={[styles.corner, styles.cornerTR]} />
-            <View style={[styles.corner, styles.cornerBL]} />
-            <View style={[styles.corner, styles.cornerBR]} />
-          </View>
-        ) : null}
-        <View style={[styles.topRow, styles.overTop, { paddingTop: top }]}>
-          <Pressable onPress={close} hitSlop={12} style={styles.iconBtn}>
-            <Text style={styles.iconText}>✕</Text>
-          </Pressable>
-          <Text style={styles.topTitle}>{scansLeft === null ? "Unlimited scans" : scansLeft === undefined ? "" : `${scansLeft} scan${scansLeft === 1 ? "" : "s"} left`}</Text>
-          <View style={styles.iconBtn} />
-        </View>
-        {games.length > 1 ? (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[styles.gameRow, { top: top + 44 }]} contentContainerStyle={styles.gameRowInner}>
+      </View>
+
+      {/* Which game the shot is read as (Chris 09-29): the site's compact toggle. */}
+      {games.length > 1 ? (
+        <View style={styles.toggleRow}>
+          <View style={styles.toggle}>
             {games.map((g) => (
-              <Pressable key={g} onPress={() => setGame(g)} style={[styles.chip, styles.chipDark, game === g && styles.chipOn]}>
-                <Text style={[styles.chipText, game === g && styles.chipTextOn]}>{GAMES[g].label}</Text>
+              <Pressable key={g} onPress={() => setGame(g)} accessibilityRole="radio" accessibilityState={{ checked: game === g }} hitSlop={{ top: 8, bottom: 8 }} style={[styles.toggleChip, game === g && styles.toggleChipOn]}>
+                <Text style={[styles.toggleText, game === g && styles.toggleTextOn]}>{GAMES[g].label}</Text>
               </Pressable>
             ))}
-          </ScrollView>
-        ) : null}
-        {guide ? (
-          <Text style={[styles.hint, { top: guide.y + guide.h + space.sm }]}>{note ?? "Line the card's edges up with the corners"}</Text>
-        ) : null}
-      </View>
-      <View style={[styles.captureBar, { paddingBottom: bottom }]}>
+          </View>
+        </View>
+      ) : null}
+
+      {/* Capture is the only big button down here: the one obvious action. */}
+      <View style={[styles.captureBar, { paddingBottom: Math.max(space.md, insets.bottom) }]}>
+        <Pressable
+          onPress={quotaNote ? () => openSitePage("/pricing", "Scans") : miss ? () => { scanAgain(); void capture(); } : capture}
+          disabled={captureDisabled}
+          style={({ pressed }) => [styles.captureGlow, captureDisabled && { opacity: 0.4 }, pressed && { opacity: 0.85 }]}
+        >
+          <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.capture}>
+            <View style={styles.sheen} pointerEvents="none" />
+            {busy || reading ? <ActivityIndicator color={colors.white} /> : <Text style={styles.captureText}>{captureLabel}</Text>}
+          </LinearGradient>
+        </Pressable>
         {devTest ? (
-          <Pressable onPress={devTestPhoto} disabled={busy} style={styles.textBtn}>
-            <Text style={styles.textBtnText}>Test photo</Text>
+          <Pressable onPress={devTestPhoto} disabled={busy} style={styles.devBtn}>
+            <Text style={styles.devBtnText}>Test photo</Text>
           </Pressable>
         ) : null}
-        <Pressable onPress={capture} disabled={busy || !granted || !cameraReady} style={({ pressed }) => [styles.capture, (busy || !granted || !cameraReady) && { opacity: 0.4 }, pressed && { opacity: 0.85 }]}>
-          {busy ? <ActivityIndicator color={colors.white} /> : <Text style={styles.captureText}>Capture</Text>}
-        </Pressable>
       </View>
+
+      {/* ⋯ Scanner options: the site's sheet (10-15): game, starting condition, light and tips, share, help. */}
+      <Modal visible={options} transparent animationType="slide" onRequestClose={() => setOptions(false)}>
+        <Pressable style={styles.scrim} onPress={() => setOptions(false)} />
+        <View style={[styles.sheet, styles.optSheet, { paddingBottom: bottom }]}>
+          <View style={styles.sheetHead}>
+            <Text style={styles.sheetTitle}>Scanner options</Text>
+            <Pressable onPress={() => setOptions(false)} accessibilityLabel="Close" hitSlop={8} style={styles.sheetX}>
+              <Ionicons name="close" size={20} color="#e4e4e7" />
+            </Pressable>
+          </View>
+          <ScrollView style={{ flexGrow: 0, flexShrink: 1 }} contentContainerStyle={{ paddingBottom: space.md }}>
+            {games.length > 1 ? (
+              <>
+                <Heading first>Game</Heading>
+                <View style={styles.chips}>
+                  {games.map((g) => (
+                    <Pressable key={g} onPress={() => setGame(g)} style={[styles.chip, styles.chipSurface, game === g && styles.chipOn]}>
+                      <Text style={[styles.chipText, game === g && styles.chipTextOn]}>{GAMES[g].label}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </>
+            ) : null}
+            <Heading first={games.length < 2}>New scans start as</Heading>
+            <View style={styles.chips}>
+              {CONDITIONS.map((c) => {
+                const on = startCondition === c;
+                return (
+                  <Pressable key={c} onPress={() => setStartCondition(c)} style={[styles.chip, styles.chipSurface, styles.chipDotted, on && { borderColor: DOT[c], backgroundColor: `${DOT[c]}26` }]}>
+                    <View style={[styles.dot, { backgroundColor: DOT[c] }]} />
+                    <Text style={[styles.chipText, on && styles.chipTextOn]}>{c}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <Text style={styles.optNote}>The photo can still change it, and you can change any card after.</Text>
+            <Heading>Camera</Heading>
+            {lightShown ? <Row label="Light" hint="For a dark room. Glare hurts more than dark on foils." on={torch} onChange={() => setTorch((t) => !t)} /> : null}
+            <Row label="Tips under the camera" hint="Lay It Flat · No Glare · Sleeves OK, No Slabs" on={tipsOn} onChange={() => setTipsOn((t) => !t)} last />
+            <Heading>Share</Heading>
+            <Row label="Share CardFlip" hint="Send a friend the link" last>
+              <Pressable onPress={share} style={({ pressed }) => [styles.optBtn, pressed && { opacity: 0.85 }]}>
+                <Text style={styles.optBtnText}>Share</Text>
+              </Pressable>
+            </Row>
+            <Heading>Help</Heading>
+            <Row label="Scanning help" hint="How to scan, what it reads, what to do when it misses" last>
+              <Pressable
+                onPress={() => {
+                  setOptions(false);
+                  openSitePage("/app/help", "Help");
+                }}
+                style={({ pressed }) => [styles.optBtn, pressed && { opacity: 0.85 }]}
+              >
+                <Text style={styles.optBtnText}>Open</Text>
+              </Pressable>
+            </Row>
+          </ScrollView>
+          <Pressable onPress={() => setOptions(false)} style={({ pressed }) => [styles.primary, pressed && { opacity: 0.85 }]}>
+            <Text style={styles.primaryText}>Done</Text>
+          </Pressable>
+        </View>
+      </Modal>
     </View>
   );
 }
 
-const CORNER = 26;
+const CORNER = 32;
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
+
+  // Top bar (the site: h-12, px-3, gap-1.5; 40px pills on surface-2).
+  bar: { height: 48, flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12 },
+  closeBtn: { height: 40, justifyContent: "center", paddingHorizontal: 12, borderRadius: 999, borderWidth: 1, borderColor: colors.edge, backgroundColor: SURFACE_2 },
+  closeText: { color: "#e4e4e7", fontSize: 12, fontWeight: "600" },
+  barMid: { flex: 1, minWidth: 0, alignItems: "center" },
+  tally: { height: 40, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1, borderColor: colors.edge, backgroundColor: SURFACE_2, maxWidth: "100%" },
+  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.money, shadowColor: colors.money, shadowOpacity: 1, shadowRadius: 4, shadowOffset: { width: 0, height: 0 } },
+  tallyText: { color: "#d4d4d8", fontSize: 12 },
+  tallyGame: { color: colors.white, fontWeight: "600" },
+  tallyCount: { color: colors.white, fontSize: 12, fontWeight: "600", fontVariant: ["tabular-nums"] },
+  tallyDivider: { width: 1, height: 12, backgroundColor: colors.edgeStrong },
+  tallyMoney: { color: "#6ee7b7", fontSize: 12, fontWeight: "600", fontVariant: ["tabular-nums"], flexShrink: 1 },
+  round: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: colors.edge, backgroundColor: SURFACE_2 },
+  roundOn: { backgroundColor: colors.amber, borderColor: "rgba(252,211,77,0.6)" },
+
+  // Viewfinder.
   cameraWrap: { flex: 1, backgroundColor: "#000", overflow: "hidden" },
+  dim: { position: "absolute", backgroundColor: "rgba(0,0,0,0.45)" },
+  guide: { position: "absolute", borderRadius: 12, overflow: "hidden" },
+  corner: { position: "absolute", width: CORNER, height: CORNER, borderColor: BRACKET },
+  cornerTL: { left: -1, top: -1, borderLeftWidth: 3, borderTopWidth: 3, borderTopLeftRadius: 12 },
+  cornerTR: { right: -1, top: -1, borderRightWidth: 3, borderTopWidth: 3, borderTopRightRadius: 12 },
+  cornerBL: { left: -1, bottom: -1, borderLeftWidth: 3, borderBottomWidth: 3, borderBottomLeftRadius: 12 },
+  cornerBR: { right: -1, bottom: -1, borderRightWidth: 3, borderBottomWidth: 3, borderBottomRightRadius: 12 },
+  sweep: { position: "absolute", left: 0, right: 0, top: 0 },
+  sweepEdge: { position: "absolute", left: "4%", right: "4%", bottom: -1, height: 2, borderRadius: 2, backgroundColor: HOLO_PINK, shadowColor: HOLO_PINK, shadowOpacity: 1, shadowRadius: 8, shadowOffset: { width: 0, height: 0 } },
+  hintWrap: { position: "absolute", left: 0, right: 0, alignItems: "center", marginTop: -13 },
+  hint: { borderRadius: 999, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)", backgroundColor: "rgba(0,0,0,0.8)", paddingHorizontal: 12, paddingVertical: 5, maxWidth: "92%" },
+  hintAmber: { borderColor: "rgba(251,191,36,0.4)" },
+  hintText: { color: "#f4f4f5", fontSize: 12, fontWeight: "600" },
+  hintTextAmber: { color: "#fde68a" },
+  flash: { position: "absolute", left: 0, right: 0, top: 0, bottom: 0, backgroundColor: "rgba(255,255,255,0.7)" },
+  starting: { position: "absolute", left: 0, right: 0, top: 0, bottom: 0, alignItems: "center", justifyContent: "center" },
+  startingText: { color: colors.muted, fontSize: 14 },
+  errorPanel: { position: "absolute", left: 0, right: 0, top: 0, bottom: 0, alignItems: "center", justifyContent: "center", gap: 16, padding: 24, backgroundColor: "rgba(11,13,19,0.95)" },
+  errorText: { maxWidth: 384, textAlign: "center", color: "#d4d4d8", fontSize: 14, lineHeight: 20 },
+  errorButtons: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: 8 },
+  errorPrimary: { borderRadius: 999, backgroundColor: colors.brand, paddingHorizontal: 20, paddingVertical: 10 },
+  errorPrimaryText: { color: colors.white, fontSize: 14, fontWeight: "600" },
+  errorSecondary: { borderRadius: 999, borderWidth: 1, borderColor: colors.edge, backgroundColor: SURFACE_2, paddingHorizontal: 16, paddingVertical: 10 },
+  errorSecondaryText: { color: "#e4e4e7", fontSize: 14, fontWeight: "500" },
+
+  // The chip slot (the site: min-h-[4.25rem], px-3).
+  quotaNote: { paddingHorizontal: 12, paddingBottom: 8, textAlign: "center", color: "#fca5a5", fontSize: 12, fontWeight: "600" },
+  slot: { minHeight: 68, justifyContent: "center", paddingHorizontal: 12 },
+  howTo: { textAlign: "center", color: colors.muted, fontSize: 14, lineHeight: 18 },
+  tipsRow: { marginTop: 4, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  tipsText: { color: colors.brand200, fontSize: 12 },
+  gotIt: { borderRadius: 999, borderWidth: 1, borderColor: colors.edge, paddingHorizontal: 8, paddingVertical: 4 },
+  gotItText: { color: "#d4d4d8", fontSize: 12 },
+  toast: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 16, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)", backgroundColor: "rgba(0,0,0,0.75)", paddingHorizontal: 16, paddingVertical: 12 },
+  toastMiss: { borderColor: "rgba(251,191,36,0.3)" },
+  toastIcon: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(99,102,241,0.2)" },
+  toastIconMiss: { backgroundColor: "rgba(251,191,36,0.15)" },
+  toastDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.brand300 },
+  toastQ: { color: "#fcd34d", fontSize: 16, fontWeight: "700" },
+  toastKicker: { color: colors.brand300, fontSize: 10, fontWeight: "600", letterSpacing: 2 },
+  toastText: { color: "#e4e4e7", fontSize: 14, fontWeight: "500" },
+  toastMissText: { flex: 1, minWidth: 0, color: "#fcd34d", fontSize: 14, fontWeight: "500" },
+  switchBtn: { borderRadius: 999, backgroundColor: colors.brand, paddingHorizontal: 12, paddingVertical: 8 },
+  switchText: { color: colors.white, fontSize: 12, fontWeight: "600" },
+
+  // The compact game toggle (GameToggle compact: a bordered group on surface-1, 12px chips).
+  toggleRow: { alignItems: "center", paddingHorizontal: 12, paddingBottom: 6 },
+  toggle: { flexDirection: "row", borderRadius: 999, borderWidth: 1, borderColor: colors.edge, backgroundColor: colors.surface1, padding: 4 },
+  toggleChip: { borderRadius: 999, paddingHorizontal: 6, paddingVertical: 6 },
+  toggleChipOn: { backgroundColor: colors.brand },
+  toggleText: { color: colors.muted, fontSize: 12, fontWeight: "500" },
+  toggleTextOn: { color: colors.white },
+
+  // Capture bar (the site: px-3, gap-3; the brand gradient button with its glow).
+  captureBar: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 12 },
+  captureGlow: { flex: 1, borderRadius: 999, shadowColor: "#7c5cf0", shadowOpacity: 0.45, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 8 },
+  capture: { borderRadius: 999, paddingVertical: 14, alignItems: "center", justifyContent: "center", overflow: "hidden", minHeight: 52 },
+  sheen: { position: "absolute", left: 0, right: 0, top: 0, height: "48%", backgroundColor: "rgba(255,255,255,0.14)" },
+  captureText: { color: colors.white, fontSize: 16, fontWeight: "600" },
+  devBtn: { paddingVertical: 10, paddingHorizontal: 6 },
+  devBtnText: { color: colors.foreground, fontSize: 13, fontWeight: "600" },
+
+  // Options sheet.
+  optSheet: { maxHeight: "85%" },
+  sheetHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: space.md },
+  sheetX: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: colors.edge, backgroundColor: SURFACE_2 },
+  heading: { marginTop: 20, marginBottom: 8, color: colors.faint, fontSize: 11, fontWeight: "600", letterSpacing: 1.6, textTransform: "uppercase" },
+  chipSurface: { backgroundColor: SURFACE_2, paddingVertical: 8 },
+  chipDotted: { flexDirection: "row", alignItems: "center", gap: 8 },
+  dot: { width: 8, height: 8, borderRadius: 4 },
+  optNote: { marginTop: 8, color: colors.faint, fontSize: 12 },
+  optRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.edge },
+  optLabel: { color: colors.white, fontSize: 14, fontWeight: "500" },
+  optHint: { color: colors.faint, fontSize: 12, marginTop: 1 },
+  optBtn: { borderRadius: 999, borderWidth: 1, borderColor: colors.edge, backgroundColor: SURFACE_2, paddingHorizontal: 16, paddingVertical: 8 },
+  optBtnText: { color: colors.white, fontSize: 14, fontWeight: "600" },
+
+  // Reveal (layout A; the next pass makes it the site's result chip).
   topRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: space.md },
-  overTop: { position: "absolute", left: 0, right: 0, top: 0 },
   iconBtn: { width: 36, height: 36, alignItems: "center", justifyContent: "center", borderRadius: 18 },
   iconText: { color: colors.white, fontSize: 18 },
   topTitle: { color: colors.foreground, fontSize: 14, fontWeight: "600" },
-  gameRow: { position: "absolute", left: 0, right: 0, flexGrow: 0 },
-  gameRowInner: { flexDirection: "row", gap: 6, paddingHorizontal: space.md, minWidth: "100%", justifyContent: "center" },
-  guide: { position: "absolute", borderRadius: 10 },
-  corner: { position: "absolute", width: CORNER, height: CORNER, borderColor: colors.white, borderWidth: 0 },
-  cornerTL: { left: 0, top: 0, borderLeftWidth: 3, borderTopWidth: 3, borderTopLeftRadius: 10 },
-  cornerTR: { right: 0, top: 0, borderRightWidth: 3, borderTopWidth: 3, borderTopRightRadius: 10 },
-  cornerBL: { left: 0, bottom: 0, borderLeftWidth: 3, borderBottomWidth: 3, borderBottomLeftRadius: 10 },
-  cornerBR: { right: 0, bottom: 0, borderRightWidth: 3, borderBottomWidth: 3, borderBottomRightRadius: 10 },
-  hint: { position: "absolute", left: space.lg, right: space.lg, textAlign: "center", color: colors.foreground, fontSize: 14, fontWeight: "500" },
-  captureBar: { backgroundColor: colors.background, paddingTop: space.md, alignItems: "center", gap: space.sm },
-  capture: { backgroundColor: colors.brand, borderRadius: 999, paddingVertical: 16, paddingHorizontal: 56, minWidth: 200, alignItems: "center" },
-  captureText: { color: colors.white, fontSize: 17, fontWeight: "700" },
-  permissionBox: { alignItems: "center", justifyContent: "flex-start", padding: space.xl },
-  allow: { marginTop: space.lg, backgroundColor: colors.brand, borderRadius: 999, paddingVertical: 14, paddingHorizontal: 32, alignSelf: "center" },
-  permissionTitle: { color: colors.white, fontSize: 18, fontWeight: "700", textAlign: "center" },
-  permissionText: { color: colors.muted, fontSize: 14, textAlign: "center", marginTop: space.sm },
-  shotWrap: { flex: 1, margin: space.lg, borderRadius: radius.lg, overflow: "hidden", backgroundColor: colors.surface },
-  bigShot: { flex: 1 },
-  readingText: { color: colors.foreground, fontSize: 16, fontWeight: "600", textAlign: "center" },
-  barTrack: { height: 4, backgroundColor: colors.surfaceRaised, borderRadius: 2, marginTop: space.md, overflow: "hidden" },
-  barFill: { height: 4, backgroundColor: colors.brand },
-  missText: { color: "#fcd34d", fontSize: 15, fontWeight: "600", textAlign: "center", paddingHorizontal: space.xl, marginBottom: space.md },
-  bottomBar: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: space.md, paddingHorizontal: space.lg, paddingTop: space.md, backgroundColor: colors.background, borderTopColor: colors.edge, borderTopWidth: StyleSheet.hairlineWidth },
   primary: { flex: 1, backgroundColor: colors.brand, borderRadius: 999, paddingVertical: 14, alignItems: "center" },
   primaryText: { color: colors.white, fontSize: 16, fontWeight: "700" },
-  secondary: { flex: 1, borderColor: colors.edgeStrong, borderWidth: 1, borderRadius: 999, paddingVertical: 14, alignItems: "center" },
-  secondaryText: { color: colors.foreground, fontSize: 16, fontWeight: "600" },
-  textBtn: { paddingVertical: 10, paddingHorizontal: 6 },
   textBtnText: { color: colors.foreground, fontSize: 15, fontWeight: "600" },
   textBtnDanger: { color: colors.danger, fontSize: 15, fontWeight: "600" },
   revealBody: { alignItems: "center", paddingHorizontal: space.lg },
@@ -627,11 +926,10 @@ const styles = StyleSheet.create({
   error: { color: colors.danger, fontSize: 13, textAlign: "center", marginTop: space.sm, paddingHorizontal: space.lg },
   section: { color: colors.muted, fontSize: 12, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5, marginTop: space.lg, marginBottom: 6 },
   copyLabel: { color: colors.muted, fontSize: 12, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5 },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: { borderColor: colors.edge, borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
-  chipDark: { backgroundColor: "rgba(10,11,17,0.7)" },
   chipOn: { backgroundColor: colors.brand, borderColor: colors.brand },
-  chipText: { color: colors.muted, fontSize: 13, fontWeight: "600" },
+  chipText: { color: colors.muted, fontSize: 14, fontWeight: "500" },
   chipTextOn: { color: colors.white },
   linkRow: { alignSelf: "stretch", marginTop: space.sm, paddingVertical: 8, paddingHorizontal: 4, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   link: { color: colors.brandSoft, fontSize: 15, fontWeight: "600" },
