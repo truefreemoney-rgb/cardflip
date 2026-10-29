@@ -20,6 +20,7 @@ function Root() {
       </Stack.Protected>
       <Stack.Protected guard={Boolean(user)}>
         <Stack.Screen name="(app)" />
+        <Stack.Screen name="scan" options={{ presentation: "fullScreenModal", animation: "slide_from_bottom" }} />
         <Stack.Screen name="card/[id]" />
         <Stack.Screen name="cards/sets" />
         <Stack.Screen name="cards/insights" />

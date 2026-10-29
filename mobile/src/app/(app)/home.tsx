@@ -1,3 +1,4 @@
+import { router } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "~/lib/auth";
@@ -18,6 +19,9 @@ export default function Home() {
         <Text style={styles.row}>Scans left</Text>
         <Text style={styles.money}>{left === null || left === undefined ? "Unlimited" : String(left)}</Text>
       </View>
+      <Pressable onPress={() => router.push("/scan")} style={({ pressed }) => [styles.scan, pressed && { opacity: 0.85 }]}>
+        <Text style={styles.scanText}>Scan a card</Text>
+      </Pressable>
       <Pressable onPress={signOut} style={({ pressed }) => [styles.button, pressed && { opacity: 0.8 }]}>
         <Text style={styles.buttonText}>Sign out</Text>
       </Pressable>
@@ -33,6 +37,8 @@ const styles = StyleSheet.create({
   card: { marginTop: space.lg, backgroundColor: colors.surface, borderColor: colors.edge, borderWidth: 1, borderRadius: radius.lg, padding: space.lg },
   row: { color: colors.muted, fontSize: 13 },
   money: { color: colors.money, fontSize: 28, fontWeight: "700", marginTop: 2 },
+  scan: { marginTop: space.lg, backgroundColor: colors.brand, borderRadius: 999, paddingVertical: 16, alignItems: "center" },
+  scanText: { color: colors.white, fontSize: 17, fontWeight: "700" },
   button: { marginTop: space.xl, borderColor: colors.edgeStrong, borderWidth: 1, borderRadius: radius.md, paddingVertical: 12, alignItems: "center" },
   buttonText: { color: colors.foreground, fontSize: 15, fontWeight: "600" },
   foot: { color: colors.faint, fontSize: 11, marginTop: space.xl },
