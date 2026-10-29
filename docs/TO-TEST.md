@@ -1,5 +1,11 @@
 # To test later
 
+## 10-29 10:45AM ET: free first scan = full-page result + chart, first-scan page = Scan Your Card + Create an account (Chris 10:27-10:28am; unpushed, bulk push)
+- [x] What: first-scan.tsx subtitle names the five games; "Scan Your Card" (a scan already waiting on the phone reopens its result page, not the camera); "Create an account" → /signup; sign-in link stays. first-card.tsx (new): the result page (MATCH FOUND, card, set line, green price, condition, 90-day chart, Sign up to keep it, free line, sign-in link). PriceChart.tsx (new, react-native-svg): the site's price history, one USD series, 90 days, coloured by the 30-day change. scan.tsx: the guest read lands → router.replace(/first-card), the camera closes (no reveal left open in the back = no second free read from it).
+- [x] Pane (mobile web 8081, 375 px): first-scan page (shot first-scan-two-buttons-phone.jpg); /first-card with a seeded Charizard (shot first-card-full-page-phone.jpg: chart ▼13% in 30 days, .79/.10, Jul 31–Oct 29). tsc + lint clean. Sent 10:45am.
+- [ ] BLOCKED locally until the Testing workspace cap is raised (Anthropic console, Chris; it reset itself Nov 1): the local trial read 400s "workspace API usage limits". Phone (Expo 8094, QR 10:45am) once reads work: Scan Your Card → camera → read lands → the full page with the real card + chart (no camera behind it) → Sign up to keep it → form with the card → Create Account → tabs, card in Inventory. Also: Create an account from the first-scan page → the plain sign-up form; relaunch after a scan without signing up → Scan Your Card reopens the result page.
+- [ ] Chris: yes on the two looks (shots).
+
 ## 10-29 10:30AM ET: launch with the intro seen and no account = the first-scan page, not login (Chris 10:19am "it brings me directly to a log in page"; unpushed, bulk push)
 - [x] What: index.tsx: no session + intro seen → /first-scan (has "I already have an account"); intro not seen → /intro; session → the tabs.
 - [x] Pane (mobile web 8081): flag set + no session → launch lands on /first-scan. tsc + lint clean.

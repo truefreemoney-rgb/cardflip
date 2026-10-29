@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import PrimaryButton from "~/components/PrimaryButton";
 import Screen from "~/components/Screen";
+import { getGuestScan } from "~/lib/guestScan";
 import { colors, fonts, space } from "~/lib/theme";
 
 /**
@@ -21,8 +22,10 @@ const umbreon = require("../../assets/images/intro/umbreon.webp");
 export default function FirstScan() {
   const insets = useSafeAreaInsets();
 
-  function openCamera() {
-    router.push("/scan");
+  /** A scan already made on this phone opens its result page again, not the camera (one free read, Chris 10-29 10:27am). */
+  async function openCamera() {
+    const waiting = await getGuestScan();
+    router.push(waiting ? "/first-card" : "/scan");
   }
 
   return (
@@ -36,7 +39,10 @@ export default function FirstScan() {
       </View>
 
       <View style={[styles.bottom, { paddingBottom: insets.bottom + space.lg }]}>
-        <PrimaryButton label="Open the camera" onPress={openCamera} />
+        <PrimaryButton label="Scan Your Card" onPress={openCamera} />
+        <Pressable onPress={() => router.replace("/signup")} style={({ pressed }) => [styles.secondary, pressed && { opacity: 0.85 }]}>
+          <Text style={styles.secondaryText}>Create an account</Text>
+        </Pressable>
         <Pressable onPress={() => router.replace("/login")} hitSlop={8} style={{ alignSelf: "center", marginTop: space.md }}>
           <Text style={styles.link}>I already have an account</Text>
         </Pressable>
@@ -55,7 +61,7 @@ function Fan() {
         <Image source={pikachu} style={[styles.fanCard, { zIndex: 2 }]} contentFit="cover" />
       </View>
       <Text style={[styles.h1, { marginTop: space.xl }]}>Scan Your First Card!</Text>
-      <Text style={styles.sub}>Any game. Any card. See what it is worth.</Text>
+      <Text style={styles.sub}>Pokémon, Magic, Lorcana, One Piece or Yu-Gi-Oh! See what it is worth in seconds.</Text>
     </>
   );
 }
@@ -67,6 +73,8 @@ const styles = StyleSheet.create({
   bottom: { paddingHorizontal: space.lg, paddingTop: space.md },
   h1: { color: colors.white, fontSize: 32, lineHeight: 36, fontFamily: fonts.display, letterSpacing: -0.6, textAlign: "center" },
   sub: { color: colors.muted, fontSize: 16, lineHeight: 22, textAlign: "center", marginTop: space.sm },
+  secondary: { marginTop: space.sm, borderRadius: 999, borderWidth: 1, borderColor: colors.edgeStrong, paddingVertical: 14, alignItems: "center" },
+  secondaryText: { color: colors.white, fontSize: 16, fontWeight: "700" },
   link: { color: colors.brandSoft, fontSize: 15, fontWeight: "600" },
   fan: { width: "100%", height: 290, alignItems: "center", justifyContent: "center" },
   fanCard: { position: "absolute", width: 150, aspectRatio: 63 / 88, borderRadius: 10 },
