@@ -41,7 +41,7 @@ Slow scans in poor light; vintage cards matched to modern printings; no 1st Edit
 4. Scanner speed + vintage printings + condition = keep as our proof points (8 s budget, 1st Edition twins, condition picker).
 5. Kids are a big audience: plain words, sign in with Apple/Google, parent-friendly paying.
 6. Easy cancel, honest trial wording, never ask for a rating right before a paywall.
-7. Japanese / foreign cards = check where our scanner stands before the app launch.
+7. Japanese / foreign cards: NOT a CardFlip goal (Chris 10-29 1:36pm "we arent doing japanese cards"); English-language cards only, nothing to check.
 
 ## Takeaways for CardFlip
 - The App Store is his main way in; our native app is the biggest growth lever.
