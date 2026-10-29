@@ -1,6 +1,6 @@
 # To test later
 
-## 10-28 11:05PM ET: iPhone app step 3, My Cards / Sets / Insights (app code only; unpushed, bulk push)
+## 10-28 10:50PM ET: iPhone app step 3, My Cards / Sets / Insights (app code only; unpushed, bulk push)
 - [x] Why: docs/APP-PLAN.md step 3. Same routes as the website's My Cards (/api/cards, POST /api/cards/live-prices, /api/cards/sets, /api/cards/insights) over the bearer session.
 - [x] Pane web preview vs local dev, test account with 2 seeded cards: list "2 cards · $158.18" with live market ($155.31 / $2.87), Not Listed badges + condition; Sets "1 of 30 · 3.3% · 29 missing, Cost to finish $663.25" + cheapest ten; Insights worth $158.18, movers, listed vs sitting, most valuable, value by set. tsc + expo lint green.
 - [ ] On the phone with Chris's real account (Expo Go + tunnel): My Cards count and total match cardflip.io/app/collection for the same game; a sold row shows the sale price; a flagged price shows the sentence.
