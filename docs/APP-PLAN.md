@@ -40,6 +40,10 @@ Status: FINAL 10-28 10:12 PM ET. Chris: "going to rely on you for most of this."
 5. Returning users see none of it: Inventory, as now.
 Guest scan, server side (the one feature-freeze exception, Chris's call 10-29): a device-keyed guest token from the app (one free scan per device, a second needs an account), an IP cap on top (the 10-20/10-21 bot wave: the firewall + 20 guest scans per IP per day, 429 past it), the scan saved under the guest token and claimed by the account at sign-up. Cost ceiling: a scan is about $0.03 (10-21: 21 scans = $0.63), so 1,000 first-opens = about $30 before any of them pays.
 
+### Email verification in the app (decided 10-29 10:48 AM ET, Chris: "taking them off the app to verify seems wrong" / "go with your recommendation")
+- Nobody leaves the app to verify. The email_confirm admin switch stays OFF for launch (it is off). Apple and Google sign-ins arrive pre-verified.
+- LATER, only if the switch is ever turned on: app users type a 6-digit emailed code inside the app (the admin login's code mechanism, lib/server/adminCode), never a link that opens Safari; and the claimed first scan lands in Inventory at once, no wait on the email. Not built; after the App Store build.
+
 ## What stays web only
 - Admin, social autopilot, board, marketing pages, SEO card pages, legal (terms, privacy).
 - The app links out to legal pages when Apple needs them shown.
