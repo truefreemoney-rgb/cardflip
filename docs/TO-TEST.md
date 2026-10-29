@@ -1,5 +1,9 @@
 # To test later
 
+## 10-29 12:30PM ET: money inputs show the thousands comma ("2,554.73") (Chris 12:22pm on App Store shot 6; site, unpushed, bulk push)
+- [x] What: components/PriceInput.tsx (every Your price / What you paid field, 6 uses): shows n.toLocaleString en-US with 2 decimals; parse strips commas (before, a focus-then-blur on "2,554.73" would have read 2). Typing still strips commas as before. tsc + lint clean; shot 6 recaptured.
+- [ ] After the bulk push, phone, Seller mode, a card over $1,000: the editor's Your price reads "$ 2,554.73"; tap it, type 2600, tap away → "2,600.00" and the price saves as 2600 (card tile shows $2,600.00); tap it and tap away without typing → unchanged.
+
 ## 10-29 10:55AM ET: app sign-ups skip the email-confirm wall (Chris 10:49am "but its only off for the app correct?"; site only, unpushed, bulk push)
 - [x] What: api/auth/signup: confirm = the admin switch AND not an app request (x-cardflip-app header). The website keeps whatever the switch says; app accounts are created without emailPending and get the welcome mail path. In-app code screen = later (APP-PLAN).
 - [x] tsc + lint clean.

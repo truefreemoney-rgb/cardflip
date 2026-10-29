@@ -23,7 +23,9 @@ export default function PriceInput({
   onCommit?: (price: number) => void;
   className?: string;
 }) {
-  const fmt = (n: number) => (Number.isFinite(n) ? n.toFixed(2) : "0.00");
+  // Shown like money, with the thousands comma (Chris 10-29: "2,554.73", it is a dollar amount);
+  // typing strips the commas again, so the field edits as plain digits.
+  const fmt = (n: number) => (Number.isFinite(n) ? n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "0.00");
   const [text, setText] = useState(fmt(value));
   const focused = useRef(false);
 
@@ -34,7 +36,7 @@ export default function PriceInput({
   }, [value]);
 
   const parse = (s: string) => {
-    const n = parseFloat(s);
+    const n = parseFloat(s.replace(/,/g, ""));
     return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : 0;
   };
 
