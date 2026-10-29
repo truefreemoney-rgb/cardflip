@@ -1,24 +1,45 @@
-import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { formatMoney } from "@/lib/money";
-import { GAMES, fetchCardById, pictureUrl, shownPrice, type GameId, type PokemonCard } from "~/lib/catalog";
-import { colors, radius, space } from "~/lib/theme";
+import SiteWebView from "~/components/SiteWebView";
+import { GAMES, fetchCardById, type GameId, type PokemonCard } from "~/lib/catalog";
+import { colors, fonts, space } from "~/lib/theme";
+
+/** The public card pages' game slugs (src/lib/cardPages.ts CARD_GAME_SLUGS). */
+const CARD_GAME_SLUGS: Record<GameId, string> = { pokemon: "pokemon", mtg: "magic", lorcana: "lorcana", onepiece: "one-piece", yugioh: "yugioh" };
 
 /**
- * Card detail (docs/APP-PLAN.md step 2): the big picture, the one price the
- * website would show (green, $X.XX), the other price rows under it, and the
- * card's facts. Read-only for now; My Cards / wishlist actions come with
- * their own steps.
+ * The address the website's card page answers to for this card. The set and
+ * name slugs only decide the address, the key decides the card
+ * (cardPages.ts canonicalRedirect), so a placeholder set slug lands on the
+ * canonical page by one redirect. Magic keys are "<set code>-<number>"; every
+ * other game keys by the catalog id (cardPages.ts cardKey).
+ */
+function cardPagePath(game: GameId, id: string, card: PokemonCard | null): string | null {
+  if (game === "mtg") {
+    if (!card?.setCode || !card.number) return null;
+    return `/cards/magic/_/card--${encodeURIComponent(`${card.setCode.toLowerCase()}-${card.number}`)}`;
+  }
+  return `/cards/${CARD_GAME_SLUGS[game]}/_/card--${encodeURIComponent(id)}`;
+}
+
+/**
+ * Card detail = the website's own card page inside the app (Chris 10-29
+ * 12:22am: "anything predated need to be updated to mirror the website";
+ * docs/APP-PLAN.md "Hybrid"): the picture, the market price with its
+ * confidence, the price history, the price table, Buy on eBay, Watch price,
+ * the card's story, other printings, the set strip and the common questions,
+ * exactly as cardflip.io shows them, under the app's Back bar. The page opens
+ * in app mode (no site menu or footer) through the SiteWebView handoff.
  */
 export default function CardDetail() {
   const { id, game: gameParam } = useLocalSearchParams<{ id: string; game?: string }>();
   const game = (gameParam && gameParam in GAMES ? gameParam : "pokemon") as GameId;
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
   const [card, setCard] = useState<PokemonCard | null | undefined>(undefined);
+  const [loading, setLoading] = useState(true);
+  const back = () => (router.canGoBack() ? router.back() : router.replace("/(app)/browse"));
 
   useEffect(() => {
     let live = true;
@@ -30,58 +51,37 @@ export default function CardDetail() {
     };
   }, [id, game]);
 
-  const picW = Math.min(width - space.lg * 2, 320);
-  const price = card ? shownPrice(card) : null;
-  const otherRows = card ? card.prices.filter((p) => typeof p.market === "number" && p.market > 0) : [];
+  // Pokémon, Lorcana, One Piece and Yu-Gi-Oh! need no lookup for the address; Magic waits for the set code.
+  const path = game === "mtg" ? (card === undefined ? null : cardPagePath(game, id, card)) : cardPagePath(game, id, null);
+  const title = card?.englishName || card?.name || "Card";
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top + space.sm }]}>
-      <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace("/(app)/browse"))} hitSlop={8} style={styles.backBtn}>
-        <Text style={styles.back}>‹ Back</Text>
-      </Pressable>
-      {card === undefined && <ActivityIndicator color={colors.brandSoft} style={{ marginTop: space.xl }} />}
-      {card === null && <Text style={styles.empty}>{"Couldn't load this card."}</Text>}
-      {card && price && (
-        <ScrollView contentContainerStyle={{ alignItems: "center", paddingBottom: insets.bottom + space.xl }}>
-          <Image source={pictureUrl(card.imageLarge || card.imageSmall)} style={{ width: picW, height: picW * 1.4, borderRadius: radius.lg, backgroundColor: colors.surfaceRaised }} contentFit="contain" transition={150} />
-          <Text style={styles.name}>{card.name}</Text>
-          <Text style={styles.meta}>
-            {card.setName} · {card.number}{card.rarity ? ` · ${card.rarity}` : ""}
-          </Text>
-          <View style={styles.priceCard}>
-            <Text style={styles.priceLabel}>{price.label ? `Market price · ${price.label}` : "Market price"}</Text>
-            {price.text ? <Text style={styles.price}>{price.text}</Text> : null}
-            {price.note ? <Text style={[styles.note, !price.text && { marginTop: 4 }]}>{price.note}</Text> : null}
-          </View>
-          {otherRows.length > 1 && (
-            <View style={styles.rows}>
-              {otherRows.map((p) => (
-                <View key={`${p.source}-${p.variant}`} style={styles.row}>
-                  <Text style={styles.rowLabel}>{p.label}{p.source === "tcgplayer" ? "" : ` · ${p.source}`}</Text>
-                  <Text style={styles.rowPrice}>{formatMoney(p.market, p.currency)}</Text>
-                </View>
-              ))}
-            </View>
-          )}
-        </ScrollView>
+    <View style={[styles.screen, { paddingTop: insets.top }]}>
+      <View style={styles.bar}>
+        <Pressable onPress={back} hitSlop={10} style={styles.backBtn}>
+          <Text style={styles.back}>‹ Back</Text>
+        </Pressable>
+        <Text style={styles.title} numberOfLines={1}>
+          {title}
+        </Text>
+        <View style={styles.backBtn}>{loading && path ? <ActivityIndicator color={colors.brandSoft} /> : null}</View>
+      </View>
+      {path ? (
+        <SiteWebView path={path} onLeave={back} onLoading={setLoading} />
+      ) : card === null || (game === "mtg" && card !== undefined) ? (
+        <Text style={styles.empty}>{"Couldn't load this card."}</Text>
+      ) : (
+        <ActivityIndicator color={colors.brandSoft} style={{ marginTop: space.xl }} />
       )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background, paddingHorizontal: space.lg },
-  backBtn: { alignSelf: "flex-start", paddingVertical: 6, marginBottom: space.sm },
-  back: { color: colors.brandSoft, fontSize: 16, fontWeight: "600" },
+  screen: { flex: 1, backgroundColor: colors.background },
+  bar: { height: 44, flexDirection: "row", alignItems: "center", paddingHorizontal: space.sm, borderBottomColor: colors.edge, borderBottomWidth: StyleSheet.hairlineWidth, backgroundColor: colors.surface },
+  backBtn: { width: 76, height: 44, justifyContent: "center" },
+  back: { color: colors.brandSoft, fontSize: 17 },
+  title: { flex: 1, textAlign: "center", color: colors.white, fontSize: 17, fontFamily: fonts.displaySemi },
   empty: { color: colors.muted, fontSize: 14, marginTop: space.lg, textAlign: "center" },
-  name: { color: colors.white, fontSize: 22, fontWeight: "700", marginTop: space.md, textAlign: "center" },
-  meta: { color: colors.muted, fontSize: 13, marginTop: 2, textAlign: "center" },
-  priceCard: { alignSelf: "stretch", marginTop: space.lg, backgroundColor: colors.surface, borderColor: colors.edge, borderWidth: 1, borderRadius: radius.lg, padding: space.lg, alignItems: "center" },
-  priceLabel: { color: colors.muted, fontSize: 12 },
-  price: { color: colors.money, fontSize: 36, fontWeight: "800", marginTop: 2 },
-  note: { color: "#fcd34d", fontSize: 13, textAlign: "center" },
-  rows: { alignSelf: "stretch", marginTop: space.md, borderColor: colors.edge, borderWidth: 1, borderRadius: radius.md },
-  row: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: space.md, paddingVertical: 10, borderBottomColor: colors.edge, borderBottomWidth: StyleSheet.hairlineWidth },
-  rowLabel: { color: colors.muted, fontSize: 13 },
-  rowPrice: { color: colors.foreground, fontSize: 13, fontWeight: "600" },
 });
