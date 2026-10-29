@@ -88,16 +88,31 @@ From cardflip.io/privacy (effective Oct 17 2026). Nothing is used for tracking a
 - Sign in with Apple: present (guideline 4.8), alongside Google and email.
 - Contact: Chris, support@cardflip.io, phone number in App Store Connect.
 
-## Screenshots to make (6.9" iPhone 1320x2868 and 6.5" 1284x2778; Google phone 1080x1920 or taller)
-Real screens from the app on a phone, dark background, one line of text above each (Chris's yes on every shot
-before upload, screenshot rule):
-1. "Scan Your First Card!" page (the fan) — "Your first scan is free"
-2. The scanner with a card in the guide — "Point. Scan. Done."
-3. The result page: card, green price, 90-day chart — "See what it sells for"
-4. Inventory with the Unsold total — "Your whole collection, priced"
-5. Watchlist with arrows — "Get told when prices move"
-6. The eBay listing editor — "List on eBay in a few taps"
+## Screenshots (6.9" iPhone 1320x2868 and 6.5" 1284x2778; Google phone 1080x1920 or taller)
+MADE 10-29 12:20 PM ET, waiting on Chris's yes per shot (screenshot rule). Files: docs/shots/appstore/
+NN-name-6.9.png + -6.5.png (upload as is) + -preview.jpg (660 wide, what Chris was sent). One line of text
+above each, the app's dark background, a phone bezel that bleeds off the bottom:
+1. 01-first-scan: "Scan Your First Card!" page (the fan) — "Your first scan is free"
+2. 02-scanner: the scanner with a card in the guide (Umbreon VMAX alt art on a dark table) — "Point. Scan. Done."
+3. 03-first-card: the free scan's result page: card, green $2,209.75, 90-day chart — "See what it sells for"
+4. 04-inventory: Inventory, Seller mode, Unsold $3,390.86 · Sold $10.88, 9 cards — "Your whole collection, priced"
+5. 05-watchlist: Watchlist, total value + 6 watching — "Get told when prices move"
+6. 06-editor: the eBay listing editor (Quick sale / Full value, price, title, description) — "List on eBay in a few taps"
 Nothing from the three intro cards (placeholder art, Chris 10-29 10:07am).
+
+How they are made (no phone needed; redo after any visible change): the Expo WEB build (launch.json
+cardflip-mobile-web, 8081) against the local dev server (3000), mobile/.env.local pointed at
+http://localhost:3000 for the run (the iframes need a same-site cookie), Playwright at 440x956 @3x. Scripts:
+- scripts/_appstore-seed.mjs: the LOCAL account shots@cardflip.dev (local data/cardflip.db only, never prod):
+  8 verified Pokémon cards from the local catalog, 2 sold, 6 watchlist rows. --reset wipes the unsold rows.
+- scripts/_appstore-comp.mjs: comps that local row (access_override comp_standard, so Build Listing opens)
+  and marks the helper tour seen.
+- scripts/_appstore-camera-frame.mjs <dir> <picture url>: the fake camera feed (card on a dark table, PNG +
+  Y4M via ffmpeg; pre-mirrored because the browser camera flips it).
+- scripts/_appstore-raw-shots.mjs <rawDir> <y4m> (SHOTS_TOKEN=<session token> skips the login, 10 tries /
+  15 min): the six raw screens; the dev-only "Test photo" button is hidden before the scanner shot.
+- scripts/_appstore-compose.mjs <rawDir> docs/shots/appstore: the frames at both sizes + previews.
+Google Play (later): the 6.9" files, Google accepts any 16:9..2:1 portrait PNG up to 3840 px.
 
 ## Checklist before submitting
 - [ ] Apple developer enrollment approved (Chris, in progress 10-29)
