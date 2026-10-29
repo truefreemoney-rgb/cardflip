@@ -1,5 +1,6 @@
 import Constants from "expo-constants";
 import { Platform } from "react-native";
+import { deviceId } from "./device";
 import { readToken, writeToken } from "./tokenStore";
 
 /**
@@ -52,7 +53,7 @@ export interface ApiOptions {
 /** JSON in, JSON out. Throws ApiError on a non-2xx answer with the server's own message. */
 export async function api<T = Record<string, unknown>>(path: string, opts: ApiOptions = {}): Promise<T> {
   const token = await readToken();
-  const headers: Record<string, string> = { accept: "application/json", "x-cardflip-app": APP_HEADER_VALUE };
+  const headers: Record<string, string> = { accept: "application/json", "x-cardflip-app": APP_HEADER_VALUE, "x-cardflip-device": await deviceId() };
   if (token) headers.authorization = `Bearer ${token}`;
   if (opts.body !== undefined) headers["content-type"] = "application/json";
   const ctl = new AbortController();

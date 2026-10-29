@@ -52,7 +52,7 @@ const nextConfig: NextConfig = {
           { key: "Access-Control-Allow-Origin", value: "http://localhost:8081" },
           { key: "Access-Control-Allow-Credentials", value: "true" },
           { key: "Access-Control-Allow-Methods", value: "GET, POST, PUT, PATCH, DELETE, OPTIONS" },
-          { key: "Access-Control-Allow-Headers", value: "content-type, authorization, x-cardflip-app" },
+          { key: "Access-Control-Allow-Headers", value: "content-type, authorization, x-cardflip-app, x-cardflip-device" },
         ],
       });
       // The preview shows website pages in an <iframe> from port 8081 (the phone uses a real WebView, which no

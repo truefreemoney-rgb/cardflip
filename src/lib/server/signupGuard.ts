@@ -121,8 +121,14 @@ export const EXISTS_PER_NETWORK_DAY = 5;
 export const TOO_MANY_SIGNUPS = "Too many sign-up tries from this network today. Already have an account? Log in instead.";
 export const existsKeyFor = (ip: string) => `signup_exists_${hashIp(ip)}`;
 
-/** The cf_dev cookie from a request, or null. */
+/**
+ * The device: the cf_dev cookie in a browser, or the app's own stable id in
+ * x-cardflip-device (mobile/src/lib/device.ts; 10-29, the guest first scan
+ * and the sign-up that claims it count as one device).
+ */
 export function deviceIdFrom(req: Request): string | null {
+  const fromApp = req.headers.get("x-cardflip-device");
+  if (fromApp && /^[A-Za-z0-9-]{8,64}$/.test(fromApp)) return fromApp;
   const m = /(?:^|;\s*)cf_dev=([A-Za-z0-9-]{8,64})/.exec(req.headers.get("cookie") ?? "");
   return m ? m[1] : null;
 }

@@ -11,7 +11,7 @@ import { colors, fonts, space } from "~/lib/theme";
  * 1:52am): the one screen between the intro and the camera. One headline, one
  * button. Look D of four (Chris 10-29 2:16am "i like D"): three cards fanned
  * like a hand, the headline under them. The button opens the camera for the
- * guest scan once that exists (step 3/4); until then it lands on sign in.
+ * guest scan (scan.tsx with no session; lib/guestScan.ts keeps the card).
  */
 
 const pikachu = require("../../assets/images/intro/pikachu-vmax.webp");
@@ -22,8 +22,7 @@ export default function FirstScan() {
   const insets = useSafeAreaInsets();
 
   function openCamera() {
-    // TODO guest scan (APP-PLAN step 3): router.push("/scan") without an account.
-    router.replace("/login");
+    router.push("/scan");
   }
 
   return (

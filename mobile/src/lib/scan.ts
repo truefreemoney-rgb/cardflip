@@ -96,6 +96,40 @@ export async function readPhoto(base64: string, game: GameId, language: ScanLang
   }
 }
 
+/**
+ * The free first scan before any account: POST /api/vision/trial (the ad
+ * landing page's read, a few tries per device and per network, no bearer).
+ * Same answer shape as readPhoto; a used-up device reads as "quota" with the
+ * sign-up as the way to more scans. Never throws.
+ */
+export async function readPhotoGuest(base64: string, game: GameId): Promise<ReadOutcome> {
+  const empty = { read: null, usage: null, error: null, scanId: null } as const;
+  try {
+    const data = await api<{ status?: string; card?: VisionCardRead | null }>("/api/vision/trial", {
+      body: { image: base64, mediaType: "image/jpeg", game },
+      timeoutS: 30,
+    });
+    return {
+      status: data.status === "unconfigured" ? "unconfigured" : data.status === "done" && data.card ? "done" : "error",
+      read: data.card ?? null,
+      usage: null,
+      error: null,
+      scanId: null,
+    };
+  } catch (err) {
+    if (!(err instanceof ApiError)) return { status: "error", ...empty };
+    if (err.status === 402) return { status: "quota", ...empty, error: "Your free scan is used up. Sign up for 5 more." };
+    if (err.status === 429) {
+      const s = Number(err.body.retryAfterSeconds);
+      const seconds = Number.isFinite(s) && s > 0 ? s : null;
+      return { status: "error", ...empty, rateLimited: { seconds, daily: err.body.status === "busy" || (seconds != null && seconds >= 600) } };
+    }
+    if (err.status === 504) return { status: "error", ...empty, timedOut: true };
+    if (err.status === 0) return { status: "error", ...empty, error: err.message };
+    return { status: "error", ...empty };
+  }
+}
+
 /** The words for a read that produced nothing (the site's lib/client/visionApi.ts rateLimitMessage). */
 export function readFailureMessage(r: ReadOutcome): string {
   if (r.status === "quota") return r.error ?? "You're out of scans.";

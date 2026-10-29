@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { api, ApiError } from "./api";
+import { claimGuestScan } from "./guestScan";
 import { readToken, writeToken } from "./tokenStore";
 
 /** The signed-in account as /api/auth/me returns it (the site's lib/client/auth.ts SessionUser). */
@@ -33,11 +34,26 @@ interface AuthState {
   /** undefined = still checking the stored token on launch. */
   user: SessionUser | null | undefined;
   signIn(email: string, password: string, code?: string): Promise<void>;
+  signUp(name: string, email: string, password: string): Promise<void>;
   signOut(): Promise<void>;
   refresh(): Promise<void>;
 }
 
 const Ctx = createContext<AuthState | null>(null);
+
+/**
+ * The free first scan waits in lib/guestScan.ts until an account exists: saved into it here, before the
+ * screens swap, so Inventory already has the card. An email still to confirm keeps it waiting (the save
+ * is gated), and the next refresh tries again.
+ */
+async function landGuestScan(me: SessionUser | null): Promise<void> {
+  if (!me || me.mustConfirmEmail) return;
+  try {
+    await claimGuestScan();
+  } catch {
+    // Still waiting; nothing else changes.
+  }
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SessionUser | null | undefined>(undefined);
@@ -49,6 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     try {
       const { user: me } = await api<{ user: SessionUser | null }>("/api/auth/me");
+      await landGuestScan(me);
       setUser(me);
       if (!me) await writeToken(null); // the server no longer knows this token
     } catch (err) {
@@ -66,6 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = useCallback(async (email: string, password: string, code?: string) => {
     try {
       const body = await api<{ user: SessionUser }>("/api/auth/login", { body: { email, password, ...(code ? { code } : {}) } });
+      await landGuestScan(body.user);
       setUser(body.user);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401 && err.body.totpRequired) {
@@ -73,6 +91,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       throw err;
     }
+  }, []);
+
+  /** POST /api/auth/signup (the website's form, word for word); the token comes back in the body like login. */
+  const signUp = useCallback(async (name: string, email: string, password: string) => {
+    const body = await api<{ user: SessionUser }>("/api/auth/signup", { body: { name, email, password } });
+    await landGuestScan(body.user);
+    setUser(body.user);
   }, []);
 
   const signOut = useCallback(async () => {
@@ -85,7 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
-  const value = useMemo(() => ({ user, signIn, signOut, refresh }), [user, signIn, signOut, refresh]);
+  const value = useMemo(() => ({ user, signIn, signUp, signOut, refresh }), [user, signIn, signUp, signOut, refresh]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 

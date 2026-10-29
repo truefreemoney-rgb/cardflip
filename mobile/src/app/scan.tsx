@@ -10,6 +10,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { openSitePage } from "~/components/AppHeader";
 import { emitScanResult } from "~/lib/scanBus";
 import { useAuth } from "~/lib/auth";
+import { setGuestScan } from "~/lib/guestScan";
+import { cardKey, cardPath } from "@/lib/cardPages";
 import { GAMES, fetchCardById, pictureUrl, publicGames, type GameId, type PokemonCard } from "~/lib/catalog";
 import {
   CONDITIONS,
@@ -20,6 +22,7 @@ import {
   printingOptions,
   readFailureMessage,
   readPhoto,
+  readPhotoGuest,
   removeSavedCard,
   revealPrice,
   saveScan,
@@ -197,6 +200,7 @@ function RevealChip({
   onEdit,
   onVerify,
   onSwap,
+  guest = false,
 }: {
   card: PokemonCard;
   condition: Condition;
@@ -210,6 +214,8 @@ function RevealChip({
   onEdit: () => void;
   onVerify: () => void;
   onSwap: () => void;
+  /** The free first scan: one job, the card page then the sign-up; no Clear, no edit, no Verify, no "Not this card?" (Chris 10-29 2:18am). */
+  guest?: boolean;
 }) {
   const price = revealPrice(card, condition, variant);
   const market = moneyValue(price.text);
@@ -234,9 +240,11 @@ function RevealChip({
             </Text>
           </View>
         </Pressable>
-        <Pressable onPress={onClear} accessibilityLabel={`Clear ${card.englishName || card.name} from the list (it stays in your Inventory)`} hitSlop={8} style={({ pressed }) => [styles.chipClear, pressed && { opacity: 0.85 }]}>
-          <Text style={styles.chipClearText}>Clear</Text>
-        </Pressable>
+        {guest ? null : (
+          <Pressable onPress={onClear} accessibilityLabel={`Clear ${card.englishName || card.name} from the list (it stays in your Inventory)`} hitSlop={8} style={({ pressed }) => [styles.chipClear, pressed && { opacity: 0.85 }]}>
+            <Text style={styles.chipClearText}>Clear</Text>
+          </Pressable>
+        )}
       </View>
       <View style={styles.chipBand}>
         <View style={styles.chipPriceBox}>
@@ -249,22 +257,22 @@ function RevealChip({
             <Text style={[styles.chipPriceLabel, price.note && { color: "#fcd34d" }]}>{price.note ? "price looks off" : "no price yet"}</Text>
           )}
         </View>
-        <Pressable onPress={onEdit} accessibilityLabel={`Change condition or printing: ${copy}`} style={({ pressed }) => [styles.chipCopy, pressed && { opacity: 0.85 }]}>
+        <Pressable onPress={onEdit} disabled={guest} accessibilityLabel={`Change condition or printing: ${copy}`} style={({ pressed }) => [styles.chipCopy, pressed && { opacity: 0.85 }]}>
           <View style={[styles.dot, { backgroundColor: DOT[condition] }]} />
           <Text style={styles.chipCopyText} numberOfLines={1}>
             {copy}
           </Text>
-          <Text style={styles.chipCopyPen}>✎</Text>
+          {guest ? null : <Text style={styles.chipCopyPen}>✎</Text>}
         </Pressable>
       </View>
       <View style={styles.chipRow}>
         <Pressable onPress={onVerify} style={({ pressed }) => [styles.verify, pressed && { opacity: 0.85 }]}>
           <Text style={styles.verifyText} numberOfLines={1}>
-            {saving ? "Saving…" : savedId ? "Verify Your Scan" : "Not saved"}
+            {guest ? "See This Card" : saving ? "Saving…" : savedId ? "Verify Your Scan" : "Not saved"}
           </Text>
           {market != null ? <Text style={styles.verifyMoney}>{formatMoney(market)}</Text> : null}
         </Pressable>
-        {canSwap ? (
+        {canSwap && !guest ? (
           <Pressable onPress={onSwap} style={({ pressed }) => [styles.swap, pressed && { opacity: 0.85 }]}>
             <Text style={styles.swapText}>Not this card?</Text>
           </Pressable>
@@ -508,7 +516,9 @@ function ResultSheets({
  */
 export default function Scan() {
   const insets = useSafeAreaInsets();
-  const { refresh } = useAuth();
+  const { user, refresh } = useAuth();
+  /** No account yet: the free first scan (docs/APP-PLAN.md "First open"). The read goes to /api/vision/trial, nothing is saved; the card waits in lib/guestScan.ts for the sign-up. */
+  const guest = !user;
   const [permission, requestPermission] = useCameraPermissions();
   const camera = useRef<CameraView>(null);
   const [cameraReady, setCameraReady] = useState(false);
@@ -575,7 +585,7 @@ export default function Scan() {
 
       // "Switch to <game>": the wrong-game read already carries the card (name + number), so it is matched
       // under the other game instead of paying for a second read (Chris 10-22: one scan on the backend).
-      const outcome = reuse ? { status: "done" as const, read: reuse.read, usage: null, error: null, scanId: reuse.scanId } : await readPhoto(base64, as);
+      const outcome = reuse ? { status: "done" as const, read: reuse.read, usage: null, error: null, scanId: reuse.scanId } : guest ? await readPhotoGuest(base64, as) : await readPhoto(base64, as);
       applyBalance(outcome.usage);
       if (outcome.status !== "done" || !outcome.read) {
         const quota = outcome.status === "quota";
@@ -595,12 +605,17 @@ export default function Scan() {
       const card = found.card;
       setPhase({ kind: "result", photo, found, card, condition, variant: found.variant, savedId: null, saving: true });
       setTally((t) => ({ count: t.count + 1, value: t.value + (moneyValue(revealPrice(card, condition, found.variant).text) ?? 0) }));
+      if (guest) {
+        await setGuestScan({ card, game: as, condition, variant: found.variant });
+        setPhase((p) => (p.kind === "result" && p.photo === photo ? { ...p, saving: false } : p));
+        return;
+      }
       const saved = await saveScan(card, as, condition, found.variant, outcome.scanId);
       setPhase((p) => (p.kind === "result" && p.photo === photo ? { ...p, savedId: saved?.id ?? null, saving: false } : p));
       if (saved) sessionIds.current.push(saved.id);
       if (!saved) setNote("Couldn't save — check your connection and scan again");
     },
-    [refresh, applyBalance, startCondition],
+    [refresh, applyBalance, startCondition, guest],
   );
 
   const capture = useCallback(async () => {
@@ -739,7 +754,22 @@ export default function Scan() {
     },
     [refresh, phase, game],
   );
-  const close = useCallback(() => toQueue(null), [toQueue]);
+  const close = useCallback(() => {
+    if (!guest) return toQueue(null);
+    if (router.canGoBack()) router.back();
+    else router.replace("/first-scan");
+  }, [toQueue, guest]);
+
+  /**
+   * The public card page (prices, the history chart, the set) and then the sign-up (Chris 10-29 2:20am: the card
+   * page sells the app). The set slug is a placeholder: only the key picks the card, the page redirects to its own address.
+   */
+  const seeCard = useCallback(() => {
+    if (phase.kind !== "result") return;
+    const c = phase.card;
+    const path = cardPath(game, "set", c.englishName || c.name, cardKey(game, { id: c.id, setCode: c.setCode ?? null, number: c.number ?? null }));
+    router.push({ pathname: "/web", params: { path, title: c.englishName || c.name, guest: "1" } });
+  }, [phase, game]);
 
   const share = useCallback(async () => {
     try {
@@ -763,8 +793,9 @@ export default function Scan() {
   const miss = phase.kind === "miss" ? phase : null;
   const quotaNote = miss?.quota ? miss.message : null;
   const ready = granted && cameraReady;
-  const captureLabel = quotaNote ? "Get More Scans" : `Capture ${GAMES[game].label} Card`;
-  const captureDisabled = !quotaNote && (busy || reading || !ready);
+  const guestResult = guest && phase.kind === "result";
+  const captureLabel = guestResult ? "See This Card" : quotaNote ? (guest ? "Sign Up For 5 Free Scans" : "Get More Scans") : `Capture ${GAMES[game].label} Card`;
+  const captureDisabled = !quotaNote && !guestResult && (busy || reading || !ready);
   const hintTop = guide ? (guide.y >= 32 ? guide.y / 2 : guide.y + 18) : 0;
   const lightShown = Platform.OS !== "web";
 
@@ -894,8 +925,9 @@ export default function Scan() {
             onClear={() => setPhase({ kind: "camera" })}
             onEdit={() => setSheet("copy")}
             // The site's Verify (app/page.tsx onOpen) closes the camera and opens that scan in the editor.
-            onVerify={() => toQueue(phase.savedId)}
+            onVerify={guest ? seeCard : () => toQueue(phase.savedId)}
             onSwap={() => setSheet("pick")}
+            guest={guest}
           />
         ) : reading ? (
           <View style={styles.toast}>
@@ -950,7 +982,7 @@ export default function Scan() {
       {/* Capture is the only big button down here: the one obvious action. */}
       <View style={[styles.captureBar, { paddingBottom: Math.max(space.md, insets.bottom) }]}>
         <Pressable
-          onPress={quotaNote ? () => openSitePage("/pricing", "Scans") : miss ? () => { scanAgain(); void capture(); } : capture}
+          onPress={guestResult ? seeCard : quotaNote ? (guest ? () => router.replace("/signup") : () => openSitePage("/pricing", "Scans")) : miss ? () => { scanAgain(); void capture(); } : capture}
           disabled={captureDisabled}
           style={({ pressed }) => [styles.captureGlow, captureDisabled && { opacity: 0.4 }, pressed && { opacity: 0.85 }]}
         >

@@ -1,3 +1,4 @@
+import { router } from "expo-router";
 import { useState } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -124,6 +125,9 @@ export default function Login() {
 
           <Pressable onPress={() => submit(true)} disabled={busy} style={({ pressed }) => [styles.button, pressed && { backgroundColor: colors.brandHover }, busy && { opacity: 0.7 }]}>
             {busy ? <ActivityIndicator color={colors.white} /> : <Text style={styles.buttonText}>{needsCode ? "Verify and log in" : "Log in"}</Text>}
+          </Pressable>
+          <Pressable onPress={() => router.replace("/signup")} hitSlop={8} style={{ alignSelf: "center", marginTop: space.lg }}>
+            <Text style={styles.link}>New here? Create an account</Text>
           </Pressable>
         </View>
       </ScrollView>

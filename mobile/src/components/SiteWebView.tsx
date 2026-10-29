@@ -43,8 +43,9 @@ export function safeSitePath(raw: string | string[] | undefined): string {
 /** What a screen holding a ref can do with the page: run script in it (the Scanner tab's in-place resume). */
 export type SiteWebViewHandle = { inject(js: string): void };
 
-const SiteWebView = forwardRef<SiteWebViewHandle, { path: string; onLeave?: () => void; onLoading?: (loading: boolean) => void; scanner?: boolean }>(function SiteWebView(
-  { path, onLeave, onLoading, scanner = false },
+/** guest: a public page with no session (the first-open card page, 10-29): no handoff, and the site's own Sign up / Log in links open the app's screens. */
+const SiteWebView = forwardRef<SiteWebViewHandle, { path: string; onLeave?: () => void; onLoading?: (loading: boolean) => void; scanner?: boolean; guest?: boolean }>(function SiteWebView(
+  { path, onLeave, onLoading, scanner = false, guest = false },
   ref,
 ) {
   const { refresh } = useAuth();
@@ -94,6 +95,10 @@ const SiteWebView = forwardRef<SiteWebViewHandle, { path: string; onLeave?: () =
         router.navigate("/(app)/scanTab");
         return false;
       }
+      if (guest && (u.pathname === "/signup" || u.pathname === "/login")) {
+        router.replace(u.pathname === "/signup" ? "/signup" : "/login");
+        return false;
+      }
       if (LEAVE_PATHS.has(u.pathname)) {
         leave();
         return false;
@@ -104,14 +109,14 @@ const SiteWebView = forwardRef<SiteWebViewHandle, { path: string; onLeave?: () =
     return true;
   }
 
-  if (token === undefined) {
+  if (token === undefined && !guest) {
     return (
       <View style={styles.center}>
         <ActivityIndicator color={colors.brandSoft} size="large" />
       </View>
     );
   }
-  if (!token) {
+  if (!token && !guest) {
     return (
       <View style={styles.center}>
         <Text style={styles.message}>Sign in again to open this page.</Text>
@@ -134,16 +139,17 @@ const SiteWebView = forwardRef<SiteWebViewHandle, { path: string; onLeave?: () =
       </View>
     );
   }
-  const headers = { authorization: `Bearer ${token}`, "x-cardflip-app": APP_HEADER_VALUE };
+  const headers: Record<string, string> = { "x-cardflip-app": APP_HEADER_VALUE };
+  if (token) headers.authorization = `Bearer ${token}`;
   if (Platform.OS === "web") {
-    return <WebPreview key={attempt} path={path} headers={headers} onLoad={() => onLoading?.(false)} onFail={setFailed} />;
+    return <WebPreview key={attempt} path={path} headers={headers} guest={guest} onLoad={() => onLoading?.(false)} onFail={setFailed} />;
   }
   return (
     <WebView
       ref={web}
       key={attempt}
       style={styles.web}
-      source={{ uri: `${API_URL}/api/auth/app-cookie?next=${encodeURIComponent(path)}`, headers }}
+      source={{ uri: guest ? `${API_URL}${withAppFlag(path)}` : `${API_URL}/api/auth/app-cookie?next=${encodeURIComponent(path)}`, headers }}
       onLoadStart={() => onLoading?.(true)}
       onLoadEnd={() => onLoading?.(false)}
       onError={() => setFailed("Couldn't load the page. Check your connection and try again.")}
@@ -177,10 +183,11 @@ const SiteWebView = forwardRef<SiteWebViewHandle, { path: string; onLeave?: () =
 export default SiteWebView;
 
 /** Web only: cookie handoff by fetch, then the page in an iframe. */
-function WebPreview({ path, headers, onLoad, onFail }: { path: string; headers: Record<string, string>; onLoad(): void; onFail(message: string): void }) {
-  const [ready, setReady] = useState(false);
+function WebPreview({ path, headers, guest, onLoad, onFail }: { path: string; headers: Record<string, string>; guest: boolean; onLoad(): void; onFail(message: string): void }) {
+  const [ready, setReady] = useState(guest);
   useEffect(() => {
     let live = true;
+    if (guest) return;
     fetch(`${API_URL}/api/auth/app-cookie`, { method: "POST", headers, credentials: "include" })
       .then((res) => {
         if (!live) return;

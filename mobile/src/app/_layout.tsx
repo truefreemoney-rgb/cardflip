@@ -23,16 +23,14 @@ function Root() {
         <Stack.Screen name="intro" />
         {/* Scan Your First Card! (first-scan.tsx), the screen after the intro. */}
         <Stack.Screen name="first-scan" />
+        <Stack.Screen name="signup" />
         <Stack.Screen name="login" />
       </Stack.Protected>
+      {/* Shared: the camera (the free first scan before an account, then the signed-in scanner) and a site page (the guest card page). */}
+      <Stack.Screen name="scan" options={{ presentation: "fullScreenModal", animation: "slide_from_bottom" }} />
+      <Stack.Screen name="web" />
       <Stack.Protected guard={Boolean(user)}>
         <Stack.Screen name="(app)" />
-        <Stack.Screen name="scan" options={{ presentation: "fullScreenModal", animation: "slide_from_bottom" }} />
-        <Stack.Screen name="card/[id]" />
-        <Stack.Screen name="cards/sets" />
-        <Stack.Screen name="cards/insights" />
-        {/* A cardflip.io page inside the app (account, packs, wishlist, rewards, help, price check, subscribe). */}
-        <Stack.Screen name="web" />
       </Stack.Protected>
     </Stack>
   );
