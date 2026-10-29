@@ -3,7 +3,7 @@
 ## 10-28 9:25PM ET: phone home page opens on the button + free deal; 2-row menu (pushed 9:25pm on Chris's "put it in now")
 - [x] Why: 7 of 8 IG traffic-ad visitors left with no touch; first phone screen was menu (3 rows) + stats + headline, button under Safari's bar (Chris's iPhone screenshot 9:17pm). Layout D picked by Chris; menu 2 rows; "How It Works" out of the nav; games pill one line.
 - [x] src/app/page.tsx (below lg: button, green checks, games, headline, scanner; stats/paragraph/bullets/See How It Works from lg), MarketingNav.tsx (row 1 logo + account pair on phones), Logo.tsx (size "nav"). tsc + eslint green. Playwright signed-out at 360/375/390/412/430: menu 2 rows, games pill 1 line, top row fits (shots sent 9:23pm).
-- [ ] On prod after deploy (me, phone width): home first screen = button + checks; menu 2 rows; desktop unchanged; signed-in shows Log out + Open the App beside the logo.
+- [x] On prod after deploy (me, 9:28pm, pane 390x700 signed in + desktop): home first screen = button + checks + pill one line + card; menu 2 rows with Log out + Open the App beside the logo; desktop unchanged. CI run on a3bca861 started 9:25pm.
 - [ ] 2-3 days: /admin/adtest home row "Stayed 10 s" + "Tapped" for ig-traffic visitors vs 1 of 8 before.
 
 ## 10-28 3:00PM ET: 1pm video with nothing to draw = warning, not a failure mail (unpushed: rides Chris's bulk push)
