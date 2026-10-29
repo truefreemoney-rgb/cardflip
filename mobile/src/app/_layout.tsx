@@ -21,6 +21,8 @@ function Root() {
       <Stack.Protected guard={Boolean(user)}>
         <Stack.Screen name="(app)" />
         <Stack.Screen name="card/[id]" />
+        <Stack.Screen name="cards/sets" />
+        <Stack.Screen name="cards/insights" />
       </Stack.Protected>
     </Stack>
   );

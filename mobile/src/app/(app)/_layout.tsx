@@ -16,6 +16,7 @@ export default function AppLayout() {
     >
       <Tabs.Screen name="home" options={{ title: "Home", tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 18 }}>⌂</Text> }} />
       <Tabs.Screen name="browse" options={{ title: "Browse", tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 18 }}>⌕</Text> }} />
+      <Tabs.Screen name="cards" options={{ title: "My Cards", tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 18 }}>▤</Text> }} />
     </Tabs>
   );
 }
