@@ -294,7 +294,10 @@ function WebPreview({ path, headers, guest, onLoad, onFail }: { path: string; he
 }
 
 const styles = StyleSheet.create({
-  web: { flex: 1, backgroundColor: colors.background },
+  // iOS paints the web box white until the page's first paint whenever the colour is fully opaque (WKWebView honours a
+  // background only when it is not opaque; react-native-webview sets opaque from the colour's alpha == 1). A hair under
+  // opaque keeps the dark background on screen (Chris 10-30 12:00am, TestFlight build 2: a white flash before Inventory).
+  web: { flex: 1, backgroundColor: "rgba(10, 11, 17, 0.99)" },
   center: { flex: 1, alignItems: "center", justifyContent: "center", padding: space.xl },
   message: { color: colors.muted, fontSize: 15, textAlign: "center" },
   retry: { marginTop: space.lg, borderColor: colors.edgeStrong, borderWidth: 1, borderRadius: 999, paddingHorizontal: 20, paddingVertical: 10 },
