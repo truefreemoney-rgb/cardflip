@@ -1,5 +1,8 @@
 # To test later
 
+## 10-30 12:03AM ET: TESTFLIGHT BUILD 2 PHONE ROUND, PASS (Chris, 11:56pm-12:03am): kept the keychain session from the dev build (opened signed in), Sign out → Sign in with Apple → Inventory, one real scan → green price. Notes: a white blink before Inventory (fixed 12:05AM entry above, next build); "loading the price had a little stutter" (Chris 12:03am, "up to you").
+- [ ] Next build: watch the reveal chip as the price lands (count-up, layout shift, or the by-id re-read from 11:20PM?); ask Chris for a screen recording if it repeats. Not a blocker.
+
 ## 10-30 12:05AM ET: no white flash before an in-app site page (Chris 12:00am on TestFlight build 2: "a white page for half a second" after Apple sign-in, then Inventory; tsc + eslint clean; app only, NEXT BUILD)
 - [x] What: SiteWebView's native style is rgba(10,11,17,0.99) instead of #0a0b11. WKWebView shows its background only when not opaque, and react-native-webview sets opaque from the colour's alpha == 1, so the fully opaque dark colour never showed and iOS painted white until the page's first paint. Untested on a device (the dev build is gone from the phone; the TestFlight build predates it).
 - [ ] Next TestFlight build: Account → Sign out → Sign in with Apple: dark all the way to Inventory, no white blink. Also tap Account, Watchlist, Search: each opens dark.
