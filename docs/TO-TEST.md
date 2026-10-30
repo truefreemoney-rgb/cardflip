@@ -1,5 +1,9 @@
 # To test later
 
+## 10-30 5:20PM ET: scan request waits 30 s, not 12 s (WHY Lucas lost 4 scans; tsc clean; NOT pushed, his bulk push)
+- [x] What: the phone's 12 s limit counted the photo upload too; his server reads were 2.5-5.7 s, so a weak signal cut the phone off while the server still read + charged; page said "Couldn't read this card", he shot it again (scan 1 10:32:02 lost, same Registeel re-scanned 10:32:22 and saved). Now 30 s (lib/client/visionApi.ts), watchdog 35 s (app/app/page.tsx). Lost ones still come back via the sweep.
+- [ ] Phone on a weak signal (one bar / Low Data Mode): 5 scans = 5 cards, no "Couldn't read this card".
+
 ## 10-30 12:05PM ET: every paid scan ends as a card or comes back (Lucas: 5 trial scans, 1 card; test:quota all pass incl. 7 new checks, tsc + eslint clean; NOT pushed, his bulk push)
 - [x] What: (1) site scanner: once the server has read the card the 20 s watchdog stands down, and a read that lands after it fired brings the row back and saves (app/app/page.tsx); (2) give-back = 'did this scan save a card' (cards.client_id or card_removals.client_id), not 'does the card exist in the catalog' (lib/server/scanGiveback.ts); (3) server sweep before each scan returns the account's paid scans 3-15 min old that saved no card (closed page, dead signal; app and site alike); card_removals gets client_id.
 - [ ] After the push: node scripts/_scans-no-card.mjs 3 shows no new rows older than 15 min (Lucas + Vikram rows stay, Chris 11:44am: no writes to them).

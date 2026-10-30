@@ -19,8 +19,11 @@ import CardEditor from "@/components/CardEditor";
 import SealedEditor from "@/components/SealedEditor";
 import PageSkeleton from "@/components/PageSkeleton";
 import { useSession } from "@/components/SessionProvider";
-/** An item still "scanning" this long is failed by the watchdog, whatever it is waiting on (10-04). */
-const SCAN_WATCHDOG_MS = 20_000;
+/**
+ * An item still "scanning" this long is failed by the watchdog, whatever it is waiting on (10-04). Above the scan
+ * request's own 30 s limit (lib/client/visionApi.ts), so a slow upload ends as that request's answer, not here.
+ */
+const SCAN_WATCHDOG_MS = 35_000;
 
 /**
  * "?scan=1" asked for the scanner (the /scan ad signup, the email confirm link). Kept outside the component
@@ -749,8 +752,9 @@ export default function AppPage() {
             continue;
           } else {
             // Vision failed or is not configured: no OCR fallback (rule since 10-12, review 10-19 #4: the
-            // on-device OCR read a bedsheet as an Espeon and SAVED it). A failed read is a failed read: the
-            // server already gave the scan back; the seller shoots again.
+            // on-device OCR read a bedsheet as an Espeon and SAVED it). A failed read is a failed read; the seller
+            // shoots again. A request cut off mid-way (10-30) may still have been read and charged on the server:
+            // the sweep before the next scan (lib/server/scanGiveback.ts sweepUnsavedScans) gives that one back.
             patchItem(next.id, { visionStatus: vision.status, status: "error", error: "Couldn't read this card — tap Capture again" });
             continue;
           }
