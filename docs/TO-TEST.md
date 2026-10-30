@@ -1,5 +1,10 @@
 # To test later
 
+## 10-30 12:05PM ET: every paid scan ends as a card or comes back (Lucas: 5 trial scans, 1 card; test:quota all pass incl. 7 new checks, tsc + eslint clean; NOT pushed, his bulk push)
+- [x] What: (1) site scanner: once the server has read the card the 20 s watchdog stands down, and a read that lands after it fired brings the row back and saves (app/app/page.tsx); (2) give-back = 'did this scan save a card' (cards.client_id or card_removals.client_id), not 'does the card exist in the catalog' (lib/server/scanGiveback.ts); (3) server sweep before each scan returns the account's paid scans 3-15 min old that saved no card (closed page, dead signal; app and site alike); card_removals gets client_id.
+- [ ] After the push: node scripts/_scans-no-card.mjs 3 shows no new rows older than 15 min (Lucas + Vikram rows stay, Chris 11:44am: no writes to them).
+- [ ] Phone (Chris or me via the pane on prod): scan 5 cards on a slow connection; Inventory shows 5 cards, header shows 5 used.
+
 ## 10-30 11:50AM ET: card pages link Biggest Movers + Most Valuable (SEO internal links step 4; tsc + eslint clean; local check Pokémon + Magic at 390 wide, no sideways scroll)
 - [ ] Chris's look-yes on docs/shots/card-page-movers-links-phone.jpg BEFORE his bulk push.
 - [ ] After the push: a live card page shows the second link row; ~11-13 Search Console: Discovered-not-indexed (53,078 on 10-30) and indexed (22.2K) moved?

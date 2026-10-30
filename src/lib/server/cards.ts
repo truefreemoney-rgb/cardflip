@@ -751,8 +751,8 @@ async function logRemovals(where: string, args: string[], how: "one" | "bulk"): 
   try {
     await db
       .prepare(
-        `INSERT INTO card_removals (card_id, user_id, at, how, game, card_name, set_name, card_number, catalog_card_id, status, match_doubt, verified_at, created_at)
-         SELECT id, user_id, ?, ?, game, card_name, set_name, card_number, catalog_card_id, status, match_doubt, verified_at, created_at FROM cards WHERE ${where}`,
+        `INSERT INTO card_removals (card_id, user_id, at, how, game, card_name, set_name, card_number, catalog_card_id, status, match_doubt, verified_at, created_at, client_id)
+         SELECT id, user_id, ?, ?, game, card_name, set_name, card_number, catalog_card_id, status, match_doubt, verified_at, created_at, client_id FROM cards WHERE ${where}`,
       )
       .run(Date.now(), how, ...args);
   } catch (err) {

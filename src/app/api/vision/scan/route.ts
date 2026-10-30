@@ -14,7 +14,8 @@ import { parseGame } from "@/lib/games";
 import { giveBackScans, outOfScansMessage, reserveScan, scanQuota, scanQuotaExhausted } from "@/lib/server/scanQuota";
 import type { ScanQuota, User } from "@/lib/server/users";
 import { dayBudgetSpent, dayBump, readsKey } from "@/lib/server/dayBudget";
-import { readIsEmpty } from "@/lib/server/scanGiveback";
+import { readIsEmpty, sweepUnsavedScans } from "@/lib/server/scanGiveback";
+import { findUserById } from "@/lib/server/users";
 import { readImageInput } from "@/lib/server/imageInput";
 import {
   LIMITS,
@@ -43,7 +44,14 @@ export async function POST(req: Request) {
     // Stage clock (10-02): the read stores how long the gates and the vision
     // call took, so scan speed is measured from real scans, not guessed.
     const startedAt = Date.now();
-    const user = await requireUser();
+    let user = await requireUser();
+    // 10-30 (Lucas, 5 trial scans for 1 card): paid scans that saved no card come back before this one is counted,
+    // even when the page that made them closed before it could ask. Never blocks a scan on its own failure.
+    const swept = await sweepUnsavedScans(user).catch((err) => {
+      console.error("scan: unsaved-scan sweep failed:", err instanceof Error ? err.message : err);
+      return 0;
+    });
+    if (swept > 0) user = (await findUserById(user.id)) ?? user;
     const wall = subscriptionGate(user);
     if (wall) return wall;
     // Every call here costs money at Anthropic — per-account burst cap here, the daily cap below.

@@ -508,6 +508,9 @@ export default function AppPage() {
 
     try {
       for (;;) {
+        // A worker whose slot the watchdog handed on finishes its own (rescued) row and stops: an early `continue`
+        // below must not let it pick up another item beside the fresh worker.
+        if (freed) return;
         const queued = itemsRef.current.find((i) => i.status === "queued");
         if (!queued) break;
 
@@ -529,7 +532,11 @@ export default function AppPage() {
         // an item still "scanning" at the limit is failed, and anything that lands for it later is ignored.
         // Known once the server answered: the watchdog hands it back (the server decides if it is refundable).
         let watchdogScanId: string | null = null;
+        // 10-30 (Lucas: 5 trial scans, 1 card): once the server has read the card, the watchdog stands down. The
+        // read is paid for, and what is left (match lookup, save) has its own timeouts, so the card always lands.
+        let readIn = false;
         const watchdog = setTimeout(() => {
+          if (readIn) return;
           if (itemsRef.current.find((i) => i.id === next.id)?.status !== "scanning") return;
           patchItem(next.id, { status: "error", error: "Took too long — try again" });
           abandoned.current.add(next.id);
@@ -561,8 +568,16 @@ export default function AppPage() {
             ? { status: "done", read: reuse, usage: null, error: null, scanId: next.scanId ?? null }
             : await scanCardWithVision(next.file, next.language, next.game);
           watchdogScanId = vision.scanId ?? null;
-          // The watchdog fired before the server answered, so it had no scan id to hand back: do it now (10-22).
-          if (freed) {
+          readIn = true;
+          // The watchdog fired before the server answered. A real read still becomes the card (10-30, Chris: "every
+          // single one needs to give a result"): the row comes back from "Took too long" and finishes below, on this
+          // worker, which then stops (its slot already went to a fresh worker). Only a failed read, or a row the seller
+          // removed meanwhile, hands the scan back as before (10-22).
+          const stillListed = itemsRef.current.some((i) => i.id === next.id) && !deleted.current.has(next.id);
+          if (freed && vision.status === "done" && vision.read && stillListed) {
+            abandoned.current.delete(next.id);
+            patchItem(next.id, { status: "scanning", error: null });
+          } else if (freed) {
             if (vision.scanId) {
               void giveBackScan(vision.scanId).then((usage) => {
                 if (!usage) return;

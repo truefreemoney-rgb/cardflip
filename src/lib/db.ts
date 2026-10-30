@@ -1339,6 +1339,12 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
     ["rating INTEGER"],
   ],
   [
+    // The deleted card's scan id (cards.client_id, 10-30): a scan whose card was saved and then deleted is not a
+    // scan that "saved nothing", so the no-card give-back (lib/server/scanGiveback.ts) must not refund it.
+    "card_removals",
+    ["client_id TEXT"],
+  ],
+  [
     // The game an empty category was made in (10-24, Chris: "categories should only relate to the
     // current game selected"). NULL = made before, or the same name made in two games: shows everywhere.
     "categories",

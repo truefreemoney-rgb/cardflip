@@ -531,6 +531,53 @@ delete process.env.CRON_SECRET;
   check("give-back: past the daily cap a miss is not refunded", [lastLoop.refunded, lastLoop.reason, (await get(loopId)).planScans], [false, "cap", 0]);
   const scanRoute = (await import("node:fs")).readFileSync(new URL("../src/app/api/vision/scan/route.ts", import.meta.url), "utf8");
   check("scan route: an empty read earns no tiebreak allowance", /readIsEmpty\(\{[^}]*\}\)\s*\?\s*Promise\.resolve\(0\)\s*:\s*dayBump\(readsKey/.test(scanRoute), true);
+  check("scan route: unsaved paid scans come back before the next one is counted", /sweepUnsavedScans\(user\)[\s\S]{0,1500}scanQuotaExhausted\(user\)/.test(scanRoute), true);
+}
+
+// 10-30 (Chris, Lucas paid 5 trial scans and got 1 card: "every single one needs to give a result"): the give-back
+// asks whether the scan SAVED a card, not whether its card exists in the catalog. A real card the scanner dropped
+// comes back; a saved card (live or deleted) never pays twice; the server's own sweep catches a page that closed.
+{
+  const { giveBackNoMatchScan, scanSavedACard, sweepUnsavedScans, UNSAVED_GRACE_MS } = await import(at("lib/server/scanGiveback.ts"));
+  const { recordScanUsage } = await import(at("lib/server/scanUsage.ts"));
+  const { createCard, deleteCard } = await import(at("lib/server/cards.ts"));
+  const zero = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
+  const lid = (await createUser("L", "lucas-case@example.com", "hunter22")).id;
+  const scan = async (read, ageMs = 0) => {
+    const r = await reserveScan(await get(lid));
+    const id = await recordScanUsage(lid, "claude-sonnet-5", zero, { game: "pokemon", conf: 0.7, ...read }, r.draw);
+    if (ageMs) await db.prepare("UPDATE scan_usage SET at = at - ? WHERE id = ?").run(ageMs, id);
+    return id;
+  };
+  const saveFrom = (scanId, name) =>
+    createCard(lid, { cardName: name, setName: "Surging Sparks", cardNumber: "135", imageUrl: "", condition: "Near Mint", price: 1, clientId: scanId });
+
+  const dropped = await scan({ name: "Dialga", number: "135", total: 191 });
+  check("Lucas case: a real card's scan that saved nothing is not 'found'", await scanSavedACard(lid, dropped), false);
+  const back = await giveBackNoMatchScan(await get(lid), dropped);
+  check("Lucas case: the dropped scan comes back", [back.refunded, back.reason, (await get(lid)).trialScansUsed], [true, "refunded", 0]);
+
+  const saved = await scan({ name: "Registeel ex", number: "145", total: 217 });
+  await saveFrom(saved, "Registeel ex");
+  const kept = await giveBackNoMatchScan(await get(lid), saved);
+  check("a scan that saved its card is not given back", [kept.refunded, kept.reason, (await get(lid)).trialScansUsed], [false, "found", 1]);
+
+  const deleted = await scan({ name: "Snorlax", number: "136", total: 197 });
+  const card = await saveFrom(deleted, "Snorlax");
+  await deleteCard(card.id, lid);
+  const del = await giveBackNoMatchScan(await get(lid), deleted);
+  check("a saved-then-deleted card's scan is not given back by this rule", [del.refunded, del.reason], [false, "found"]);
+
+  const before = (await get(lid)).trialScansUsed;
+  const closedPage = await scan({ name: "Pikachu", number: "58" }, UNSAVED_GRACE_MS + 1000);
+  const fresh = await scan({ name: "Eevee", number: "1" });
+  const swept = await sweepUnsavedScans(await get(lid));
+  check("sweep: an old unsaved scan comes back, a fresh one (still saving) does not",
+    [swept, (await get(lid)).trialScansUsed], [1, before + 2 - 1]);
+  check("sweep: the swept row is marked, the fresh one is not",
+    [Boolean((await db.prepare("SELECT refunded_at FROM scan_usage WHERE id = ?").get(closedPage)).refunded_at),
+     Boolean((await db.prepare("SELECT refunded_at FROM scan_usage WHERE id = ?").get(fresh)).refunded_at)], [true, false]);
+  check("sweep: a second pass pays nothing more", await sweepUnsavedScans(await get(lid)), 0);
 }
 
 // 10-21 (Chris, a Kindle Fire buyer paid for 41 scans she deleted): deleting a card the scanner itself doubted, never
