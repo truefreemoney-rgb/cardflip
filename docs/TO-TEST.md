@@ -1,11 +1,14 @@
 # To test later
 
+## 10-30 1:35AM ET: App Store submission (iOS App 1.0 build 3, Waiting for Review 1:34am, US only, auto-release on approval)
+- [ ] Apple's email: approved -> search 'CardFlip' in the US App Store, install from the store (not TestFlight), free first scan, Sign in with Apple, Inventory loads; rejected -> read the Resolution Center note, log in docs/LESSONS.md, fix, resubmit.
+
 ## 10-30 12:03AM ET: TESTFLIGHT BUILD 2 PHONE ROUND, PASS (Chris, 11:56pm-12:03am): kept the keychain session from the dev build (opened signed in), Sign out → Sign in with Apple → Inventory, one real scan → green price. Notes: a white blink before Inventory (fixed 12:05AM entry above, next build); "loading the price had a little stutter" (Chris 12:03am, "up to you").
 - [ ] Next build: watch the reveal chip as the price lands (count-up, layout shift, or the by-id re-read from 11:20PM?); ask Chris for a screen recording if it repeats. Not a blocker.
 
 ## 10-30 12:05AM ET: no white flash before an in-app site page (Chris 12:00am on TestFlight build 2: "a white page for half a second" after Apple sign-in, then Inventory; tsc + eslint clean; app only, NEXT BUILD)
 - [x] What: SiteWebView's native style is rgba(10,11,17,0.99) instead of #0a0b11. WKWebView shows its background only when not opaque, and react-native-webview sets opaque from the colour's alpha == 1, so the fully opaque dark colour never showed and iOS painted white until the page's first paint. Untested on a device (the dev build is gone from the phone; the TestFlight build predates it).
-- [ ] Next TestFlight build: Account → Sign out → Sign in with Apple: dark all the way to Inventory, no white blink. Also tap Account, Watchlist, Search: each opens dark.
+- [x] 10-30 1:20am, TestFlight build 3, Chris: a white half-second ONCE on the first Apple sign-in after install; sign out + sign in again = none, other tabs open dark. Left as is (first WebKit process start on iOS; every layer behind the page is already dark). Revisit only if a user reports it.
 
 ## 10-29 11:59PM ET: APP ICON before the store submission (Chris 11:59pm "we remember to update the icon at some point"; TestFlight build 2 shows Expo's blue chevron: app.json ios.icon = ./assets/expo.icon, the template's Liquid Glass icon)
 - [ ] Make the iOS icon from the website's own icon (apple-touch-icon / favicon source, 1024x1024 PNG, no transparency, no rounded corners: iOS rounds it), set app.json ios.icon to it (or drop ios.icon so the top-level ./assets/images/icon.png is used, and replace that file too), phone-width shot of the Home Screen icon for Chris's yes, then a new production build + TestFlight before App Review.
