@@ -56,5 +56,10 @@
     "web": "expo start --web",
     "lint": "expo lint"
   },
-  "private": true
+  "private": true,
+  "overrides": {
+    "expo-quick-actions": {
+      "@expo/require-utils": "58.0.5"
+    }
+  }
 }
