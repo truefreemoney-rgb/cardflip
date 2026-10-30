@@ -7,18 +7,28 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "ios": { "simulator": false }
+      "ios": {
+        "simulator": false
+      }
     },
     "preview": {
       "distribution": "internal",
-      "env": { "EXPO_PUBLIC_API_URL": "https://cardflip.io" }
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://cardflip.io"
+      }
     },
     "production": {
       "autoIncrement": true,
-      "env": { "EXPO_PUBLIC_API_URL": "https://cardflip.io" }
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://cardflip.io"
+      }
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "ascAppId": "6828698882"
+      }
+    }
   }
 }
