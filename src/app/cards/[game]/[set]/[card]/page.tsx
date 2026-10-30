@@ -383,6 +383,8 @@ export default async function CardPricePage({ params }: PageProps<"/cards/[game]
           <section className="mt-10">
             <h2 className="font-display text-2xl font-semibold text-white">More from {f.setName}</h2>
             <TileGrid game={game} tiles={strip} />
+            {/* Internal links (BACKLOG "SEO: internal links" step 4, 10-30): every card page points Google at the game's
+                movers and most-valuable lists, which link 20+ card pages each; plain <a>, own row so no dot dangles on a phone. */}
             <p className="mt-4 text-sm">
               <Link href={setPath(game, f.setSlug)} className="text-brand-300 transition hover:text-brand-200">
                 All {f.setName} Prices
@@ -392,6 +394,17 @@ export default async function CardPricePage({ params }: PageProps<"/cards/[game]
               </span>
               <Link href={gamePath(game)} className="text-brand-300 transition hover:text-brand-200">
                 {name} Card Prices
+              </Link>
+            </p>
+            <p className="mt-1.5 text-sm">
+              <Link href={`${gamePath(game)}/movers`} className="text-brand-300 transition hover:text-brand-200">
+                Biggest Movers
+              </Link>
+              <span className="mx-2 text-zinc-600" aria-hidden>
+                ·
+              </span>
+              <Link href={`${gamePath(game)}/most-valuable`} className="text-brand-300 transition hover:text-brand-200">
+                Most Valuable
               </Link>
             </p>
           </section>

@@ -1,5 +1,9 @@
 # To test later
 
+## 10-30 11:50AM ET: card pages link Biggest Movers + Most Valuable (SEO internal links step 4; tsc + eslint clean; local check Pokémon + Magic at 390 wide, no sideways scroll)
+- [ ] Chris's look-yes on docs/shots/card-page-movers-links-phone.jpg BEFORE his bulk push.
+- [ ] After the push: a live card page shows the second link row; ~11-13 Search Console: Discovered-not-indexed (53,078 on 10-30) and indexed (22.2K) moved?
+
 ## 10-30 1:35AM ET: App Store submission (iOS App 1.0 build 3, Waiting for Review 1:34am, US only, auto-release on approval)
 - [ ] Apple's email: approved -> search 'CardFlip' in the US App Store, install from the store (not TestFlight), free first scan, Sign in with Apple, Inventory loads; rejected -> read the Resolution Center note, log in docs/LESSONS.md, fix, resubmit.
 
