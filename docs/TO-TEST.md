@@ -1,5 +1,9 @@
 # To test later
 
+## 10-30 8:00PM ET: PUSHED Apple's network passes the in-app country gate (App Review abroad; test:countrygate all pass incl. 8 new, tsc + eslint clean)
+- [x] What: src/proxy.ts fromAppleNetwork (17.0.0.0/8, 2620:149::/32, 2a01:b740::/32 via x-real-ip) passes the country gate + India block, never admin. Firewall already passed AS714/6185.
+- [ ] After deploy: a normal US visit + DE-style check unchanged (smoke green); App Review outcome (Apple email) = no "not available in your country" rejection.
+
 ## 10-30 5:20PM ET: #15 Clicked tile counts people, not mail link checkers (tsc + eslint clean; queries run on live data: week 5 -> 1, cards 5 -> 1; NOT pushed, his bulk push)
 - [x] What: an email visit within 5 min of that mail's send is a scanner (lib/server/analytics.ts NOT_MAIL_SCANNER); used by /admin/emails Clicked and the analytics visitor sources list.
 - [ ] After the push: /admin/emails shows Clicked 1 / 0 / 1; after Sun 11-01 6:30pm send, Clicked on "This week in cards" counts no burst of desktops in the first minutes.

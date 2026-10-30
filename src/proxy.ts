@@ -46,6 +46,18 @@ export function countryBlocked(country: string | null | undefined, pathname: str
   return !EXEMPT_PREFIXES.some((p) => pathname.startsWith(p));
 }
 
+/**
+ * Apple's own network (10-30, Chris: App Review may test from outside the open countries). 17.0.0.0/8 and these
+ * IPv6 blocks are Apple's alone (AS714), the network the Firewall's country rule already lets through; the iPhone
+ * app signs in with a bearer header, not the cf_home cookie, so without this a reviewer abroad got 403 on every call.
+ */
+const APPLE_V6 = ["2620:149:", "2620:0149:", "2a01:b740:"];
+export function fromAppleNetwork(req: { headers: Headers }): boolean {
+  const ip = (req.headers.get("x-real-ip") ?? req.headers.get("x-forwarded-for")?.split(",")[0] ?? "").trim().toLowerCase();
+  if (/^17\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(ip)) return true;
+  return APPLE_V6.some((p) => ip.startsWith(p));
+}
+
 const isAdminPath = (pathname: string) =>
   pathname === "/admin" || pathname.startsWith("/admin/") || pathname.startsWith("/api/admin/");
 
@@ -66,7 +78,7 @@ export function proxy(req: NextRequest) {
   const www = wwwRedirectUrl(req.headers.get("host"), pathname, req.nextUrl.search);
   if (www) return NextResponse.redirect(www, 308);
   const isApi = pathname.startsWith("/api/");
-  if (countryBlocked(country, pathname)) {
+  if (countryBlocked(country, pathname) && !fromAppleNetwork(req)) {
     return isApi
       ? NextResponse.json({ error: "Not available from your region." }, { status: 403 })
       : new NextResponse("Not available in your region.", { status: 403, headers: { "content-type": "text/plain" } });
@@ -150,6 +162,7 @@ export function countryGateExempt(pathname: string): boolean {
 export function countryGatePasses(req: NextRequest, country: string | null, pathname: string): boolean {
   if (!country || OPEN === "*" || isAllowedCountry(country, OPEN)) return true;
   if (countryGateExempt(pathname)) return true;
+  if (fromAppleNetwork(req)) return true;
   // No signing key = no way to honour travel passes; stay open rather than lock members out.
   if (!homeCookieConfigured()) return true;
   const isApi = pathname.startsWith("/api/");

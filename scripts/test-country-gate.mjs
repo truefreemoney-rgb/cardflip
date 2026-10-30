@@ -19,9 +19,11 @@ const { proxy } = await import(at("proxy.ts"));
 const { makeHomeCookie, readHomeCookie, homeCookieDue } = await import(at("lib/homeCookie.ts"));
 const { allowedCountries, currencyFor } = await import(at("lib/countries.ts"));
 
-function hit(url, country, { cookies = {}, ua, method = "GET" } = {}) {
+function hit(url, country, { cookies = {}, ua, method = "GET", ip, app } = {}) {
   const headers = {};
   if (country) headers["x-vercel-ip-country"] = country;
+  if (ip) headers["x-real-ip"] = ip;
+  if (app) { headers["x-cardflip-app"] = "ios/1.0.0"; headers.authorization = `Bearer ${"d".repeat(64)}`; }
   if (ua) headers["user-agent"] = ua;
   const jar = Object.entries(cookies).map(([k, v]) => `${k}=${v}`).join("; ");
   if (jar) headers.cookie = jar;
@@ -88,6 +90,16 @@ const GOOGLEBOT = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.co
 check("Googlebot from DE gets the real card page", outcome(hit("/cards/pokemon/base/charizard-4", "DE", { ua: GOOGLEBOT })), "open");
 check("Googlebot UA from DE still 403 on /api", outcome(hit("/api/cards", "DE", { ua: GOOGLEBOT })), "403");
 check("Googlebot UA POST from DE → waitlist", outcome(hit("/signup", "DE", { ua: GOOGLEBOT, method: "POST" })), "waitlist");
+
+// Apple's network (App Review abroad, 10-30): the iPhone app's bearer calls and pages pass; nothing else does.
+check("Apple 17.x from DE: app API call open", outcome(hit("/api/cards?q=x", "DE", { ip: "17.58.1.2", app: true })), "open");
+check("Apple 17.x from DE: page open", outcome(hit("/app", "DE", { ip: "17.120.0.9" })), "open");
+check("Apple IPv6 from SG: app API call open", outcome(hit("/api/fx", "SG", { ip: "2620:149:a01:1::5", app: true })), "open");
+check("Apple 17.x from IN: not the India 403", hit("/", "IN", { ip: "17.1.2.3" }).status, 200);
+check("Apple 17.x still no admin from DE", hit("/admin", "DE", { ip: "17.1.2.3" }).status, 404);
+check("look-alike 170.x from DE → 403", outcome(hit("/api/cards", "DE", { ip: "170.58.1.2", app: true })), "403");
+check("look-alike 117.x from DE → waitlist", outcome(hit("/app", "DE", { ip: "117.1.2.3" })), "waitlist");
+check("non-Apple IPv6 from DE → 403", outcome(hit("/api/cards", "DE", { ip: "2620:14a::1", app: true })), "403");
 
 // Untouched: dev (no header), India block, admin geofence.
 check("no country header (dev/tests) → open", outcome(hit("/app", null)), "open");
