@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { NOT_MAIL_SCANNER } from "@/lib/server/analytics";
 import { GAMES } from "@/lib/games";
 import { PLAN_NAME, PRICE, SCANS } from "@/lib/pricing";
 import { emailUrl } from "@/lib/attribution";
@@ -510,7 +511,7 @@ export async function campaignOverview(now = Date.now()): Promise<CampaignOvervi
   const sentRows = (await db.prepare("SELECT campaign, COUNT(*) AS n FROM email_sends WHERE status = 'sent' GROUP BY campaign").all()) as unknown as Array<{ campaign: string; n: number }>;
   const sent = new Map(sentRows.map((r) => [r.campaign, Number(r.n)]));
   const clickRows = (await db
-    .prepare("SELECT camp, COUNT(DISTINCT day || '|' || visitor) AS n FROM page_views WHERE src = 'email' GROUP BY camp")
+    .prepare(`SELECT camp, COUNT(DISTINCT day || '|' || visitor) AS n FROM page_views WHERE src = 'email' AND ${NOT_MAIL_SCANNER} GROUP BY camp`)
     .all()) as unknown as Array<{ camp: string; n: number }>;
   const clicks = new Map(clickRows.map((r) => [r.camp, Number(r.n)]));
   const log = (await db

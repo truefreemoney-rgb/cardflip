@@ -3,6 +3,15 @@ import { db } from "@/lib/db";
 import { PRICING } from "@/lib/pricing";
 import { TIKTOK_POSTED_PREFIX, tiktokHandPosted } from "@/lib/socialTiktok";
 
+/**
+ * A page_views WHERE clause dropping mail link checkers (10-30, Chris's #15): a mail's tagged links opened within
+ * 5 minutes of that mail going out are a scanner, not a reader (Sunday's week mail: 4 desktops 4 s apart at +3 min;
+ * Thursday's: 4 desktops in 52 s at +1-2 min). Columns are qualified so it drops into any page_views query.
+ */
+export const MAIL_SCANNER_MS = 5 * 60 * 1000;
+export const NOT_MAIL_SCANNER = `NOT (page_views.src = 'email' AND EXISTS (SELECT 1 FROM email_sends es WHERE es.campaign = page_views.camp
+  AND es.status = 'sent' AND page_views.at BETWEEN es.sent_at AND es.sent_at + ${MAIL_SCANNER_MS}))`;
+
 /** Same key the publisher writes (lib/server/socialPublish.ts) — not imported so this stays a light module. */
 const LAST_POST_PREFIX = "social_last_post:";
 
@@ -263,7 +272,7 @@ async function attribution(since: number, end: number): Promise<Attribution> {
       since, end,
     ),
     rows<{ src: string; visitors: number }>(
-      "SELECT src, COUNT(DISTINCT visitor) AS visitors FROM page_views WHERE at >= ? AND at < ? AND src IS NOT NULL AND src <> '' GROUP BY src ORDER BY visitors DESC, src LIMIT 12",
+      `SELECT src, COUNT(DISTINCT visitor) AS visitors FROM page_views WHERE at >= ? AND at < ? AND src IS NOT NULL AND src <> '' AND ${NOT_MAIL_SCANNER} GROUP BY src ORDER BY visitors DESC, src LIMIT 12`,
       since, end,
     ),
     rows<{ path: string; signups: number }>(
