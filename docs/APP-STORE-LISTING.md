@@ -88,7 +88,26 @@ From cardflip.io/privacy (effective Oct 17 2026). Nothing is used for tracking a
 - Sign in with Apple: present (guideline 4.8), alongside Google (BUILT in the app 10-29 1:35pm, the website's own Google login in the browser sheet, works in Expo Go) and email.
 - Contact: Chris, support@cardflip.io, phone number in App Store Connect.
 
-## Screenshots (6.9" iPhone 1320x2868 and 6.5" 1284x2778; Google phone 1080x1920 or taller)
+## Screenshots v2 (PREMIUM, 10-30 12:25 AM ET; Chris 12:16am "has to be premium and really showcase the product")
+Files: docs/shots/appstore-v2/ NN-name-6.9.png (1320x2868, ASC optional "iPhone with Dynamic Island (large display)")
++ -6.3.png (1206x2622, ASC REQUIRED "iPhone with Dynamic Island (medium display)" — Apple's 10-30 slots; the 6.9"
+size is optional now) + -preview.jpg. Made by scripts/_appstore-compose2.mjs <outDir> B (variant B = tilted phone)
+from the raw screens in docs/shots/appstore-raw/ (copied from the 10-29 run) + docs/shots/appstore-assets/.
+Look: dark brand background with indigo/violet glow and grain, two-line copy (Bricolage 800 headline with ONE word
+in a violet pill + Geist sub-line), a realistic iPhone with the Dynamic Island and a 9:41 status bar, tilted 7°,
+one element breaking out of the phone per shot. Lesson from Acorn's listing (9 shots): big plain text + a giant
+price tag sells; we keep our own dark look, never his peach/orange.
+1. 01-value (hero, raw 03-first-card): "Know what your cards are [worth]" — Umbreon card floating off the screen
+   + green "MARKET PRICE $2,209.75" tag.
+2. 02-scanner: "Point. Scan. [Done.]" — "MATCH FOUND Umbreon VMAX" chip.
+3. 03-free (raw 01-first-scan): "Your first scan is [free]" — "No account needed" pill.
+4. 04-inventory: "Your whole collection, [priced]" — green "UNSOLD $3,390.86" tag.
+5. 05-watchlist: "Get told when prices [move]" — a CF price-drop notification card.
+6. 06-ebay (raw 06-editor-3): "Sell it on [eBay]" — "READY Listed on eBay" chip.
+ASC upload: Media Manager (version page → View All Sizes in Media Manager), a Chrome file_upload per slot, two
+batches of three (10 MB limit per call); Remove All needs Chris's click (my permission filter refuses the Remove).
+
+## Screenshots v1 (plain, superseded 10-30; 6.9" 1320x2868 and 6.5" 1284x2778; Google phone 1080x1920 or taller)
 MADE 10-29 12:20 PM ET, APPROVED by Chris 12:24pm (all six). Files: docs/shots/appstore/
 NN-name-6.9.png + -6.5.png (upload as is) + -preview.jpg (660 wide, what Chris was sent). One line of text
 above each, the app's dark background, a phone bezel that bleeds off the bottom:
