@@ -138,7 +138,7 @@ Google Play (later): the 6.9" files, Google accepts any 16:9..2:1 portrait PNG u
 - [ ] Sign in with Apple: BUILT 10-29 1:00pm (site + app, TO-TEST 10-29 1:00PM), untested until the enrollment: Chris ticks Sign in with Apple on io.cardflip.app + registers cardflip.io for Hide-My-Email relay mail; then an EAS dev build on the phone
 - [ ] Production build (EAS) pointed at cardflip.io, the site half of the app commits pushed
 - [ ] The TikTok pixel / GA4 stay off inside the app (afbecf77) — verify on the production build
-- [ ] Demo account made (right before Add for Review); notes PASTED 10-30 12:47am (unsaved until the phone number is typed: ASC requires it)
+- [x] Demo account made 10-30 1:12am (applereview, comp_standard; password in .env.appreview.local + ASC Sign-In Information); notes + contact SAVED 1:11am; build 3 picked
 - [x] Screenshots: v2 PREMIUM STRAIGHT set uploaded to both ASC iPhone slots 10-30 12:39am (see Screenshots v2 above)
 - [x] Privacy answers entered exactly as the table above + PUBLISHED 10-30 1:08am (9 types; Email also Developer's Advertising or Marketing = the campaigns; Product Interaction + Diagnostics not linked; nothing tracks)
 - [x] cardflip.io/privacy and /terms mention the app (one paragraph each, 10-29 12:35pm, held for the bulk push; effective dates moved to Oct 29)
