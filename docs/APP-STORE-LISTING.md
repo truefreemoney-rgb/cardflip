@@ -138,7 +138,12 @@ Google Play (later): the 6.9" files, Google accepts any 16:9..2:1 portrait PNG u
 - [ ] Sign in with Apple: BUILT 10-29 1:00pm (site + app, TO-TEST 10-29 1:00PM), untested until the enrollment: Chris ticks Sign in with Apple on io.cardflip.app + registers cardflip.io for Hide-My-Email relay mail; then an EAS dev build on the phone
 - [ ] Production build (EAS) pointed at cardflip.io, the site half of the app commits pushed
 - [ ] The TikTok pixel / GA4 stay off inside the app (afbecf77) — verify on the production build
-- [ ] Demo account made; notes pasted
-- [x] Screenshots approved by Chris (10-29 12:24pm "yes", all six; shot 6 after the comma fix)
-- [ ] Privacy answers entered exactly as the table above
+- [ ] Demo account made (right before Add for Review); notes PASTED 10-30 12:47am (unsaved until the phone number is typed: ASC requires it)
+- [x] Screenshots: v2 PREMIUM STRAIGHT set uploaded to both ASC iPhone slots 10-30 12:39am (see Screenshots v2 above)
+- [x] Privacy answers entered exactly as the table above + PUBLISHED 10-30 1:08am (9 types; Email also Developer's Advertising or Marketing = the campaigns; Product Interaction + Diagnostics not linked; nothing tracks)
 - [x] cardflip.io/privacy and /terms mention the app (one paragraph each, 10-29 12:35pm, held for the bulk push; effective dates moved to Oct 29)
+
+## ASC status 10-30 1:12 AM ET
+- Pricing: Free (/usr/bin/bash.00, confirmed 12:50am). Availability: US, CA, GB, IE, AU, NZ only (1:11am; matches the site firewall country gate, Chris asked 12:54am "dont we have a block list") — widen here when the gate widens.
+- Build 3 (1.0.0, EAS 2540a6e4, new icon + splash + white-flash fix) uploaded 12:56am; pick it on the version page once processed.
+- Still open: phone number in App Review Information (Chris), demo account + its line in the notes, Content Rights answer (Chris), DSA trader status (Chris), his yes, Add for Review.
