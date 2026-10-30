@@ -11,7 +11,7 @@
     "ios": {
       "bundleIdentifier": "io.cardflip.app",
       "supportsTablet": false,
-      "icon": "./assets/expo.icon",
+      "icon": "./assets/images/icon.png",
       "infoPlist": {
         "NSCameraUsageDescription": "CardFlip uses the camera to scan your cards and show what they are worth.",
         "ITSAppUsesNonExemptEncryption": false
@@ -30,7 +30,7 @@
         {
           "backgroundColor": "#0a0b11",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "imageWidth": 120
         }
       ],
       "expo-apple-authentication",

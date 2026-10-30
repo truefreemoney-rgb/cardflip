@@ -17,17 +17,17 @@ const umbreon = b64(`${ASSETS}/umbreon-vmax-215.webp`, "image/webp");
 // Floating pieces (CSS px at 440 wide). Each shot: raw file, headline, sub, float html.
 const SHOTS = [
   { key: "01-value", raw: "03-first-card", h: "Know what your cards are <em>worth</em>", s: "Scan any card. See the real price in seconds.",
-    float: `<img class="card" src="${umbreon}"><div class="pill price" style="left:200px;top:556px"><small>MARKET PRICE</small>$2,209.75</div>` },
+    float: `<img class="card" src="${umbreon}">` },
   { key: "02-scanner", raw: "02-scanner", h: "Point. Scan. <em>Done.</em>", s: "No typing, no searching. Just aim your camera.",
     float: `<div class="pill found" style="right:56px;top:598px"><span class="chk">✓</span><div><small>MATCH FOUND</small>Umbreon VMAX</div></div>` },
-  { key: "03-free", raw: "01-first-scan", h: "Your first scan is <em>free</em>", s: "Pokémon, Magic, Lorcana, One Piece, Yu-Gi-Oh!",
-    float: `<div class="pill tag" style="left:60px;top:300px">No account needed</div>` },
+  { key: "03-free", raw: "01-first-scan", h: "Your first scan is <em>free</em>", s: "No account needed. Five games, one app.",
+    float: `` },
   { key: "04-inventory", raw: "04-inventory", h: "Your whole collection, <em>priced</em>", s: "Every card you own, totaled and kept up to date.",
-    float: `<div class="pill price" style="right:60px;top:306px"><small>UNSOLD</small>$3,390.86</div>` },
+    float: `<div class="pill price" style="right:60px;top:326px"><small>UNSOLD</small>$3,390.86</div>` },
   { key: "05-watchlist", raw: "05-watchlist", h: "Get told when prices <em>move</em>", s: "Watch any card. We email you when it dips.",
-    float: `<div class="pill notif" style="left:62px;top:296px"><div class="ico">CF</div><div><b>Price drop</b><span>Umbreon VMAX is $2,209.75</span></div></div>` },
+    float: `<div class="pill notif" style="left:62px;top:326px"><div class="ico">CF</div><div><b>Price drop</b><span>Umbreon VMAX is $2,209.75</span></div></div>` },
   { key: "06-ebay", raw: "06-editor-3", h: "Sell it on <em>eBay</em>", s: "Title, price and description written for you, in a few taps.",
-    float: `<div class="pill found" style="right:58px;top:300px"><span class="chk">✓</span><div><small>READY</small>Listed on eBay</div></div>` },
+    float: `<div class="pill found" style="right:58px;top:326px"><span class="chk">✓</span><div><small>READY</small>Listed on eBay</div></div>` },
 ];
 const SIZES = [["6.9", 440, 956], ["6.3", 402, 874]];
 
@@ -71,7 +71,7 @@ const html = (w, h, shot, variant) => {
   .bar .bat b { display: block; width: 100%; height: 100%; background: #fff; border-radius: 2px; }
   .screen { display: block; width: 100%; }
   .island { position: absolute; left: 50%; top: 11px; width: 104px; height: 31px; margin-left: -52px; background: #000; border-radius: 20px; }
-  .card { position: absolute; left: 112px; top: 290px; width: 216px; border-radius: 11px; transform: rotate(-6deg);
+  .card { position: absolute; left: 122px; top: 318px; width: 196px; border-radius: 10px;
     box-shadow: 0 30px 60px rgba(0,0,0,.75), 0 0 0 1px rgba(255,255,255,.12); }
   .pill { position: absolute; display: flex; align-items: center; gap: 10px; padding: 12px 18px; border-radius: 20px;
     background: rgba(13,14,24,.88); border: 1px solid rgba(255,255,255,.14); backdrop-filter: blur(10px);
