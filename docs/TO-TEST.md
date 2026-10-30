@@ -1,7 +1,7 @@
 # To test later
 
 ## 10-30 5:20PM ET: scan request waits 30 s, not 12 s (WHY Lucas lost 4 scans; tsc clean; NOT pushed, his bulk push)
-- [x] What: the phone's 12 s limit counted the photo upload too; his server reads were 2.5-5.7 s, so a weak signal cut the phone off while the server still read + charged; page said "Couldn't read this card", he shot it again (scan 1 10:32:02 lost, same Registeel re-scanned 10:32:22 and saved). Now 30 s (lib/client/visionApi.ts), watchdog 35 s (app/app/page.tsx). Lost ones still come back via the sweep.
+- [x] What: the phone's 12 s limit counted the photo upload too; his server reads were 2.5-5.7 s, so a weak signal cut the phone off while the server still read + charged; page said "Couldn't read this card", he shot it again (scan 1 10:32:02 lost, same Registeel re-scanned 10:32:22 and saved). Now 30 s (lib/client/visionApi.ts), watchdog 35 s (app/app/page.tsx); ad page free trial scan 15 s -> 30 s. Both Dialga reads were real too (name-only + exact Surging Sparks 135/191) with no save attempt = same cut-off. Lost ones still come back via the sweep.
 - [ ] Phone on a weak signal (one bar / Low Data Mode): 5 scans = 5 cards, no "Couldn't read this card".
 
 ## 10-30 12:05PM ET: every paid scan ends as a card or comes back (Lucas: 5 trial scans, 1 card; test:quota all pass incl. 7 new checks, tsc + eslint clean; NOT pushed, his bulk push)

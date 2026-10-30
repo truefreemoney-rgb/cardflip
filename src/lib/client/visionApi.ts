@@ -126,7 +126,8 @@ export async function trialScanWithVision(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ image: base64, mediaType, game }),
-      signal: typeof AbortSignal.timeout === "function" ? AbortSignal.timeout(15_000) : undefined,
+      // 30 s like the paid scan (10-30): the limit counts the photo's upload, and ad visitors are mostly on cellular.
+      signal: typeof AbortSignal.timeout === "function" ? AbortSignal.timeout(30_000) : undefined,
     });
     const data = await res.json().catch(() => null);
     const status: TrialScanStatus =
