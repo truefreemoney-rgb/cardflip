@@ -1,5 +1,8 @@
 # To test later
 
+## 10-29 11:59PM ET: APP ICON before the store submission (Chris 11:59pm "we remember to update the icon at some point"; TestFlight build 2 shows Expo's blue chevron: app.json ios.icon = ./assets/expo.icon, the template's Liquid Glass icon)
+- [ ] Make the iOS icon from the website's own icon (apple-touch-icon / favicon source, 1024x1024 PNG, no transparency, no rounded corners: iOS rounds it), set app.json ios.icon to it (or drop ios.icon so the top-level ./assets/images/icon.png is used, and replace that file too), phone-width shot of the Home Screen icon for Chris's yes, then a new production build + TestFlight before App Review.
+
 ## 10-29 11:20PM ET: app result chip no longer says "price looks off" for a card whose price simply had not arrived (Chris 11:10pm, first real-build scan, Maractus Black Bolt 093; app only, unpushed, bulk push)
 - [x] What: the price was never wrong (TCGplayer $6.32, ours $6.52, guard silent: scripts/_judge-one.mjs pokemon sv10.5b-093 holofoil 6.52 = no flag, no stale). The search answer reached the app without the price row and the chip printed every no-number state as "looks off". identify() now re-reads a priceless match by id (2 tries, 1.2 s apart, like the site's "pricing…" hold); the chip reads "looks off" only on the guard's own PRICE_FLAG_NOTE, else "no price yet". Root cause of the empty answer unconfirmed (the by-id and by-name calls both carried the price a minute later); watch for a repeat.
 - [x] (PASS, Chris 11:23pm: "worked that time") Phone (dev build, Metro on cardflip.io): scan Maractus 093 again: green $6.52 and "market price" under it. A card the site has no price for: "no price yet" in grey, never amber.
