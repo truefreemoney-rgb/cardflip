@@ -12,7 +12,7 @@
  * reads src/data, which Metro does not serve): the ranker's #1 stands and
  * "Not this card?" lists the rest.
  */
-import { searchCards } from "@/lib/cards";
+import { fetchCardById, searchCards } from "@/lib/cards";
 import { isSecretRareNumber, normalizeNumber, readHasPrintedKey, type PrintedNumber } from "@/lib/cardNumber";
 import { patternPrintingFor } from "@/lib/foilPattern";
 import { GAMES, isGameId } from "@/lib/games";
@@ -262,7 +262,17 @@ export async function identify(read: VisionCardRead, game: GameId): Promise<Iden
   }
   if (matches.length === 0) return miss(artMiss ?? "No match found — search by name to add it", { language });
 
-  const card = matches[0];
+  let card = matches[0];
+  // A match that arrived without its price (10-29 11:10pm, Chris's first real-build scan: Maractus Black Bolt 093 read
+  // "price looks off" while the guard said nothing and $6.52 was held): ask for the card by id, the way the website holds
+  // "pricing…" until the point lands, before the reveal prints "no price yet".
+  if (!hasUsdPrice(card)) {
+    const priced = await repriceById(card.id, game);
+    if (priced) {
+      card = priced;
+      matches = matches.map((m) => (m.id === priced.id ? priced : m));
+    }
+  }
   const lowConfidence = typeof read.confidence === "number" && read.confidence < LOW_CONFIDENCE;
   const numberPinned = Boolean(printed?.number) && normalizeNumber(card.number) === normalizeNumber(printed!.number);
   const ambiguous = matches.length > 1 && !numberPinned;
@@ -302,6 +312,23 @@ export async function identify(read: VisionCardRead, game: GameId): Promise<Iden
 }
 
 // ---------------------------------------------------------------- the price
+
+/** A USD row the reveal can print: a market number, or a guard flag (its fallback / note speak). */
+const hasUsdPrice = (c: PokemonCard): boolean => c.prices.some((p) => p.currency === "USD" && ((p.market != null && p.market > 0) || p.untrusted != null));
+
+/** Two more reads of the card by id, 1.2 s apart, for a match the search answered before its price was in. */
+async function repriceById(id: string, game: GameId): Promise<PokemonCard | null> {
+  for (let i = 0; i < 2; i++) {
+    await new Promise((r) => setTimeout(r, 1200));
+    try {
+      const c = await fetchCardById(id, game);
+      if (c && hasUsdPrice(c)) return c;
+    } catch {
+      // The reveal prints "no price yet"; the row prices itself once the site has the number (collection.ts).
+    }
+  }
+  return null;
+}
 
 export interface RevealPrice {
   /** "$12.34", or null when there is no number to show (then `note` says why). */

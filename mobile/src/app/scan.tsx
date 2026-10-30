@@ -11,7 +11,7 @@ import { openSitePage } from "~/components/AppHeader";
 import { emitScanResult } from "~/lib/scanBus";
 import { useAuth } from "~/lib/auth";
 import { setGuestScan } from "~/lib/guestScan";
-import { GAMES, fetchCardById, pictureUrl, publicGames, searchTyped, type GameId, type PokemonCard } from "~/lib/catalog";
+import { GAMES, PRICE_FLAG_NOTE, fetchCardById, pictureUrl, publicGames, searchTyped, type GameId, type PokemonCard } from "~/lib/catalog";
 import {
   CONDITIONS,
   defaultVariantOf,
@@ -309,7 +309,9 @@ function RevealChip({
               <Text style={styles.chipPriceLabel}>{condition !== "Near Mint" ? `${condition} value` : "market price"}</Text>
             </>
           ) : (
-            <Text style={[styles.chipPriceLabel, price.note && { color: "#fcd34d" }]}>{price.note ? "price looks off" : "no price yet"}</Text>
+            // "price looks off" only for the guard's own flag (the site's RevealChip); a card with no number yet is just that
+            // (10-29 11:10pm: Maractus Black Bolt 093 said "looks off" with the guard silent).
+            <Text style={[styles.chipPriceLabel, price.note === PRICE_FLAG_NOTE && { color: "#fcd34d" }]}>{price.note === PRICE_FLAG_NOTE ? "price looks off" : "no price yet"}</Text>
           )}
         </View>
         <Pressable onPress={onEdit} disabled={guest} accessibilityLabel={`Change condition or printing: ${copy}`} style={({ pressed }) => [styles.chipCopy, pressed && { opacity: 0.85 }]}>

@@ -1,5 +1,9 @@
 # To test later
 
+## 10-29 11:20PM ET: app result chip no longer says "price looks off" for a card whose price simply had not arrived (Chris 11:10pm, first real-build scan, Maractus Black Bolt 093; app only, unpushed, bulk push)
+- [x] What: the price was never wrong (TCGplayer $6.32, ours $6.52, guard silent: scripts/_judge-one.mjs pokemon sv10.5b-093 holofoil 6.52 = no flag, no stale). The search answer reached the app without the price row and the chip printed every no-number state as "looks off". identify() now re-reads a priceless match by id (2 tries, 1.2 s apart, like the site's "pricing…" hold); the chip reads "looks off" only on the guard's own PRICE_FLAG_NOTE, else "no price yet". Root cause of the empty answer unconfirmed (the by-id and by-name calls both carried the price a minute later); watch for a repeat.
+- [ ] Phone (dev build, Metro on cardflip.io): scan Maractus 093 again: green $6.52 and "market price" under it. A card the site has no price for: "no price yet" in grey, never amber.
+
 ## 10-29 5:50PM ET: a Not this card? pick no longer auto-verifies the scan (Chris 5:44pm phone bug; tsc + eslint clean; app only, unpushed, bulk push)
 What changed (mobile/src/lib/scan.ts swapSavedCard): the pick sent verifiedAt=now; the site's swapCard sends none. Removed, so a corrected card still waits for Verify like on the site.
 - [x] PASSED Chris 5:50pm ("it passes"; needed a full Expo Go reload, hot reload had not reached lib/scan.ts). CHRIS, phone: 1. Scan a card, Not this card?, pick another card, Done on the camera: on the scanner page the card is in the queue WAITING to verify (Verify button shown), not already verified. 2. Pick the original card back: same, still waiting.
