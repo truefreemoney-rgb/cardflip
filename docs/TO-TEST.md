@@ -1,5 +1,8 @@
 # To test later
 
+## 10-30 10:41PM ET: 2b8bb57d (Offer to Watchers, /u/handle 'No price yet' + green prices, pricing grid 2x2/4) look-yes 10:27pm ('fine i guess'); 538647ca Inventory rows at tablet width look-yes 10:41pm. Watchlist #26 skipped (prod: 0 of 11 rows lack a card id). 'Verify first' slot stays (Chris 10-41pm 'looks fine'; from 0ac02359 10-20). App page widths #39 + the remaining visual review items FOLD INTO the four big hand checks (Chris: 'we are going to do a full site review at some point anyway'). NOT pushed.
+- [ ] After the push: Inventory at ~700 px wide = name readable, buttons one line under it; pricing 'What a scan is' 2x2 on a tablet.
+
 ## 10-30 10:22PM ET: homepage FAQ price answer made vague (de358301, Chris 'just make it vague', no other site named) + /scan Terms · Privacy links (01659d36, LOOK-YES 10:22pm 'looks fine'). Checked, NOT changed: 'One free scan' is right (no-account trial = 1, sign-up = 5); CHECK MATCH on hidden doubts is intended; 'tap Scan again' matches the failed card's Scan again button (blurry/timeout already say Capture). NOT pushed.
 - [ ] After the push: cardflip.io/scan bottom shows Terms · Privacy, both open; homepage FAQ 'Where do the prices come from?' has the new wording.
 
