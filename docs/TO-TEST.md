@@ -1,6 +1,6 @@
 # To test later
 
-## 10-30 10:05PM ET: homepage "Most valuable today" = 5 card-page links (SEO internal links step 3; tsc + eslint clean; local 375 wide: 5 rows, no sideways scroll; LOOK-YES OPEN on docs/shots/home-most-valuable-phone.jpg; NOT pushed)
+## 10-30 10:05PM ET: homepage "Most valuable today" = 5 card-page links (SEO internal links step 3; tsc + eslint clean; local 375 wide: 5 rows, no sideways scroll; LOOK-YES 9:42PM (Chris "yeah") on docs/shots/home-most-valuable-phone.jpg; NOT pushed)
 - [x] What: src/app/page.tsx Card prices section lists each public game's #1 from gameTop100 (the daily Most Valuable list, same guard), linking its card page.
 - [ ] After the push: homepage shows 5 rows with prices that match each game's /most-valuable #1; each row opens a real card page (no 404); Search Console "Discovered - not indexed" (53,078 on 10-30) starts dropping over the next 2-3 weeks.
 
