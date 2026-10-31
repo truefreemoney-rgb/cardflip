@@ -108,6 +108,10 @@ export const PICTURE_PRIOR = 0.2;
  * and a kind's format and its slot are tangled in those scores (a picture only ever at 7am or 7pm). A week with no pictures
  * is read against the week before it, per site, on 10-31; if the video wins the picture's share drops for good, if not the
  * pictures come back as they are. Rendering costs nothing extra: the night render makes every slot's video for TikTok anyway.
+ * VERDICT 10-31: mixed, so the pictures came back as they are. Per post, video vs picture over 10-17..10-30: Instagram
+ * views 77.7 vs 1.7 and X 13.1 vs 10.0 (engagement even) favour the video; Threads views 5.4 vs 14.4 and Bluesky
+ * engagement 4.08 vs 5.47 favour the picture; Facebook / Pinterest / TikTok have no split. Not a clean week either: the
+ * games and set kinds have no video, so 7 of each site's 21 posts were still pictures.
  */
 export const VIDEO_WEEK = { from: "2026-10-24", to: "2026-10-30" } as const;
 export function inVideoWeek(day: string): boolean {
