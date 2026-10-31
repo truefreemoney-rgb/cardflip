@@ -21,7 +21,7 @@ A card on the table or on the PC screen. Turn on Screen Recording in Control Cen
 ## Notes field text (paste as is, replaces the old notes)
 CardFlip: Card Scanner. Answers to the 10-31 Information Needed request.
 
-1. SCREEN RECORDING: attached to our reply in App Review (iPhone, latest iOS). It starts at app launch and shows the free first scan, account sign-up, sign-out and sign-in, an in-app purchase through Apple (sandbox), and account deletion (Account > Danger zone > Delete).
+1. SCREEN RECORDING: attached to our reply in App Review (iPhone, latest iOS). It starts at app launch and shows account sign-up, sign-out and sign-in, an in-app purchase through Apple (sandbox), a card scan, and account deletion (Account > Danger zone > Delete). (Our test iPhone had already used its free first scan; on a new device the first scan needs no account.)
 
 2. PURPOSE AND AUDIENCE: CardFlip is for people who collect or sell trading cards (Pokemon, Magic: The Gathering, Disney Lorcana, Yu-Gi-Oh!, One Piece). You point the camera at a card, the app names the exact card and shows what it sells for, so you know which cards are worth keeping, watching or selling. Cards are saved to your collection with their value; you can watch prices and, if you choose, list a card on your own eBay account.
 

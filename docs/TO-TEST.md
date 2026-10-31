@@ -1,5 +1,13 @@
 # To test later
 
+## 10-31 3:03PM ET: purchases keep the free scans + app credits at once (a745e9e1 PUSHED on Chris's "push then"; app build 5 bd04065f, auto-submit)
+- [x] Why: Chris on build 4 2:49pm: Booster sheet closed, header stayed at 5; Apple's sheet came back unasked; then 100, not 105. Server credited once (apple:2000001259969264, 2:49:59pm).
+- [x] Built: keepTrialScans (Booster or subscription payment moves unused trial scans into extra_scans, website + app); app iap.ts handles requestPurchase's own answer + foreground check, once per transaction; welcome page re-reads until a second Booster lands. Tests: quota/webhook/rollover/apple-iap all pass, tsc + eslint clean. Also 9db2546d (notify route allowlisted = the CI fail on 20e2bdd1).
+- [x] CI + smoke green on a745e9e1 (run 41232387178 checks + e2e success; smoke 41232481130 success, 3:08pm).
+- [x] Build 5 on Chris's phone 3:23pm (recording): Booster -> header 100/100 the moment the sheet closed, no second sheet (account had 0 free scans: device already used its trial, so 105 not shown).
+- [ ] 105 itself on a phone/account that still has free scans (or a website Stripe Booster on a fresh trial account).
+- [ ] Website: a trial account with free scans left buys a Booster with Stripe -> welcome page + header show 100 + what was left.
+
 ## 10-31 2:32PM ET: Apple in-app purchase (20e2bdd1 PUSHED; app build EAS 5f141965 running)
 - [x] Why: App Review 10-31 + Chris's recording showed Stripe checkout INSIDE the app; Chris 1:55pm chose Apple IAP in the app, Stripe stays on the website, buttons stay.
 - [x] ASC 2:15-2:30pm: io.cardflip.app.booster100 consumable $4.99; group "CardFlip Plans" (22532532): io.cardflip.app.pro.monthly $24.99 (level 1) + io.cardflip.app.standard.monthly $9.99, 1 month, single seat, App Store only; display names + review notes; server notification URL (prod + sandbox) https://cardflip.io/api/iap/apple/notify. Paid Apps agreement + bank PROCESSING (up to 24 h), W-9 Active, Small Business Program submitted.
