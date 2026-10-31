@@ -83,8 +83,9 @@ async function worker(queue) {
       for (const p of products) {
         const number = ext(p, "Number").trim().toUpperCase();
         if (!number) continue; // sealed product, no card
-        // English cards only (Chris 10-31: the German Advent Calendar AC11/AC14 "-DE" rows were removed on his yes).
-        if (/-(DE|GE)\d/.test(number) || /\(German\)/i.test(p.name ?? "")) continue;
+        // English cards only (Chris 10-31: the German Advent Calendar AC11/AC14 "-DE" rows and the Spanish
+        // Falsebound Kingdom promos TFK-SP001/002 were removed on his yes).
+        if (/-(DE|GE|SP)\d/.test(number) || /\((German|Spanish)\)/i.test(p.name ?? "")) continue;
         const { name, variant } = splitVariant(p.name);
         const priced = byProduct.get(p.productId) ?? {};
         const base = {

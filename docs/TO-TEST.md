@@ -1,7 +1,7 @@
 # To test later
 
 ## 10-31 11:52AM ET: 48 German Advent Calendar Yu-Gi-Oh! rows REMOVED (Chris "c. yes"; English-only catalog)
-- [x] What: scripts/_ygo-german-remove.mjs --apply: prod + local tcg_cards AC11/AC14 "-DE" = 48 rows, price_series 47 rows; 0 user cards on them; backup data/ygo-german-removed-2026-10-31.json. sync-yugioh.mjs skips "-DE"/"-GE" numbers and "(German)" names so they never come back. AC18/AC19 (English) kept. Left alone: 2 TFK-SP rows (Spanish Falsebound Kingdom promos) = ask Chris.
+- [x] What: scripts/_ygo-german-remove.mjs --apply: prod + local tcg_cards AC11/AC14 "-DE" = 48 rows, price_series 47 rows; 0 user cards on them; backup data/ygo-german-removed-2026-10-31.json. sync-yugioh.mjs skips "-DE"/"-GE" numbers and "(German)" names so they never come back. AC18/AC19 (English) kept. 11:45am, Chris "yes remove the spanish ones too": TFK-SP001 Sinister Serpent + TFK-SP002 Harpie's Feather Duster (Spanish-language promos per Yugipedia; names carried no "(Spanish)") removed by scripts/_ygo-spanish-remove.mjs (+ 4 price_series, 1 ebay_asks, 2 cardmarket_map; 0 user cards; backup data/ygo-spanish-removed-2026-10-31.json); the sync skips "-SP" too. No other non-English (-FR/-IT/-PT/-SP/-DE) Yu-Gi-Oh! rows left on prod.
 - [ ] Tomorrow: cardflip.io search "AC14-DE003" / "Gerumpelsynchronisierer" finds nothing; Yu-Gi-Oh! sitemap has no ygo-2518xx / the 24 ygo-4967xx ids after its cache turns over.
 
 ## 10-31 11:45AM ET: every Inventory delete asks "are you sure" (Chris 10-31 "deletes should always ask are you sure"; tsc + eslint clean; local pane: row × and bulk Delete pop up, Cancel keeps all 21; NOT pushed, his bulk push; shots docs/shots/delete-row-confirm-phone.jpg + delete-bulk-confirm-phone.jpg sent, LOOK-YES PENDING)
