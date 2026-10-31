@@ -674,7 +674,7 @@ console.log("\nThe chart's current-day point rebases the quote:");
 }
 
 // Shipping picks (Chris 10-11 night, eBay's calculator + USPS Notice 123 of 2026-10-04): envelope = eBay's
-// tracked label $0.78 up to $20, stamps with no tracking $1.31 from $20.01 to $100, never over $100;
+// tracked label $0.78 up to $20, stamps with no tracking $1.31 from $20.01 to $50, never over $50 (Chris 10-30, was $100);
 // tracked mailer $6.07 at any price. The postage sits inside the price.
 {
   const fees = await import(new URL("../src/lib/fees.ts", import.meta.url).href);
@@ -684,8 +684,8 @@ console.log("\nThe chart's current-day point rebases the quote:");
   check("postage: envelope at $20.00 = $0.78 label, $20.01 = $1.31 stamps, no price = $0.78, tracked = $6.07", [
     fees.postageFor("envelope", 20), fees.postageFor("envelope", 20.01), fees.postageFor("envelope"), fees.postageFor("tracked"), fees.postageFor("tracked", 500),
   ], [0.78, 1.31, 0.78, 6.07, 6.07]);
-  check("envelope allowed to $100, not $100.01; tracked label to $20 only", [
-    fees.envelopeAllowed(100), fees.envelopeAllowed(100.01), fees.envelopeTracked(20), fees.envelopeTracked(20.01),
+  check("envelope allowed to $50, not $50.01; tracked label to $20 only", [
+    fees.envelopeAllowed(50), fees.envelopeAllowed(50.01), fees.envelopeTracked(20), fees.envelopeTracked(20.01),
   ], [true, false, true, false]);
   check("floor is $1.25 (the $0.78 label)", fees.listingFloor(), 1.25);
   // $16: (16 + 0.40 + 0.78) / 0.8675 = 19.81, under the label line. $16.50: 20.38 with the label is over $20, so it is
@@ -718,7 +718,7 @@ console.log("\nThe chart's current-day point rebases the quote:");
     ["envelope", 0.78, "eBay Standard Envelope, tracked"], ["tracked", 6.07, "Bubble mailer, USPS Ground Advantage"],
   ]);
   check("tiles at $30.79: stamps $1.31, no warning line (Chris 10-11)", ship.shipOptionsFor(30.79)[0], { id: "envelope", label: "Envelope", sub: "Plain envelope with stamps", postage: 1.31 });
-  check("over-cap line", ship.ENVELOPE_OVER_CAP, "Over $100, use a tracked mailer");
+  check("over-cap line", ship.ENVELOPE_OVER_CAP, "Over $50, use a tracked mailer");
   check("confirm line: stamped envelope over $20", ship.shipConfirmLine("envelope", 25),
     "Ships in a stamped envelope. Free shipping for the buyer, the postage is already in your price.");
   check("confirm line: label envelope at $20 and with no price", [ship.shipConfirmLine("envelope", 20), ship.shipConfirmLine("envelope")].every((s) => s.startsWith("Ships as an eBay Standard Envelope (tracked).")), true);

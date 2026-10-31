@@ -29,11 +29,12 @@ const close = (a, b, msg) => assert.ok(Math.abs(a - b) < 0.005, `${msg}: ${a} vs
   close(salePostage(null, 12), POSTAGE_USD, "no pick, $20 or less: the eBay envelope label");
   close(salePostage("envelope", 20), POSTAGE_USD, "envelope at exactly $20: the label");
   close(salePostage("envelope", 20.01), STAMP_POSTAGE_USD, "envelope over $20: stamps");
-  close(salePostage("envelope", 100), STAMP_POSTAGE_USD, "envelope at $100: stamps");
+  close(salePostage("envelope", 50), STAMP_POSTAGE_USD, "envelope at $50: stamps");
+  close(salePostage("envelope", 50.01), TRACKED_POSTAGE_USD, "envelope over $50 (Chris 10-30): the mailer");
   close(salePostage("tracked", 12), TRACKED_POSTAGE_USD, "tracked pick on a cheap card: the mailer");
   close(salePostage(null, 60), TRACKED_POSTAGE_USD, "no pick over $20: the mailer, never stamps");
-  close(salePostage("envelope", 1178.52), TRACKED_POSTAGE_USD, "over $100: the mailer whatever was picked");
-  close(salePostage(undefined, 1178.52), TRACKED_POSTAGE_USD, "over $100, no pick: the mailer");
+  close(salePostage("envelope", 1178.52), TRACKED_POSTAGE_USD, "over $50: the mailer whatever was picked");
+  close(salePostage(undefined, 1178.52), TRACKED_POSTAGE_USD, "over $50, no pick: the mailer");
 }
 
 // --- saleBreakdown ---------------------------------------------------------
@@ -47,7 +48,7 @@ const close = (a, b, msg) => assert.ok(Math.abs(a - b) < 0.005, `${msg}: ${a} vs
   assert.equal(b.costKnown, true);
 
   const env = saleBreakdown({ soldPrice: 100, soldFees: 12, soldAt: 0, costBasis: 40, shippingMethod: "envelope" });
-  close(env.postage, STAMP_POSTAGE_USD, "envelope pick at $100: stamps");
+  close(env.postage, TRACKED_POSTAGE_USD, "envelope pick at $100: over the $50 cap, the mailer");
 
   const e = saleBreakdown({ soldPrice: 100, soldFees: null, soldAt: 0, costBasis: null });
   close(e.fees, estimatedEbayFees(100), "estimate when no actual fee");

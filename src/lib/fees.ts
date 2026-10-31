@@ -52,8 +52,8 @@ export const STAMP_POSTAGE_USD = 1.31;
  * (sellers must stay competitive):
  *   sale price      "Envelope"                                   "Tracked mailer"
  *   $20 or less     eBay Standard Envelope label, tracked, $0.78  $6.07
- *   $20.01-$100     stamps, NO tracking, $1.31                    $6.07
- *   over $100       not allowed                                  $6.07 (required)
+ *   $20.01-$50      stamps, NO tracking, $1.31                    $6.07
+ *   over $50        not allowed                                  $6.07 (required)
  * Nothing is picked by default; the suggested pick (defaultShipMethod) is the
  * tracked envelope while its price stays at $20 or less, else the tracked
  * mailer. The untracked stamp envelope is never suggested: the seller chooses it.
@@ -68,12 +68,12 @@ export const TRACKED_POSTAGE_USD = 6.07;
  */
 export const ENVELOPE_LABEL_MAX_USD = 20;
 /**
- * The envelope pick's cap (Chris 10-11 night): up to $100 a card may go in a
- * stamped envelope; over it the tracked mailer is required. (The noon 10-08 $100
- * cap was dropped that evening because eBay's label stops at $20; the stamp
- * tier is what makes $20.01-$100 possible.)
+ * The envelope pick's cap: up to $50 a card may go in a stamped envelope; over
+ * it the tracked mailer is required. Was $100 from 10-11; Chris 10-30 moved it
+ * to $50: an untracked card that goes missing loses the "not received" claim,
+ * and over $50 the extra $4.76 for tracking is under 10% of the sale.
  */
-export const ENVELOPE_MAX_USD = 100;
+export const ENVELOPE_MAX_USD = 50;
 /** Postage for the pick at this sale price (no price = the label rate): tracked $6.07; envelope $0.78 up to $20, $1.31 over. */
 export function postageFor(method: ShipMethod | null | undefined, gross?: number | null): number {
   if (method === "tracked") return TRACKED_POSTAGE_USD;
@@ -82,7 +82,7 @@ export function postageFor(method: ShipMethod | null | undefined, gross?: number
 /**
  * What one copy REALLY costs to post at this sale price, for the Inventory
  * summary and the sales report (Chris 10-12: a $1,178 card showed
- * "Postage · 1 × $0.78"). Over $100 the tracked mailer whatever was picked;
+ * "Postage · 1 × $0.78"). Over $50 the tracked mailer whatever was picked;
  * otherwise the pick's rate at this price; with no pick on the row, eBay's
  * label up to $20 and the tracked mailer above it (the stamps are never
  * assumed: the seller chooses them).
@@ -108,7 +108,7 @@ export function isShipMethod(v: unknown): v is ShipMethod {
 export function shipMethodOf(row: { shipping_method?: string | null }): ShipMethod | null {
   return isShipMethod(row.shipping_method) ? row.shipping_method : null;
 }
-/** Whether the envelope pick is allowed at this sale price ($100 or less, Chris 10-11). */
+/** Whether the envelope pick is allowed at this sale price ($50 or less, Chris 10-30). */
 export function envelopeAllowed(gross: number): boolean {
   return gross <= ENVELOPE_MAX_USD;
 }

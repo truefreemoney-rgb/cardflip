@@ -1,5 +1,9 @@
 # To test later
 
+## 10-30 9:50PM ET: #18 envelope cap $100 -> $50 (Chris "move to $50"; fees.ts ENVELOPE_MAX_USD; test:pricing, test:profit, test:ebaysell all pass, tsc clean; NOT pushed, his bulk push)
+- [x] What: over $50 the envelope pick is refused at publish ("Over $50 eBay needs a tracked mailer — pick Tracked mailer under Shipping") and the card editor shows "Over $50, use a tracked mailer"; editor note + sales report read "stamps up to $50". Cards already live on the "CardFlip letter" policy are untouched. Side effect: the sales report now counts a past $50-$100 envelope sale at the $6.07 mailer, not $1.31 stamps.
+- [ ] After the push: a card priced $50-$100 with Envelope picked shows the over-cap line in the editor; Tracked mailer lists fine.
+
 ## 10-30 9:30PM ET: #17 reveal sounds, style B "Arcade" (Chris picked B 9:19pm), on by default, switch in Scanner options (tsc + eslint clean; switch on/off saves cardflip.sound in the pane; camera blocked in the pane = the sounds themselves NOT heard yet; NOT pushed, his bulk push; LOOK-YES on docs/shots/reveal-sounds-options-phone.jpg open)
 - [x] What: lib/client/scanFx.ts synthesises with Web Audio (no files): capture = 2.4 kHz tick, match plain/nice = A5-D6-G6 triangle 55 ms, big = + C7, grail = 8-note run + C8 sparkle, miss = 160 Hz falling buzz; vibrate patterns unchanged. fxUnlock() runs first thing in the Capture tap (iOS only starts audio from a gesture) and in the phone-camera button. lib/client/scanPrefs.ts readSoundOn/saveSoundOn (default on). ScannerOptionsSheet "Reveal sounds" row under Tips.
 - [ ] Chris, iPhone + Android, ringer ON: scan a cheap card = tick, then a short rising chirp; a $100+ card = longer chirp; a miss = low buzz; Options > Reveal sounds off = silent next scan. iPhone on silent switch = no sound (expected).

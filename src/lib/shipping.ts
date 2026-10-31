@@ -7,8 +7,8 @@
  * price (lib/fees.ts), the buyer sees free shipping, and the eBay listing uses
  * the matching fulfillment policy ("CardFlip envelope" / "CardFlip letter" /
  * "CardFlip shipping"). The envelope depends on the price (Chris 10-11): up to
- * $20 it is eBay's tracked Standard Envelope label ($0.78), $20.01-$100 it goes
- * with stamps and no tracking ($1.31), over $100 only the tracked mailer
+ * $20 it is eBay's tracked Standard Envelope label ($0.78), $20.01-$50 it goes
+ * with stamps and no tracking ($1.31), over $50 only the tracked mailer
  * ($6.07). The instructions show on the Inventory row and the card sheet once
  * the card is live or sold, so the seller knows what to put it in.
  */
@@ -70,7 +70,7 @@ export function shipSteps(method: ShipMethod, price?: number | null): string[] {
     ];
   }
   if (stamped(method, price)) {
-    // Chris 10-11: $20.01-$100 in an envelope = stamps, no eBay label (eBay sells it only to $20). USPS Notice 123
+    // Chris 10-11: $20.01-$50 in an envelope = stamps, no eBay label (eBay sells it only to $20). USPS Notice 123
     // (2026-10-04): Forever $0.82 + $0.49 nonmachinable, which a rigid toploader is.
     return [
       "Penny sleeve, then a toploader. Tape the top of the toploader shut.",

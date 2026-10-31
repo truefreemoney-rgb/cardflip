@@ -445,7 +445,7 @@ export interface ScanItem {
   priceOverride: number | null;
   /**
    * How the seller will mail it (10-08): "envelope" (eBay Standard Envelope
-   * $0.78 up to $20, stamps with no tracking $1.31 to $100, Chris 10-11) or
+   * $0.78 up to $20, stamps with no tracking $1.31 to $50, Chris 10-11) or
    * "tracked" (bubble mailer, $6.07). Required before a
    * card can be posted to eBay; the postage sits inside the asking price.
    * null = not picked yet (prices assume the suggested pick meanwhile).

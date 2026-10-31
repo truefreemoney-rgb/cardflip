@@ -166,7 +166,7 @@ interface SellerDefaults {
   merchantLocationKey: string | null;
   /**
    * Our US policies by name (10-08): "CardFlip shipping" = tracked mailer, "CardFlip envelope" = eBay
-   * Standard Envelope ($20 or less); 10-11: "CardFlip letter" = stamped envelope, no tracking ($20.01-$100).
+   * Standard Envelope ($20 or less); 10-11: "CardFlip letter" = stamped envelope, no tracking ($20.01-$50).
    */
   trackedPolicyId?: string;
   envelopePolicyId?: string;
@@ -236,7 +236,7 @@ async function createDefaultPolicies(token: string, missing: { f: boolean; p: bo
   const post = (path: string, body: unknown) => ebayFetch(token, "POST", path, body, undefined, mp);
   const jobs: Promise<unknown>[] = [];
   if (missing.l) {
-    // The letter policy (Chris 10-11): a stamped envelope for $20.01-$100, free to the buyer, no carrier (no
+    // The letter policy (Chris 10-11): a stamped envelope for $20.01-$50, free to the buyer, no carrier (no
     // label, no tracking). US only; when eBay refuses every try the card lists on the tracked policy instead.
     jobs.push(
       (async () => {
@@ -542,8 +542,8 @@ function requireVerified(card: { verifiedAt: number | null; status: string; ebay
 /**
  * Shipping pick gate (Chris 10-08: "we shouldn't let the user post to eBay
  * unless they pick a shipping option"). Cards need a pick; sealed product
- * always ships tracked. The envelope pick is allowed up to $100 (Chris 10-11: eBay's tracked
- * label to $20, stamps with no tracking $20.01-$100); over it the tracked mailer is required.
+ * always ships tracked. The envelope pick is allowed up to $50 (Chris 10-30: eBay's tracked
+ * label to $20, stamps with no tracking $20.01-$50); over it the tracked mailer is required.
  */
 function requireShipping(card: { kind: string; shippingMethod: ShipMethod | null; price: number }) {
   if (card.kind === "sealed") return;

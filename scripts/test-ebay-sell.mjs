@@ -18,7 +18,7 @@
  * the offer id and asks for a re-push. Reprice: PUT carries only the new
  * pricingSummary over the current offer. Withdraw: POSTs withdraw; a gone
  * listing counts as ended. Shipping picks (Chris 10-11): envelope up to $20
- * lists on "CardFlip envelope", $20.01-$100 on "CardFlip letter" (stamps, no
+ * lists on "CardFlip envelope", $20.01-$50 on "CardFlip letter" (stamps, no
  * carrier), tracked when eBay refuses the letter; envelope over $100 is refused.
  */
 import { mkdtempSync, rmSync } from "node:fs";
@@ -290,7 +290,7 @@ check("withdraw: a listing eBay already ended counts as ended", await thrown(wit
 err = await thrown(withdrawOffer(uid, c4));
 check("withdraw: no offer → 409", err?.status, 409);
 
-// --- shipping picks (Chris 10-11): envelope label to $20, stamped letter $20.01-$100, tracked over ----------
+// --- shipping picks (Chris 10-11): envelope label to $20, stamped letter $20.01-$50, tracked over ----------
 {
   const listed = async (price) => {
     const id = await readyCard({ price, shippingMethod: "envelope" });
@@ -309,8 +309,8 @@ check("withdraw: no offer → 409", err?.status, 409);
   check("envelope at $25: lists on a new \"CardFlip letter\" policy (Standard Shipping, no carrier, free)", [
     at25.put?.listingPolicies?.fulfillmentPolicyId, at25.posts.map((b) => b.name), svc?.shippingServiceCode, "shippingCarrierCode" in (svc ?? {}), svc?.freeShipping, at25.posts[0]?.handlingTime,
   ], ["letter-2", ["CardFlip letter"], "ShippingMethodStandard", false, true, { value: 1, unit: "DAY" }]);
-  const again = await listed(60);
-  check("envelope at $60: the existing letter policy is reused, nothing created", [again.put?.listingPolicies?.fulfillmentPolicyId, again.posts.length], ["letter-2", 0]);
+  const again = await listed(45);
+  check("envelope at $45: the existing letter policy is reused, nothing created", [again.put?.listingPolicies?.fulfillmentPolicyId, again.posts.length], ["letter-2", 0]);
   const at20 = await listed(20);
   check("envelope at exactly $20 stays on the tracked envelope label", at20.put?.listingPolicies?.fulfillmentPolicyId, "envelope-1");
 
@@ -324,15 +324,15 @@ check("withdraw: no offer → 409", err?.status, 409);
   ], ["tracked-9", ["ShippingMethodStandard", "Other"]]);
   state.refuseNamed.clear();
 
-  // The $100 cap: an envelope over it is refused before anything goes to eBay; $100 itself is fine.
-  const over = await readyCard({ price: 100.01, shippingMethod: "envelope" });
+  // The $50 cap (Chris 10-30, was $100): an envelope over it is refused before anything goes to eBay; $50 itself is fine.
+  const over = await readyCard({ price: 50.01, shippingMethod: "envelope" });
   log.length = 0;
-  err = await thrown(pushDraft(uid, draftFor(over, { listing: { ...draftFor(over).listing, price: 100.01 } })));
-  check("envelope at $100.01 is refused (409, pick Tracked mailer), nothing sent", [err instanceof EbaySellError, err?.status, err?.message, log.length], [
-    true, 409, "Over $100 eBay needs a tracked mailer — pick Tracked mailer under Shipping", 0,
+  err = await thrown(pushDraft(uid, draftFor(over, { listing: { ...draftFor(over).listing, price: 50.01 } })));
+  check("envelope at $50.01 is refused (409, pick Tracked mailer), nothing sent", [err instanceof EbaySellError, err?.status, err?.message, log.length], [
+    true, 409, "Over $50 eBay needs a tracked mailer — pick Tracked mailer under Shipping", 0,
   ]);
-  const cap = await listed(100);
-  check("envelope at exactly $100 lists, on a fresh letter policy", [Boolean(cap.put), cap.posts.map((b) => b.name), cap.put?.listingPolicies?.fulfillmentPolicyId === state.named.find((p) => p.name === "CardFlip letter")?.fulfillmentPolicyId, (await getCardForUser(cap.id, uid)).status], [true, ["CardFlip letter"], true, "listed"]);
+  const cap = await listed(50);
+  check("envelope at exactly $50 lists, on a fresh letter policy", [Boolean(cap.put), cap.posts.map((b) => b.name), cap.put?.listingPolicies?.fulfillmentPolicyId === state.named.find((p) => p.name === "CardFlip letter")?.fulfillmentPolicyId, (await getCardForUser(cap.id, uid)).status], [true, ["CardFlip letter"], true, "listed"]);
   // 10-13: a "CardFlip shipping" policy made on the old code (USPS Priority) moves to Ground Advantage (eBay code USPSParcel) in place.
   state.policyDetail = { "tracked-9": { name: "CardFlip shipping", shippingOptions: [{ shippingServices: [{ shippingCarrierCode: "USPS", shippingServiceCode: "USPSPriority", freeShipping: true }] }] } };
   const trk = await readyCard({ price: 150, shippingMethod: "tracked" });

@@ -619,7 +619,7 @@ export function envelopeAttempts(marketplace: Marketplace): { serviceCode: strin
 
 /**
  * The letter policy's service tries (US only, Chris 10-11): a stamped envelope
- * for $20.01-$100, no eBay label and no tracking, so no carrier code. eBay
+ * for $20.01-$50, no eBay label and no tracking, so no carrier code. eBay
  * "Standard Shipping" first, then "Economy Shipping" (the account may refuse one).
  */
 export function letterAttempts(marketplace: Marketplace): { serviceCode: string; carrierCode: string | null }[] {
@@ -651,7 +651,7 @@ export function fulfillmentPolicyBody(marketplace: Marketplace, serviceCode: str
     ...policyBase(marketplace),
     // "CardFlip shipping" = the tracked mailer policy (its pre-10-08 name, kept so existing accounts match);
     // "CardFlip envelope" = eBay Standard Envelope for cards at $20 or less;
-    // "CardFlip letter" = stamped envelope, no tracking, $20.01-$100 (Chris 10-11).
+    // "CardFlip letter" = stamped envelope, no tracking, $20.01-$50 (Chris 10-11).
     name: policyNameFor(marketplace, kind === "envelope" ? "CardFlip envelope" : kind === "letter" ? "CardFlip letter" : "CardFlip shipping"),
     handlingTime: { value: 1, unit: "DAY" },
     shippingOptions: [
