@@ -14,10 +14,12 @@ import type { GameId, VisionCardRead } from "@/lib/types";
 export function scanLogRead(
   card: VisionCardRead & { switchedFrom?: string | null; secondLook?: string | null; detectedGame?: string | null; patternFirst?: string | null; patternLookBall?: string | null },
   game: GameId,
-  timing: { pre: number; ms: number },
+  timing: { pre: number; ms: number; soft?: [number, number] },
 ): Record<string, unknown> {
   return {
     game,
+    // Blur scores of the photo (attack-text band, number band; lib/server/photoSoftness.ts), when scored.
+    ...(timing.soft ? { soft: timing.soft } : {}),
     ...(card.switchedFrom ? { from: card.switchedFrom } : {}),
     // Stored so the second-look rate can be MEASURED next time, not inferred from token counts.
     ...(card.secondLook ? { second: card.secondLook } : {}),

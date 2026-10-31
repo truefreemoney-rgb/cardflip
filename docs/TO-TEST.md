@@ -1,5 +1,14 @@
 # To test later
 
+## 10-30 8:40PM ET: scanner blur gate on the server + fewer second looks (test:softness 122/122, tsc + eslint clean web + app; NOT pushed, his bulk push)
+- [x] What: (1) lib/server/photoSoftness.ts scores the attack-text band and the number band of every scan photo (site + app + free trial) BEFORE any paid call; both under 200 = 422 "Too blurry to read the card. Hold still, then tap Capture again.", no scan taken, no vision call. Measured on all 78 customer photos 10-16..10-30 (metadata only): catches all 34 no-number photos (one Kindle-class camera), 0 good-camera photos. (2) lib/server/vision.ts secondLookReason: a low-confidence read that already has number + set total (Magic: set code) skips the second look; the catalog decides. (3) scan_usage read gets soft:[text, number] for re-measuring the cut-off. (4) First-read bottom-strip experiment OFF (FIRST_READ_STRIP_WIDTH 0): 34/40 with or without.
+- [ ] After the push: node scripts/_user-scans.mjs on 737f4a74 if they scan again = "blurry" refusals in the Vercel log (scan: refused blurry photo), no new no-number rows; second-look share in scan_usage (was 182 of 272) falls; no good-camera user sees the blurry message (soft scores in the read stay >= 200 on one band).
+- [ ] Chris, phone, prod: scan one card normally = reads as before; then scan with the phone moving / out of focus = "Too blurry to read the card. Hold still, then tap Capture again." and the scan count does not go down.
+
+## 10-30 8:15PM ET: #A scanner sends the corner close-up whenever the number is missing (tsc + eslint clean; NOT pushed, his bulk push; c3c73462)
+- [x] What: a low-confidence first read with no number got the strip-only second look (confidence check ran first), so the bottom-left corner crop never went out; user 737f4a74's 32 second looks on the newest sets (Chaos Rising, Perfect Order, Pitch Black, 30th Celebration; conf 0.3-0.6) all ended with no number. Now any Pokémon read with no number gets the corner crop (lib/server/vision.ts analyzeCore).
+- [ ] After the push: node scripts/_user-scans.mjs on that user = new Pokémon rows carry a number; scan_usage read shows second:"low-confidence" with number set. Chris: scan 3 cards from a 2026 set (Mega Evolution era) under a lamp; each shows a number, not "printings matched, no number read".
+
 ## 10-30 8:10PM ET: #16 seller floor step 1 = the morning eBay check keeps the cards the floor would flip (no price change; tsc + eslint + test-ebay-referee green; NOT pushed)
 - [x] What: lib/server/ebayReferee.ts run summary (price_history_meta ebay_referee_last) gets sellerFloor.flipped: up to 60 cards, our price, verdict from/to, the dropped asks with seller % + score.
 - [ ] After the push + the next 8:15am ET run: read sellerFloor.flipped, hand-check each card (TCGplayer first > eBay sold), decide floor on + "never drop the last asks" rule (step 2).

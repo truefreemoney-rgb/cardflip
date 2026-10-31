@@ -90,6 +90,8 @@ export async function readPhoto(base64: string, game: GameId, language: ScanLang
       return { status: "error", ...empty, rateLimited: { seconds, daily } };
     }
     if (err.status === 504) return { status: "error", ...empty, timedOut: true };
+    // 422 blurry: refused before any paid call; the server's words are the retake message.
+    if (err.status === 422 && err.body.reason === "blurry") return { status: "error", ...empty, error: err.message };
     // 0 = no connection / the app's own 20 s clock: say so in the server's absence.
     if (err.status === 0) return { status: "error", ...empty, error: err.message };
     return { status: "error", ...empty };
@@ -125,6 +127,7 @@ export async function readPhotoGuest(base64: string, game: GameId): Promise<Read
       return { status: "error", ...empty, rateLimited: { seconds, daily: err.body.status === "busy" || (seconds != null && seconds >= 600) } };
     }
     if (err.status === 504) return { status: "error", ...empty, timedOut: true };
+    if (err.status === 422 && err.body.reason === "blurry") return { status: "error", ...empty, error: err.message };
     if (err.status === 0) return { status: "error", ...empty, error: err.message };
     return { status: "error", ...empty };
   }

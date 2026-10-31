@@ -877,6 +877,80 @@ export async function firstReadPicture(base64Image: string, mediaType: string): 
   }
 }
 
+/**
+ * Width of the bottom-strip close-up the FIRST read gets beside the whole card. 0 = whole card only, which is what
+ * ships: on Chris's 40 Pokémon scans the strip at 1,000 or 1,400 px read the number right exactly as often as the
+ * whole card alone (34/40 each; the misses were one glare photo, four screen shots of digital cards and two rows saved
+ * under the wrong card) for 50-100% more picture tokens (10-30, scripts/_firstread-strip-owner.mjs, data/
+ * firstread-strip-owner-2026-10-30.json). Kept so the test can be re-run when a new card layout appears.
+ */
+export const FIRST_READ_STRIP_WIDTH = 0;
+
+/** Bottom 25% of the full photo, full width, enlarged to `width` px, as JPEG: where every Pokémon era prints its number, set code and copyright year. */
+export async function firstReadStrip(base64Image: string, width = FIRST_READ_STRIP_WIDTH): Promise<{ base64: string; mediaType: ImageMediaType }> {
+  const sharp = (await import("sharp")).default;
+  const input = Buffer.from(base64Image, "base64");
+  const meta = await sharp(input).metadata();
+  const w = meta.width ?? 0;
+  const h = meta.height ?? 0;
+  if (!w || !h) throw new Error("first read strip: unreadable image");
+  const top = Math.round(h * 0.75);
+  const out = await sharp(input)
+    .rotate()
+    .extract({ left: 0, top, width: w, height: h - top })
+    .resize({ width, withoutEnlargement: false })
+    .jpeg({ quality: 90 })
+    .toBuffer();
+  return { base64: out.toString("base64"), mediaType: "image/jpeg" };
+}
+
+type UserContent = Array<
+  | { type: "image"; source: { type: "base64"; media_type: ImageMediaType; data: string } }
+  | { type: "text"; text: string }
+>;
+
+/**
+ * The first read's user turn: the whole card (shrunk), for Pokémon also the bottom strip enlarged, then the ask. Exported so
+ * the accuracy scripts (scripts/_firstread-strip-owner.mjs) send exactly what production sends.
+ */
+export async function firstReadContent(
+  base64Image: string,
+  mediaType: string,
+  languageHint: ScanLanguage,
+  game: GameId,
+  pocket = false,
+  stripWidth = game === "pokemon" ? FIRST_READ_STRIP_WIDTH : 0,
+): Promise<UserContent> {
+  const picture = await firstReadPicture(base64Image, mediaType);
+  let strip: { base64: string; mediaType: ImageMediaType } | null = null;
+  if (stripWidth > 0) {
+    try {
+      strip = await firstReadStrip(base64Image, stripWidth);
+    } catch (err) {
+      // The whole card alone still reads; the close-up is a help, never a gate.
+      console.warn("first read strip failed, sending the whole card alone:", err instanceof Error ? err.message : err);
+    }
+  }
+  return [
+    { type: "image", source: { type: "base64", media_type: picture.mediaType, data: picture.base64 } },
+    ...(strip ? [{ type: "image" as const, source: { type: "base64" as const, media_type: strip.mediaType, data: strip.base64 } }] : []),
+    {
+      type: "text",
+      text: `Identify this card. The seller believes it is ${
+        languageHint === "en" ? "English" : languageHint === "ja" ? "Japanese" : "Chinese"
+      }, but trust the photo over that if they disagree.${
+        strip
+          ? " The second picture is the bottom of the same card enlarged: the collector number (e.g. 085/131, 4/102, SVP 085), the set code and the copyright line are printed there. Read the number from that picture digit by digit, from the print itself; glare often hides a stroke, so null beats a guess."
+          : ""
+      }${
+        pocket
+          ? " This photo is one pocket cut out of a binder page: the card is in a soft plastic pocket, and the edges of the picture may show the pocket seam or a sliver of the next card. It is NOT a graded slab; slab is false. Read the card in the middle."
+          : ""
+      }`,
+    },
+  ];
+}
+
 async function firstLook(
   base64Image: string,
   mediaType: string,
@@ -885,7 +959,7 @@ async function firstLook(
   pocket = false,
   clock: BudgetClock = { startedAt: Date.now() },
 ): Promise<{ read: VisionCardRead; usage: VisionUsage }> {
-  const picture = await firstReadPicture(base64Image, mediaType);
+  const content = await firstReadContent(base64Image, mediaType, languageHint, game, pocket);
   const response = await withinBudget((timeout) => getClient().messages.create({
     // Sonnet 5, was Opus 5 (09-02 A/B, all 64 prod photos, ab-vision.mjs →
     // backups/ab-vision-0902.json): identification IDENTICAL (name 64/64,
@@ -912,35 +986,7 @@ async function firstLook(
         cache_control: { type: "ephemeral" },
       },
     ],
-    messages: [
-      {
-        role: "user",
-        content: [
-          {
-            type: "image",
-            source: {
-              type: "base64",
-              media_type: picture.mediaType,
-              data: picture.base64,
-            },
-          },
-          {
-            type: "text",
-            text: `Identify this card. The seller believes it is ${
-              languageHint === "en"
-                ? "English"
-                : languageHint === "ja"
-                  ? "Japanese"
-                  : "Chinese"
-            }, but trust the photo over that if they disagree.${
-              pocket
-                ? " This photo is one pocket cut out of a binder page: the card is in a soft plastic pocket, and the edges of the picture may show the pocket seam or a sliver of the next card. It is NOT a graded slab; slab is false. Read the card in the middle."
-                : ""
-            }`,
-          },
-        ],
-      },
-    ],
+    messages: [{ role: "user", content }],
   }, { timeout, maxRetries: 0 }), clock);
 
   if (response.stop_reason === "refusal") {
@@ -1100,7 +1146,11 @@ export async function secondLookReason(read: VisionCardRead, game: GameId): Prom
       if (twin) return `${twin}-twin`;
     }
   }
-  if (typeof read.confidence === "number" && read.confidence < SECOND_LOOK_CONFIDENCE) return "low-confidence";
+  // Number AND set total (Magic: set code) already read: the catalog pins the printing or says "Check match", and a
+  // low confidence is the model not knowing a 2026 set, not a misread (10-30: 21 of the fortnight's 182 second looks
+  // re-read a fraction the first read already had; on Chris's 40 scans not one such read was wrong).
+  const keyed = Boolean(read.cardNumber) && (game === "mtg" ? Boolean(read.setCode) : typeof read.setTotal === "number" && read.setTotal > 0);
+  if (typeof read.confidence === "number" && read.confidence < SECOND_LOOK_CONFIDENCE && !keyed) return "low-confidence";
   if (!read.cardNumber && read.kind !== "art") return "no-number";
   return null;
 }

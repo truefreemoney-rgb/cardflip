@@ -17,6 +17,7 @@ import { dayBudgetSpent, dayBump, readsKey } from "@/lib/server/dayBudget";
 import { readIsEmpty, sweepUnsavedScans } from "@/lib/server/scanGiveback";
 import { findUserById } from "@/lib/server/users";
 import { readImageInput } from "@/lib/server/imageInput";
+import { BLURRY_MESSAGE, photoSoftness, tooSoft } from "@/lib/server/photoSoftness";
 import {
   LIMITS,
   RateLimitError,
@@ -73,6 +74,14 @@ export async function POST(req: Request) {
     const input = readImageInput(body?.image);
     if (!input.ok) return NextResponse.json({ error: input.error }, { status: input.status });
     const { image, mediaType } = input;
+
+    // Too soft to read the collector number = no paid call and no scan taken (10-30, lib/server/photoSoftness.ts):
+    // the seller gets the retake message at once instead of a 4 s "Check match" they then fix by hand.
+    const soft = await photoSoftness(image);
+    if (soft && tooSoft(soft)) {
+      console.info(`scan: refused blurry photo (text ${soft.text}, number ${soft.number})`);
+      return NextResponse.json({ status: "error", reason: "blurry", error: BLURRY_MESSAGE }, { status: 422 });
+    }
 
     // Last gate before spending money — a well-formed request that clears the
     // burst limiter still has to fit the durable daily budget.
@@ -135,6 +144,8 @@ export async function POST(req: Request) {
         // ms spent in the gates before the vision call, and in the call itself.
         pre: visionAt - startedAt,
         ms: visionMs,
+        // The two blur scores (text band, number band): the gate's cut-off is re-measured from these, not guessed.
+        ...(soft ? { soft: [soft.text, soft.number] as [number, number] } : {}),
       }), reservation.draw).catch((err) => {
         console.error("scan_usage write failed:", err instanceof Error ? err.message : err);
         return null;

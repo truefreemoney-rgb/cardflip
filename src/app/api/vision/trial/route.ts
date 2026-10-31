@@ -16,6 +16,7 @@ import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
 import { DEVICE_COOKIE, DEVICE_COOKIE_MAX_AGE, deviceIdFrom, hashIp, newDeviceId } from "@/lib/server/signupGuard";
 import { recordTrialScan, trialScanUsedUp } from "@/lib/server/trialScan";
 import { readImageInput } from "@/lib/server/imageInput";
+import { BLURRY_MESSAGE, photoSoftness, tooSoft } from "@/lib/server/photoSoftness";
 
 /**
  * The ad landing page's free scan (10-05, /scan): one card read with no
@@ -61,6 +62,13 @@ export async function POST(req: Request) {
     const input = readImageInput(body?.image);
     if (!input.ok) return send({ error: input.error }, input.status);
     const { image, mediaType } = input;
+
+    // Too soft to read the number: the retake message, no vision call, the free scan not spent (lib/server/photoSoftness.ts).
+    const soft = await photoSoftness(image);
+    if (soft && tooSoft(soft)) {
+      console.info(`trial scan: refused blurry photo (text ${soft.text}, number ${soft.number})`);
+      return send({ status: "error", reason: "blurry", error: BLURRY_MESSAGE }, 422);
+    }
 
     const ipHash = hashIp(ip);
     if (await trialScanUsedUp(deviceId, ipHash)) return send({ status: "used", card: null }, 402);

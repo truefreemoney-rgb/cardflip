@@ -750,6 +750,10 @@ export default function AppPage() {
             // The server ran out of its read budget: OCR would add a slow second miss (14 s) and the wrong advice.
             patchItem(next.id, { visionStatus: vision.status, status: "error", error: "Took too long — tap Capture again" });
             continue;
+          } else if (vision.blurry) {
+            // Refused before any paid call (lib/server/photoSoftness.ts): nothing was taken, nothing to give back.
+            patchItem(next.id, { visionStatus: vision.status, status: "error", error: vision.error ?? "Too blurry to read the card. Hold still, then tap Capture again." });
+            continue;
           } else {
             // Vision failed or is not configured: no OCR fallback (rule since 10-12, review 10-19 #4: the
             // on-device OCR read a bedsheet as an Espeon and SAVED it). A failed read is a failed read; the seller

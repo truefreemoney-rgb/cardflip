@@ -14,6 +14,7 @@
     "test:ebay": "node --experimental-strip-types --no-warnings scripts/test-ebay-comps.mjs",
     "test:inventory": "node --experimental-strip-types --no-warnings scripts/test-ebay-inventory.mjs",
     "test:ocr": "node --experimental-strip-types --no-warnings scripts/test-ocr-text.mjs",
+    "test:softness": "node --experimental-strip-types --no-warnings --conditions=react-server --import ./scripts/lib/register-alias.mjs scripts/test-photo-softness.mjs",
     "test:cardnumber": "node --experimental-strip-types --no-warnings scripts/test-card-number.mjs",
     "sync:en": "node scripts/sync-cards.mjs en en_cards",
     "sync:mtg": "node --experimental-strip-types --no-warnings scripts/sync-mtg.mjs",

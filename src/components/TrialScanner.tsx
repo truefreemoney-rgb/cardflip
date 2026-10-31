@@ -237,6 +237,8 @@ export default function TrialScanner({
     if (scan.status !== "done" || !scan.read) step("miss");
     if (scan.status === "used") return leave({ kind: "used" });
     if (scan.status === "busy") return leave({ kind: "miss", message: "The free scanner is busy right now. Sign up and scan in the app" });
+    // Refused before the free scan was spent (lib/server/photoSoftness.ts): the seller still has it.
+    if (scan.status === "blurry") return leave({ kind: "miss", message: "Too blurry to read the card. Hold still, then tap Capture again." });
     if (scan.status !== "done" || !scan.read) return leave({ kind: "miss", message: "Couldn't read that photo. Try again, card flat and in the frame" });
     const match = await matchTrialRead(scan.read, game);
     if (!match.card) step("miss");

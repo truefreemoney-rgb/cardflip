@@ -16,6 +16,8 @@ export interface VisionScanOutcome {
   error: string | null;
   /** The server's 504 (its read budget ran out): the OCR fallback would only add a slow second miss. */
   timedOut?: boolean;
+  /** The server's 422: the photo was too soft to read the number, refused before any paid call (`error` carries the retake message). */
+  blurry?: boolean;
   /** A 429: the burst limiter or the daily budget. Seconds is the server's Retry-After when it sent one. */
   rateLimited?: { seconds: number | null; daily: boolean };
   /** The scan_usage row id: names the scan when "No match found" asks for it back (giveBackScan). */
@@ -108,7 +110,7 @@ export async function tiebreakCard(file: File, game: GameId, ids: string[]): Pro
   }
 }
 
-export type TrialScanStatus = "done" | "used" | "busy" | "error";
+export type TrialScanStatus = "done" | "used" | "busy" | "blurry" | "error";
 
 /**
  * The ad landing page's free scan (/api/vision/trial, no account). Hands back
@@ -131,7 +133,7 @@ export async function trialScanWithVision(
     });
     const data = await res.json().catch(() => null);
     const status: TrialScanStatus =
-      data?.status === "used" ? "used" : data?.status === "busy" || res.status === 429 ? "busy" : res.ok && data?.card ? "done" : "error";
+      data?.status === "used" ? "used" : data?.status === "busy" || res.status === 429 ? "busy" : res.status === 422 && data?.reason === "blurry" ? "blurry" : res.ok && data?.card ? "done" : "error";
     return { status, read: status === "done" ? data.card : null, photo: `data:${mediaType};base64,${base64}` };
   } catch {
     return { status: "error", read: null, photo: null };
@@ -185,6 +187,10 @@ export async function scanCardWithVision(
         // A wait of 10+ minutes (or the budget wording) is the daily cap, not a burst.
         const daily = (seconds != null && seconds >= 600) || (typeof data?.error === "string" && /budget|tomorrow|daily/i.test(data.error));
         return { status: "error", read: null, usage: null, error: null, rateLimited: { seconds, daily } };
+      }
+      // 422 blurry: refused before any paid call, nothing to give back; the server's words are the retake message.
+      if (res.status === 422 && data?.reason === "blurry") {
+        return { status: "error", read: null, usage: null, error: typeof data?.error === "string" ? data.error : null, blurry: true };
       }
       return {
         status: data?.status === "unconfigured"? "unconfigured" : "error",
