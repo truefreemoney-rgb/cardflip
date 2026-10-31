@@ -22,6 +22,10 @@ export default defineConfig({
   use: {
     baseURL: process.env.E2E_BASE_URL ?? "http://localhost:3000",
     trace: "retain-on-failure",
+    // public/sw.js (the offline page) answers every fetch on the site, and on WebKit page.route never sees a
+    // request a service worker made: the first iPhone run's scans reached the real /api/vision/scan, mocks and
+    // the outside-host guard bypassed (10-31). No spec is about the offline page, so the worker stays off.
+    serviceWorkers: "block",
     // Camera permission is deliberately NOT granted: the scanner's blocked-
     // permission state is one of the screens under test.
   },
