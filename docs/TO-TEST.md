@@ -1,5 +1,10 @@
 # To test later
 
+## 10-31 11:45AM ET: every Inventory delete asks "are you sure" (Chris 10-31 "deletes should always ask are you sure"; tsc + eslint clean; local pane: row × and bulk Delete pop up, Cancel keeps all 21; NOT pushed, his bulk push; shots docs/shots/delete-row-confirm-phone.jpg + delete-bulk-confirm-phone.jpg sent, LOOK-YES PENDING)
+- [x] What: collection/page.tsx askRemove (row × on the grid + the list row) and removeSelected (bulk) go through confirmAction, same pop-up as the card sheet's Delete (10-22); the Undo toast still follows a yes.
+- [ ] After the push: phone, Inventory: tap a row × = "Delete <name> (<set>) from your Inventory?"; Select all → Delete = "Delete N cards ..."; Cancel keeps them. PR #32's 2 test.fail delete tests become plain tests.
+- [x] 10-31 11:40am: /admin/emails Clicked = Scans 0 / Your cards 1 / This week 1 (PASS, the 10-30 #15 block). Owner Delete refusal: checked by code only (02c0278c is in live cff1d8c3; requireAdminOwner and the refusal use the same OWNER_EMAIL); NOT clicked live on purpose: a failed check would delete Chris's account.
+
 ## 10-31 11:12AM ET: Facebook videos keep their format tag (test:socialposts ok, eslint clean; NOT pushed, his bulk push)
 - [x] What: lib/socialPosts.ts sameLogged also matches a Facebook video by its own id (/reel/<id>/ as read vs /<page>/videos/<id> as logged); before, every Facebook video fell back to the words + hour tag (kind + slot, format empty), so the optimizer's video-vs-picture score never saw Facebook videos (found on the 10-31 video-week verdict). Old rows stay as tagged (no backfill).
 - [ ] After the push + the next social read: node scratchpad fbfmt-style SELECT on social_posts site='facebook' newer than the push = video posts carry format 'video'.

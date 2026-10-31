@@ -1702,6 +1702,15 @@ export default function CollectionPage() {
   function remove(card: ServerCard) {
     queueRemove([card], `${card.cardName} removed`);
   }
+  // Every delete asks first (Chris 10-31: "deletes should always ask are you sure"); the row × used to skip it.
+  async function askRemove(card: ServerCard) {
+    const yes = await confirmAction({
+      message: `Delete ${card.cardName}${card.setName ? ` (${card.setName})` : ""} from your Inventory?`,
+      confirmLabel: "Delete card",
+      danger: true,
+    });
+    if (yes) remove(card);
+  }
 
   // Pokémon and Magic are separate sections (Chris, 09-03: "when I upload
   // these magic cards, it should be separate from the pokemon cards").
@@ -1925,7 +1934,7 @@ export default function CollectionPage() {
   }, [scopeCards, leftOutKey, marketById]);
 
 
-  function removeSelected() {
+  async function removeSelected() {
     // Same rule as the row's Delete button: live listings end first, sold
     // rows are the record, ended auctions and drafts go.
     const picked = cards.filter((c) => selected.has(c.id));
@@ -1936,7 +1945,16 @@ export default function CollectionPage() {
       toast("Live and sold cards can't be deleted here.", "err");
       return;
     }
-    queueRemove(gone, `${gone.length} card${gone.length === 1 ? "" : "s"} removed.${skippedNote}`);
+    const n = `${gone.length} card${gone.length === 1 ? "" : "s"}`;
+    if (
+      !(await confirmAction({
+        message: `Delete ${n} from your Inventory?${skipped > 0 ? ` ${skipped} live or sold ${skipped === 1 ? "card stays" : "cards stay"}.` : ""}`,
+        confirmLabel: gone.length === 1 ? "Delete card" : `Delete ${n}`,
+        danger: true,
+      }))
+    )
+      return;
+    queueRemove(gone, `${n} removed.${skippedNote}`);
   }
 
   const visible = useMemo(() => {
@@ -2825,7 +2843,7 @@ export default function CollectionPage() {
                   </button>
                 )}
                 <button
-                  onClick={removeSelected}
+                  onClick={() => void removeSelected()}
                   disabled={deletable.length === 0}
                   title={deletable.length === 0 ? "Live listings can't be deleted — unlist them first" : undefined}
                   className={`${TAP_8} rounded-full border border-red-400/40 px-3.5 py-1.5 text-xs font-medium text-red-300 transition hover:bg-red-500/10 disabled:opacity-50`}
@@ -3076,7 +3094,7 @@ export default function CollectionPage() {
                   {/* Sold rows are the record — no delete (Chris, 09-08). */}
                   {(card.status !== "listed" || ended) && !sold && (
                     <button
-                      onClick={() => remove(card)}
+                      onClick={() => void askRemove(card)}
                       aria-label={`Delete ${card.cardName}`}
                       className="relative flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-black/60 text-zinc-300 backdrop-blur transition before:absolute before:-inset-y-1.5 before:-left-[3px] before:-right-1.5 before:content-[''] hover:border-white/40 hover:bg-black/80 hover:text-white"
                     >
@@ -3555,7 +3573,7 @@ export default function CollectionPage() {
                         </button>
                       )}
                       <button
-                        onClick={() => remove(card)}
+                        onClick={() => void askRemove(card)}
                         aria-label={`Delete ${card.cardName}`}
                         title="Delete"
                         className={`${deleteBtn} sm:col-start-4`}
