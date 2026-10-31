@@ -18,6 +18,7 @@ import { readIsEmpty, sweepUnsavedScans } from "@/lib/server/scanGiveback";
 import { findUserById } from "@/lib/server/users";
 import { readImageInput } from "@/lib/server/imageInput";
 import { BLURRY_MESSAGE, photoSoftness, tooSoft } from "@/lib/server/photoSoftness";
+import { prefetchMatch } from "@/lib/server/scanPrefetch";
 import {
   LIMITS,
   RateLimitError,
@@ -151,8 +152,11 @@ export async function POST(req: Request) {
         return null;
       }),
     ]);
+    // One trip (#B, 10-30): the catalog search the phone would make next, run here while the connection is open.
+    // Skipped when the read already used most of the clock; the phone then searches itself as before.
+    const prefetch = Date.now() - startedAt < 6_000 ? await prefetchMatch(req, card, card.game ?? parseGame(body?.game), language) : null;
     // scanId: the row a "No match found" give-back names (POST /api/vision/scan/giveback, 10-11).
-    return NextResponse.json({ status: "done", card, usage, scanId });
+    return NextResponse.json({ status: "done", card, usage, scanId, ...(prefetch ? { prefetch } : {}) });
   } catch (err) {
     if (err instanceof AuthError) {
       return NextResponse.json({ error: err.message }, { status: 401 });

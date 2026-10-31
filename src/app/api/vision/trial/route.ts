@@ -17,6 +17,7 @@ import { DEVICE_COOKIE, DEVICE_COOKIE_MAX_AGE, deviceIdFrom, hashIp, newDeviceId
 import { recordTrialScan, trialScanUsedUp } from "@/lib/server/trialScan";
 import { readImageInput } from "@/lib/server/imageInput";
 import { BLURRY_MESSAGE, photoSoftness, tooSoft } from "@/lib/server/photoSoftness";
+import { prefetchMatch } from "@/lib/server/scanPrefetch";
 
 /**
  * The ad landing page's free scan (10-05, /scan): one card read with no
@@ -92,8 +93,10 @@ export async function POST(req: Request) {
     const { read: card, usage: tokens } = scanned;
     // The same compact read as the app's scans (lib/server/scanLogRead.ts): a missed free scan replays with its set code,
     // art and, for Pokémon, the pattern + ball read (10-21: trial rows had name/number/conf only).
-    await recordScanUsage(TRIAL_USER, VISION_MODEL, tokens, scanLogRead(card, card.game ?? game, { pre: visionAt - startedAt, ms: Date.now() - visionAt })).catch((err) => console.error("trial scan_usage write failed:", err instanceof Error ? err.message : err));
-    return send({ status: "done", card });
+    await recordScanUsage(TRIAL_USER, VISION_MODEL, tokens, scanLogRead(card, card.game ?? game, { pre: visionAt - startedAt, ms: Date.now() - visionAt, ...(soft ? { soft: [soft.text, soft.number] as [number, number] } : {}) })).catch((err) => console.error("trial scan_usage write failed:", err instanceof Error ? err.message : err));
+    // One trip (#B, 10-30): the catalog search for this read, run here; the ad page may use it or search itself.
+    const prefetch = Date.now() - startedAt < 6_000 ? await prefetchMatch(req, card, card.game ?? game, "en") : null;
+    return send({ status: "done", card, ...(prefetch ? { prefetch } : {}) });
   } catch (err) {
     if (err instanceof VisionNotConfiguredError) return send({ status: "unconfigured", card: null });
     console.error("Trial scan failed:", err);

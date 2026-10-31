@@ -1,7 +1,7 @@
 import { apiPath } from "@/lib/client/basePath";
 import type { PrintedNumber } from "@/lib/cardNumber";
 import type { ArtStyle, GameId, MtgCues, PokemonCard, ScanLanguage } from "@/lib/types";
-import { mtgCuesToParams } from "@/lib/mtgCues";
+import { buildSearchParams } from "@/lib/searchParams";
 import { filterByPrintedNumber, parseCardQuery } from "@/lib/cardNumber";
 import { parseMtgQuery } from "@/lib/games";
 import { yugiohKey } from "@/lib/yugioh";
@@ -73,35 +73,9 @@ export async function searchCards(
   /** A seller typed the name: Lorcana / One Piece / Yu-Gi-Oh! match it anywhere in the card name. */
   typed = false,
 ): Promise<PokemonCard[]> {
-  const params = new URLSearchParams({ name, lang });
-  if (game !== "pokemon") params.set("game", game);
-  if (typed) params.set("typed", "1");
-  if (art) params.set("art", art);
-  if (cues) for (const [k, v] of Object.entries(mtgCuesToParams(cues))) params.set(k, v);
-  if (artOnly) params.set("art_series", "1");
-  if (firstEdition === true) params.set("first", "1");
-  else if (firstEdition === false) params.set("first", "0");
-  if (limit) params.set("limit", String(limit));
-
-  if (typeof printed === "string") {
-    if (printed) params.set("number", printed);
-  } else if (printed) {
-    if (printed.number) params.set("number", printed.number);
-    if (printed.setTotal) params.set("setTotal", String(printed.setTotal));
-    if (printed.setCode) params.set("setCode", printed.setCode);
-    if (printed.setName) params.set("setName", printed.setName);
-    if (printed.copyrightYear) params.set("year", String(printed.copyrightYear));
-    if (printed.subtitle) params.set("sub", printed.subtitle);
-    if (printed.variant) params.set("variant", printed.variant);
-    if (printed.shaky) params.set("shaky", "1");
-    // Pokémon big-print clues (10-30): only worth sending without a number, which is when the ranker uses them.
-    if (!printed.number) {
-      if (printed.hp) params.set("hp", String(printed.hp));
-      if (printed.attacks?.length) params.set("atk", printed.attacks.slice(0, 4).join("|"));
-      if (printed.dexNumber) params.set("dex", String(printed.dexNumber));
-      if (printed.regulationMark) params.set("reg", printed.regulationMark);
-    }
-  }
+  // One builder shared with the scan route (lib/searchParams.ts): the server runs this same search inside the scan
+  // request, and the phone trusts that answer only when its own query string would have been identical.
+  const params = buildSearchParams(name, printed, lang, limit, game, art, artOnly, firstEdition, cues, typed);
 
   // A hung serverless call (cold start + slow query) used to spin callers'
   // loading states indefinitely (09-02, wishlist tile) — time out into the

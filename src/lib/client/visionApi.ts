@@ -2,7 +2,7 @@
 
 import { apiPath } from "@/lib/client/basePath";
 import type { ScanQuota } from "@/lib/quotaTypes";
-import type { GameId, ScanLanguage, VisionCardRead, VisionStatus } from "@/lib/types";
+import type { GameId, PokemonCard, ScanLanguage, VisionCardRead, VisionStatus } from "@/lib/types";
 
 /** The server's ScanQuota (one shared type, so no field is dropped); remaining is null when the cap isn't enforced. */
 export type ScanUsage = ScanQuota;
@@ -22,6 +22,11 @@ export interface VisionScanOutcome {
   rateLimited?: { seconds: number | null; daily: boolean };
   /** The scan_usage row id: names the scan when "No match found" asks for it back (giveBackScan). */
   scanId?: string | null;
+  /**
+   * One trip (#B, 10-30): the catalog search the server already ran for this read inside the scan request, with
+   * the exact query string it used (lib/searchParams.ts). The scanner uses it only when it would send that same string.
+   */
+  prefetch?: { params: string; cards: PokemonCard[] } | null;
 }
 
 /**
@@ -208,6 +213,10 @@ export async function scanCardWithVision(
       usage: data?.usage ?? null,
       error: null,
       scanId: typeof data?.scanId === "string" ? data.scanId : null,
+      prefetch:
+        data?.prefetch && typeof data.prefetch.params === "string" && Array.isArray(data.prefetch.cards)
+          ? { params: data.prefetch.params, cards: data.prefetch.cards as PokemonCard[] }
+          : null,
     };
   } catch {
     return { status: "error", read: null, usage: null, error: null };

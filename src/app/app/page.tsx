@@ -54,7 +54,8 @@ function clearOpenScanNote(): void {
 import { fetchCardById, searchCards } from "@/lib/cards";
 import { mtgCuesOf } from "@/lib/mtgCues";
 import { patternPrintingFor } from "@/lib/foilPattern";
-import { isSecretRareNumber, normalizeNumber, pickPrinting, readHasPrintedKey, type PrintedNumber } from "@/lib/cardNumber";
+import { normalizeNumber, pickPrinting, type PrintedNumber } from "@/lib/cardNumber";
+import { buildSearchParams, printedKeyFromRead } from "@/lib/searchParams";
 import { buildListing, buildSealedListing, canBeFirstEdition, isFirstEditionCard, itemFirstEdition, withListingOverrides, currentPrice, headlinePrice, describeItemCondition, effectiveVariant, formatMoney, mtgFinishOf, quotePrice, withEbayPrices, quoteForItem, CONDITIONS } from "@/lib/listing";
 import { GRADED_LOCKED, parseGradeQuery } from "@/lib/grading";
 import { GAMES, isGameId, parseGame, readSavedGame, saveGame } from "@/lib/games";
@@ -652,24 +653,8 @@ export default function AppPage() {
             // Vision reads the set symbol and the whole fraction, which is what
             // settles an original against a same-numbered reprint.
             // A Pokémon read with no number keeps its set clues (readHasPrintedKey).
-            printed = readHasPrintedKey(read, next.game)
-              ? {
-                  number: read.cardNumber ?? "",
-                  setTotal: read.setTotal,
-                  setCode: read.setCode,
-                  isSecretRare: isSecretRareNumber(read.cardNumber ?? "", read.setTotal),
-                  setName: read.setName,
-                  copyrightYear: read.copyrightYear ?? null,
-                  subtitle: read.subtitle ?? null,
-                  variant: read.variant ?? null,
-                  shaky: read.secondLook === "low-confidence",
-                  // Big-print clues (10-30): pick the printing when the number is hidden (lib/cards.ts sends them then).
-                  hp: read.hp ?? null,
-                  attacks: read.attackNames ?? null,
-                  dexNumber: read.dexNumber ?? null,
-                  regulationMark: read.regulationMark ?? null,
-                }
-              : null;
+            // Same builder as the scan route's prefetch (lib/searchParams.ts), so the two keys are identical.
+            printed = printedKeyFromRead(read, next.game);
 
             // The photo's condition is a hint in the editor, never the copy's condition (Chris 10-21: "everything is
             // showing up lightly played", "make the default near mint"): since 10-19 it called 19 of his 22 scans
@@ -782,7 +767,14 @@ export default function AppPage() {
           // is only a fallback; the walk ends early on an exact name.
           for (const candidate of nameCandidates) {
             try {
-              const found = await searchCards(candidate, printed, language, undefined, next.game, art, artOnly, vision.read?.firstEdition ?? null, cues);
+              // One trip (#B, 10-30): the scan route already ran this exact search inside the scan request and sent
+              // the answer back with the read. Used only when the query the phone would send now is byte-for-byte
+              // the one the server ran; anything else (a later candidate, a different key) fetches as before.
+              const prefetched =
+                vision.prefetch && vision.prefetch.params === buildSearchParams(candidate, printed, language, undefined, next.game, art, artOnly, vision.read?.firstEdition ?? null, cues).toString()
+                  ? vision.prefetch.cards
+                  : null;
+              const found = prefetched ?? (await searchCards(candidate, printed, language, undefined, next.game, art, artOnly, vision.read?.firstEdition ?? null, cues));
               if (found.length === 0) continue;
               if (matches.length === 0) matches = found;
               if (
