@@ -1,6 +1,4 @@
-import AppHeader from "~/components/AppHeader";
-import Screen from "~/components/Screen";
-import SiteWebView from "~/components/SiteWebView";
+import WebTab from "~/components/WebTab";
 
 /**
  * Inventory tab: the website's /app/collection inside the app, 1:1 (Chris 10-29 1:21am: the native list
@@ -10,10 +8,5 @@ import SiteWebView from "~/components/SiteWebView";
  * (this file before 10-29) for when the screen goes native again.
  */
 export default function InventoryTab() {
-  return (
-    <Screen>
-      <AppHeader />
-      <SiteWebView path="/app/collection" />
-    </Screen>
-  );
+  return <WebTab path="/app/collection" />;
 }

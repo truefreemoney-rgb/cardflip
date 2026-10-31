@@ -55,19 +55,40 @@ export function safeSitePath(raw: string | string[] | undefined): string {
   return p && p.startsWith("/") && !p.startsWith("//") ? p : "/app/account";
 }
 
-/** What a screen holding a ref can do with the page: run script in it (the Scanner tab's in-place resume), and ask where it is. */
-export type SiteWebViewHandle = { inject(js: string): void; currentPath(): string | null };
+/**
+ * What a screen holding a ref can do with the page: run script in it (the Scanner tab's in-place resume), ask where
+ * it is, go back one page, or start over at its first page with no history (a tab tapped again, lib WebTab).
+ */
+export type SiteWebViewHandle = { inject(js: string): void; currentPath(): string | null; goBack(): void; reset(): void };
 
 /** guest: a public page with no session (the first-open card page, 10-29): no handoff, and the site's own Sign up / Log in links open the app's screens. */
-const SiteWebView = forwardRef<SiteWebViewHandle, { path: string; onLeave?: () => void; onLoading?: (loading: boolean) => void; scanner?: boolean; guest?: boolean }>(function SiteWebView(
-  { path, onLeave, onLoading, scanner = false, guest = false },
+/** onCanGoBack: told each time the page moves whether it has a page to go back to (the tabs' Back bar, components/WebTab). */
+const SiteWebView = forwardRef<SiteWebViewHandle, { path: string; onLeave?: () => void; onLoading?: (loading: boolean) => void; onCanGoBack?: (canGoBack: boolean) => void; scanner?: boolean; guest?: boolean }>(function SiteWebView(
+  { path, onLeave, onLoading, onCanGoBack, scanner = false, guest = false },
   ref,
 ) {
   const { user, refresh } = useAuth();
   const web = useRef<React.ComponentRef<typeof WebView>>(null);
   /** The page's current path (null until the first load): the Scanner tab only hands scans into the scanner page. */
   const here = useRef<string | null>(null);
-  useImperativeHandle(ref, () => ({ inject: (js: string) => web.current?.injectJavaScript(js), currentPath: () => here.current }), []);
+  const [token, setToken] = useState<string | null | undefined>(undefined);
+  const [failed, setFailed] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  useImperativeHandle(
+    ref,
+    () => ({
+      inject: (js: string) => web.current?.injectJavaScript(js),
+      currentPath: () => here.current,
+      goBack: () => web.current?.goBack(),
+      // A fresh WebView on the tab's own page: its history goes with it, so Back does not lead into the old trail.
+      reset: () => {
+        onCanGoBack?.(false);
+        setFailed(null);
+        setAttempt((a) => a + 1);
+      },
+    }),
+    [onCanGoBack],
+  );
   // Each tab is its own page: when this one comes back into view, tell it (the site's SessionProvider
   // re-reads the user, Inventory re-reads its rows), so Seller / Collector flipped on one tab reaches the
   // others (Chris 10-29 1:38am). The first focus races the page load and is harmless.
@@ -78,9 +99,6 @@ const SiteWebView = forwardRef<SiteWebViewHandle, { path: string; onLeave?: () =
   );
   // A purchase finished (lib/iap.ts): the page re-reads the account so the new scans / plan show at once.
   useEffect(() => onPurchased(() => web.current?.injectJavaScript(`window.dispatchEvent(new Event("cardflip:focus")); true;`)), []);
-  const [token, setToken] = useState<string | null | undefined>(undefined);
-  const [failed, setFailed] = useState<string | null>(null);
-  const [attempt, setAttempt] = useState(0);
   const leaving = useRef(false);
 
   useEffect(() => {
@@ -221,6 +239,7 @@ const SiteWebView = forwardRef<SiteWebViewHandle, { path: string; onLeave?: () =
         else if (e.nativeEvent.statusCode >= 500 && ours(e.nativeEvent.url) && !/\/api\/(?!auth\/app-cookie)/.test(e.nativeEvent.url)) setFailed("CardFlip couldn't load that page. Try again in a moment.");
       }}
       onNavigationStateChange={(nav: WebViewNavigation): void => {
+        onCanGoBack?.(nav.canGoBack);
         if (ours(nav.url)) {
           try {
             here.current = new URL(nav.url).pathname;

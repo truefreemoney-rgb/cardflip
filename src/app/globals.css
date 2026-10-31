@@ -1024,3 +1024,9 @@ html[data-app="1"] [data-app-hide] {
 html[data-app="1"] [data-app-shell] {
   --bottom-nav-h: 0px !important;
 }
+/* The public pages' bottom nav (PublicBottomNav) publishes its height on <html> even when app mode hides it: in the
+   app the card page's sticky price bar floated that high with the page showing under it (Chris 10-31). The app's own
+   tab bar sits outside the page, so nothing here reserves room for one. */
+html[data-app="1"] {
+  --bottom-nav-h: 0px !important;
+}

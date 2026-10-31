@@ -1,9 +1,9 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import PrimaryButton from "~/components/PrimaryButton";
-import SiteWebView, { safeSitePath } from "~/components/SiteWebView";
+import SiteWebView, { safeSitePath, type SiteWebViewHandle } from "~/components/SiteWebView";
 import { useAuth } from "~/lib/auth";
 import { colors, fonts, space } from "~/lib/theme";
 
@@ -34,11 +34,16 @@ export default function WebScreen() {
     if (router.canGoBack()) router.back();
     else router.replace(guest ? "/first-scan" : "/(app)/cards");
   };
+  // The bar's Back steps back inside the page first (a set, then the card list it came from), and closes the
+  // page only from its first page (10-31, Chris: no way back to the set choices).
+  const web = useRef<SiteWebViewHandle>(null);
+  const [pageBack, setPageBack] = useState(false);
+  const barBack = () => (pageBack ? web.current?.goBack() : back());
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
       <View style={styles.bar}>
-        <Pressable onPress={back} hitSlop={10} style={styles.backBtn}>
+        <Pressable onPress={barBack} hitSlop={10} style={styles.backBtn}>
           <Text style={styles.back}>‹ Back</Text>
         </Pressable>
         <Text style={styles.title} numberOfLines={1}>
@@ -46,7 +51,7 @@ export default function WebScreen() {
         </Text>
         <View style={styles.backBtn}>{loading ? <ActivityIndicator color={colors.brandSoft} /> : null}</View>
       </View>
-      <SiteWebView path={path} onLeave={back} onLoading={setLoading} guest={open} />
+      <SiteWebView ref={web} path={path} onLeave={back} onLoading={setLoading} onCanGoBack={setPageBack} guest={open} />
       {guest ? (
         <View style={[styles.cta, { paddingBottom: insets.bottom + space.md }]}>
           <PrimaryButton label="Sign up to keep it" onPress={() => router.push("/signup")} />
