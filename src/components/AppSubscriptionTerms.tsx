@@ -31,11 +31,12 @@ export default function AppSubscriptionTerms({ className = "", align = "center" 
           ·{" "}
         </>
       )}
-      <Link href="/terms" className={link}>
+      {/* target=_blank: the app opens these over the tabs with a Back bar (SiteWebView onOpenWindow). */}
+      <Link href="/terms" target="_blank" rel="noopener" className={link}>
         Terms of Use
       </Link>{" "}
       ·{" "}
-      <Link href="/privacy" className={link}>
+      <Link href="/privacy" target="_blank" rel="noopener" className={link}>
         Privacy Policy
       </Link>
     </p>

@@ -1,5 +1,14 @@
 # To test later
 
+## 10-31 4:20PM ET: App Review round 2 fixes (715f1cfc PUSHED + da7b51a3 app; build 6 EAS 627a876a, auto-submit) — Chris picked A (pull + fix + resubmit tonight)
+- [x] Why: Chris 3:57pm picked A; then "double check we arent forgetting something". A read-only audit found more: Stripe wording in the in-app Terms/Privacy/pricing FAQ/help/bot, free scan + sign-up guards could refuse Apple's shared network, Terms/Privacy/Forgot Password dead when signed out in the app, no renewal terms on Account > Plan / Rewards, promo box in the app, no Apple-subscriber warning on delete. I found the demo login was "applereview" (sign-in takes emails only = could never work).
+- [x] Done: submission ae002f3a canceled 4:08pm; description (plans, renewal terms, Restore, Terms/Privacy links) + notes (3,387) + demo username = the email saved in ASC 4:2xpm (password fingerprint matches .env.appreview.local); applereview off the comp, 500 Booster scans (prod, before/after shown); Chris's 2 TestFlight Boosters relabeled apple-sandbox: on prod. Local: tsc/eslint site + mobile clean; countrygate, quota, auth, authroutes, google, analytics, apiauth, ratelimit, torspike, emailverify, helpchat, webhook, deletebilling, adminroutes, apple-iap 16/16 pass.
+- [ ] CI + smoke on 715f1cfc.
+- [ ] Build 6 in TestFlight; set on version 1.0; resubmit (version + Booster + CardFlip + Pro + group) = WAITING_FOR_REVIEW.
+- [ ] Phone (build 6): sign-up screen Terms / Privacy open the page (not "Sign in again"); Account > Plan shows the renewal terms + Restore Purchases; Restore on an account with no subscription says "Nothing to restore".
+- [ ] Admin analytics today: Boosters 0 (the two TestFlight ones no longer count once 715f1cfc is live).
+- [ ] Inside the app: /pricing has no "Billing questions"; Account has no "Have a code?" row.
+
 ## 10-31 3:03PM ET: purchases keep the free scans + app credits at once (a745e9e1 PUSHED on Chris's "push then"; app build 5 bd04065f, auto-submit)
 - [x] Why: Chris on build 4 2:49pm: Booster sheet closed, header stayed at 5; Apple's sheet came back unasked; then 100, not 105. Server credited once (apple:2000001259969264, 2:49:59pm).
 - [x] Built: keepTrialScans (Booster or subscription payment moves unused trial scans into extra_scans, website + app); app iap.ts handles requestPurchase's own answer + foreground check, once per transaction; welcome page re-reads until a second Booster lands. Tests: quota/webhook/rollover/apple-iap all pass, tsc + eslint clean. Also 9db2546d (notify route allowlisted = the CI fail on 20e2bdd1).

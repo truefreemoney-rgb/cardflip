@@ -9,6 +9,11 @@ export async function POST(req: NextRequest) {
   // Shut-out and Tor stay per IP; the budget itself is per signed-in user (10-22: it shared the sign-in budget per IP).
   const blocked = (await shutOutResponse(req)) ?? (await torResponse(req));
   if (blocked) return blocked;
+  // Never Stripe inside the iPhone app's WebView (same backstop as billing/checkout): the app manages plans through
+  // Apple, and a website subscriber's Manage opens cardflip.io in Safari from the app itself.
+  if (/CardFlipApp\//.test(req.headers.get("user-agent") ?? "")) {
+    return NextResponse.json({ error: "Manage this plan from the CardFlip website in Safari, or in iPhone Settings for a plan bought in the app." }, { status: 403 });
+  }
   try {
     const user = await requireUser();
     const limited = await limitOrRespondAsync(`billing:${user.id}`, LIMITS.authAttempt);

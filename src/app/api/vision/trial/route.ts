@@ -77,7 +77,7 @@ export async function POST(req: Request) {
 
     const ipHash = reviewer ? null : hashIp(ip);
     if (!reviewer && (await trialScanUsedUp(deviceId, ipHash))) return send({ status: "used", card: null }, 402);
-    if (await dayBudgetSpent("trial_scan", TRIAL_DAILY_BUDGET)) return send({ status: "busy", card: null }, 429);
+    if (!reviewer && (await dayBudgetSpent("trial_scan", TRIAL_DAILY_BUDGET))) return send({ status: "busy", card: null }, 429);
     const triedAt = Date.now();
     await recordTrialScan(deviceId, ipHash, triedAt);
 

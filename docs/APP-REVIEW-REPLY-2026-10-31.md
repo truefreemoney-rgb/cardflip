@@ -25,15 +25,15 @@ A card on the table or on the PC screen. Turn on Screen Recording in Control Cen
 ## Notes field text (paste as is, replaces the old notes)
 CardFlip: Card Scanner. Answers to the 10-31 Information Needed request.
 
-1. SCREEN RECORDING: attached to our reply in App Review (iPhone, latest iOS). It starts at app launch and shows account sign-up, sign-out and sign-in, an in-app purchase through Apple (sandbox), a card scan, and account deletion (Account > Danger zone > Delete). (Our test iPhone had already used its free first scan; on a new device the first scan needs no account.)
+1. SCREEN RECORDING: attached to this submission (App Review Information > Attachment; iPhone, latest iOS). It starts at app launch and shows account sign-up, sign-out and sign-in, an in-app purchase through Apple (sandbox), a card scan, and account deletion (Account > Danger zone > Delete). (Our test iPhone had already used its free first scan; on a new device the first scan needs no account.)
 
 2. PURPOSE AND AUDIENCE: CardFlip is for people who collect or sell trading cards (Pokemon, Magic: The Gathering, Disney Lorcana, Yu-Gi-Oh!, One Piece). You point the camera at a card, the app names the exact card and shows what it sells for, so you know which cards are worth keeping, watching or selling. Cards are saved to your collection with their value; you can watch prices and, if you choose, list a card on your own eBay account.
 
 3. HOW TO USE IT:
 - No account needed for the first scan: tap Scan Your Card on the first screen and point the camera at any card (a card picture on another screen works).
-- Demo account: user applereview, password in the Sign-In Information above. It has saved cards and 500 Booster scans, so it scans right away and Account > Plan shows the Booster and Subscribe buttons; any plan can be bought on it in the sandbox. A new account made in the app also works (5 free scans).
+- Demo account: the email and password in the Sign-In Information above (first screen > "I already have an account" > email and password > Log In). It has saved cards and 500 Booster scans, so it scans right away and Account > Plan shows the Booster and Subscribe buttons; any plan can be bought on it in the sandbox. A new account made in the app also works (5 free scans).
 - Restore Purchases: Account tab > Plan (under the plan prices), and on the Subscribe page.
-- Search (no scanning) finds any card and its price. Inventory, Watchlist and Account are the user's own data from cardflip.io shown inside the app.
+- Built natively for iPhone: the camera scanner and the price reveal (Dual Wide lens, haptics, sounds), the no-account first scan, sign-in (Sign in with Apple, Google, email) and Apple In-App Purchase with Restore. Search (no scanning) finds any card and its price. Inventory, Watchlist and Account are the user's own data from cardflip.io shown inside the app.
 - eBay listing is optional and needs the user's own eBay account; it is not needed to review the app.
 - Account deletion: Account > Danger zone > Delete > type DELETE.
 - Sign in with Apple, Google or email.
