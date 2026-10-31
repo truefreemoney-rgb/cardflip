@@ -3232,8 +3232,8 @@ export default function CollectionPage() {
               const rowFlag = !sold && !card.priceLocked && livePrices[card.id]?.flag != null;
               const moved = !sold && !rowFlag && marketNow != null && scannedAt != null && scannedAt > 0 && Math.abs(scannedAt - marketNow) >= 0.01;
               return (
-              <li key={card.id} className="px-3 py-3 sm:flex sm:items-center sm:gap-3 sm:px-4">
-                <div className="flex items-start gap-3 sm:min-w-0 sm:flex-1 sm:items-center">
+              <li key={card.id} className="px-3 py-3 sm:px-4 lg:flex lg:items-center lg:gap-3">
+                <div className="flex items-start gap-3 lg:min-w-0 lg:flex-1 lg:items-center">
                   <input
                     type="checkbox"
                     checked={selected.has(card.id)}
@@ -3458,7 +3458,7 @@ export default function CollectionPage() {
                 {/* ONE action row. Phone: primary stretches, quiet buttons
                     beside it, indented under the name block. sm+: tucked
                     right on the same visual line as the price. */}
-                <div className="mt-2.5 flex flex-wrap items-center gap-2 pl-8 sm:mt-0 sm:grid sm:shrink-0 sm:grid-cols-[7rem_7rem_6.5rem_2rem] sm:gap-1.5 sm:pl-0">
+                <div className="mt-2.5 flex flex-wrap items-center gap-2 pl-8 sm:grid sm:grid-cols-[1fr_1fr_1fr_2rem] sm:gap-1.5 lg:mt-0 lg:shrink-0 lg:grid-cols-[7rem_7rem_6.5rem_2rem] lg:pl-0">
                   {draft && card.kind !== "sealed" && !card.verifiedAt && (
                     // Verify Match opens the big card sheet and the verifying
                     // happens in there, photo beside the match (Chris, 10-01).
