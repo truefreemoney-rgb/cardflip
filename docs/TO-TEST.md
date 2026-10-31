@@ -1,5 +1,9 @@
 # To test later
 
+## 10-30 10:20PM ET: polish backlog J, whole REVIEW-2026-10-19 re-verified (4 Sonnet read-only audits; ~70% of items already fixed). Invisible fixes committed (NOT pushed): 5692c84c camera stale-run error, d2e39d12 search answers all go through the price guard + CJK name cap, 02c0278c LIKE escape for Lorcana/OP/YGO search + owner account can't be deleted/demoted from admin. Checked and NOT bugs: live-refresh already guards locked/listed/sold in the WHERE; header tour anchors already pick the visible copy (TourOverlay getClientRects).
+- [ ] After the push: typed search "50%" or "a_b" on Lorcana/One Piece/YGO returns normal results (no wide junk); /admin/users Delete on the owner row says "The owner account can't be deleted here".
+- OPEN VISIBLE, need his look (top picks): homepage FAQ says prices are checked against "live eBay asking prices" (page.tsx:74, conflicts with the sold-market rule); free scan page says "One free scan" vs sign-up's 5 (TrialScanner:479) + no Terms/Privacy links there; scanner CHECK MATCH shows for a hidden low-confidence doubt (CameraCapture:1600, use shownDoubt); "tap Scan again" left at app/page.tsx:835,985 (button says Capture); public collection /u/handle shows "—" for no price; Inventory row squeezed at 640-768 px; "Offer to watchers" Title Case; pricing page 4 cards in a 3-column grid.
+
 ## 10-30 10:15PM ET: polish backlog J, Inventory (review 10-19 "App inner pages": 34 of 40 already fixed, verified in code; 2 invisible fixes here; tsc + eslint clean; NOT pushed)
 - [x] What: (a) bulk "Are you sure?" (Mark as Sold on selected cards) now closes on Escape / phone back / tap outside, keeps focus inside, page behind locked (ConfirmShell, same look); (b) the single Mark sold "sold — $X" line waits for the save, so a failed save shows only the error.
 - [ ] After the push, phone: Inventory > select 2 cards > Mark as Sold > phone Back = the box closes and you stay on Inventory (not the page before).
