@@ -6,11 +6,13 @@ import { usePathname } from "next/navigation";
 const TABS = [
   ["/admin/users", "All Users"],
   ["/admin/users/active", "Active Users"],
+  ["/admin/users/deleted", "Deleted Accounts"],
 ] as const;
 
 /**
- * The Users section's two views (Chris 09-30: "add a active users tab to
- * the users section in admin"). Each is its own route, so a view is a
+ * The Users section's views (Chris 09-30: "add a active users tab to
+ * the users section in admin"; 10-31: "a section for deleted accounts in
+ * admin > users"). Each is its own route, so a view is a
  * shareable link and the heavy All page is untouched. Same pills as the
  * console nav; the top Users pill stays lit on both through startsWith.
  */

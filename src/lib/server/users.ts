@@ -937,8 +937,16 @@ export async function userDataSummary(userId: string): Promise<{
  * statement is a no-op on a second run. Card photos live on disk/blob, so
  * those go first (best effort).
  */
-/** `deleteBlobs` is the test seam for the ticket-photo cleanup (default: @vercel/blob's del, when a token is set). */
-export async function deleteUser(userId: string, deleteBlobs?: (urls: string[]) => Promise<unknown>): Promise<void> {
+/** Who pressed delete, and where: the account owner (app or website) or the admin console. */
+export type DeletedBy = { by: "self" | "admin"; via?: "app" | "web" };
+
+/**
+ * `deleteBlobs` is the test seam for the ticket-photo cleanup (default: @vercel/blob's del, when a token is set).
+ * `how` lands in deleted_accounts (db.ts) with the plan the account was on: no name, no email.
+ */
+export async function deleteUser(userId: string, deleteBlobs?: (urls: string[]) => Promise<unknown>, how: DeletedBy = { by: "admin" }): Promise<void> {
+  const gone = await findUserById(userId);
+  const cardCount = gone ? ((await db.prepare("SELECT COUNT(*) AS n FROM cards WHERE user_id = ?").get(userId)) as { n: number }).n : 0;
   const photoRows = (await db
     .prepare("SELECT id FROM cards WHERE user_id = ? AND photo_at IS NOT NULL")
     .all(userId)) as { id: string }[];
@@ -948,6 +956,14 @@ export async function deleteUser(userId: string, deleteBlobs?: (urls: string[]) 
   // Ticket photos live on public Blob URLs (10-01 sweep: they outlived the account). Collected before the rows go.
   const ticketImages = await ticketImageUrls(userId);
   await db.transaction(async (tx) => {
+    if (gone) {
+      await tx
+        .prepare(
+          `INSERT OR REPLACE INTO deleted_accounts (user_id, deleted_at, created_at, deleted_by, via, tier, plan, sub_source, confirmed, cards)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .run(gone.id, Date.now(), gone.createdAt, how.by, how.via ?? null, scanTier(gone), gone.plan, gone.subSource, gone.emailPending ? 0 : 1, cardCount);
+    }
     // Every table in db.ts with a user_id (plus card_photos, keyed by card).
     for (const sql of [
       "DELETE FROM card_photos WHERE card_id IN (SELECT id FROM cards WHERE user_id = ?)",

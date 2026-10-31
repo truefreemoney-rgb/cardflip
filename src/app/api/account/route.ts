@@ -18,6 +18,8 @@ import {
 import { handleProblem, normalizeHandle } from "@/lib/handle";
 import { getEbayLink, isEbayOAuthConfigured } from "@/lib/server/ebayAuth";
 import { destroyOtherSessions } from "@/lib/server/sessions";
+import { isAppRequest } from "@/lib/server/appSession";
+import { APP_MODE_COOKIE } from "@/lib/appMode";
 import { cancelAllSubscriptions, updateCustomerEmail } from "@/lib/server/stripe";
 import { scanQuota } from "@/lib/server/scanQuota";
 import { isValidEmail } from "@/lib/emailAddress";
@@ -256,7 +258,10 @@ export async function DELETE(req: NextRequest) {
     const store = await cookies();
     const token = store.get(SESSION_COOKIE)?.value ?? null;
     await destroyOtherSessions(user.id, token);
-    await deleteUser(user.id); // cascades cards / wishlist / price checks / sessions / eBay tokens; photos removed on disk
+    // The app: its own calls carry the header; its website pages carry the handoff's cookie and the app's user agent.
+    const inApp = isAppRequest(req) || store.get(APP_MODE_COOKIE)?.value === "1" || /CardFlipApp\//.test(req.headers.get("user-agent") ?? "");
+    // cascades cards / wishlist / price checks / sessions / eBay tokens; photos removed on disk
+    await deleteUser(user.id, undefined, { by: "self", via: inApp ? "app" : "web" });
     await clearSessionCookie();
     return NextResponse.json({ ok: true });
   } catch (err) {

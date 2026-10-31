@@ -24,7 +24,7 @@ export async function DELETE(_req: Request, { params }: RouteParams) {
       console.error("admin delete: subscription cancel failed:", err);
       return NextResponse.json({ error: "Couldn't cancel this user's Stripe subscription, so nothing was deleted. Try again or cancel it in Stripe first." }, { status: 502 });
     }
-    await deleteUser(id);
+    await deleteUser(id, undefined, { by: "admin" });
     return NextResponse.json({ ok: true });
   } catch (err) {
     if (err instanceof AuthError) return adminAuthResponse(err);

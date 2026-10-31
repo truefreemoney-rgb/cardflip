@@ -922,6 +922,23 @@ const SCHEMA = `
   );
   CREATE INDEX IF NOT EXISTS idx_signup_log_ip ON signup_log (ip_hash);
   CREATE INDEX IF NOT EXISTS idx_signup_log_device ON signup_log (device_id);
+  -- Deleted accounts (Chris 10-31: paid Boosters in the stats from accounts that were gone, and nothing in Admin
+  -- said whose). One row per delete, written in deleteUser's transaction: when, who pressed it, from where, and the
+  -- plan it was on. No name or email, ever (the privacy page: what stays after a delete has neither); the user_id
+  -- ties it to the kept ledgers (scan_usage, scan_pack_purchases, scan_credits). /admin/users/deleted reads it.
+  CREATE TABLE IF NOT EXISTS deleted_accounts (
+    user_id TEXT PRIMARY KEY,
+    deleted_at INTEGER NOT NULL,
+    created_at INTEGER,
+    deleted_by TEXT NOT NULL,
+    via TEXT,
+    tier TEXT,
+    plan TEXT,
+    sub_source TEXT,
+    confirmed INTEGER,
+    cards INTEGER
+  );
+  CREATE INDEX IF NOT EXISTS idx_deleted_accounts_at ON deleted_accounts (deleted_at);
   -- The ad landing page's free scan with no account (10-05, /scan,
   -- lib/server/trialScan.ts): one row per paid read, capped per device
   -- (cf_dev) and per ip_hash so a refresh is not a second free scan.

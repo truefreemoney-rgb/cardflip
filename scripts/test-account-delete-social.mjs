@@ -120,7 +120,11 @@ check("session cookie cleared", testCookies.has(SESSION_COOKIE) ? testCookies.ge
 check("both sessions dead", [await getSessionUserId(token), await getSessionUserId(otherDevice)], [null, null]);
 check("users row gone", Boolean(await findUserByEmail(EMAIL)), false);
 
-const KEPT = new Set(["scan_usage", "scan_credits", "scan_pack_purchases", "promo_redemptions", "signup_log"]);
+const KEPT = new Set(["scan_usage", "scan_credits", "scan_pack_purchases", "promo_redemptions", "signup_log", "deleted_accounts"]);
+// The Deleted Accounts row (admin > Users, 10-31): who pressed it and where, never a name or an email.
+const gone = await db.prepare("SELECT * FROM deleted_accounts WHERE user_id = ?").get(user.id);
+check("deleted_accounts row: by them, on the website, made-at kept", [gone?.deleted_by, gone?.via, gone?.created_at === user.createdAt], ["self", "web", true]);
+check("deleted_accounts row holds no name or email", Object.values(gone ?? {}).some((v) => typeof v === "string" && (v.toLowerCase().includes("pat") || v.includes("@"))), false);
 const left = [];
 for (const t of withUser) {
   const n = (await db.prepare(`SELECT COUNT(*) AS n FROM ${t} WHERE user_id = ?`).get(user.id)).n;

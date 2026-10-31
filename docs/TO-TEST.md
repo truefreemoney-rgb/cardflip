@@ -1,5 +1,11 @@
 # To test later
 
+## 10-31 5:20PM ET: Admin > Users > Deleted Accounts (committed locally, rides Chris's bulk push) — Chris 4:06pm "we are going to need a section for deleted accounts in admin > users or something"
+- [x] Built: deleted_accounts table (db.ts; no name/email, per the privacy page) written inside deleteUser's transaction with by self/admin, via app/web (header, cardflip_app cookie or CardFlipApp UA), tier/plan/sub source, confirmed, card count; /admin/users/deleted (third Users tab) lists those + older deletes found from the kept ledgers (signup_log, scan_usage, scan_pack_purchases, scan_credits ids with no users row), with scans, made-at, real money vs Apple test purchases.
+- [x] Local: tsc + eslint clean; deletesocial (new: row written, by self via web, no name/email), deletebilling, supporttickets, authroutes, packs all pass; phone + desktop shots with seeded LOCAL rows (removed after). Prod read-only count: 18 older deleted accounts, 2 Apple test Boosters, $0 real.
+- [ ] Chris's yes on the look (shots sent 5:20pm), then his bulk push.
+- [ ] After the push: /admin/users/deleted on prod shows 18 older rows (Unknown plan, "time not kept"); the schema adds deleted_accounts on the first request (fingerprint change); delete a throwaway account later = a new row "Deleted by them ...".
+
 ## 10-31 5:05PM ET: Search set list Back + pinned box in the app (website only, NO build; committed locally, rides Chris's bulk push) — Chris 4:45pm on build 7: "no back button here at the search, can't get back to the set list, also the floating bar should be pinned to the top"
 - [x] Built: price-check page = useBackToClose("search-results") while results show (a set tile, All sets pick, a typed search), so the app's Back bar / a back swipe returns to the set tiles; CardSearchBox sticky box carries data-app-top, globals.css pins it at top 0 in app mode (top-12 left room for the site header the app hides).
 - [x] Local (scripts/_search-back-shots*.mjs, 430 wide ?app=1): box top 0 after scrolling a set; set > Back = tiles; set > card > Back closes the card > Back = tiles; All sets pick > Back = tiles; typed search ✕ clears; website (no app flag) box still at 48 under the header. tsc + eslint clean.
