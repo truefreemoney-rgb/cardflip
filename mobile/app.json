@@ -59,7 +59,8 @@
           "enableBackgroundPlayback": false
         }
       ],
-      "expo-iap"
+      "expo-iap",
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,
@@ -69,6 +70,14 @@
           "app-intents"
         ]
       }
+    },
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/9d77fb7b-b993-4c2c-8d71-d0bd6829db09",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
     },
     "extra": {
       "eas": {
