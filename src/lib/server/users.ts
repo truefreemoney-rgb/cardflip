@@ -1,6 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { db } from "@/lib/db";
+import { db, type DbTx } from "@/lib/db";
 import { deleteCardPhoto } from "@/lib/server/cardPhotos";
 import { hashPassword } from "@/lib/server/password";
 import { PRICE, PRICING } from "@/lib/pricing";
@@ -459,8 +459,23 @@ export async function creditScanPack(userId: string, sessionId: string, scans: n
       .run(sessionId, userId, scans, Date.now(), paymentIntent);
     if (!ins.changes) return false;
     await tx.prepare("UPDATE users SET extra_scans = extra_scans + ? WHERE id = ?").run(scans, userId);
+    await keepTrialScans(tx, userId);
     return true;
   });
+}
+
+/**
+ * Chris 10-31: a buyer never loses the free scans the trial had left. On a Booster or a subscription payment they
+ * move into the Booster balance (never expires, spent in every tier) and the trial counts as used, so 5 left + a
+ * Booster reads 105. Called inside the purchase's own transaction; once per account (after it, nothing is left).
+ * Legacy accounts (before the paid switch) never had a trial.
+ */
+export async function keepTrialScans(tx: DbTx, userId: string): Promise<void> {
+  await tx
+    .prepare(
+      "UPDATE users SET extra_scans = COALESCE(extra_scans, 0) + (? - COALESCE(trial_scans_used, 0)), trial_scans_used = ? WHERE id = ? AND COALESCE(trial_scans_used, 0) < ? AND created_at >= ?",
+    )
+    .run(TRIAL_SCANS, TRIAL_SCANS, userId, TRIAL_SCANS, PAID_SWITCH_AT);
 }
 
 /**

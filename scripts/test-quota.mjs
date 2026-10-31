@@ -202,13 +202,28 @@ let seq = 0;
 /** A real subscriber row (live Stripe status, no override); `set` = raw column values. Answers the user id. */
 async function mkSub(set = {}) {
   const u = await createUser("R", `roll${++seq}@example.com`, "hunter22");
-  const cols = { sub_status: "active", created_at: PAID_SWITCH_AT + 1, plan: "standard", ...set };
+  // Trial spent by default: the "keep the free scans" rule (10-31) has its own check below.
+  const cols = { sub_status: "active", created_at: PAID_SWITCH_AT + 1, plan: "standard", trial_scans_used: TRIAL_SCANS, ...set };
   await db.prepare(`UPDATE users SET ${Object.keys(cols).map((k) => `${k} = ?`).join(", ")} WHERE id = ?`).run(...Object.values(cols), u.id);
   return u.id;
 }
 const get = (id) => findUserById(id);
 const ledger = async (id) =>
   (await db.prepare("SELECT credit_key, kind, scans, applied FROM scan_credits WHERE user_id = ? ORDER BY rowid").all(id)).map((r) => ({ key: r.credit_key, kind: r.kind, scans: r.scans, applied: r.applied }));
+
+// Chris 10-31: a subscription payment keeps the trial's unused free scans (as Booster scans), once.
+{
+  const id = await mkSub({ trial_scans_used: 1, plan_scans: 0 });
+  const { creditPlanScans } = await import(at("lib/server/scanCredits.ts"));
+  await creditPlanScans({ userId: id, key: "in_keep_1", kind: "payment", plan: "standard", scans: PLAN_SCANS.standard, seed: false });
+  const u1 = await get(id);
+  check("subscription: 4 unused free scans kept as Booster scans, trial marked used", [u1.planScans, u1.extraScans, u1.trialScansUsed], [PLAN_SCANS.standard, TRIAL_SCANS - 1, TRIAL_SCANS]);
+  await creditPlanScans({ userId: id, key: "in_keep_2", kind: "payment", plan: "standard", scans: PLAN_SCANS.standard, seed: false });
+  check("subscription: the next payment adds no free scans again", (await get(id)).extraScans, TRIAL_SCANS - 1);
+  const legacyId = await mkSub({ created_at: PAID_SWITCH_AT - 1, trial_scans_used: 0, plan_scans: 0 });
+  await creditPlanScans({ userId: legacyId, key: "in_keep_legacy", kind: "payment", plan: "standard", scans: PLAN_SCANS.standard, seed: false });
+  check("subscription: a legacy account (no trial) gets no free scans", (await get(legacyId)).extraScans, 0);
+}
 
 // Deploy day: plan_scans is NULL until first use. Nobody may see a wall or lose September's leftover.
 {
@@ -334,7 +349,7 @@ const ledger = async (id) =>
 
 // --- cancel pauses the plan scans; resubscribe brings them back -------------------
 {
-  const id = await mkSub({ plan_scans: 388, extra_scans: 5 });
+  const id = await mkSub({ plan_scans: 388, extra_scans: 5, trial_scans_used: 0 }); // never spent the trial (set straight in the row, no purchase moved it)
   await setSubscription(id, "canceled", null, "standard", null);
   let c = await get(id);
   check("cancel: banked plan scans stay on the account but pause; the Booster tier shows them frozen",
@@ -435,16 +450,19 @@ const ledger = async (id) =>
   check("pack: a subscriber is still the subscribed tier", scanTier(sub({ extraScans: 7 })), "subscribed");
   check("pack: legacy accounts stay legacy", scanTier(legacy({ extraScans: 7 })), "legacy");
 
-  // creditScanPack is idempotent per Stripe session.
+  // creditScanPack is idempotent per Stripe session. The first one also moves the trial's unused scans in (Chris 10-31).
+  const leftBefore = TRIAL_SCANS - ((await findUserById(base.id)).trialScansUsed ?? 0);
   check("credit: first time credits", await creditScanPack(base.id, "cs_test_1", PRICING.pack.scans), true);
   check("credit: same session again is a no-op", await creditScanPack(base.id, "cs_test_1", PRICING.pack.scans), false);
   check("credit: a second session stacks", await creditScanPack(base.id, "cs_test_2", PRICING.pack.scans), true);
-  check("credit: balance = two packs", packScans(await findUserById(base.id)), PRICING.pack.scans * 2);
+  check("credit: balance = two packs + the trial scans left (kept, 10-31)", [packScans(await findUserById(base.id)), (await findUserById(base.id)).trialScansUsed], [PRICING.pack.scans * 2 + leftBefore, TRIAL_SCANS]);
+  check("credit: the trial scans move once (a second pack added only its own)", leftBefore > 0, true);
 
   // Trial exhausted + pack: reserving spends the pack.
   await db.prepare("UPDATE users SET trial_scans_used = ? WHERE id = ?").run(TRIAL_SCANS, base.id);
   const p1 = (await reserveScan(await findUserById(base.id))).usage;
-  check("reserve (pack tier): spends one pack scan", p1, { used: 0, included: PRICING.pack.scans * 2 - 1, remaining: PRICING.pack.scans * 2 - 1, pack: PRICING.pack.scans * 2 - 1 });
+  const packAfter = PRICING.pack.scans * 2 + leftBefore - 1;
+  check("reserve (pack tier): spends one pack scan", p1, { used: 0, included: packAfter, remaining: packAfter, pack: packAfter });
   check("reserve (pack tier): trial counter untouched", (await findUserById(base.id)).trialScansUsed, TRIAL_SCANS);
   check("header snapshot matches", toPublicUser(await findUserById(base.id)).scans, scanQuota(await findUserById(base.id)));
 

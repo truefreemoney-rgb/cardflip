@@ -45,7 +45,13 @@ const src = (p) => readFileSync(new URL(`../src/${p}`, import.meta.url), "utf8")
 const { db } = await import(at("lib/db.ts"));
 const { PRICING, ROLLOVER } = await import(at("lib/pricing.ts"));
 const { SEED_MONTH, CREDITS_FROM, seedAmount } = await import(at("lib/planSeed.ts"));
-const { createUser, findUserById, planSeedFor, scanQuota, setSubscription, PAID_SWITCH_AT, OWNER_EMAIL } = await import(at("lib/server/users.ts"));
+const { createUser: createUserRaw, findUserById, planSeedFor, scanQuota, setSubscription, PAID_SWITCH_AT, OWNER_EMAIL, TRIAL_SCANS } = await import(at("lib/server/users.ts"));
+// Test sellers have spent their trial: the "keep the free scans" rule (10-31) is checked in test-quota.mjs.
+const createUser = async (...a) => {
+  const u = await createUserRaw(...a);
+  await db.prepare("UPDATE users SET trial_scans_used = ? WHERE id = ?").run(TRIAL_SCANS, u.id);
+  return u;
+};
 const { adjustPlanScans, creditPlanScans, ensurePlanSeed, ledgerForUser, reversePlanScans } = await import(at("lib/server/scanCredits.ts"));
 const { outOfScansMessage, reserveScan, reserveScans } = await import(at("lib/server/scanQuota.ts"));
 const { creditFirstUse, needsFirstUseCredit, reconcilePaidInvoices, planCreditFor, handleChargeRefunded, handleDisputeCreated } = await import(at("lib/server/billingCredits.ts"));

@@ -1,6 +1,6 @@
 import { useEffect } from "react";
-import { Alert, Linking, Platform } from "react-native";
-import { ErrorCode, deepLinkToSubscriptions, fetchProducts, finishTransaction, initConnection, purchaseErrorListener, purchaseUpdatedListener, requestPurchase, type Purchase } from "expo-iap";
+import { Alert, AppState, Linking, Platform } from "react-native";
+import { ErrorCode, deepLinkToSubscriptions, fetchProducts, finishTransaction, getAvailablePurchases, initConnection, purchaseErrorListener, purchaseUpdatedListener, requestPurchase, type Purchase } from "expo-iap";
 import { API_URL, api, ApiError } from "./api";
 import { useAuth, type SessionUser } from "./auth";
 
@@ -46,15 +46,67 @@ export function onPurchased(fn: () => void): () => void {
   return () => listeners.delete(fn);
 }
 
-/** The buy button on a page inside the app: Apple's sheet for that plan. The result arrives in useIapListener. */
+/** Set by useIapListener: re-read the account (header counter) and tell the pages. */
+let afterCredit: (() => Promise<void>) | null = null;
+/** Transactions handed to the server in this run (or on their way): each one once, however many paths deliver it. */
+const handled = new Set<string>();
+
+/**
+ * One Apple purchase to the server, then finishTransaction, then the header and pages re-read the account. Three
+ * paths deliver purchases (the sheet's own answer, the listener, the foreground check); the first one wins.
+ * Chris 10-31 on build 4: the Booster sheet closed, the counter stayed at 5, and the purchase only reached the server
+ * when StoreKit brought it back later, so the listener alone is not enough.
+ */
+async function handlePurchase(purchase: Purchase): Promise<void> {
+  const jws = purchase.purchaseToken;
+  const id = purchase.id || jws || "";
+  if (!jws || handled.has(id)) return;
+  handled.add(id);
+  try {
+    await api("/api/iap/apple", { body: { signedTransaction: jws }, timeoutS: 30 });
+  } catch (err) {
+    // Not finished = StoreKit offers it again (next foreground or launch). A refusal that will never pass (another
+    // account's purchase) is finished so it stops coming back, and said once.
+    if (err instanceof ApiError && err.status === 409) {
+      await finishTransaction({ purchase, isConsumable: CONSUMABLES.has(purchase.productId) }).catch(() => {});
+      Alert.alert("Purchase not added", err.message);
+    } else {
+      handled.delete(id);
+      Alert.alert("Purchase received", "Apple took the payment, but CardFlip couldn't add it yet. It will be added the next time you open the app.");
+    }
+    return;
+  }
+  await finishTransaction({ purchase, isConsumable: CONSUMABLES.has(purchase.productId) }).catch(() => {});
+  await afterCredit?.();
+}
+
+/**
+ * A Booster StoreKit still holds unfinished (never reached the server): checked each time the app comes to the front.
+ * Subscriptions are left to Apple's server notices (api/iap/apple/notify), so an active one on a shared phone is not
+ * re-sent (and refused as another account's) on every return.
+ */
+async function reconcile(): Promise<void> {
+  try {
+    await connect();
+    const held = await getAvailablePurchases({ onlyIncludeActiveItemsIOS: true });
+    for (const p of held ?? []) if (CONSUMABLES.has(p.productId)) await handlePurchase(p);
+  } catch {
+    /* offline or StoreKit busy: the next foreground tries again */
+  }
+}
+
+/** The buy button on a page inside the app: Apple's sheet for that plan, and its answer straight to the server. */
 export async function buyPlan(plan: IapPlan, user: SessionUser | null | undefined): Promise<void> {
   if (!IAP_ON || !user) return;
   try {
     await connect();
     const sku = IAP_SKUS[plan];
     // appAccountToken = the account id (a UUID), so Apple's renewal notices name the account on the server.
-    if (plan === "pack") await requestPurchase({ type: "in-app", request: { apple: { sku, appAccountToken: user.id } } });
-    else await requestPurchase({ type: "subs", request: { apple: { sku, appAccountToken: user.id } } });
+    const out =
+      plan === "pack"
+        ? await requestPurchase({ type: "in-app", request: { apple: { sku, appAccountToken: user.id } } })
+        : await requestPurchase({ type: "subs", request: { apple: { sku, appAccountToken: user.id } } });
+    for (const p of Array.isArray(out) ? out : out ? [out] : []) await handlePurchase(p);
   } catch (err) {
     if ((err as { code?: string })?.code === ErrorCode.UserCancelled) return;
     Alert.alert("Couldn't open the App Store", "Check your connection and try again.");
@@ -80,38 +132,25 @@ export function useIapListener(): void {
   const signedIn = Boolean(user);
   useEffect(() => {
     if (!IAP_ON || !signedIn) return;
-    let live = true;
-    const done = purchaseUpdatedListener(async (purchase: Purchase) => {
-      const jws = purchase.purchaseToken;
-      if (!jws) return;
-      try {
-        await api("/api/iap/apple", { body: { signedTransaction: jws }, timeoutS: 30 });
-      } catch (err) {
-        // Not finished = StoreKit offers it again next launch. A refusal that will never pass (another account's
-        // purchase) is finished so it stops coming back, and said once.
-        if (err instanceof ApiError && err.status === 409) {
-          await finishTransaction({ purchase, isConsumable: CONSUMABLES.has(purchase.productId) }).catch(() => {});
-          Alert.alert("Purchase not added", err.message);
-        } else {
-          Alert.alert("Purchase received", "Apple took the payment, but CardFlip couldn't add it yet. It will be added the next time you open the app.");
-        }
-        return;
-      }
-      await finishTransaction({ purchase, isConsumable: CONSUMABLES.has(purchase.productId) }).catch(() => {});
-      if (!live) return;
+    afterCredit = async () => {
       await refresh();
       for (const fn of listeners) fn();
-    });
+    };
+    const done = purchaseUpdatedListener((purchase: Purchase) => void handlePurchase(purchase));
     const failed = purchaseErrorListener((e) => {
       if (e.code === ErrorCode.UserCancelled) return;
       Alert.alert("Purchase didn't go through", e.message || "Nothing was charged. Try again.");
     });
-    // Connecting also replays purchases that never reached the server (StoreKit's unfinished transactions).
-    connect().catch(() => {});
+    // Connecting replays purchases that never reached the server; so does every return to the front.
+    void reconcile();
+    const front = AppState.addEventListener("change", (s) => {
+      if (s === "active") void reconcile();
+    });
     return () => {
-      live = false;
+      afterCredit = null;
       done.remove();
       failed.remove();
+      front.remove();
     };
   }, [signedIn, refresh]);
 }

@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { db, type DbTx } from "@/lib/db";
 import { PRICING, ROLLOVER } from "@/lib/pricing";
 import { CREDITS_FROM, seedKey } from "@/lib/planSeed";
-import { fromRow, planOf, planSeedFor, type Plan, type User, type UserRow } from "@/lib/server/users";
+import { fromRow, keepTrialScans, planOf, planSeedFor, type Plan, type User, type UserRow } from "@/lib/server/users";
 
 /**
  * The scan-credit ledger and every write to users.plan_scans that is not a
@@ -192,6 +192,8 @@ export async function creditPlanScans(o: CreditInput): Promise<CreditOutcome> {
       const args: (number | string)[] = [grant - seedBack, ...(set ? [grant, now] : []), o.userId];
       await tx.prepare(`UPDATE users SET plan_scans = MAX(0, COALESCE(plan_scans, 0) + ?)${set} WHERE id = ?`).run(...args);
     }
+    // A paid subscription keeps the trial's unused free scans (as Booster scans), like a Booster does.
+    if (o.kind === "payment" && grant > 0) await keepTrialScans(tx, o.userId);
     return {
       recorded: true,
       applied: grant,

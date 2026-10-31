@@ -43,10 +43,23 @@ export default function SubscribedPage() {
   useEffect(() => {
     let cancelled = false;
     let tries = 0;
+    // A Booster on top of Booster scans already banked confirms at once (packScans > 0 before this one lands):
+    // keep reading until the balance grows, then refresh again, so the header shows the new scans (Chris 10-31).
+    let firstPack: number | null = null;
+    let confirmed = false;
     const check = async () => {
       tries += 1;
       const o = await fetchAccount();
       if (cancelled) return true;
+      if (confirmed) {
+        const n = o?.user.packScans ?? 0;
+        if (n > (firstPack ?? 0)) {
+          void refresh();
+          return true;
+        }
+        return tries >= 15;
+      }
+      if (kind === "pack" && firstPack === null) firstPack = o?.user.packScans ?? 0;
       // A subscription is confirmed only once the payment's scans are credited:
       // the status flips first, and "250 scans, unlocked" over a 0 balance (a red
       // header, a 402 on the first scan) reads as broken.
@@ -59,6 +72,11 @@ export default function SubscribedPage() {
         setPhase("confirmed");
         pixelTrack(kind === "pack" ? "CompletePayment" : "Subscribe");
         void refresh();
+        // The first read already had banked Booster scans: this pack may not be in yet, so keep watching.
+        if (kind === "pack" && tries === 1 && (firstPack ?? 0) > 0) {
+          confirmed = true;
+          return false;
+        }
         return true;
       }
       // ~30s of patience; past that the plan still flips on the next visit.

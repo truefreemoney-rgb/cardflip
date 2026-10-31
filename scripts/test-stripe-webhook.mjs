@@ -77,8 +77,14 @@ globalThis.fetch = async (url, init) => {
 const at = (p) => new URL(`../src/${p}`, import.meta.url).href;
 const { POST } = await import(at("app/api/stripe/webhook/route.ts"));
 const { planForPrice } = await import(at("lib/server/stripe.ts"));
-const { createUser, findUserById, setStripeCustomer, setSubscription, PAID_SWITCH_AT } = await import(at("lib/server/users.ts"));
+const { createUser: createUserRaw, findUserById, setStripeCustomer, setSubscription, PAID_SWITCH_AT, TRIAL_SCANS } = await import(at("lib/server/users.ts"));
 const { db } = await import(at("lib/db.ts"));
+// Test sellers have spent their trial: the "keep the free scans" rule (10-31) is checked in test-quota.mjs.
+const createUser = async (...a) => {
+  const u = await createUserRaw(...a);
+  await db.prepare("UPDATE users SET trial_scans_used = ? WHERE id = ?").run(TRIAL_SCANS, u.id);
+  return u;
+};
 
 let failures = 0;
 function check(label, actual, expected = true) {
