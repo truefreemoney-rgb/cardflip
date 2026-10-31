@@ -85,7 +85,12 @@ export default async function PublicCollectionPage({ params }: Params) {
                     {card.kind === "card" ? ` · ${card.condition}` : ""}
                   </p>
                   <div className="mt-auto flex items-center justify-between gap-2 pt-1">
-                    <span className={`whitespace-nowrap font-display font-semibold tabular-nums text-white ${card.price != null && card.price >= 10_000 ? "text-xs" : "text-sm"}`}>{card.localPrice ?? (card.price != null ? formatMoney(card.price) : "—")}</span>
+                    {card.localPrice != null || card.price != null ? (
+                      <span className={`whitespace-nowrap font-display font-semibold tabular-nums text-emerald-300 ${card.price != null && card.price >= 10_000 ? "text-xs" : "text-sm"}`}>{card.localPrice ?? formatMoney(card.price!)}</span>
+                    ) : (
+                      // Review 10-19 card pages #2: a bare dash read as a broken page; say it plainly.
+                      <span className="text-xs text-zinc-500">No price yet</span>
+                    )}
                     {card.ebayUrl && (
                       <a
                         href={card.ebayUrl}

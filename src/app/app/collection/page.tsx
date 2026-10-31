@@ -2534,7 +2534,7 @@ export default function CollectionPage() {
         <section className="rounded-2xl border border-edge bg-surface-1 p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-base font-semibold text-white">Offer to watchers</h2>
+              <h2 className="text-base font-semibold text-white">Offer to Watchers</h2>
               <p className="mt-1 text-sm text-zinc-500">
                 eBay emails a private discount to everyone watching a listing. One offer per
                 buyer per listing — pick the card, pick the cut, send.{" "}

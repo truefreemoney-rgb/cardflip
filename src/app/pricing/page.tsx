@@ -87,7 +87,8 @@ export default function PricingPage() {
             <p className="text-sm font-semibold uppercase tracking-widest text-brand-400">What a scan is</p>
             <h2 className="mt-3 font-display text-3xl font-bold text-white sm:text-4xl">{PLAN.scans} goes a long way.</h2>
           </div>
-          <div className="mt-6 grid gap-3 sm:grid-cols-3">
+          {/* Four cards: 2 x 2, then one row of 4 (review 10-19 marketing #8: 3 columns left the 4th alone). */}
+          <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {covers.map((c) => (
               <div key={c.label} className="reveal rounded-3xl border border-edge bg-surface-1 p-6">
                 <p className="font-display text-5xl font-bold text-white">
