@@ -88,7 +88,7 @@ export default function Login() {
         <Field
           label="Password"
           right={
-            <Pressable onPress={() => openSitePage("/forgot-password", "Forgot Password")} hitSlop={8}>
+            <Pressable onPress={() => openSitePage("/forgot-password", "Forgot Password", { public: true })} hitSlop={8}>
               <Text style={styles.forgot}>Forgot Password?</Text>
             </Pressable>
           }

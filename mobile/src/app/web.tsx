@@ -17,10 +17,13 @@ import { colors, fonts, space } from "~/lib/theme";
  * (Chris 2:20am: the card page sells the app, then the sign-up).
  */
 export default function WebScreen() {
-  const params = useLocalSearchParams<{ path?: string; title?: string; guest?: string }>();
+  const params = useLocalSearchParams<{ path?: string; title?: string; guest?: string; public?: string }>();
   const path = safeSitePath(params.path);
   const title = (Array.isArray(params.title) ? params.title[0] : params.title) || "CardFlip";
   const guest = (Array.isArray(params.guest) ? params.guest[0] : params.guest) === "1";
+  // public=1 (10-31, App Review): Terms / Privacy / Forgot Password from the sign-in screens load with no session
+  // (they showed "Sign in again" to a signed-out user), without the guest page's sign-up bar.
+  const open = guest || (Array.isArray(params.public) ? params.public[0] : params.public) === "1";
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const { user, refresh } = useAuth();
@@ -43,7 +46,7 @@ export default function WebScreen() {
         </Text>
         <View style={styles.backBtn}>{loading ? <ActivityIndicator color={colors.brandSoft} /> : null}</View>
       </View>
-      <SiteWebView path={path} onLeave={back} onLoading={setLoading} guest={guest} />
+      <SiteWebView path={path} onLeave={back} onLoading={setLoading} guest={open} />
       {guest ? (
         <View style={[styles.cta, { paddingBottom: insets.bottom + space.md }]}>
           <PrimaryButton label="Sign up to keep it" onPress={() => router.push("/signup")} />

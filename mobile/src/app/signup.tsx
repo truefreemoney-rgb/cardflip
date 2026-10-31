@@ -98,11 +98,11 @@ export default function Signup() {
 
       <Text style={styles.terms}>
         By continuing you agree to the{" "}
-        <Text style={styles.termsLink} onPress={() => openSitePage("/terms", "Terms of Service")}>
+        <Text style={styles.termsLink} onPress={() => openSitePage("/terms", "Terms of Service", { public: true })}>
           Terms of Service
         </Text>{" "}
         and{" "}
-        <Text style={styles.termsLink} onPress={() => openSitePage("/privacy", "Privacy Policy")}>
+        <Text style={styles.termsLink} onPress={() => openSitePage("/privacy", "Privacy Policy", { public: true })}>
           Privacy Policy
         </Text>
         .

@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { Alert, AppState, Linking, Platform } from "react-native";
-import { ErrorCode, deepLinkToSubscriptions, fetchProducts, finishTransaction, getAvailablePurchases, initConnection, purchaseErrorListener, purchaseUpdatedListener, requestPurchase, type Purchase } from "expo-iap";
+import { ErrorCode, deepLinkToSubscriptions, fetchProducts, finishTransaction, getAvailablePurchases, initConnection, purchaseErrorListener, purchaseUpdatedListener, requestPurchase, restorePurchases as restoreApplePurchases, type Purchase } from "expo-iap";
 import { API_URL, api, ApiError } from "./api";
 import { useAuth, type SessionUser } from "./auth";
 
@@ -111,6 +111,49 @@ export async function buyPlan(plan: IapPlan, user: SessionUser | null | undefine
     if ((err as { code?: string })?.code === ErrorCode.UserCancelled) return;
     Alert.alert("Couldn't open the App Store", "Check your connection and try again.");
   }
+}
+
+/**
+ * Restore Purchases (Account > Plan, App Review 3.1.1): Apple re-syncs this Apple ID's purchases, and each active
+ * subscription goes to the server again, which re-links it to this account (the server credits nothing twice). A
+ * Booster is consumed once used, so only one still unfinished comes back here.
+ */
+export async function restorePurchases(user: SessionUser | null | undefined): Promise<void> {
+  if (!IAP_ON || !user) return;
+  let held: Purchase[] = [];
+  try {
+    await connect();
+    // Apple's sync may ask for the Apple ID password; a cancel there still lists what this phone already knows.
+    await restoreApplePurchases().catch(() => {});
+    held = (await getAvailablePurchases({ onlyIncludeActiveItemsIOS: true })) ?? [];
+  } catch {
+    Alert.alert("Couldn't reach the App Store", "Check your connection and try again.");
+    return;
+  }
+  let restored = 0;
+  let refusal = "";
+  for (const purchase of held) {
+    if (!purchase.purchaseToken) continue;
+    if (CONSUMABLES.has(purchase.productId)) {
+      await handlePurchase(purchase);
+      continue;
+    }
+    try {
+      await api("/api/iap/apple", { body: { signedTransaction: purchase.purchaseToken }, timeoutS: 30 });
+      await finishTransaction({ purchase, isConsumable: false }).catch(() => {});
+      restored++;
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) refusal = err.message;
+      else {
+        Alert.alert("Couldn't restore", "Check your connection and try again.");
+        return;
+      }
+    }
+  }
+  await afterCredit?.();
+  if (restored > 0) Alert.alert("Purchases restored", "Your subscription is active on this account.");
+  else if (refusal) Alert.alert("Purchase not added", refusal);
+  else Alert.alert("Nothing to restore", "This Apple ID has no active CardFlip subscription.");
 }
 
 /** Manage: an Apple subscription in iPhone Settings; a cardflip.io (Stripe) one on the website in Safari. */

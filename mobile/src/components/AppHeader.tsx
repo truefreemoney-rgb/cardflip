@@ -17,8 +17,9 @@ const SURFACE_2 = "rgba(175,185,255,0.12)";
  * for a trial) at the right; a holo hairline underneath. Help, the counter
  * and the chip open the website's own pages inside the app (app/web.tsx).
  */
-export function openSitePage(path: string, title: string) {
-  router.push({ pathname: "/web", params: { path, title } });
+/** public: a page anyone may read (Terms, Privacy, Forgot Password) opens without a session, so it works signed out. */
+export function openSitePage(path: string, title: string, opts: { public?: boolean } = {}) {
+  router.push({ pathname: "/web", params: opts.public ? { path, title, public: "1" } : { path, title } });
 }
 
 export default function AppHeader() {

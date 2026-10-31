@@ -4,7 +4,7 @@ import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, Text, View
 import WebView, { type WebViewNavigation } from "react-native-webview";
 import { API_URL, APP_HEADER_VALUE } from "~/lib/api";
 import { useAuth } from "~/lib/auth";
-import { buyPlan, IAP_ON, IAP_SKUS, manageSubscription, onPurchased, type IapPlan } from "~/lib/iap";
+import { buyPlan, IAP_ON, IAP_SKUS, manageSubscription, onPurchased, restorePurchases, type IapPlan } from "~/lib/iap";
 import { readToken } from "~/lib/tokenStore";
 import { colors, space } from "~/lib/theme";
 
@@ -39,7 +39,7 @@ const LEAVE_PATHS = new Set(["/", "/login", "/signup"]);
 /** Other hosts that stay inside the WebView: flows that end by sending the browser back to cardflip.io. */
 const KEEP_HOSTS = /(^|\.)(auth|signin)\.ebay\.(com|co\.uk|ca|com\.au|ie)$/i;
 /** Set before every page loads: tells the site (lib/appMode.ts appBuys) that this build sells through Apple. */
-const BEFORE_LOAD = IAP_ON ? "window.CardFlipApp = { iap: true }; true;" : "true;";
+const BEFORE_LOAD = IAP_ON ? "window.CardFlipApp = { iap: true, restore: true }; true;" : "true;";
 /** The query a link to /app may carry into the Scanner tab (the site's My Cards Resume / Verify / "Move to listings", the eBay return). */
 const SCANNER_PARAMS = ["resume", "ask", "rn", "rnum", "rg", "ri", "ebay"] as const;
 /** The site page behind each tab (the Scanner tab's /app goes through toScanner, query and all). */
@@ -251,6 +251,7 @@ const SiteWebView = forwardRef<SiteWebViewHandle, { path: string; onLeave?: () =
           if (msg.type === "scan") router.navigate("/scan");
           else if (msg.type === "buy" && msg.plan && msg.plan in IAP_SKUS) void buyPlan(msg.plan as IapPlan, user);
           else if (msg.type === "manage") void manageSubscription(user);
+          else if (msg.type === "restore") void restorePurchases(user);
         } catch {
           /* not ours */
         }
