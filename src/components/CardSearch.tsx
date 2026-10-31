@@ -265,7 +265,7 @@ export function CardSearchBox({
   const dirty = typed !== "" && typed !== search.searched;
   return (
     <>
-      <div className={sticky ? "sticky top-12 z-30 -mx-4 bg-background/90 px-4 pb-3 pt-2 backdrop-blur-md sm:top-[4.25rem] sm:-mx-6 sm:px-6" : ""}>
+      <div data-app-top={sticky ? "" : undefined} className={sticky ? "sticky top-12 z-30 -mx-4 bg-background/90 px-4 pb-3 pt-2 backdrop-blur-md sm:top-[4.25rem] sm:-mx-6 sm:px-6" : ""}>
         <div className="flex gap-2">
           <GamePicker game={game} onChange={search.setGame} counts={gameCounts} />
           {mode === "search" ? (

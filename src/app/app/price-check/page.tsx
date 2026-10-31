@@ -12,6 +12,7 @@ import Price from "@/components/Price";
 import { PriceFlagText } from "@/components/PriceFlagNote";
 import { useSession } from "@/components/SessionProvider";
 import { toast } from "@/components/Toaster";
+import { useBackToClose } from "@/lib/client/useBackToClose";
 import { useBodyScrollLock } from "@/lib/client/useBodyScrollLock";
 import { gamePath } from "@/lib/cardPages";
 import { fetchCardById, fetchSets } from "@/lib/cards";
@@ -46,6 +47,17 @@ export default function PriceCheckPage() {
   const [logging, setLogging] = useState(false);
   const search = useCardSearch(language, () => setSelected(null));
   const { game } = search;
+  // Results on screen (a set tile, a typed search) are a page of their own: Back (the app's Back bar, a phone's back
+  // swipe) returns to the set tiles. Picking a set only swapped the grid in, so the app had nothing to go back to
+  // (Chris 10-31 4:45pm, build 7: "can't get back to the set list").
+  useBackToClose(
+    "search-results",
+    () => {
+      search.clear();
+      search.setMode("search");
+    },
+    search.results.length > 0,
+  );
 
   // The watchlist: the empty-state row and every result's star.
   const [watch, setWatch] = useState<WishlistItem[] | null>(null);

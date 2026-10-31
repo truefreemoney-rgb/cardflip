@@ -1030,3 +1030,8 @@ html[data-app="1"] [data-app-shell] {
 html[data-app="1"] {
   --bottom-nav-h: 0px !important;
 }
+/* A bar pinned under the site header (Search's box) pins to the very top in the app, where that header is hidden:
+   it floated 3rem down with cards showing above it (Chris 10-31, build 7). */
+html[data-app="1"] [data-app-top] {
+  top: 0 !important;
+}

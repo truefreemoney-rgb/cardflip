@@ -1,5 +1,11 @@
 # To test later
 
+## 10-31 5:05PM ET: Search set list Back + pinned box in the app (website only, NO build; committed locally, rides Chris's bulk push) — Chris 4:45pm on build 7: "no back button here at the search, can't get back to the set list, also the floating bar should be pinned to the top"
+- [x] Built: price-check page = useBackToClose("search-results") while results show (a set tile, All sets pick, a typed search), so the app's Back bar / a back swipe returns to the set tiles; CardSearchBox sticky box carries data-app-top, globals.css pins it at top 0 in app mode (top-12 left room for the site header the app hides).
+- [x] Local (scripts/_search-back-shots*.mjs, 430 wide ?app=1): box top 0 after scrolling a set; set > Back = tiles; set > card > Back closes the card > Back = tiles; All sets pick > Back = tiles; typed search ✕ clears; website (no app flag) box still at 48 under the header. tsc + eslint clean.
+- [ ] Chris's yes on the look (screenshots sent 5:05pm), then his bulk push.
+- [ ] Phone (build 7, after the push): Search > a set: "‹ Back" shows and returns to the set list; the Pokémon / set / search bar sits flush at the top while scrolling.
+
 ## 10-31 4:31PM ET: app navigation (4289c9b5 PUSHED; build 7 EAS f7276de7 auto-submit) — Chris 4:26pm "no back button or proper navigation makes it impossible to use"
 - [x] Built: WebTab Back bar (shows when the page can go back) in Inventory/Search/Watchlist/Account; tap the current tab again = its first page, no history; /web Back steps back inside the page first; site: app mode zeroes --bottom-nav-h on <html> (the card page price bar floated above the bottom). tsc + eslint mobile clean.
 - [ ] Phone (build 7): Search > Pokémon > a set > a card: "‹ Back" bar shows, steps back card -> set -> sets; tap Search again = Card prices start page; the price bar sits on the bottom edge with nothing under it; Inventory/Account Back too; Scanner tab unchanged.
