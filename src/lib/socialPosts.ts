@@ -179,9 +179,18 @@ export function slotOfHour(hour: number): SlotTag {
   return hour < 11 ? "morning" : hour < 17 ? "midday" : "evening";
 }
 
-/** True when a logged url is this stored post: the same link, or one ending in the platform's post id (X and Facebook list a different link than they return). */
+/** A Facebook video's own id, from either link the platform uses for it (/<page>/videos/<id> or /reel/<id>/). */
+const fbVideoId = (url: string): string | null => /facebook\.com\/(?:[^/]+\/videos|reel)\/(\d+)/.exec(url)?.[1] ?? null;
+
+/**
+ * True when a logged url is this stored post: the same link, or one ending in the platform's post id (X and Facebook
+ * list a different link than they return), or the same Facebook video (10-31: the publisher logs /videos/<id>, the read
+ * lists /reel/<id>/ under a post id, so every Facebook video was tagged by its words with no format).
+ */
 export function sameLogged(post: { url: string; postId: string }, loggedUrl: string): boolean {
-  return loggedUrl === post.url || (post.postId !== "" && loggedUrl.endsWith(`/${post.postId}`));
+  if (loggedUrl === post.url || (post.postId !== "" && loggedUrl.endsWith(`/${post.postId}`))) return true;
+  const video = fbVideoId(post.url);
+  return video != null && video === fbVideoId(loggedUrl);
 }
 
 /**

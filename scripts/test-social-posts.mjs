@@ -112,6 +112,9 @@ assert.ok(sameLogged({ url: "https://x.com/cardflipio/status/2105977590775165437
 assert.ok(sameLogged({ url: "https://www.facebook.com/122110114887482847/posts/122112919971482847", postId: "1314676718400499_122112919971482847" }, "https://www.facebook.com/1314676718400499_122112919971482847"));
 assert.ok(sameLogged({ url: "https://bsky.app/profile/cardflip.bsky.social/post/3mwva4aq5cb2k", postId: "at://did:plc:abc/app.bsky.feed.post/3mwva4aq5cb2k" }, "https://bsky.app/profile/cardflip.bsky.social/post/3mwva4aq5cb2k"));
 assert.ok(!sameLogged({ url: "https://x.com/cardflipio/status/21", postId: "21" }, "https://x.com/i/status/2105977590775165421"));
+// 10-31: a Facebook video is read as /reel/<id>/ under a post id, logged as /<page>/videos/<id>.
+assert.ok(sameLogged({ url: "https://www.facebook.com/reel/1664067658418078/", postId: "1314676718400499_122124522633482847" }, "https://www.facebook.com/1314676718400499/videos/1664067658418078"));
+assert.ok(!sameLogged({ url: "https://www.facebook.com/reel/1664067658418078/", postId: "1314676718400499_122124522633482847" }, "https://www.facebook.com/1314676718400499/videos/2653364005117340"));
 assert.ok(!sameLogged({ url: "https://www.tiktok.com/@cardflipio/video/7692", postId: "" }, "https://www.tiktok.com/"));
 
 // tagPost: the log wins over the words (a day plan can post any kind in any slot)

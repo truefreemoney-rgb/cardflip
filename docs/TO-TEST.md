@@ -1,5 +1,9 @@
 # To test later
 
+## 10-31 11:12AM ET: Facebook videos keep their format tag (test:socialposts ok, eslint clean; NOT pushed, his bulk push)
+- [x] What: lib/socialPosts.ts sameLogged also matches a Facebook video by its own id (/reel/<id>/ as read vs /<page>/videos/<id> as logged); before, every Facebook video fell back to the words + hour tag (kind + slot, format empty), so the optimizer's video-vs-picture score never saw Facebook videos (found on the 10-31 video-week verdict). Old rows stay as tagged (no backfill).
+- [ ] After the push + the next social read: node scratchpad fbfmt-style SELECT on social_posts site='facebook' newer than the push = video posts carry format 'video'.
+
 ## 10-31 11:07AM ET: Yu-Gi-Oh! 1st Edition rows no longer take Cardmarket's all-editions price (test:pkcardmarket + test:tcgprices pass, tsc + eslint clean; NOT pushed, his bulk push)
 - [x] What: cardmarketPoints skips a "-1st" id mapped to the same Cardmarket product as its unstamped twin (6,218 of 17,806 -1st map ids share one). Found on the #3 eBay checks: Guardian Eatos SOVR-EN097 1st showed $33.07 (+ foil $22.75) from cardmarket-converted, under its Unlimited $59.90; TCGplayer 1st Edition = asking only ($525 mid, no market), eBay 1st raw = one $290 auction. Prod today: only that 1 row is on the converted source; no user owns it.
 - [ ] After the push + the next nightly Yu-Gi-Oh! price run: node scratchpad-style SELECT on ygo-33734-1st = price_usd null (blank, the asking-only >$20 rule), ygo-33734 still $59.90; no other -1st row newly blank that had a TCGplayer market.
