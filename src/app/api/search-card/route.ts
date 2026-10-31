@@ -388,8 +388,9 @@ export async function GET(req: NextRequest) {
   try {
     if (lang === "ja" || lang === "zh") {
       const cards = await searchCjk(lang, name, number);
-      await putCachedCards(lang, cacheName, cacheNumber, cards);
-      return NextResponse.json({ cards, matchedOn });
+      // Review 10-19 pricing #8: these three paths skipped the price guard and cached unpriced rows.
+      if (hasMarketPrice(cards)) await putCachedCards(lang, cacheName, cacheNumber, cards);
+      return NextResponse.json({ cards: await flagged(cards), matchedOn });
     }
 
     // English identification comes from our own mirror, so a pokemontcg.io
@@ -454,8 +455,8 @@ export async function GET(req: NextRequest) {
       );
       if (narrowed.length > 0) {
         const cards = rank(narrowed, name, number).map(mapCard);
-        await putCachedCards(lang, cacheName, cacheNumber, cards);
-        return NextResponse.json({ cards, matchedOn });
+        if (hasMarketPrice(cards)) await putCachedCards(lang, cacheName, cacheNumber, cards);
+        return NextResponse.json({ cards: await flagged(cards), matchedOn });
       }
     }
 
@@ -465,8 +466,8 @@ export async function GET(req: NextRequest) {
     // back as "Mega Charizard Y ex". Fetch the field, then rank it ourselves.
     const results = await queryCards(`name:*${name}*`, 250);
     const cards = rank(results, name, number).map(mapCard).slice(0, limit);
-    await putCachedCards(lang, cacheName, cacheNumber, cards);
-    return NextResponse.json({ cards, matchedOn: "name" });
+    if (hasMarketPrice(cards)) await putCachedCards(lang, cacheName, cacheNumber, cards);
+    return NextResponse.json({ cards: await flagged(cards), matchedOn: "name" });
   } catch (err) {
     // The mirror is the source of truth for English identification; the
     // pokemontcg.io fallback only runs after the mirror found nothing, to

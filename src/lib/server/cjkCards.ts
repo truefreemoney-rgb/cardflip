@@ -123,7 +123,9 @@ function positionalOverlap(a: string, b: string): number {
  * characters with the query, so a card can still surface even when the
  * scan got most of its name wrong.
  */
-async function fuzzySearch(lang: CjkLanguage, name: string, limit: number): Promise<CjkCardRef[]> {
+async function fuzzySearch(lang: CjkLanguage, rawName: string, limit: number): Promise<CjkCardRef[]> {
+  // Edit distance runs against every name we hold: a pasted essay would pin the CPU (review 10-19 pricing #6).
+  const name = rawName.slice(0, 40);
   const maxDistance = Math.max(1, Math.ceil(name.length * 0.6));
   const minOverlap = Math.max(1, Math.ceil(name.length / 2));
 
