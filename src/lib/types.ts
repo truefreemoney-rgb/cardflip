@@ -204,6 +204,15 @@ export interface VisionCardRead {
   /** Last year of the copyright line along the bottom edge — the print year (both games). */
   copyrightYear?: number | null;
   /**
+   * Pokémon (10-30): the big print beside the name, read so the catalog can pick the printing when the collector
+   * number is hidden (glare, a soft camera): HP, the attack and ability names as printed, the National Pokédex
+   * number from the line under the art, the regulation mark (the single letter in the small black box, e.g. "G").
+   */
+  hp?: number | null;
+  attackNames?: string[] | null;
+  dexNumber?: number | null;
+  regulationMark?: string | null;
+  /**
    * Why the scan took a second look at the bottom of the card (null when the
    * first read was enough): "low-confidence" | "no-number" | "art-name" |
    * "list-twin". Logged for the panels and the scan ledger.

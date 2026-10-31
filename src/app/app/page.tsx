@@ -663,6 +663,11 @@ export default function AppPage() {
                   subtitle: read.subtitle ?? null,
                   variant: read.variant ?? null,
                   shaky: read.secondLook === "low-confidence",
+                  // Big-print clues (10-30): pick the printing when the number is hidden (lib/cards.ts sends them then).
+                  hp: read.hp ?? null,
+                  attacks: read.attackNames ?? null,
+                  dexNumber: read.dexNumber ?? null,
+                  regulationMark: read.regulationMark ?? null,
                 }
               : null;
 

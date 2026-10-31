@@ -203,8 +203,28 @@ export const POKEMON_READ_SCHEMA = {
       description:
         "Only when foilPattern is 'ball', else 'unknown'. The foil tints everything one colour, so judge by SHAPE, not colour. 'poke': a plain ball, the top half is empty, only the band and button. 'master': the top half carries a large letter M (two tall bumps joined by a V, like a crown) above the band. 'friend': a leaf shape on the top half. 'love': a heart on the top half. 'quick': four wedge / X-shaped marks across both halves. 'dusk': stripes or a zigzag across the top half. 'unknown': a ball you cannot place.",
     },
+    // Plain types, not nullable: the API allows 16 nullable fields per schema and this one already carries 16.
+    // 0 / "" mean "none or unreadable" and become null in firstLook.
+    hp: {
+      type: "integer",
+      description: "The HP printed top-right of a Pokémon card (e.g. 'HP 120' -> 120). 0 on Trainer and Energy cards or when unreadable.",
+    },
+    attackNames: {
+      type: "array",
+      items: { type: "string" },
+      description:
+        "The attack and ability names exactly as printed in the text box, top to bottom (e.g. ['Fan Call', 'Assault Landing']). Names only, not the costs, damage or effect text. Empty on Trainer and Energy cards or when the text box is unreadable.",
+    },
+    dexNumber: {
+      type: "integer",
+      description: "The National Pokédex number from the small line under the artwork ('NO. 0640 Grassland Pokémon' -> 640). 0 when absent or unreadable.",
+    },
+    regulationMark: {
+      type: "string",
+      description: "The regulation mark: the single capital letter printed in a small black box at the bottom-left of modern cards (D, E, F, G, H, I, J). Empty when the card has none or it cannot be seen.",
+    },
   },
-  required: [...CARD_READ_SCHEMA.required, "foilPattern", "patternBall"],
+  required: [...CARD_READ_SCHEMA.required, "foilPattern", "patternBall", "hp", "attackNames", "dexNumber", "regulationMark"],
 } as const;
 
 /**
@@ -407,6 +427,12 @@ cards print "SH1/SH12" (letters S-H, not S-N). Read the fraction from the
 small print in the bottom corner, never from the HP or the attack damage.
 Diamond & Pearl era cards also print a code like "DPBP#307" next to the
 Pokédex data — that is a database code, never the collector number.
+
+When glare or a soft photo hides the collector number, the big print still
+identifies the card: report the HP, the attack and ability names exactly as
+printed, the Pokédex number from the line under the art, and the regulation
+mark (the single letter in the small black box bottom-left). Read them from the
+card itself; leave each null or empty rather than guess.
 
 Every card prints a copyright line along the bottom edge ("©2016 Pokémon",
 "©1995, 96, 98, 99 Nintendo/Creatures/GAME FREAK"). Its last year is the
@@ -1003,6 +1029,11 @@ async function firstLook(
     v === "clean" || v === "light wear" || v === "worn" ? v : null;
   const read: VisionCardRead = {
     ...parsed,
+    // Big print (10-30): the schema's 0 / "" stand for "none" (nullable-field cap), null from here on.
+    hp: typeof parsed.hp === "number" && parsed.hp > 0 ? Math.trunc(parsed.hp) : null,
+    attackNames: Array.isArray(parsed.attackNames) ? parsed.attackNames.filter((a): a is string => typeof a === "string" && a.trim() !== "").map((a) => a.trim()).slice(0, 6) : null,
+    dexNumber: typeof parsed.dexNumber === "number" && parsed.dexNumber > 0 ? Math.trunc(parsed.dexNumber) : null,
+    regulationMark: typeof parsed.regulationMark === "string" && /^[A-Za-z]$/.test(parsed.regulationMark.trim()) ? parsed.regulationMark.trim().toUpperCase() : null,
     // Schema-constrained, but the number still reaches a regex downstream.
     cardNumber: parsed.cardNumber?.trim() || null,
     setTotal: typeof parsed.setTotal === "number" ? parsed.setTotal : null,

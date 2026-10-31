@@ -57,6 +57,14 @@ export interface PrintedNumber {
    * that may still name a real card, so the picture confirms it.
    */
   shaky?: boolean;
+  /**
+   * Pokémon big-print clues (10-30): HP, attack / ability names, Pokédex number, regulation mark, as the scan read
+   * them. With the number hidden they pick the printing in lib/server/enCards.ts; with it read they are ignored.
+   */
+  hp?: number | null;
+  attacks?: string[] | null;
+  dexNumber?: number | null;
+  regulationMark?: string | null;
 }
 
 /**
@@ -118,11 +126,23 @@ export function isSecretRareNumber(
  * 20). The key then goes out with `number: ""`.
  */
 export function readHasPrintedKey(
-  read: { cardNumber?: string | null; setName?: string | null; copyrightYear?: number | null; setCode?: string | null },
+  read: {
+    cardNumber?: string | null;
+    setName?: string | null;
+    copyrightYear?: number | null;
+    setCode?: string | null;
+    hp?: number | null;
+    attackNames?: string[] | null;
+    dexNumber?: number | null;
+    regulationMark?: string | null;
+  },
   game: string,
 ): boolean {
   if (read.cardNumber) return true;
-  return game === "pokemon" && Boolean(read.setName || read.copyrightYear || read.setCode);
+  return (
+    game === "pokemon" &&
+    Boolean(read.setName || read.copyrightYear || read.setCode || read.hp || read.attackNames?.length || read.dexNumber || read.regulationMark)
+  );
 }
 
 function parseSetCode(text: string, fraction: string): string | null {

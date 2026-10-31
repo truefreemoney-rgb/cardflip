@@ -30,6 +30,11 @@ export function scanLogRead(
     art: card.artStyle,
     kind: card.kind ?? null,
     conf: card.confidence,
+    // Pokémon big-print read (10-30): what picks the printing when the number is hidden; measured from here.
+    ...(game === "pokemon" && typeof card.hp === "number" ? { hp: card.hp } : {}),
+    ...(game === "pokemon" && Array.isArray(card.attackNames) && card.attackNames.length ? { atk: card.attackNames.slice(0, 4) } : {}),
+    ...(game === "pokemon" && typeof card.dexNumber === "number" ? { dex: card.dexNumber } : {}),
+    ...(game === "pokemon" && card.regulationMark ? { reg: card.regulationMark } : {}),
     // The give-back reads these (10-11): a slab or another game's card is an empty outcome for the seller.
     ...(card.slab ? { slab: true } : {}),
     ...(card.detectedGame ? { seen: card.detectedGame } : {}),

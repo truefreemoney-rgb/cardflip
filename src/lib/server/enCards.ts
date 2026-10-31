@@ -80,7 +80,7 @@ export interface LocalSearchResult {
  * cost anything — a mirror synced before set totals existed returns null for
  * every card, and a scan must still work against it.
  *
- * All three scales stay below NAME_TIER (their worst case sums to 7) so the set
+ * All scales together stay below NAME_TIER (set scales 7 + text clues 3, 10-30) so the set
  * total can only reorder cards *within* a name/number tier, never lift a
  * substring match above an exact one. The denominator is the most misread
  * glyph run on the card; it earns a tiebreak, not a veto.
@@ -96,7 +96,64 @@ export interface LocalSearchResult {
 const TOTAL_PENALTY = { match: 0, unknown: 2, mismatch: 4 } as const;
 const CODE_PENALTY = { match: 0, unknown: 1, mismatch: 2 } as const;
 const ART_PENALTY = { match: 0, unknown: 0, mismatch: 1 } as const;
-const NAME_TIER = 8;
+// Big print vs the catalog's text row (en_card_text, 10-30): HP, the attack / ability names, the regulation
+// mark. Only consulted when the collector number was NOT read — that is when every printing of the name ties
+// and the picture tiebreak used to guess (one soft-camera account: 134 no-number scans in a fortnight). Each
+// is a tiebreak point; "unknown" (no text row synced, nothing read) costs nothing. Worst case 4, and with the
+// set scales' 7 the sum stays under NAME_TIER, so the name tier still wins.
+const TEXT_PENALTY = { match: 0, unknown: 0, mismatch: 1 } as const;
+// Attack names are the strongest of the three (two printings of one Pokémon with different attacks are different
+// cards; 10-30 owner test: 34/40 right with the number hidden): two points, so a decided case is no near-tie and
+// the picture tiebreak is not paid for.
+const ATTACK_PENALTY = { match: 0, unknown: 0, mismatch: 2 } as const;
+const NAME_TIER = 12;
+
+interface TextRow {
+  id: string;
+  hp: number | null;
+  regulation: string;
+  attacks: string;
+}
+
+const foldAttack = (s: string): string => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+/** The text rows for these catalog ids (chunked IN; en_card_text is keyed by en_cards.id). */
+async function textRowsFor(ids: string[]): Promise<Map<string, TextRow>> {
+  const out = new Map<string, TextRow>();
+  for (let i = 0; i < ids.length; i += 300) {
+    const chunk = ids.slice(i, i + 300);
+    const rows = (await db
+      .prepare(`SELECT id, hp, regulation, attacks FROM en_card_text WHERE id IN (${chunk.map(() => "?").join(",")})`)
+      .all(...chunk)) as unknown as TextRow[];
+    for (const r of rows) out.set(r.id, r);
+  }
+  return out;
+}
+
+function agreesWithHp(read: number | null | undefined, row: TextRow | undefined): keyof typeof TEXT_PENALTY {
+  if (!read || !row || row.hp == null) return "unknown";
+  return row.hp === read ? "match" : "mismatch";
+}
+
+function agreesWithRegulation(read: string | null | undefined, row: TextRow | undefined): keyof typeof TEXT_PENALTY {
+  if (!read || !row || !row.regulation) return "unknown";
+  return row.regulation.toUpperCase() === read.toUpperCase() ? "match" : "mismatch";
+}
+
+/** Every attack name the scan read must be printed on the row (a read name missing from the row = another card). */
+function agreesWithAttacks(read: string[] | null | undefined, row: TextRow | undefined): keyof typeof TEXT_PENALTY {
+  if (!read?.length || !row) return "unknown";
+  let printed: string[];
+  try {
+    printed = (JSON.parse(row.attacks) as string[]).map(foldAttack);
+  } catch {
+    return "unknown";
+  }
+  if (!printed.length) return "unknown";
+  const wanted = read.map(foldAttack).filter(Boolean);
+  if (!wanted.length) return "unknown";
+  return wanted.every((w) => printed.some((p) => p === w || p.includes(w) || w.includes(p))) ? "match" : "mismatch";
+}
 // 1st Edition twins (scripts/sync-first-edition.mjs) share name, number and
 // totals with the unlimited card; only the read of the stamp tells them
 // apart. Inside a tier the wrong printing loses — a read of "stamped" lifts
@@ -342,6 +399,20 @@ export async function searchEnglishCardsLocal(
     for (const r of rows) if (squash(r.name) === loose) looseExact.add(r.id);
   }
 
+  // The name was misread badly enough to match nothing, but the Pokédex number under the art was read (10-30):
+  // the species' cards are the candidates, and the big-print clues below rank them.
+  if (rows.length === 0 && printed?.dexNumber && !printed.number) {
+    rows = (await db
+      .prepare(
+        `SELECT ${CARD_COLUMNS}
+           FROM en_cards
+          WHERE id IN (SELECT id FROM en_card_text WHERE dex = ?)
+          ORDER BY set_release_date DESC
+          LIMIT 400`,
+      )
+      .all(printed.dexNumber)) as unknown as EnCardRow[];
+  }
+
   // The name was misread badly enough to match nothing. The fraction doesn't
   // depend on having read the name, so it can still identify the card.
   if (rows.length === 0) {
@@ -349,6 +420,10 @@ export async function searchEnglishCardsLocal(
       ? lookupByPrintedNumber(printed, limit, firstEdition)
       : { cards: [], releaseDates: new Map() };
   }
+
+  // Big-print clues (10-30): only without a number, only when there is a choice to make. One indexed query.
+  const useText = Boolean(printed && !printed.number && (printed.hp || printed.attacks?.length || printed.regulationMark)) && rows.length > 1;
+  const textRows = useText ? await textRowsFor(rows.map((r) => r.id)) : new Map<string, TextRow>();
 
   // A set that files its LV.X under the full name (Platinum onward) must not
   // let the bare-name card of that set count as the same name.
@@ -414,6 +489,12 @@ export async function searchEnglishCardsLocal(
     const frame = agreesWithArt(art, isSecretRareNumber(row.local_id, row.set_card_count_official), row.set_release_date ?? "");
     const setName = agreesWithSetName(printed?.setName, row.set_name);
     const year = agreesWithYear(printed?.copyrightYear, row.set_release_date);
+    const text = useText ? textRows.get(row.id) : undefined;
+    const textPenalty = useText
+      ? TEXT_PENALTY[agreesWithHp(printed?.hp, text)] +
+        ATTACK_PENALTY[agreesWithAttacks(printed?.attacks, text)] +
+        TEXT_PENALTY[agreesWithRegulation(printed?.regulationMark, text)]
+      : 0;
 
     return (
       tier * NAME_TIER +
@@ -422,6 +503,7 @@ export async function searchEnglishCardsLocal(
       ART_PENALTY[frame] +
       SETNAME_PENALTY[setName] +
       YEAR_PENALTY[year] +
+      textPenalty +
       (lvX && rowName !== needle && !knownLvX(row) ? 1 : 0) +
       printingPenalty(row.id, firstEdition) +
       artVersionPenalty(row.id)

@@ -299,10 +299,21 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ cards: await flagged(cards), matchedOn, source: "local" });
   }
 
+  // Pokémon big-print clues (10-30): HP, attack / ability names, Pokédex number, regulation mark. They pick the
+  // printing when the number is hidden (lib/server/enCards.ts); the phone only sends them without a number.
+  const hpParam = Number(req.nextUrl.searchParams.get("hp"));
+  const hp = Number.isInteger(hpParam) && hpParam >= 10 && hpParam <= 400 ? hpParam : null;
+  const attacks = (req.nextUrl.searchParams.get("atk") ?? "").split("|").map((s) => sanitize(s)).filter(Boolean).slice(0, 4);
+  const dexParam = Number(req.nextUrl.searchParams.get("dex"));
+  const dexNumber = Number.isInteger(dexParam) && dexParam >= 1 && dexParam <= 1200 ? dexParam : null;
+  const regParam = sanitize(req.nextUrl.searchParams.get("reg") ?? "").toUpperCase();
+  const regulationMark = /^[A-Z]$/.test(regParam) ? regParam : null;
+  const textClues = !number && Boolean(hp || attacks.length || dexNumber || regulationMark);
+
   // No number read, but the set clues were (10-01): they still rank the
   // printings of the name, so the key goes on with an empty number.
   const setClues = !number && Boolean(setName || copyrightYear || setCode);
-  const printed: PrintedNumber | null = number || setClues
+  const printed: PrintedNumber | null = number || setClues || textClues
     ? {
         number,
         setTotal,
@@ -310,6 +321,7 @@ export async function GET(req: NextRequest) {
         isSecretRare: isSecretRareNumber(number, setTotal),
         setName,
         copyrightYear,
+        ...(textClues ? { hp, attacks, dexNumber, regulationMark } : {}),
       }
     : null;
 

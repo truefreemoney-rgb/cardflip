@@ -94,6 +94,13 @@ export async function searchCards(
     if (printed.subtitle) params.set("sub", printed.subtitle);
     if (printed.variant) params.set("variant", printed.variant);
     if (printed.shaky) params.set("shaky", "1");
+    // Pokémon big-print clues (10-30): only worth sending without a number, which is when the ranker uses them.
+    if (!printed.number) {
+      if (printed.hp) params.set("hp", String(printed.hp));
+      if (printed.attacks?.length) params.set("atk", printed.attacks.slice(0, 4).join("|"));
+      if (printed.dexNumber) params.set("dex", String(printed.dexNumber));
+      if (printed.regulationMark) params.set("reg", printed.regulationMark);
+    }
   }
 
   // A hung serverless call (cold start + slow query) used to spin callers'

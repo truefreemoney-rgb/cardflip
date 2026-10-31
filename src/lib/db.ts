@@ -275,6 +275,23 @@ const SCHEMA = `
   -- byte, so name lookups SEARCH instead of scanning 20k rows (outage 09-06).
   CREATE INDEX IF NOT EXISTS idx_en_cards_folded ON en_cards(REPLACE(REPLACE(REPLACE(LOWER(name), '-', ' '), '’', ''''), '‘', ''''));
 
+  -- What is printed in the big type of a Pokémon card besides its name (10-30, scripts/sync-ptcg-text.mjs from
+  -- the free pokemontcg.io data): HP, the attack and ability names, the Pokédex number, the regulation mark
+  -- (the letter in the small black box), artist and rarity. The scanner reads the same things off the photo, so
+  -- when glare or a soft camera hides the collector number these pick the printing (lib/server/enCards.ts).
+  CREATE TABLE IF NOT EXISTS en_card_text (
+    id TEXT PRIMARY KEY,
+    ptcg_id TEXT NOT NULL DEFAULT '',
+    hp INTEGER,
+    dex INTEGER,
+    regulation TEXT NOT NULL DEFAULT '',
+    attacks TEXT NOT NULL DEFAULT '[]',
+    artist TEXT NOT NULL DEFAULT '',
+    rarity TEXT NOT NULL DEFAULT '',
+    synced_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_en_card_text_dex ON en_card_text(dex);
+
   -- Magic: The Gathering mirror (Scryfall, every paper printing; see
   -- scripts/sync-mtg.mjs). Same identification shape as en_cards — name +
   -- collector number + set code — plus what Scryfall gives that TCGdex
