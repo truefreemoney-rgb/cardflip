@@ -667,19 +667,13 @@ console.log("10-16: a week whose start sat on a parked listing is no move (Alpha
 
 // Magic's 10-14 price cap pause ended 10-21 and its CAP_PAUSES entry was removed 10-22 (4376b4c6): Magic moves read again.
 check("Magic moves read again after the pause (10-22)", (await topMovers("mtg", "2026-10-22")).length > 0, true);
-// Pokémon's 10-16/10-17 listing cap, same pause (10-19: the 7am "price drops" was all cap cuts, Dragonair 1st Ed $198 -> $29).
-check("Pokemon dips paused 10-19 (window spans the 10-17 cap)", (await topMovers("pokemon", "2026-10-19", { direction: "down" })).length, 0);
-check("Pokemon moves paused through 10-24 (second cap day 10-18)", (await topMovers("pokemon", "2026-10-24")).length, 0);
-// 10-24: the cap went OFF in the 10-23 write (1,388 $20+ prices rose 15%+ that day): the pause runs on to 10-30.
-check("Pokemon moves still paused 10-29 (window spans the 10-23 cap-off)", (await topMovers("pokemon", "2026-10-29")).length, 0);
-check("Pokemon 6-day fallback paused 10-28", (await topMovers("pokemon", "2026-10-28", { days: 6 })).length, 0);
+// Pokémon's 10-16 cap pause (settled 10-23 after the cap-off lift) ended 10-30 and its entry was removed 10-31.
+check("Pokemon moves read again (09-10)", (await topMovers("pokemon", TODAY)).length > 0, true);
 // 10-24: the Magic one-cheap-copy fix (74d51974) lifts ~1,164 prices in its first run (10-25 for a 10-24 push).
 check("Magic moves paused 10-28 (the cap fix lifts prices 10-25)", (await topMovers("mtg", "2026-10-28")).length, 0);
-check("Pokemon 6-day fallback paused 10-23", (await topMovers("pokemon", "2026-10-23", { days: 6 })).length, 0);
-check("the pause never reaches back before the cap (09-10 Pokemon moves still read)", (await topMovers("pokemon", TODAY)).length > 0, true);
 // 10-25: the set spotlight / most valuable / guess print no week inside the same window (the 7pm BREAKthrough spotlight
 // said "+20% this week" for a $123.24 cap cut lifted back to $148.01 on 10-23).
-check("capPausedWeek = topMovers' window (Pokemon 10-25 / 10-29 in, 10-30 out, 09-10 out; Magic 10-28 in)", [SOC.capPausedWeek("pokemon", "2026-10-25"), SOC.capPausedWeek("pokemon", "2026-10-29"), SOC.capPausedWeek("pokemon", "2026-10-30"), SOC.capPausedWeek("pokemon", TODAY), SOC.capPausedWeek("mtg", "2026-10-28")], [true, true, false, false, true]);
+check("capPausedWeek = topMovers' window (Pokemon never after its removal; Magic 10-28 in, 11-02 out)", [SOC.capPausedWeek("pokemon", "2026-10-25"), SOC.capPausedWeek("pokemon", TODAY), SOC.capPausedWeek("mtg", "2026-10-28"), SOC.capPausedWeek("mtg", "2026-11-02")], [false, false, true, false]);
 check("a paused week puts no move on the set caption", SOC.setCaption("pokemon", { setId: "xy8", setName: "BREAKthrough", cards: [{ cardId: "xy8-160", name: "M Mewtwo EX", setName: "BREAKthrough", number: "160", variant: "holofoil", from: 148.01, to: 148.01, pct: 0, unsettled: true }] }).includes("this week"), false);
 
 // 10-24: a post names a card by set + number; a number that fits a printing priced 25%+ apart sits out.
