@@ -71,7 +71,7 @@ const faqs = (games: GameId[]) => [
   },
   {
     q: "Where do the prices come from?",
-    a: `The market price for the exact printing and variant, adjusted for the condition you pick, with live eBay asking prices as a reference. Every card is priced at its value plus eBay's cut and postage, so a sale pays you what the card is worth.`,
+    a: `The market price for the exact printing and variant, based on what the card actually sells for, adjusted for the condition you pick. A price that looks wrong is held back instead of shown. Every card is priced at its value plus eBay's cut and postage, so a sale pays you what the card is worth.`,
   },
   {
     q: "Do I need my own eBay account?",
