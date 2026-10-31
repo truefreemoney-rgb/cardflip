@@ -1,5 +1,11 @@
 # To test later
 
+## 10-31 12:58PM ET: mail DNS for iCloud (Chris "fix what you need to fix"; Vercel DNS via scripts/_dns-mail-auth.mjs)
+- [x] Why: email-confirm rate last 30 days by provider: Gmail 3/3, Yahoo 2/3, iCloud 0/2 real (+1 "iclod.org" typo; the emailTypo hint built after 10-07 already catches that one). No code attempts on any stuck row = the mail likely never reached the inbox. cardflip.io had NO DMARC record and SPF "?all"; DKIM fm1/fm2/fm3 CNAMEs to Fastmail fine (fm2 active).
+- [x] Done: _dmarc.cardflip.io TXT "v=DMARC1; p=none; rua=mailto:support@cardflip.io" added; SPF "v=spf1 include:spf.messagingengine.com ~all" (was ?all). Both resolve at 1.1.1.1 + 8.8.8.8 at 12:58pm.
+- [ ] Chris, when handy: an @icloud.com inbox gets a confirm/test mail = lands in Inbox, not Junk. DMARC aggregate reports start arriving at support@ within ~1-2 days (Google/Yahoo/Apple send daily XML).
+- [ ] Next 2 weeks: iCloud email sign-ups confirm (SELECT email_verifications joined to users, domain icloud.com/me.com, confirmed_at not null).
+
 ## 10-31 12:50PM ET: Google button + One Tap BACK inside app browsers (undo of 80f3aee9 + a8a32f95 Google parts; deviceClass fix kept)
 - [x] Why: my "Google refuses sign-in inside Instagram" was WRONG. Both earlier Instagram ad sign-ups (10-28 12:06pm, 10-29 10:03am, campaign ig-signups) used Continue with Google inside Instagram's Android browser (page_views: landing -> /signup -> back from accounts.google.com -> /app pages in the same visitor within ~40 s). Today's 11:14/11:28 visitor (also Android) most likely backed out at Google's screen. Hiding Google removed the only path that had produced Instagram sign-ups. Lesson in docs/LESSONS.md.
 - [x] Email side (Chris asked): confirmation is ON (settings email_confirm=1); last 30 days 8 email sign-ups, 4 confirmed, 4 never (0 scans each); Google sign-ups skip the wall. ConfirmEmailPanel polls + re-checks on focus, so the email button confirming in another browser is picked up.
