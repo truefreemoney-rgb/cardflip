@@ -1,5 +1,9 @@
 # To test later
 
+## 10-30 8:10PM ET: #16 seller floor step 1 = the morning eBay check keeps the cards the floor would flip (no price change; tsc + eslint + test-ebay-referee green; NOT pushed)
+- [x] What: lib/server/ebayReferee.ts run summary (price_history_meta ebay_referee_last) gets sellerFloor.flipped: up to 60 cards, our price, verdict from/to, the dropped asks with seller % + score.
+- [ ] After the push + the next 8:15am ET run: read sellerFloor.flipped, hand-check each card (TCGplayer first > eBay sold), decide floor on + "never drop the last asks" rule (step 2).
+
 ## 10-30 8:00PM ET: PUSHED Apple's network passes the in-app country gate (App Review abroad; test:countrygate all pass incl. 8 new, tsc + eslint clean)
 - [x] What: src/proxy.ts fromAppleNetwork (17.0.0.0/8, 2620:149::/32, 2a01:b740::/32 via x-real-ip) passes the country gate + India block, never admin. Firewall already passed AS714/6185.
 - [ ] After deploy: a normal US visit + DE-style check unchanged (smoke green); App Review outcome (Apple email) = no "not available in your country" rejection.

@@ -62,7 +62,7 @@ export interface RefereeRun {
   left: number;
   ms: number;
   skipped?: "unconfigured" | "budget";
-  sellerFloor?: SellerFloorMeasure;
+  sellerFloor?: SellerFloorMeasure & { flipped?: SellerFloorFlip[] };
 }
 
 /** Every $100+ printing of every game with its current price (about 4,500 on 10-13). */
@@ -192,7 +192,12 @@ export async function readOne(c: RefereeCandidate): Promise<{ calls: number; row
   // Measured beside the real reading: the same asks minus the sellers under the floor (lib/ebayReferee.ts trustedSeller).
   const trusted = matched.filter((m) => trustedSeller(m.seller));
   const floorVerdict = trusted.length === matched.length ? v.verdict : refereeVerdict(c.price, summarizeAsks(c.card, trusted)).verdict;
-  return { calls, row: { c, reading, verdict: v.verdict, reason: v.reason, query: q1, floor: { asks: matched.length, dropped: matched.length - trusted.length, verdict: floorVerdict } } };
+  // A card the floor would flip keeps the asks it would drop, for the hand check before the floor goes on (#16, 10-30).
+  const droppedAsks = floorVerdict !== v.verdict ? matched.filter((m) => !trustedSeller(m.seller)) : undefined;
+  return {
+    calls,
+    row: { c, reading, verdict: v.verdict, reason: v.reason, query: q1, floor: { asks: matched.length, dropped: matched.length - trusted.length, verdict: floorVerdict, droppedAsks } },
+  };
 }
 
 interface AskRow {
@@ -202,7 +207,39 @@ interface AskRow {
   reason: string;
   query: string;
   /** The seller-floor measure for this card (readOne only; the hand-only rows have none). */
-  floor?: { asks: number; dropped: number; verdict: RefereeVerdict };
+  floor?: { asks: number; dropped: number; verdict: RefereeVerdict; droppedAsks?: { title: string; price: number; seller: AskSeller | null }[] };
+}
+
+/** One card the seller floor would flip, as the run summary keeps it for the hand check (#16, 10-30). */
+export interface SellerFloorFlip {
+  label: string;
+  game: string;
+  cardId: string;
+  variant: string;
+  price: number;
+  from: RefereeVerdict;
+  to: RefereeVerdict;
+  asks: number;
+  dropped: { title: string; price: number; pct: number | null; score: number | null }[];
+}
+
+/** The run's flipped cards, biggest price first, capped so the summary row stays small. */
+function sellerFloorFlips(rows: AskRow[]): SellerFloorFlip[] {
+  return rows
+    .filter((r) => r.floor && r.floor.verdict !== r.verdict)
+    .sort((a, b) => b.c.price - a.c.price)
+    .slice(0, 60)
+    .map((r) => ({
+      label: r.c.label,
+      game: r.c.card.game,
+      cardId: r.c.card.cardId,
+      variant: r.c.card.variant,
+      price: r.c.price,
+      from: r.verdict,
+      to: r.floor!.verdict,
+      asks: r.floor!.asks,
+      dropped: (r.floor!.droppedAsks ?? []).slice(0, 8).map((d) => ({ title: d.title, price: d.price, pct: d.seller?.pct ?? null, score: d.seller?.score ?? null })),
+    }));
 }
 
 
@@ -287,7 +324,7 @@ export async function runEbayReferee({ now = Date.now(), maxCalls = CALLS_PER_DA
   verdicts.check += handOnly.length;
   const run: RefereeRun = {
     candidates: cands.length, read: done.length, calls: calls - spent, verdicts, failed, left: queue.length - done.length - failed, ms: Date.now() - t0,
-    sellerFloor: measureSellerFloor(done),
+    sellerFloor: { ...measureSellerFloor(done), flipped: sellerFloorFlips(done) },
   };
   await db
     .prepare("INSERT INTO price_history_meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
