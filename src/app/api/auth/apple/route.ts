@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { verifyAppleIdentityToken } from "@/lib/server/appleAuth";
+import { appleRevokeConfigured, exchangeAppleCode, sealAppleToken, verifyAppleIdentityToken } from "@/lib/server/appleAuth";
+import { afterResponse } from "@/lib/server/emailVerify";
 import { completeGoogleSignIn } from "@/lib/server/googleSignIn";
 import { appSessionBody, isAppRequest } from "@/lib/server/appSession";
 import { ipGate } from "@/lib/server/rateLimitDb";
-import { toPublicUser } from "@/lib/server/users";
+import { setAppleRefreshToken, toPublicUser } from "@/lib/server/users";
 
 /**
  * Sign in with Apple, the iPhone app only (docs/APP-PLAN.md step 6, 10-29).
@@ -53,6 +54,19 @@ export async function POST(req: Request) {
         { error: result.code === 2 ? "That account has extra security. Log in with your email and password." : "Sign in with Apple didn't finish." },
         { status: result.code === 2 ? 403 : 401 },
       );
+    }
+    // The one-time code (apps from 1.0.1 on) becomes a refresh token so account deletion can revoke it; never blocks the sign-in.
+    const code = typeof body.authorizationCode === "string" ? body.authorizationCode : "";
+    if (code && appleRevokeConfigured()) {
+      const userId = result.user.id;
+      await afterResponse(async () => {
+        try {
+          const refresh = await exchangeAppleCode(code);
+          if (refresh) await setAppleRefreshToken(userId, sealAppleToken(refresh));
+        } catch (err) {
+          console.error("apple sign-in: code exchange failed:", err instanceof Error ? err.message : err);
+        }
+      });
     }
     const res = NextResponse.json({ user: toPublicUser(result.user), isNew: result.isNew, ...appSessionBody(req, result.session) });
     result.apply(res);

@@ -1,5 +1,11 @@
 # To test later
 
+## 10-31 1:45PM ET: Sign in with Apple token revoke on account delete (Apple's deletion rule; NOT pushed, needs app 1.0.1)
+- [x] Why: build 1.0.0 (3) review came back 2.1 Information Needed (docs/APP-REVIEW-REPLY-2026-10-31.md); while checking deletion for the reply I found deleting an Apple sign-in account never revoked the Apple token.
+- [x] Built: app sends authorizationCode (mobile/src/lib/auth.tsx); /api/auth/apple trades it for a refresh token after the response (users.apple_refresh_token, sealed); DELETE /api/account revokes it first, best effort. Inert until APPLE_TEAM_ID + APPLE_SIWA_KEY_ID + APPLE_SIWA_PRIVATE_KEY are set in Vercel. scripts/test-apple-revoke.mjs 7/7, tsc site + mobile clean.
+- [ ] Chris + me: a Sign in with Apple key (developer.apple.com > Keys > +, tick Sign in with Apple, App ID io.cardflip.app) -> .p8 into Vercel env via the REST API (never in chat); Team ID + Key ID too.
+- [ ] After the push + build 1.0.1 on the phone: sign in with Apple, SELECT apple_refresh_token IS NOT NULL for that user; delete the account -> no "apple revoke failed" log; iPhone Settings > Apple ID > Sign in with Apple no longer lists CardFlip.
+
 ## 10-31 12:58PM ET: mail DNS for iCloud (Chris "fix what you need to fix"; Vercel DNS via scripts/_dns-mail-auth.mjs)
 - [x] Why: email-confirm rate last 30 days by provider: Gmail 3/3, Yahoo 2/3, iCloud 0/2 real (+1 "iclod.org" typo; the emailTypo hint built after 10-07 already catches that one). No code attempts on any stuck row = the mail likely never reached the inbox. cardflip.io had NO DMARC record and SPF "?all"; DKIM fm1/fm2/fm3 CNAMEs to Fastmail fine (fm2 active).
 - [x] Done: _dmarc.cardflip.io TXT "v=DMARC1; p=none; rua=mailto:support@cardflip.io" added; SPF "v=spf1 include:spf.messagingengine.com ~all" (was ?all). Both resolve at 1.1.1.1 + 8.8.8.8 at 12:58pm.

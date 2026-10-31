@@ -4,9 +4,11 @@ import { AuthError, SESSION_COOKIE, clearSessionCookie, requireUser, signOutOthe
 import { confirmsPassword } from "@/lib/server/password";
 import { LIMITS, clientIp, type RateLimitRule } from "@/lib/server/rateLimit";
 import { ipGate, limitOrRespondAsync } from "@/lib/server/rateLimitDb";
+import { openAppleToken, revokeAppleToken } from "@/lib/server/appleAuth";
 import {
   deleteUser,
   findUserByEmail,
+  getAppleRefreshToken,
   findUserByHandle,
   findUserById,
   needsEmailConfirm,
@@ -242,6 +244,14 @@ export async function DELETE(req: NextRequest) {
         { error: "We couldn't cancel your subscription just now, so your account was not deleted. Try again in a minute, or cancel in Billing first." },
         { status: 502 },
       );
+    }
+    // Sign in with Apple: revoke our token so the account's Apple link ends with it (Apple's deletion rule). Best effort:
+    // a failed revoke is logged, never a reason to keep an account the user asked us to delete.
+    const appleSealed = await getAppleRefreshToken(user.id);
+    const appleToken = appleSealed ? openAppleToken(appleSealed) : null;
+    if (appleToken) {
+      const revoked = await revokeAppleToken(appleToken).catch(() => false);
+      if (!revoked) console.error(`account delete: apple revoke failed for ${user.id}`);
     }
     const store = await cookies();
     const token = store.get(SESSION_COOKIE)?.value ?? null;

@@ -700,6 +700,16 @@ export async function linkAppleSub(userId: string, sub: string, wipePassword = f
   return Number(res.changes) === 1;
 }
 
+/** The sealed Sign in with Apple refresh token (lib/server/appleAuth.ts), kept only so account deletion can revoke it. */
+export async function setAppleRefreshToken(userId: string, sealed: string): Promise<void> {
+  await db.prepare("UPDATE users SET apple_refresh_token = ? WHERE id = ?").run(sealed, userId);
+}
+
+export async function getAppleRefreshToken(userId: string): Promise<string | null> {
+  const row = (await db.prepare("SELECT apple_refresh_token FROM users WHERE id = ?").get(userId)) as { apple_refresh_token: string | null } | undefined;
+  return row?.apple_refresh_token ?? null;
+}
+
 export async function createUser(
   name: string,
   email: string,

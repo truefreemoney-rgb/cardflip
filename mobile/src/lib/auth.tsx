@@ -180,7 +180,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // No keychain = no memory of the name; the server falls back as before.
     }
     const scan = await getGuestScan();
-    const body = await api<{ user: SessionUser; isNew?: boolean }>("/api/auth/apple", { body: { identityToken: cred.identityToken, nonce, name, fromScan: Boolean(scan) } });
+    const body = await api<{ user: SessionUser; isNew?: boolean }>("/api/auth/apple", { body: { identityToken: cred.identityToken, authorizationCode: cred.authorizationCode ?? undefined, nonce, name, fromScan: Boolean(scan) } });
     await landGuestScan(body.user);
     setUser(body.user);
     return { isNew: Boolean(body.isNew) && !body.user.mustConfirmEmail };

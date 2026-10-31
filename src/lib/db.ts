@@ -1339,6 +1339,9 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
     // "Sign in with Apple" (lib/server/appleAuth.ts, the iPhone app): the Apple user id (the identity
     // token's sub, stable per developer team) tied to this user; NULL = never. Unique index below.
     "apple_sub TEXT",
+    // Sign in with Apple's refresh token, sealed (lib/server/appleAuth.ts, 10-31): account deletion revokes it,
+    // as Apple's account-deletion rule asks. NULL = signed in before the app sent its authorization code, or no key set.
+    "apple_refresh_token TEXT",
   ]],
   [
     // The address a reset link was mailed to (passwordReset.ts), so consuming
