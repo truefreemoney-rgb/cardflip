@@ -1,5 +1,8 @@
 # To test later
 
+## 10-30 11:04PM ET: #3 YGO no-sale eBay check, Crocodile CRC1-EN001 (ygo-717402) written to prod price_checked $90.02 (n=7 eBay BIN, net). Live already (data, no push needed)
+- [ ] By ~11-01 evening (card pages cache 2 days): cardflip.io card page for Crocodile CRC1-EN001 shows $90.02 with the eBay-checked note, not blank and not $155.
+
 ## 10-30 10:41PM ET: 2b8bb57d (Offer to Watchers, /u/handle 'No price yet' + green prices, pricing grid 2x2/4) look-yes 10:27pm ('fine i guess'); 538647ca Inventory rows at tablet width look-yes 10:41pm. Watchlist #26 skipped (prod: 0 of 11 rows lack a card id). 'Verify first' slot stays (Chris 10-41pm 'looks fine'; from 0ac02359 10-20). App page widths #39 + the remaining visual review items FOLD INTO the four big hand checks (Chris: 'we are going to do a full site review at some point anyway'). NOT pushed.
 - [ ] After the push: Inventory at ~700 px wide = name readable, buttons one line under it; pricing 'What a scan is' 2x2 on a tablet.
 
