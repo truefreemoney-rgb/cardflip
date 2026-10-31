@@ -1,5 +1,10 @@
 # To test later
 
+## 10-31 12:35PM ET: no "Continue with Google" inside social-app browsers + Instagram Android = phone (tsc clean, test:analytics new case fails before / passes after; NOT pushed; shots signup-safari-phone.jpg + signup-instagram-phone.jpg sent, LOOK-YES PENDING)
+- [x] Why (prod read 10-31, 8 Instagram ad visitors 11-12 ET, 0 sign-ups): the one who got furthest tapped Get Started at 11:14, then Continue with Google at 11:14 and 11:28; rate_limits shows auth:google:start both times and no callback = Google refused inside Instagram (disallowed_useragent), they gave up. 6 of 8 left after the landing page without scrolling (depth 6-8%). 4 of 8 were filed "tablet": deviceClass matched Instagram's second "Android (" after "Mobile".
+- [x] What: GoogleButton hides when inAppBrowserName() names an app (Threads/TikTok/Instagram/Facebook/Pinterest/X/Snapchat/LinkedIn); visit.ts deviceClass checks "mobile" across the whole UA.
+- [ ] After the push: phone, open cardflip.io/signup from an Instagram DM link = no Google button, email form works; Safari = Google button still there. Next IG ad day: page_views device for src=instagram = phone, not tablet.
+
 ## 10-31 12:10PM ET: PR #32 iPhone scanner tests FIXED (local branch pr32-local in ..\cardflip-pr32, commit 5838fa1a on top of the cloud's 3ab50d68; MERGED 11:58am on Chris's "ok" = 138c42e4; full suite 58/58 locally on the merged code; rides his bulk push)
 - [x] Cause (trace of [iphone] slab test, reproduced locally): public/sw.js answers fetches; on WebKit the service worker's request skips page.route, so the mocked /api/vision/scan went to the real keyless server = "Couldn't read this card". Fix: playwright.config use.serviceWorkers "block". Local: iPhone scanner 9/10 pass (the 10th needs the branch's data-testid="reveal-price", absent on a main-checkout server), Inventory 10/10 both phones, full suite 55/58 (2 = that testid, 1 = iPhone tour flake that passes alone).
 - [x] The 2 test.fail delete tests are now plain tests (row × + bulk: Cancel keeps, confirm removes).

@@ -45,6 +45,11 @@ check("junk dropped", [referrerHost("not a url"), referrerHost(""), referrerHost
 check("iphone = phone", deviceClass("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Safari"), "phone");
 check("android phone", deviceClass("Mozilla/5.0 (Linux; Android 14; Pixel 8) Mobile Safari"), "phone");
 check("android tablet", deviceClass("Mozilla/5.0 (Linux; Android 14; SM-X910) Safari"), "tablet");
+check(
+  "Instagram's Android browser = phone (its second 'Android (' sits after 'Mobile', 10-31)",
+  deviceClass("Mozilla/5.0 (Linux; Android 14; SM-S918U Build/UP1A; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/129.0 Mobile Safari/537.36 Instagram 352.0.0.38.100 Android (34/14; 480dpi; 1080x2340; samsung; SM-S918U; dm3q; qcom; en_US; 650120155)"),
+  "phone",
+);
 check("ipad = tablet", deviceClass("Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X)"), "tablet");
 check("windows = desktop", deviceClass("Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome"), "desktop");
 

@@ -19,7 +19,9 @@ export function referrerHost(ref: unknown): string {
 
 /** phone | tablet | desktop from the user agent — the UA itself is not kept. */
 export function deviceClass(ua: string): "phone" | "tablet" | "desktop" {
-  if (/ipad|tablet|(android(?!.*mobile))/i.test(ua)) return "tablet";
+  // Android without "Mobile" anywhere = tablet. Not a per-match lookahead: Instagram's Android browser adds a second
+  // "Android (34/14; ...)" AFTER "Mobile Safari", which matched and filed every one as a tablet (10-31).
+  if (/ipad|tablet/i.test(ua) || (/android/i.test(ua) && !/mobile/i.test(ua))) return "tablet";
   if (/iphone|ipod|android.*mobile|windows phone|mobile/i.test(ua)) return "phone";
   return "desktop";
 }

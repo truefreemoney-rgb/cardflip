@@ -1,9 +1,12 @@
 "use client";
 
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, useSyncExternalStore } from "react";
 import Spinner from "@/components/Spinner";
 import { readReferralCode, readTouch } from "@/components/AttributionCapture";
 import { GOOGLE_FAIL_MESSAGE } from "@/lib/googleAuth";
+import { inAppBrowserName } from "@/lib/client/inAppBrowser";
+
+const noSubscribe = () => () => {};
 
 /**
  * "Continue with Google" at the top of the /login and /signup cards. The layouts (server
@@ -38,7 +41,10 @@ function GoogleG() {
 export default function GoogleButton({ mode }: { mode: "signup" | "login" }) {
   const enabled = useContext(EnabledContext);
   const [busy, setBusy] = useState(false);
-  if (!enabled) return null;
+  // Google refuses sign-in inside an app's own browser (403 disallowed_useragent). 10-31: an Instagram ad visitor
+  // pressed it twice, went to Google both times and never came back; the email form below works there.
+  const inApp = useSyncExternalStore(noSubscribe, () => inAppBrowserName() !== null, () => false);
+  if (!enabled || inApp) return null;
 
   function go() {
     setBusy(true);
