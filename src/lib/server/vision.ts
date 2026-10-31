@@ -130,9 +130,9 @@ export const CARD_READ_SCHEMA = {
         "0 to 1, how confident you are in the name and number specifically.",
     },
     kind: {
-      anyOf: [{ type: "string", enum: ["card", "token", "art"] }, { type: "null" }],
+      anyOf: [{ type: "string", enum: ["card", "token", "art", "sealed"] }, { type: "null" }],
       description:
-        "What kind of object this is. 'token': the type line says Token (e.g. 'Token Creature — Hero'), or the number starts with T. 'art': an Art Series / art card — the illustration fills the whole card with only a name and artist credit along the bottom, no rules text, no mana cost or HP. 'card': a normal playable card. Null if unsure.",
+        "What kind of object this is. 'token': the type line says Token (e.g. 'Token Creature — Hero'), or the number starts with T. 'art': an Art Series / art card — the illustration fills the whole card with only a name and artist credit along the bottom, no rules text, no mana cost or HP. 'sealed': a sealed product, not a single card — a booster pack (foil wrapper), booster box, tin, blister pack, Elite Trainer Box, deck box or other packaged product. A single card in a sleeve, toploader or slab is never 'sealed'. 'card': a normal playable card. Null if unsure.",
     },
     slab: {
       anyOf: [{ type: "boolean" }, { type: "null" }],
@@ -1039,7 +1039,7 @@ async function firstLook(
     setTotal: typeof parsed.setTotal === "number" ? parsed.setTotal : null,
     setCode: parsed.setCode?.trim().toUpperCase() || null,
     artStyle: parsed.artStyle === "standard" || parsed.artStyle === "full-art" ? parsed.artStyle : null,
-    kind: parsed.kind === "token" || parsed.kind === "art" || parsed.kind === "card" ? parsed.kind : null,
+    kind: parsed.kind === "token" || parsed.kind === "art" || parsed.kind === "card" || parsed.kind === "sealed" ? parsed.kind : null,
     // A slab needs its label read (Chris 10-22: binder dividers came up as slabs): a bare "true" with no grader is not one.
     slab: typeof parsed.slab === "boolean" ? parsed.slab && slabGraderOf(parsed.slabGrader) != null : null,
     slabGrader: slabGraderOf(parsed.slabGrader),

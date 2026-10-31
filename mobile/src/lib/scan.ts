@@ -32,7 +32,8 @@ export type { Condition, PokemonCard, ScanQuota, VisionCardRead };
 
 /** Same locks as the website's scanner page. */
 const ART_CARDS_LOCKED = true;
-const SLAB_MESSAGE = "That's a graded slab — graded cards aren't accepted yet. Scan a raw card";
+const SLAB_MESSAGE = "Graded slabs are coming soon. Scan a raw card for now";
+const SEALED_MESSAGE = "Packs and boxes are coming soon. Scan a single card for now";
 const RETAKE_MESSAGE = "Couldn't read this card — retake with the whole card in the guide and no glare";
 
 /** Long edge the photo is shrunk to before upload (the site's lib/client/visionApi.ts: legible, few image tokens). */
@@ -211,6 +212,7 @@ export async function identify(read: VisionCardRead, game: GameId): Promise<Iden
 
   // Reads that must not become a guess (the site's order, word for word).
   const otherGame = read.detectedGame && read.detectedGame !== game && read.detectedGame !== "other" ? read.detectedGame : null;
+  if (read.kind === "sealed") return miss(SEALED_MESSAGE, { language });
   if (otherGame) {
     if (isGameId(otherGame)) return miss(`That looks like a ${GAMES[otherGame].label} card`, { wrongGame: otherGame, language });
     return miss(`That looks like a ${otherGame} card — CardFlip doesn't scan those yet`, { language });

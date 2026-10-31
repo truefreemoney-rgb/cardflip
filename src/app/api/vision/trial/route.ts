@@ -14,7 +14,7 @@ import { dayBudgetSpent } from "@/lib/server/dayBudget";
 import { clientIp } from "@/lib/server/rateLimit";
 import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
 import { DEVICE_COOKIE, DEVICE_COOKIE_MAX_AGE, deviceIdFrom, hashIp, newDeviceId } from "@/lib/server/signupGuard";
-import { recordTrialScan, trialScanUsedUp } from "@/lib/server/trialScan";
+import { forgetTrialScan, recordTrialScan, trialScanUsedUp } from "@/lib/server/trialScan";
 import { readImageInput } from "@/lib/server/imageInput";
 import { BLURRY_MESSAGE, photoSoftness, tooSoft } from "@/lib/server/photoSoftness";
 import { prefetchMatch } from "@/lib/server/scanPrefetch";
@@ -74,7 +74,8 @@ export async function POST(req: Request) {
     const ipHash = hashIp(ip);
     if (await trialScanUsedUp(deviceId, ipHash)) return send({ status: "used", card: null }, 402);
     if (await dayBudgetSpent("trial_scan", TRIAL_DAILY_BUDGET)) return send({ status: "busy", card: null }, 429);
-    await recordTrialScan(deviceId, ipHash);
+    const triedAt = Date.now();
+    await recordTrialScan(deviceId, ipHash, triedAt);
 
     // Only games open to everyone may take over a scan.
     const features: Record<string, boolean> = { pokemon: true, ...(await gameFeaturesFor(null)) };
@@ -91,6 +92,10 @@ export async function POST(req: Request) {
       throw err;
     }
     const { read: card, usage: tokens } = scanned;
+    // A slab or a pack/box gets "coming soon" on the page and does not use up a free try (Chris 10-31).
+    if (card.slab === true || card.kind === "sealed") {
+      await forgetTrialScan(deviceId, triedAt).catch((err) => console.error("trial give-back failed:", err instanceof Error ? err.message : err));
+    }
     // The same compact read as the app's scans (lib/server/scanLogRead.ts): a missed free scan replays with its set code,
     // art and, for Pokémon, the pattern + ball read (10-21: trial rows had name/number/conf only).
     await recordScanUsage(TRIAL_USER, VISION_MODEL, tokens, scanLogRead(card, card.game ?? game, { pre: visionAt - startedAt, ms: Date.now() - visionAt, ...(soft ? { soft: [soft.text, soft.number] as [number, number] } : {}) })).catch((err) => console.error("trial scan_usage write failed:", err instanceof Error ? err.message : err));

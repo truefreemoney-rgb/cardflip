@@ -43,3 +43,8 @@ export async function trialScanUsedUp(deviceId: string, ipHash: string | null, n
 export async function recordTrialScan(deviceId: string, ipHash: string | null, now = Date.now()): Promise<void> {
   await db.prepare("INSERT INTO trial_scans (device_id, ip_hash, at) VALUES (?, ?, ?)").run(deviceId, ipHash, now);
 }
+
+/** Hands one free try back (a slab or a pack/box: "coming soon", not counted, Chris 10-31). `at` = the recordTrialScan time. */
+export async function forgetTrialScan(deviceId: string, at: number): Promise<void> {
+  await db.prepare("DELETE FROM trial_scans WHERE device_id = ? AND at = ?").run(deviceId, at);
+}

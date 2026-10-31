@@ -55,12 +55,12 @@ interface StoredRead {
 /**
  * The model's own verdict that the seller got nothing (10-11, Chris: "forgiving
  * of bad scans, it doesn't deliver a product"): an unreadable photo, a token or
- * art card (refused), a slab (refused), or a card from a game CardFlip does not
- * scan. None of these depend on anything the browser says.
+ * art card (refused), a slab or a pack/box (refused, "coming soon" after PriceCharting, Chris 10-31), or a card
+ * from a game CardFlip does not scan. None of these depend on anything the browser says.
  */
 export function readIsEmpty(read: StoredRead): boolean {
   if (typeof read.conf === "number" && read.conf < UNREADABLE_CONFIDENCE) return true;
-  if (read.kind === "token" || read.kind === "art") return true;
+  if (read.kind === "token" || read.kind === "art" || read.kind === "sealed") return true;
   if (read.slab === true) return true;
   if (read.seen && read.seen !== "other" && read.game && read.seen !== read.game) return true;
   return false;

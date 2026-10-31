@@ -43,13 +43,14 @@ export function trialPrice(card: PokemonCard): number | null {
 
 export async function matchTrialRead(read: VisionCardRead, game: GameId): Promise<TrialMatch> {
   const g = read.game ?? game;
+  if (read.kind === "sealed") return { card: null, error: "Packs and boxes are coming soon. Try a single card" };
   if (read.detectedGame && read.detectedGame !== g && read.detectedGame !== "other" && !read.switchedFrom) {
     return { card: null, error: "That card is from a game CardFlip doesn't scan yet" };
   }
   if (typeof read.confidence === "number" && read.confidence < UNREADABLE_CONFIDENCE) {
     return { card: null, error: "Couldn't read that one. Fill the frame with the card, no glare" };
   }
-  if (read.slab && GRADED_LOCKED) return { card: null, error: "Graded slabs aren't scanned yet. Try a raw card" };
+  if (read.slab && GRADED_LOCKED) return { card: null, error: "Graded slabs are coming soon. Try a raw card" };
   if (g === "mtg" && (read.kind === "token" || read.kind === "art")) {
     return { card: null, error: "Tokens and art cards aren't scanned. Try a playable card" };
   }

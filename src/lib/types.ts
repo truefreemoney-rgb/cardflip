@@ -181,8 +181,8 @@ export interface VisionCardRead {
   surface?: WearLevel | null;
   /** 0-1. Below LOW_CONFIDENCE the scanner treats this as a guess. */
   confidence: number;
-  /** MTG: token / Art Series card / normal card, or null when unsure. */
-  kind?: "card" | "token" | "art" | null;
+  /** MTG: token / Art Series card / normal card, or null when unsure. Any game: "sealed" = a pack, box or tin (refused, 10-31). */
+  kind?: "card" | "token" | "art" | "sealed" | null;
   /** The card is sealed in a graded slab (PSA/CGC/BGS holder). Null when unsure. */
   slab?: boolean | null;
   /** The grading company read off the slab label (PSA, CGC, BGS, SGC, ACE, TAG); slab is only true with one (10-22). */

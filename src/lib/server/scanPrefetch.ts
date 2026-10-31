@@ -26,7 +26,7 @@ export interface ScanPrefetch {
 function worthSearching(read: VisionCardRead, game: GameId): boolean {
   if (!read.name?.trim()) return false;
   if (typeof read.confidence === "number" && read.confidence < UNREADABLE_CONFIDENCE && read.kind !== "art") return false;
-  if (read.slab === true) return false;
+  if (read.slab === true || read.kind === "sealed") return false;
   if (read.detectedGame && read.detectedGame !== game && read.detectedGame !== "other") return false;
   if (game === "mtg" && (read.kind === "token" || read.kind === "art")) return false;
   return true;

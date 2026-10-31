@@ -207,8 +207,9 @@ async function saveChange(id: string, patch: Parameters<typeof updateServerCard>
 }
 /** Art Series cards are refused at the scan (Chris 09-10), like tokens. */
 const ART_CARDS_LOCKED = true;
-/** Graded slabs refused at the scan while lib/grading GRADED_LOCKED is on (09-25). */
-const SLAB_MESSAGE = "That's a graded slab — graded cards aren't accepted yet. Scan a raw card";
+/** Graded slabs and packs/boxes refused at the scan, not counted (09-25; "coming soon" until PriceCharting, Chris 10-31). */
+const SLAB_MESSAGE = "Graded slabs are coming soon. Scan a raw card for now";
+const SEALED_MESSAGE = "Packs and boxes are coming soon. Scan a single card for now";
 
 /* Reopen tracker: the ledger fetch and catalog match run in parallel and
    usually land inside two seconds; the last step holds until they do. */
@@ -676,7 +677,12 @@ export default function AppPage() {
             // confidence low even when the name is plain — the floor applies
             // to real cards only.
             const otherGame = read.detectedGame && read.detectedGame !== next.game && read.detectedGame !== "other" ? read.detectedGame : null;
-            if (otherGame) {
+            if (read.kind === "sealed") {
+              // A pack, box or tin: first, before the low-confidence retake line (a wrapper never reads as a sure card).
+              readError = SEALED_MESSAGE;
+              nameCandidates = [];
+              printed = null;
+            } else if (otherGame) {
               // Another game's card is never forced onto this game's catalogue. One we scan stays on the list with
               // its photo and a "Switch to <game>" button (wrongGame; Chris 10-20: "keep the scan and ask the user
               // to switch"); this read is given back as before (10-12: not counted). A game we don't scan says so.

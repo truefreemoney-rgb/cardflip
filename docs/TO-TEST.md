@@ -1,5 +1,9 @@
 # To test later
 
+## 10-31 10:40AM ET: slabs + packs/boxes "coming soon", scan not counted (site /app, free /scan, app needs next build)
+- [ ] After the push, on the phone: scan a graded slab = "Graded slabs are coming soon. Scan a raw card for now", scan counter unchanged; scan a booster pack = "Packs and boxes are coming soon. Scan a single card for now", counter unchanged; a normal raw card still scans and saves.
+- [ ] Free /scan page (logged out): a slab or pack shows the coming-soon line and the free tries left do NOT drop.
+
 ## 10-30 11:04PM ET: #3 YGO no-sale eBay check, Crocodile CRC1-EN001 (ygo-717402) written to prod price_checked $90.02 (n=7 eBay BIN, net). Live already (data, no push needed)
 - [ ] By ~11-01 evening (card pages cache 2 days): cardflip.io card page for Crocodile CRC1-EN001 shows $90.02 with the eBay-checked note, not blank and not $155.
 
