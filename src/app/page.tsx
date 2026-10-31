@@ -19,7 +19,10 @@ import { GATED_GAMES, gamePublic, magicPublic } from "@/lib/server/settings";
 import { getGameStageCards, type StageCard } from "@/lib/server/stageCards";
 import { wallCards } from "@/lib/server/wallCards";
 import { GAMES } from "@/lib/games";
-import { gamePath, gameTitle } from "@/lib/cardPages";
+import { cardPath, gamePath, gameTitle } from "@/lib/cardPages";
+import { gameTop100, type Tile } from "@/lib/server/cardPages";
+import ArtImg from "@/components/ArtImg";
+import { showsInLists } from "@/components/CardPagesUi";
 import { hasMovers } from "@/lib/server/moversPage";
 import { catalogSizeLabel } from "@/lib/server/catalogStats";
 import { getPriceHistory } from "@/lib/server/priceHistory";
@@ -171,7 +174,7 @@ export default async function Home() {
   // "include the new games"). Admin-only games stay off the landing page.
   const gated = await Promise.all(GATED_GAMES.map(async (g) => ((await gamePublic(g)) ? g : null)));
   const games: GameId[] = ["pokemon", ...(["mtg", "lorcana", "onepiece", "yugioh"] as const).filter((g) => gated.includes(g))];
-  const [featuredLive, showcaseMirror, catalogLabel, stages, stats] = await Promise.all([
+  const [featuredLive, showcaseMirror, catalogLabel, stages, stats, valuable] = await Promise.all([
     getFeaturedCard().then(async (c) => (c ? (await withOwnPictures([c]))[0] : null)),
     // The wall recipe (lib/wallMix.ts): 4 Pokémon, 2 Magic, 2 other games, each printing picked for its history.
     wallCards(games),
@@ -180,6 +183,9 @@ export default async function Home() {
     // mirror has nothing to show is skipped (data honesty, DESIGN.md).
     Promise.all(games.map(async (g) => ({ game: g, card: (await getGameStageCards(g).catch(() => ({ cards: [] as StageCard[] }))).cards.find((c) => c.lead) ?? null }))),
     liveStats(),
+    // The dearest card per game, from the daily Most Valuable list (10-30, SEO internal links step 3: the
+    // homepage linked no card page). A game whose list fails or is empty is left out.
+    Promise.all(games.map(async (g) => (await gameTop100(g).catch(() => [] as Tile[])).slice(0, 1).map((t) => ({ game: g, tile: t })))).then((l) => l.flat()),
   ]);
   const gameCards = stages.filter((s): s is { game: GameId; card: StageCard } => !!s.card);
   // No mirrors here (fresh dev DB): the old upstream showcase, so the page still has a wall to show.
@@ -573,6 +579,29 @@ export default async function Home() {
                 </Link>
               ))}
             </div>
+            {valuable.length > 0 && (
+              <>
+                <p className="mt-6 text-[11px] font-semibold uppercase tracking-[0.15em] text-zinc-500">Most valuable today</p>
+                <ul className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {valuable.map(({ game: g, tile: t }) => (
+                    <li key={`${g}-${t.key}`}>
+                      <Link href={cardPath(g, t.setSlug, t.name, t.key)} className="flex items-center gap-3 rounded-xl border border-edge bg-surface-2 p-2 pr-3 transition hover:border-edge-strong">
+                        <div className="aspect-[5/7] w-10 shrink-0 overflow-hidden rounded bg-black/30">
+                          {showsInLists(t.tile || t.image) && <ArtImg src={t.tile || t.image} alt="" loading="lazy" width={80} height={112} className="h-full w-full object-cover" />}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-white">{t.name}</p>
+                          <p className="truncate text-xs text-zinc-500">
+                            {GAMES[g].label} · {t.setName}
+                          </p>
+                        </div>
+                        {t.price != null && t.price > 0 && <span className="shrink-0 font-display text-base font-semibold tabular-nums text-emerald-300">{formatMoney(t.price)}</span>}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
             <p className="mt-4 text-sm text-zinc-400">
               <Link href="/cards" className="font-medium text-brand-300 transition hover:text-brand-200">
                 All Card Prices

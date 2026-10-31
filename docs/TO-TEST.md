@@ -1,5 +1,9 @@
 # To test later
 
+## 10-30 10:05PM ET: homepage "Most valuable today" = 5 card-page links (SEO internal links step 3; tsc + eslint clean; local 375 wide: 5 rows, no sideways scroll; LOOK-YES OPEN on docs/shots/home-most-valuable-phone.jpg; NOT pushed)
+- [x] What: src/app/page.tsx Card prices section lists each public game's #1 from gameTop100 (the daily Most Valuable list, same guard), linking its card page.
+- [ ] After the push: homepage shows 5 rows with prices that match each game's /most-valuable #1; each row opens a real card page (no 404); Search Console "Discovered - not indexed" (53,078 on 10-30) starts dropping over the next 2-3 weeks.
+
 ## 10-30 9:50PM ET: #18 envelope cap $100 -> $50 (Chris "move to $50"; fees.ts ENVELOPE_MAX_USD; test:pricing, test:profit, test:ebaysell all pass, tsc clean; NOT pushed, his bulk push)
 - [x] What: over $50 the envelope pick is refused at publish ("Over $50 eBay needs a tracked mailer — pick Tracked mailer under Shipping") and the card editor shows "Over $50, use a tracked mailer"; editor note + sales report read "stamps up to $50". Cards already live on the "CardFlip letter" policy are untouched. Side effect: the sales report now counts a past $50-$100 envelope sale at the $6.07 mailer, not $1.31 stamps.
 - [ ] After the push: a card priced $50-$100 with Envelope picked shows the over-cap line in the editor; Tracked mailer lists fine.
