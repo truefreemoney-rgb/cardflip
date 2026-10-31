@@ -99,6 +99,16 @@ export default async function ScanLandingPage({ searchParams }: { searchParams: 
             </>
           }
         />
+        {/* Review 10-19 marketing #15: the ad landing page takes a photo with no account and had no legal links. */}
+        <p className="flex items-center gap-3 text-xs text-zinc-400">
+          <Link href="/terms" className="inline-flex min-h-11 items-center transition hover:text-zinc-200">
+            Terms
+          </Link>
+          <span aria-hidden>·</span>
+          <Link href="/privacy" className="inline-flex min-h-11 items-center transition hover:text-zinc-200">
+            Privacy
+          </Link>
+        </p>
       </main>
     </div>
   );
