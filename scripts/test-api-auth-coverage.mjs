@@ -49,6 +49,7 @@ const ALLOWLIST = {
   "/waitlist": "public signup form: honeypot plus IP rate limit",
   "/price-report": "card page Price looks wrong? vote: public like the page, IP rate limited, path shape validated, one vote per visitor",
   "/digest/unsubscribe": "emailed link: the per-user digest token is the proof; GET only shows the button (A-H #24), POST unsubscribes",
+  "/iap/apple/notify": "App Store Server Notifications: Apple's signed payload is the credential (handleNotification -> verifyNotification checks the JWS chain against Apple's root certs + bundle id); bad signature = 400",
 };
 
 let failures = 0;
