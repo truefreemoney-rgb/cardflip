@@ -1,5 +1,14 @@
 # To test later
 
+## 10-31 2:32PM ET: Apple in-app purchase (20e2bdd1 PUSHED; app build EAS 5f141965 running)
+- [x] Why: App Review 10-31 + Chris's recording showed Stripe checkout INSIDE the app; Chris 1:55pm chose Apple IAP in the app, Stripe stays on the website, buttons stay.
+- [x] ASC 2:15-2:30pm: io.cardflip.app.booster100 consumable $4.99; group "CardFlip Plans" (22532532): io.cardflip.app.pro.monthly $24.99 (level 1) + io.cardflip.app.standard.monthly $9.99, 1 month, single seat, App Store only; display names + review notes; server notification URL (prod + sandbox) https://cardflip.io/api/iap/apple/notify. Paid Apps agreement + bank PROCESSING (up to 24 h), W-9 Active, Small Business Program submitted.
+- [x] Local: scripts/test-apple-iap.mjs 13/13; tsc + eslint site + mobile clean.
+- [ ] CI + smoke green on 20e2bdd1; live POST /api/iap/apple/notify with {} = 400 (route live, not 404).
+- [ ] Build 4 to TestFlight (eas submit --latest); Chris sandbox buys on his phone: Booster -> header +100; CardFlip -> Plan row "CardFlip"; account page buttons open Apple's sheet, never Stripe. Screenshot the Apple sheet = each product's Review screenshot in ASC.
+- [ ] Re-record (launch, free scan, sign up, sign out/in, Apple purchase sheet in sandbox, delete), notes from docs/APP-REVIEW-REPLY-2026-10-31.md, attach the 3 products to version 1.0, build 4, resubmit.
+- [ ] After first real renewal (sandbox renews every 5 min for a monthly): notify log "DID_RENEW: credited".
+
 ## 10-31 1:45PM ET: Sign in with Apple token revoke on account delete (Apple's deletion rule; NOT pushed, needs app 1.0.1)
 - [x] Why: build 1.0.0 (3) review came back 2.1 Information Needed (docs/APP-REVIEW-REPLY-2026-10-31.md); while checking deletion for the reply I found deleting an Apple sign-in account never revoked the Apple token.
 - [x] Built: app sends authorizationCode (mobile/src/lib/auth.tsx); /api/auth/apple trades it for a refresh token after the response (users.apple_refresh_token, sealed); DELETE /api/account revokes it first, best effort. Inert until APPLE_TEAM_ID + APPLE_SIWA_KEY_ID + APPLE_SIWA_PRIVATE_KEY are set in Vercel. scripts/test-apple-revoke.mjs 7/7, tsc site + mobile clean.
