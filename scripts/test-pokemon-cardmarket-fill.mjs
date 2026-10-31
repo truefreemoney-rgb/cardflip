@@ -36,6 +36,9 @@ assert.deepEqual(pts, [{ id: "b", usd: 2.2, foil: null, source: "cardmarket-conv
 const plan = planTcgRefresh("yugioh", pts, new Map([["b", { usd: null, foil: null }]]), new Map(), "2026-10-06");
 assert.equal(plan.upserts[0].source, "cardmarket-converted");
 assert.deepEqual(plan.columns, [{ id: "b", usd: 2.2, foil: null }]);
+// A -1st twin sharing its unstamped row's Cardmarket product is left blank (all-editions figure); its own product still fills.
+const first = cardmarketPoints([{ id: "ygo-1", usd: 3, foil: null }, { id: "ygo-1-1st", usd: null, foil: null, clear: true }], { "ygo-1": 10, "ygo-1-1st": 10, "ygo-2-1st": 11 }, guide, 1);
+assert.deepEqual(first, [{ id: "ygo-2-1st", usd: 5, foil: null, source: "cardmarket-converted" }]);
 
 console.log("pokemon cardmarket fill: all assertions passed");
 process.exit(0);

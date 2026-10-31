@@ -1,5 +1,9 @@
 # To test later
 
+## 10-31 11:07AM ET: Yu-Gi-Oh! 1st Edition rows no longer take Cardmarket's all-editions price (test:pkcardmarket + test:tcgprices pass, tsc + eslint clean; NOT pushed, his bulk push)
+- [x] What: cardmarketPoints skips a "-1st" id mapped to the same Cardmarket product as its unstamped twin (6,218 of 17,806 -1st map ids share one). Found on the #3 eBay checks: Guardian Eatos SOVR-EN097 1st showed $33.07 (+ foil $22.75) from cardmarket-converted, under its Unlimited $59.90; TCGplayer 1st Edition = asking only ($525 mid, no market), eBay 1st raw = one $290 auction. Prod today: only that 1 row is on the converted source; no user owns it.
+- [ ] After the push + the next nightly Yu-Gi-Oh! price run: node scratchpad-style SELECT on ygo-33734-1st = price_usd null (blank, the asking-only >$20 rule), ygo-33734 still $59.90; no other -1st row newly blank that had a TCGplayer market.
+
 ## 10-31 11:05AM ET: app scan = one trip + 30 s clock + big-print clues (mobile/src/lib/scan.ts; tsc + eslint clean; APP ONLY, NEXT BUILD; not committed to a push yet)
 - [x] What: readPhoto/readPhotoGuest keep the scan reply's prefetch {params, cards}; identify() uses those cards when buildSearchParams(...) for the candidate equals params byte-for-byte (the site's page.tsx rule), else searches as before. The printed key now comes from lib/searchParams.ts printedKeyFromRead (was an inline copy without hp/attacks/dex/reg, so app scans never sent the 10-30 big-print clues). /api/vision/scan clock 20 s -> 30 s (site d507a9be).
 - [ ] Next build, Chris's iPhone: 3 scans = each card shows right after the read (no second wait); cover the bottom number with a finger on a Pokémon card = right card or its same-set twin; Vercel log for those scans has no /api/search-card call right after /api/vision/scan.

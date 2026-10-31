@@ -29,6 +29,9 @@ export function cardmarketPoints(
   const out: TcgPoint[] = [];
   for (const [id, product] of Object.entries(map)) {
     if (priced.has(id)) continue;
+    // A "-1st" twin mapped to the same Cardmarket product as its unstamped row gets the all-editions figure, not a
+    // 1st Edition price (10-31: Guardian Eatos SOVR-EN097 1st $33.07, under its Unlimited $59.90, 1st raw sells ~$290).
+    if (id.endsWith("-1st") && map[id.slice(0, -4)] === product) continue;
     const { usd, foil } = guideUsd(guide.get(product), usdPerEur);
     if (usd != null || foil != null) out.push({ id, usd, foil, source: CONVERTED_SOURCE });
   }
