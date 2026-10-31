@@ -638,6 +638,8 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
           );
           video.srcObject = stream;
           await video.play();
+          // Closed (or re-run) while play() was pending: this run is over (review 10-19 #10).
+          if (cancelled) return;
         }
         setReady(true);
         onCameraRef.current?.("live");
@@ -657,6 +659,8 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
           track.applyConstraints({ advanced: [{ focusMode: "continuous" } as MediaTrackConstraintSet] }).catch(() => {});
         }
       } catch (err) {
+        // A stale run (closed, or replaced by a newer one) says nothing: its play() aborting is not the camera failing.
+        if (cancelled) return;
         // NotAllowedError = the user (or a site setting) blocked the camera —
         // "allow it in the prompt" is wrong advice there, the prompt won't
         // reappear until the site permission is reset.
