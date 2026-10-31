@@ -1,5 +1,10 @@
 # To test later
 
+## 10-31 12:10PM ET: PR #32 iPhone scanner tests FIXED (local branch pr32-local in ..\cardflip-pr32, commit 5838fa1a on top of the cloud's 3ab50d68; NOT pushed, needs Chris's yes to merge into main for his bulk push)
+- [x] Cause (trace of [iphone] slab test, reproduced locally): public/sw.js answers fetches; on WebKit the service worker's request skips page.route, so the mocked /api/vision/scan went to the real keyless server = "Couldn't read this card". Fix: playwright.config use.serviceWorkers "block". Local: iPhone scanner 9/10 pass (the 10th needs the branch's data-testid="reveal-price", absent on a main-checkout server), Inventory 10/10 both phones, full suite 55/58 (2 = that testid, 1 = iPhone tour flake that passes alone).
+- [x] The 2 test.fail delete tests are now plain tests (row × + bulk: Cancel keeps, confirm removes).
+- [ ] After the merge + push: CI e2e green on both phones (all 60).
+
 ## 10-31 11:52AM ET: 48 German Advent Calendar Yu-Gi-Oh! rows REMOVED (Chris "c. yes"; English-only catalog)
 - [x] What: scripts/_ygo-german-remove.mjs --apply: prod + local tcg_cards AC11/AC14 "-DE" = 48 rows, price_series 47 rows; 0 user cards on them; backup data/ygo-german-removed-2026-10-31.json. sync-yugioh.mjs skips "-DE"/"-GE" numbers and "(German)" names so they never come back. AC18/AC19 (English) kept. 11:45am, Chris "yes remove the spanish ones too": TFK-SP001 Sinister Serpent + TFK-SP002 Harpie's Feather Duster (Spanish-language promos per Yugipedia; names carried no "(Spanish)") removed by scripts/_ygo-spanish-remove.mjs (+ 4 price_series, 1 ebay_asks, 2 cardmarket_map; 0 user cards; backup data/ygo-spanish-removed-2026-10-31.json); the sync skips "-SP" too. No other non-English (-FR/-IT/-PT/-SP/-DE) Yu-Gi-Oh! rows left on prod.
 - [ ] Tomorrow: cardflip.io search "AC14-DE003" / "Gerumpelsynchronisierer" finds nothing; Yu-Gi-Oh! sitemap has no ygo-2518xx / the 24 ygo-4967xx ids after its cache turns over.
