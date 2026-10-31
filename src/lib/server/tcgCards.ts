@@ -7,7 +7,7 @@ import { yugiohKey } from "@/lib/yugioh";
 import { isOnePieceStampedTwin, ONE_PIECE_DON_SET, ONE_PIECE_PROMO_SET } from "@/lib/onepiece";
 import type { SetInfo } from "@/lib/grading";
 import { cachedList, SET_LIST_TTL_MS } from "@/lib/server/listCache";
-import { LOOSE_MIN, looseLike, squash, squashSql } from "@/lib/server/looseName";
+import { LOOSE_MIN, likeNeedle, looseLike, squash, squashSql } from "@/lib/server/looseName";
 import { toPics } from "@/lib/pics";
 
 /**
@@ -295,8 +295,8 @@ export async function searchTcgCardsLocal(
       // Mr.5), version line included; the same one walk either way.
       const squashed = typed && loose.length >= 3 ? ` OR ${squashSql("name || ' ' || subtitle")} LIKE ?` : "";
       const wide = (await db
-        .prepare(`SELECT ${COLUMNS} FROM tcg_cards WHERE game = ? AND (${FOLDED} LIKE ?${squashed}) ORDER BY set_release_date DESC LIMIT 400`)
-        .all(...(squashed ? [game, `%${needle}%`, `%${looseLike(loose)}%`] : [game, `%${needle}%`]))) as unknown as TcgRow[];
+        .prepare(`SELECT ${COLUMNS} FROM tcg_cards WHERE game = ? AND (${FOLDED} LIKE ? ESCAPE '\\'${squashed}) ORDER BY set_release_date DESC LIMIT 400`)
+        .all(...(squashed ? [game, `%${likeNeedle(needle)}%`, `%${looseLike(loose)}%`] : [game, `%${likeNeedle(needle)}%`]))) as unknown as TcgRow[];
       const have = new Set(rows.map((r) => r.id));
       // (looseLike's pattern is wider than the name: keep what really holds it.)
       const holds = (r: TcgRow) => !squashed || fold(r.name).includes(needle) || squash(`${r.name} ${r.subtitle}`).includes(loose);
@@ -537,8 +537,8 @@ async function searchYugioh(
     // kamakiri 1" for Flying Kamakiri #1); the same one walk either way.
     const squashed = typed && loose.length >= 3 ? ` OR ${squashSql("name")} LIKE ?` : "";
     const wide = (await db
-      .prepare(`SELECT ${COLUMNS} FROM tcg_cards WHERE game = 'yugioh' AND (${FOLDED} LIKE ?${squashed}) ORDER BY set_release_date DESC LIMIT 200`)
-      .all(...(squashed ? [`%${sqlFold(rawName)}%`, `%${looseLike(loose)}%`] : [`%${sqlFold(rawName)}%`]))) as unknown as TcgRow[];
+      .prepare(`SELECT ${COLUMNS} FROM tcg_cards WHERE game = 'yugioh' AND (${FOLDED} LIKE ? ESCAPE '\\'${squashed}) ORDER BY set_release_date DESC LIMIT 200`)
+      .all(...(squashed ? [`%${likeNeedle(sqlFold(rawName))}%`, `%${looseLike(loose)}%`] : [`%${likeNeedle(sqlFold(rawName))}%`]))) as unknown as TcgRow[];
     const have = new Set(rows.map((r) => r.id));
     // (looseLike's pattern is wider than the name: keep what really holds it.)
     const holds = (r: TcgRow) => !squashed || fold(r.name).includes(needle) || squash(r.name).includes(loose);

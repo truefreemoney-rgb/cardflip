@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminOwner, AuthError } from "@/lib/server/auth";
-import { deleteUser, findUserById } from "@/lib/server/users";
+import { OWNER_EMAIL, deleteUser, findUserById } from "@/lib/server/users";
 import { cancelAllSubscriptions } from "@/lib/server/stripe";
 import { adminAuthResponse } from "@/lib/server/adminGate";
 
@@ -15,6 +15,8 @@ export async function DELETE(_req: Request, { params }: RouteParams) {
     const { id } = await params;
     const user = await findUserById(id);
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+    // The owner's own account is never deleted from the console (review 10-19 admin #31: only a client confirm stood guard).
+    if (user.email.toLowerCase() === OWNER_EMAIL) return NextResponse.json({ error: "The owner account can't be deleted here" }, { status: 400 });
     // A deleted account cannot cancel its own plan: stop the billing first, or refuse.
     try {
       await cancelAllSubscriptions(user.stripeCustomerId, user.stripeSubscriptionId);
