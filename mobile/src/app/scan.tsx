@@ -11,6 +11,7 @@ import { openSitePage } from "~/components/AppHeader";
 import { emitScanResult } from "~/lib/scanBus";
 import { useAuth } from "~/lib/auth";
 import { setGuestScan } from "~/lib/guestScan";
+import { fxCapture, fxMatch, fxMiss, loadScanFx, saveSoundOn } from "~/lib/scanFx";
 import { GAMES, PRICE_FLAG_NOTE, fetchCardById, pictureUrl, publicGames, searchTyped, type GameId, type PokemonCard } from "~/lib/catalog";
 import {
   CONDITIONS,
@@ -684,6 +685,15 @@ export default function Scan() {
   /** The lens (expo-camera selectedLens): undefined = the phone's combined lens, which hands close-ups to the ultra-wide at a 2x crop; the plain wide is what the website's browser camera uses. */
   const [lens, setLens] = useState<string>(DUAL_WIDE_LENS);
   const [tipsOn, setTipsOn] = useState(true);
+  /** "Reveal sounds" in ⋯ (the site's switch, #17): on unless turned off on this phone. */
+  const [soundOn, setSoundOn] = useState(true);
+  useEffect(() => {
+    let live = true;
+    loadScanFx().then((on) => live && setSoundOn(on));
+    return () => {
+      live = false;
+    };
+  }, []);
   const [flash, setFlash] = useState(false);
   /** Tap to focus (the site's tapToFocus): a one-shot refocus, the ring at the tap, then back to following the card. */
   const [focusOnce, setFocusOnce] = useState(false);
@@ -740,11 +750,13 @@ export default function Scan() {
       if (outcome.status !== "done" || !outcome.read) {
         const quota = outcome.status === "quota";
         if (quota && outcome.usage?.remaining !== 0) void refresh();
+        if (!quota) fxMiss();
         setPhase({ kind: "miss", photo, message: readFailureMessage(outcome), wrongGame: null, read: null, scanId: null, quota });
         return;
       }
       const found = await identify(outcome.read, as);
       if (!found.card) {
+        fxMiss();
         setPhase({ kind: "miss", photo, message: found.error ?? "No match — line the card up in the guide and try again", wrongGame: found.wrongGame, read: outcome.read, scanId: outcome.scanId, quota: false });
         // Nothing found = not a scan (Chris 10-11). A wrong-game read with a switch on offer keeps its scan: the
         // switch reuses it; "Scan again" from there gives it back (below).
@@ -754,6 +766,7 @@ export default function Scan() {
       const condition: Condition = startCondition;
       const card = found.card;
       setPhase({ kind: "result", photo, found, card, condition, variant: found.variant, savedId: null, saving: true });
+      fxMatch(revealTier(moneyValue(revealPrice(card, condition, found.variant).text)));
       setTally((t) => ({ count: t.count + 1, value: t.value + (moneyValue(revealPrice(card, condition, found.variant).text) ?? 0) }));
       if (guest) {
         // The free first scan: the card waits for the sign-up and the result is its own full page; the camera closes
@@ -779,6 +792,7 @@ export default function Scan() {
     try {
       const shot = await camera.current.takePictureAsync({ quality: 0.92 });
       if (!shot?.uri) throw new Error("no frame");
+      fxCapture();
       const crop = cropFor(view, { w: shot.width, h: shot.height }, guideBox(view.w, view.h));
       const maxEdge = maxEdgeFor(game);
       const actions = [{ crop }, ...(crop.height > maxEdge ? [{ resize: { height: maxEdge } }] : [])];
@@ -1198,7 +1212,17 @@ export default function Scan() {
             <Text style={styles.optNote}>The photo can still change it, and you can change any card after.</Text>
             <Heading>Camera</Heading>
             {lightShown ? <Row label="Light" hint="For a dark room. Glare hurts more than dark on foils." on={torch} onChange={() => setTorch((t) => !t)} /> : null}
-            <Row label="Tips under the camera" hint="Lay It Flat · No Glare · Sleeves OK, No Slabs" on={tipsOn} onChange={() => setTipsOn((t) => !t)} last />
+            <Row label="Tips under the camera" hint="Lay It Flat · No Glare · Sleeves OK, No Slabs" on={tipsOn} onChange={() => setTipsOn((t) => !t)} />
+            <Row
+              label="Reveal sounds"
+              hint="A tick on capture, a chime when the card is found"
+              on={soundOn}
+              onChange={() => {
+                void saveSoundOn(!soundOn);
+                setSoundOn(!soundOn);
+              }}
+              last
+            />
             <Heading>Share</Heading>
             <Row label="Share CardFlip" hint="Send a friend the link" last>
               <Pressable onPress={share} style={({ pressed }) => [styles.optBtn, pressed && { opacity: 0.85 }]}>

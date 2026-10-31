@@ -50,7 +50,15 @@
           ]
         }
       ],
-      "expo-app-intents"
+      "expo-app-intents",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "enableBackgroundPlayback": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
