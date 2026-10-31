@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { dismissTour, signup } from "./helpers";
 
 /**
  * The phone pass, automated (mobile QA 09-06/07). Each check here is one that
@@ -6,9 +7,6 @@ import { test, expect, type Page } from "@playwright/test";
  * 14px inputs that made iOS zoom, the camera error block hidden behind the
  * capture bar, the tour that has to run page to page and stamp once.
  */
-
-const PASSWORD = "hunter22hunter";
-const uniq = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 
 /** Layout rules every screen must hold at 375px. */
 async function expectMobileClean(page: Page, label: string) {
@@ -23,28 +21,6 @@ async function expectMobileClean(page: Page, label: string) {
   });
   expect(report.scrollWidth, `${label}: page scrolls sideways`).toBeLessThanOrEqual(report.clientWidth);
   expect(report.zoomers, `${label}: inputs under 16px (iOS zooms on focus)`).toEqual([]);
-}
-
-async function dismissTour(page: Page) {
-  const close = page.getByRole("button", { name: "Close the tutorial" });
-  if (await close.isVisible().catch(() => false)) await close.click();
-}
-
-/**
- * A fresh account. Unless a test is ABOUT the tour, it is stamped as seen
- * here: the overlay mounts after the session loads, so a one-shot "is the
- * close button visible?" could miss it and the next click landed on the
- * overlay instead (CI 09-08: "Scan a Card" click timed out, twice).
- */
-async function signup(page: Page, opts: { tour?: boolean } = {}) {
-  const email = `e2e-${uniq()}@example.com`;
-  const res = await page.request.post("/api/auth/signup", { data: { name: "E2E Phone", email, password: PASSWORD } });
-  expect(res.status(), "signup").toBe(201);
-  if (!opts.tour) {
-    const seen = await page.request.post("/api/account/tour");
-    expect(seen.status(), "stamp the tour as seen").toBe(200);
-  }
-  return email;
 }
 
 test.describe("anonymous", () => {
