@@ -2,7 +2,7 @@
 
 import { useBodyScrollLock } from "@/lib/client/useBodyScrollLock";
 import { useBackToClose } from "@/lib/client/useBackToClose";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import CardImage from "@/components/CardImage";
@@ -188,6 +188,36 @@ function watcherOfferNowPatch() {
 /** "Yes, this is my card": the same checkpoint the listing page writes. */
 function verifiedNowPatch() {
   return { verifiedAt: Date.now(), matchDoubt: null };
+}
+
+/**
+ * The frame of a small "Are you sure?" pop-up, with the same manners as the sheets below (review 10-19 #28):
+ * Escape, the phone's back button and a tap outside close it, focus stays inside, the page behind doesn't scroll.
+ */
+function ConfirmShell({ id, label, onClose, children }: { id: string; label: string; onClose: () => void; children: ReactNode }) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(panelRef);
+  useBodyScrollLock();
+  useBackToClose(id, onClose);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/80 p-0 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={label}
+        onClick={(e) => e.stopPropagation()}
+        className="animate-fade-up w-full max-w-md rounded-t-2xl border border-edge bg-surface-1 p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl shadow-black/60 sm:rounded-2xl sm:p-6"
+      >
+        {children}
+      </div>
+    </div>
+  );
 }
 
 /**
@@ -1501,13 +1531,11 @@ export default function CollectionPage() {
       toast("Enter what it sold for");
       return;
     }
-    if (card.status === "sold") {
-      void applyPatch(card, { soldPrice: price });
-    } else {
-      void applyPatch(card, soldNowPatch(price));
-    }
     setSoldForm(null);
-    toast(`${card.cardName} sold — ${formatMoney(price)}`);
+    // The success line waits for the save (10-30): a failed save used to show "sold" and then the error.
+    void applyPatch(card, card.status === "sold" ? { soldPrice: price } : soldNowPatch(price)).then((ok) => {
+      if (ok) toast(`${card.cardName} sold — ${formatMoney(price)}`);
+    });
   }
 
   async function openOfferPanel() {
@@ -3651,14 +3679,7 @@ export default function CollectionPage() {
         );
       })()}
       {bulkSoldAsk && (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/80 p-0 backdrop-blur-sm sm:items-center sm:p-4" onClick={() => setBulkSoldAsk(null)}>
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Mark selected cards as sold"
-            onClick={(e) => e.stopPropagation()}
-            className="animate-fade-up w-full max-w-md rounded-t-2xl border border-edge bg-surface-1 p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl shadow-black/60 sm:rounded-2xl sm:p-6"
-          >
+        <ConfirmShell id="bulk-sold" label="Mark selected cards as sold" onClose={() => setBulkSoldAsk(null)}>
             <p className="font-display text-lg font-semibold leading-snug text-white">Are you sure?</p>
             <p className="mt-2 text-sm text-zinc-300">
               This marks {bulkSoldAsk.length} {bulkSoldAsk.length === 1 ? "card" : "cards"} sold at {bulkSoldAsk.length === 1 ? "its" : "their"} asking price and ends the eBay {bulkSoldAsk.length === 1 ? "listing" : "listings"} first. It can&apos;t be undone.
@@ -3705,8 +3726,7 @@ export default function CollectionPage() {
                 Yes, Mark as Sold
               </button>
             </div>
-          </div>
-        </div>
+        </ConfirmShell>
       )}
       {priceSheet && (() => {
         const card = cards.find((c) => c.id === priceSheet);

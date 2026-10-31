@@ -1,5 +1,10 @@
 # To test later
 
+## 10-30 10:15PM ET: polish backlog J, Inventory (review 10-19 "App inner pages": 34 of 40 already fixed, verified in code; 2 invisible fixes here; tsc + eslint clean; NOT pushed)
+- [x] What: (a) bulk "Are you sure?" (Mark as Sold on selected cards) now closes on Escape / phone back / tap outside, keeps focus inside, page behind locked (ConfirmShell, same look); (b) the single Mark sold "sold — $X" line waits for the save, so a failed save shows only the error.
+- [ ] After the push, phone: Inventory > select 2 cards > Mark as Sold > phone Back = the box closes and you stay on Inventory (not the page before).
+- Open, VISIBLE, need his look: #7 list row at 640-768 px wide (name squeezed to nothing), #24 "Offer to watchers" heading Title Case, #26 watchlist rows with no price alert explain nothing, #39 app pages differ in width/padding. #33 split the 3,700-line Inventory file = after the freeze.
+
 ## 10-30 10:05PM ET: homepage "Most valuable today" = 5 card-page links (SEO internal links step 3; tsc + eslint clean; local 375 wide: 5 rows, no sideways scroll; LOOK-YES 9:42PM (Chris "yeah") on docs/shots/home-most-valuable-phone.jpg; NOT pushed)
 - [x] What: src/app/page.tsx Card prices section lists each public game's #1 from gameTop100 (the daily Most Valuable list, same guard), linking its card page.
 - [ ] After the push: homepage shows 5 rows with prices that match each game's /most-valuable #1; each row opens a real card page (no 404); Search Console "Discovered - not indexed" (53,078 on 10-30) starts dropping over the next 2-3 weeks.
