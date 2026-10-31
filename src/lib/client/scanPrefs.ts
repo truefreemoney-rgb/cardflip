@@ -125,6 +125,26 @@ export function saveStrategy(strategy: PriceStrategy): void {
   }
 }
 
+/** Reveal sounds (#17, 10-30): on unless the seller turned them off in Scanner options. */
+const SOUND_KEY = "cardflip.sound";
+
+export function readSoundOn(): boolean {
+  if (typeof window === "undefined") return true;
+  try {
+    return window.localStorage.getItem(SOUND_KEY) !== "off";
+  } catch {
+    return true;
+  }
+}
+
+export function saveSoundOn(on: boolean): void {
+  try {
+    window.localStorage.setItem(SOUND_KEY, on ? "on" : "off");
+  } catch {
+    // Private mode / quota — the choice just doesn't persist.
+  }
+}
+
 /** One-time "open the scanner on arrival" note for an in-app jump to /app?scan=1 (A36, 10-15). */
 export const OPEN_SCAN_NOTE = "cardflip.openScan";
 export function leaveOpenScanNote(): void {

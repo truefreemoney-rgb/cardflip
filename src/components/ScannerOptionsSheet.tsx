@@ -5,7 +5,7 @@ import Link from "next/link";
 import GameToggle from "@/components/GameToggle";
 import Sheet from "@/components/Sheet";
 import { CONDITIONS } from "@/lib/listing";
-import { readSavedCondition, saveCondition } from "@/lib/client/scanPrefs";
+import { readSavedCondition, readSoundOn, saveCondition, saveSoundOn } from "@/lib/client/scanPrefs";
 import type { Condition, GameId } from "@/lib/types";
 
 /**
@@ -76,6 +76,7 @@ function Row({ label, hint, on, onChange, children }: { label: string; hint?: st
 
 export default function ScannerOptionsSheet({ game, onGameChange, torch, onToggleTorch, tipsOn, onTips, onClose }: Props) {
   const [condition, setCondition] = useState<Condition>(() => readSavedCondition());
+  const [soundOn, setSoundOn] = useState(() => readSoundOn());
   const [shared, setShared] = useState<"" | "copied" | "failed">("");
 
   async function share() {
@@ -145,6 +146,15 @@ export default function ScannerOptionsSheet({ game, onGameChange, torch, onToggl
       <div>
         {torch !== "unavailable" && <Row label="Light" hint="For a dark room. Glare hurts more than dark on foils." on={torch === "on"} onChange={onToggleTorch} />}
         <Row label="Tips under the camera" hint="Lay It Flat · No Glare · Sleeves OK, No Slabs" on={tipsOn} onChange={() => onTips(!tipsOn)} />
+        <Row
+          label="Reveal sounds"
+          hint="A tick on capture, a chime when the card is found"
+          on={soundOn}
+          onChange={() => {
+            saveSoundOn(!soundOn);
+            setSoundOn(!soundOn);
+          }}
+        />
       </div>
 
       <Heading>Share</Heading>

@@ -19,7 +19,7 @@ import VerifyAllSheet from "@/components/VerifyAllSheet";
 import WrongGameSwitch from "@/components/WrongGameSwitch";
 import type { OutlineDebugApi } from "@/components/CameraOutlineDebug";
 import { effectiveVariant, formatMoney, formatVariantLabel, headlinePrice, marketFlagOf, pickPrice } from "@/lib/listing";
-import { fxCapture, fxMatch, fxMiss, revealTier, type RevealTier } from "@/lib/client/scanFx";
+import { fxCapture, fxMatch, fxMiss, fxUnlock, revealTier, type RevealTier } from "@/lib/client/scanFx";
 import type { Condition, PokemonCard, ScanItem } from "@/lib/types";
 import {
   SHARPNESS_BAND,
@@ -893,6 +893,8 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
     // videoWidth is 0 until the stream delivers its first frame.
     if (!video || srcW(video) === 0 || busy.current) return;
     busy.current = true;
+    // Inside the tap, before any await: iOS only starts audio from a gesture, and the reveal chime plays seconds later.
+    fxUnlock();
     // Held until toBlob answers (+ cooldown): releasing at once let a double tap start a second capture, two charged scans for one card.
     let handedOff = false;
     try {
@@ -1346,7 +1348,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
             now, and the small tray button here opens the session sheet. */}
         <div className="flex shrink-0 items-center gap-3 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:justify-center sm:px-0 sm:pb-0">
           <button
-            onClick={onGetMore ?? (nativeCam ? () => photoInput.current?.click() : capture)}
+            onClick={onGetMore ?? (nativeCam ? () => { fxUnlock(); photoInput.current?.click(); } : capture)}
             disabled={!ready && !nativeCam}
             className="flex-1 whitespace-nowrap rounded-full bg-brand-500 px-6 py-3.5 text-base font-semibold text-white shadow-lg shadow-brand-500/20 transition hover:bg-brand-400 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-none sm:px-10"
           >
