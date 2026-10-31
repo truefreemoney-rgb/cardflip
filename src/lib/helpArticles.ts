@@ -118,8 +118,8 @@ export const helpArticles: HelpArticle[] = [
     id: "billing",
     heading: "Billing",
     paragraphs: [
-      `CardFlip is ${PRICE.standard} per month with ${SCANS.standard} scans, or Pro at ${PRICE.pro} per month with ${SCANS.pro}. Don't want a subscription? A Booster is ${SCANS.pack} scans for ${PRICE.pack}, paid once. Payment runs through Stripe; CardFlip never sees your card number.`,
-      "Cancel any time from the billing portal in your account page — you keep access until the end of the period you've paid for.",
+      `CardFlip is ${PRICE.standard} per month with ${SCANS.standard} scans, or Pro at ${PRICE.pro} per month with ${SCANS.pro}. Don't want a subscription? A Booster is ${SCANS.pack} scans for ${PRICE.pack}, paid once. In the iPhone app, purchases go through Apple and your Apple ID; on the website, through Stripe. CardFlip never sees your card number.`,
+      "Cancel any time and keep access until the end of the period you've paid for: a plan bought in the iPhone app in your iPhone's Settings > your name > Subscriptions, a plan bought on the website from Manage Billing on your Account page. Restore Purchases is under Plan on the app's Account page.",
     ],
   },
   {

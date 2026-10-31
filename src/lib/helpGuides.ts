@@ -77,7 +77,7 @@ export const GUIDES: Guide[] = [
     title: "Subscribe or manage billing",
     when: "the seller asks about paying, plans, the free trial ending, cancelling or invoices",
     steps: [
-      { path: "/app/account", sel: '[data-tour="subscribe"]', round: true, title: "Your plan", body: "Subscribe here, or open the billing portal to switch plans, cancel or see invoices. Stripe handles the card." },
+      { path: "/app/account", sel: '[data-tour="subscribe"]', round: true, title: "Your plan", body: "Subscribe or buy a Booster here. Once you have a plan, this is where you switch plans or cancel." },
     ],
   },
   {

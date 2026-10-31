@@ -35,14 +35,25 @@ Prices come from recent market data and are checked against real sales. When a p
 instead of guessing.
 
 FREE TO START
-Every new account gets 5 free scans. No credit card. Searching, price history, Inventory and the Watchlist are free.
-More scans are available on cardflip.io.
+Every new account gets 5 free scans. Searching, price history, Inventory and the Watchlist are free.
+
+MORE SCANS
+• Booster: 100 scans for $4.99, a one-time purchase; the scans never expire
+• CardFlip: 250 scans a month for $9.99/month
+• Pro: 750 scans a month for $24.99/month
+
+CardFlip and Pro are auto-renewable monthly subscriptions. Payment is charged to your Apple ID when you confirm the
+purchase. A subscription renews automatically unless it is canceled at least 24 hours before the end of the current
+period, and your account is charged for the renewal within the 24 hours before the period ends. Manage or cancel it
+any time in Settings > your name > Subscriptions. Restore Purchases is in Account > Plan.
+
+Terms of Use: https://cardflip.io/terms
+Privacy Policy: https://cardflip.io/privacy
 
 Questions? support@cardflip.io
 
-(Apple: the last paragraph names the website for buying scans. That is allowed in the US since 2025 for apps that
-use a web link-out instead of in-app purchase; keep the wording to "available on cardflip.io", no price, no "buy
-here" button in the text. If review objects, drop the paragraph; the app itself links out from Account.)
+(10-31 resubmission: the old "More scans are available on cardflip.io" line is gone. The app sells through Apple
+in-app purchase now, and 3.1.2 wants the plans, the renewal terms and a Terms of Use link in the description.)
 
 ## Keywords (Apple, 100 chars, comma-separated)
 pokemon,mtg,magic,yugioh,lorcana,one piece,tcg,card scanner,card value,card prices,collection,ebay (96)

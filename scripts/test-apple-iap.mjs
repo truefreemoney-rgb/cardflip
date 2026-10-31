@@ -25,7 +25,8 @@ try {
   ok((await applyTransaction(a, pack, "app")).result === "credited", "pack credits");
   ok((await applyTransaction(a, pack, "notification")).result === "already", "pack credits once");
   let u = await findUserById(a.id);
-  ok(u.extraScans === 100, `extra_scans 100 (got ${u.extraScans})`);
+  // 100 + the trial's 5 unused free scans, kept on a purchase (users.keepTrialScans, 10-31).
+  ok(u.extraScans === 105, `extra_scans 105 (got ${u.extraScans})`);
 
   // CardFlip subscription: 250 plan scans, Apple-sourced active subscription.
   const sub1 = tx("s1", { productId: "io.cardflip.app.standard.monthly", originalTransactionId: `${run}-o1`, expiresDate: later, price: 9990 });
@@ -50,6 +51,14 @@ try {
   ok((await applyTransaction(u, tx("x1", { productId: "io.cardflip.app.unknown" }), "app")).result === "unknown_product", "unknown product refused");
   u = await findUserById(a.id);
   ok(u.planScans === 500, `still 500 (got ${u.planScans})`);
+
+  // Sandbox (TestFlight, App Review): credited like any purchase, under its own key that the sales numbers skip.
+  const sandboxId = `${run}-sb1`;
+  keys.push(appleKey(sandboxId, true));
+  ok((await applyTransaction(u, { transactionId: sandboxId, appAccountToken: a.id, price: 4990, productId: "io.cardflip.app.booster100", environment: "Sandbox" }, "app")).result === "credited", "sandbox Booster credits");
+  const sbRow = await db.prepare("SELECT session_id FROM scan_pack_purchases WHERE session_id = ?").get(appleKey(sandboxId, true));
+  ok(sbRow?.session_id === `apple-sandbox:${sandboxId}`, `sandbox Booster keyed apple-sandbox: (got ${sbRow?.session_id})`);
+  ok(appleKey(sandboxId) === `apple:${sandboxId}`, "production keys unchanged");
   console.log(`apple iap crediting: ${n} checks passed`);
 } finally {
   for (const k of keys) {

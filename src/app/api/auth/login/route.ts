@@ -17,6 +17,7 @@ import { clientIp } from "@/lib/server/rateLimit";
 import { accountLockout, ipGate, noteGhostLogin } from "@/lib/server/rateLimitDb";
 import { countryFrom } from "@/lib/server/signupGuard";
 import { isAllowedCountry } from "@/lib/countries";
+import { isAppleIp } from "@/lib/appleNetwork";
 import { setHomeCookie } from "@/lib/homeCookie";
 import { loginCodeRequired, sendLoginCode, spendLoginCode } from "@/lib/server/loginCode";
 import { maskEmail } from "@/lib/server/emailVerify";
@@ -90,7 +91,8 @@ export async function POST(req: Request) {
   // Travel rule (Chris 09-30): from outside the open countries, only an
   // account created inside them (or a legacy one with no recorded home) gets in.
   const here = countryFrom(req);
-  if (here && !isAllowedCountry(here) && user.homeCountry && !isAllowedCountry(user.homeCountry)) {
+  // App Review's own network passes (lib/appleNetwork.ts): a reviewer abroad made the account abroad too.
+  if (here && !isAllowedCountry(here) && user.homeCountry && !isAllowedCountry(user.homeCountry) && !isAppleIp(clientIp(req))) {
     return NextResponse.json(
       { error: "CardFlip isn't available in your country yet.", unavailable: true },
       { status: 403 },

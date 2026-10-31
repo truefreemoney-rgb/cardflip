@@ -5,7 +5,11 @@ purchase (20e2bdd1). Re-record on build 4 with step 5 below; the notes are rewri
 
 Apple 1:17 PM ET 10-31: not a bug. They want (1) a screen recording from a real iPhone and (2)-(6) written
 answers, all in the App Review Information > Notes field, then Resubmit. Video goes up as an attachment on
-"Reply to App Review" (and the notes say so). Demo account applereview stays as it is (comped, never deleted).
+"Reply to App Review" (and the notes say so). Demo account applereview is never deleted.
+
+UPDATE 4:10pm (pulled from review, Chris picked A): build 6 adds Restore Purchases; applereview is off the comp with
+500 Booster scans (so the buy buttons show); Apple's network passes the sign-up cap, shut-out and one-trial rule; the
+description now lists the plans, the renewal terms and the Terms/Privacy links.
 
 ## Recording (Chris's iPhone, one take, about 3 minutes)
 Before: iPhone on the newest iOS (Settings > General > Software Update). CardFlip build 4 from TestFlight, signed OUT, home Wi-Fi.
@@ -27,7 +31,8 @@ CardFlip: Card Scanner. Answers to the 10-31 Information Needed request.
 
 3. HOW TO USE IT:
 - No account needed for the first scan: tap Scan Your Card on the first screen and point the camera at any card (a card picture on another screen works).
-- Demo account (has saved cards and full access): user applereview, password in the Sign-In Information above.
+- Demo account: user applereview, password in the Sign-In Information above. It has saved cards and 500 Booster scans, so it scans right away and Account > Plan shows the Booster and Subscribe buttons; any plan can be bought on it in the sandbox. A new account made in the app also works (5 free scans).
+- Restore Purchases: Account tab > Plan (under the plan prices), and on the Subscribe page.
 - Search (no scanning) finds any card and its price. Inventory, Watchlist and Account are the user's own data from cardflip.io shown inside the app.
 - eBay listing is optional and needs the user's own eBay account; it is not needed to review the app.
 - Account deletion: Account > Danger zone > Delete > type DELETE.

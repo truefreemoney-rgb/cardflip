@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { SITE_URL } from "@/lib/siteUrl";
 import { shortLinkTarget } from "@/lib/attribution";
 import { allowedCountries, isAllowedCountry } from "@/lib/countries";
+import { isAppleIp } from "@/lib/appleNetwork";
 import { HOME_COOKIE, SESSION_COOKIE_NAME, homeCookieConfigured, readHomeCookie } from "@/lib/homeCookie";
 
 /**
@@ -47,15 +48,12 @@ export function countryBlocked(country: string | null | undefined, pathname: str
 }
 
 /**
- * Apple's own network (10-30, Chris: App Review may test from outside the open countries). 17.0.0.0/8 and these
- * IPv6 blocks are Apple's alone (AS714), the network the Firewall's country rule already lets through; the iPhone
- * app signs in with a bearer header, not the cf_home cookie, so without this a reviewer abroad got 403 on every call.
+ * Apple's own network (10-30, Chris: App Review may test from outside the open countries; lib/appleNetwork.ts), the
+ * network the Firewall's country rule already lets through; the iPhone app signs in with a bearer header, not the
+ * cf_home cookie, so without this a reviewer abroad got 403 on every call.
  */
-const APPLE_V6 = ["2620:149:", "2620:0149:", "2a01:b740:"];
 export function fromAppleNetwork(req: { headers: Headers }): boolean {
-  const ip = (req.headers.get("x-real-ip") ?? req.headers.get("x-forwarded-for")?.split(",")[0] ?? "").trim().toLowerCase();
-  if (/^17\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(ip)) return true;
-  return APPLE_V6.some((p) => ip.startsWith(p));
+  return isAppleIp(req.headers.get("x-real-ip") ?? req.headers.get("x-forwarded-for")?.split(",")[0]);
 }
 
 const isAdminPath = (pathname: string) =>

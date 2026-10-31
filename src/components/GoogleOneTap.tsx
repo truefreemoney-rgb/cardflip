@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { readReferralCode, readTouch } from "@/components/AttributionCapture";
 import { inPreviewFrame } from "@/lib/client/framed";
+import { inAppMode } from "@/lib/appMode";
 
 /**
  * Google One Tap on the PUBLIC pages (Chris 10-11): Google's own small "Continue as <name>"
@@ -109,7 +110,8 @@ export default function GoogleOneTap({ clientId }: { clientId: string | null }) 
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!clientId || !isOneTapPage(pathname) || inPreviewFrame()) return;
+    // Never inside the iPhone app: Google refuses sign-in in an embedded WebView, and the app has its own buttons.
+    if (!clientId || !isOneTapPage(pathname) || inPreviewFrame() || inAppMode()) return;
     // ?onetap=1 forgets this device's flag so the prompt can be seen again (testing on a phone
     // where clearing site data is a chore). Not linked anywhere.
     if (new URLSearchParams(window.location.search).get("onetap") === "1") {

@@ -46,8 +46,14 @@ export const APPLE_PRODUCTS: Record<string, AppleProduct> = {
   "io.cardflip.app.pro.monthly": { kind: "plan", plan: "pro" },
 };
 
-/** The ledger key a purchase credits under (scan_credits / scan_pack_purchases). */
-export const appleKey = (transactionId: string) => `apple:${transactionId}`;
+/**
+ * The ledger key a purchase credits under (scan_credits / scan_pack_purchases). Sandbox purchases (TestFlight, App
+ * Review: Apple charges nothing) get their own prefix, which the sales numbers leave out (analytics.ts, 10-31:
+ * Chris's two TestFlight Boosters showed as paid).
+ */
+export const SANDBOX_KEY_PREFIX = "apple-sandbox:";
+export const appleKey = (transactionId: string, sandbox = false) => `${sandbox ? SANDBOX_KEY_PREFIX : "apple:"}${transactionId}`;
+const inSandbox = (tx: Pick<JWSTransactionDecodedPayload, "environment">) => tx.environment === Environment.SANDBOX;
 
 let verifiers: SignedDataVerifier[] | null = null;
 /** Production first (store customers), then Sandbox (TestFlight, App Review, sandbox testers). */
@@ -98,7 +104,8 @@ export async function applyTransaction(user: User, tx: JWSTransactionDecodedPayl
   if (typeof tx.price === "number" && tx.price <= 0) return { result: "not_paid" };
 
   if (product.kind === "pack") {
-    const credited = await creditScanPack(user.id, appleKey(txId), product.scans, appleKey(txId));
+    const key = appleKey(txId, inSandbox(tx));
+    const credited = await creditScanPack(user.id, key, product.scans, key);
     console.info(`apple: ${user.email} Booster ${credited ? `+${product.scans}` : "already credited"} (${txId}, ${source})`);
     return credited ? { result: "credited", scans: product.scans } : { result: "already" };
   }
@@ -112,7 +119,7 @@ export async function applyTransaction(user: User, tx: JWSTransactionDecodedPayl
     ? { recorded: false, applied: 0 }
     : await creditPlanScans({
         userId: user.id,
-        key: appleKey(txId),
+        key: appleKey(txId, inSandbox(tx)),
         kind: "payment",
         plan: product.plan,
         scans: PLAN_SCANS[product.plan],
@@ -153,11 +160,11 @@ async function applyRefund(user: User, tx: JWSTransactionDecodedPayload): Promis
   // revocationPercentage is in thousandths of a percent (100000 = all of it); absent = a full refund.
   const fraction = typeof tx.revocationPercentage === "number" ? Math.min(1, Math.max(0, tx.revocationPercentage / 100000)) : 1;
   if (product.kind === "pack") {
-    const out = await reverseScanPack(appleKey(txId), fraction);
+    const out = await reverseScanPack(appleKey(txId, inSandbox(tx)), fraction);
     if (out && out.short > 0) await reportServerError("apple iap: refund on Booster scans already used", new Error(`${txId} for ${user.id.slice(0, 8)}: ${out.short} scans already spent`));
     return out ? `Booster -${out.took}` : "no Booster on record";
   }
-  const row = await creditForInvoice(appleKey(txId));
+  const row = await creditForInvoice(appleKey(txId, inSandbox(tx)));
   if (row) {
     const out = await reversePlanScans({ userId: user.id, key: `apple-refund:${txId}`, refKey: row.credit_key, target: Math.round(row.applied * fraction), note: "apple refund" });
     if (!out.recorded) return "already reversed";

@@ -101,6 +101,11 @@ check("look-alike 170.x from DE → 403", outcome(hit("/api/cards", "DE", { ip: 
 check("look-alike 117.x from DE → waitlist", outcome(hit("/app", "DE", { ip: "117.1.2.3" })), "waitlist");
 check("non-Apple IPv6 from DE → 403", outcome(hit("/api/cards", "DE", { ip: "2620:14a::1", app: true })), "403");
 
+// The same test for the sign-up guards (lib/appleNetwork.ts, 10-31): Apple's addresses only.
+const { isAppleIp } = await import(at("lib/appleNetwork.ts"));
+for (const ip of ["17.0.0.1", "17.255.255.254", "::ffff:17.5.6.7", "2620:149:a01::1", "2a01:b740:a20::5", "2403:300:a0b::1"]) check(`Apple network: ${ip}`, isAppleIp(ip), true);
+for (const ip of ["170.1.2.3", "117.1.2.3", "1.17.2.3", "2403:3000::1", "2620:14a::1", "", null, "unknown"]) check(`not Apple: ${ip}`, isAppleIp(ip), false);
+
 // Untouched: dev (no header), India block, admin geofence.
 check("no country header (dev/tests) → open", outcome(hit("/app", null)), "open");
 check("IN still a plain 403", hit("/", "IN").status, 403);

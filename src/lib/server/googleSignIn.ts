@@ -26,15 +26,16 @@ import {
   countSignup,
   countryFrom,
   deviceIdFrom,
-  hashIp,
   inboxKey,
   isDisposableEmail,
   newDeviceId,
   recordSignup,
   repeatSignup,
   signupCapReached,
+  signupIpHash,
 } from "@/lib/server/signupGuard";
 import { isAllowedCountry } from "@/lib/countries";
+import { isAppleIp } from "@/lib/appleNetwork";
 import { setHomeCookie } from "@/lib/homeCookie";
 
 /** What the page knew about the visitor when they tapped Google (state cookie, or the One Tap body). */
@@ -100,10 +101,12 @@ export async function completeGoogleSignIn(
   if (decision === "create") {
     // The country gate lets Google sign-in through for travelling members (proxy.ts), so a new account checks it here:
     // the email signup route stays behind the gate.
-    if (here && !isAllowedCountry(here)) return { ok: false, code: 1 };
+    // App Review signs in from Apple's own network, possibly abroad (lib/appleNetwork.ts, like proxy.ts).
+    const reviewer = isAppleIp(clientIp(req));
+    if (here && !isAllowedCountry(here) && !reviewer) return { ok: false, code: 1 };
     // Same guards as the email signup route.
     if (isDisposableEmail(claims.email)) return { ok: false, code: 1 };
-    const ipHash = hashIp(clientIp(req));
+    const ipHash = signupIpHash(clientIp(req));
     if (await signupCapReached(ipHash)) return { ok: false, code: 1 };
     const knownDevice = deviceIdFrom(req);
     const deviceId = knownDevice ?? newDeviceId();
@@ -132,7 +135,7 @@ export async function completeGoogleSignIn(
   } else {
     user = (bySub ?? byEmail)!;
     // Travel rule, same as the password login.
-    if (here && !isAllowedCountry(here) && user.homeCountry && !isAllowedCountry(user.homeCountry)) return { ok: false, code: 1 };
+    if (here && !isAllowedCountry(here) && user.homeCountry && !isAllowedCountry(user.homeCountry) && !isAppleIp(clientIp(req))) return { ok: false, code: 1 };
     if (decision === "link") {
       unproven = !user.emailVerifiedAt;
       if (!(await (apple ? linkAppleSub : linkGoogleSub)(user.id, claims.sub, unproven))) return { ok: false, code: 1 };

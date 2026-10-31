@@ -25,6 +25,7 @@ import {
   countryFrom,
   deviceIdFrom,
   hashIp,
+  signupIpHash,
   inboxKey,
   emailDomainTypo,
   isDisposableEmail,
@@ -39,6 +40,7 @@ import {
   existsKeyFor,
 } from "@/lib/server/signupGuard";
 import { isValidEmail } from "@/lib/emailAddress";
+import { isAppleIp } from "@/lib/appleNetwork";
 import { parseTouch } from "@/lib/attribution";
 import { setHomeCookie } from "@/lib/homeCookie";
 import { dayBudgetUsed, dayBump } from "@/lib/server/dayBudget";
@@ -119,7 +121,7 @@ export async function POST(req: Request) {
   // EXISTS_PER_NETWORK_DAY times today gets no sign-up answers at all until tomorrow, for any email, so the
   // refusal itself says nothing (#30, 10-16 audit: the 409 let a script test which emails have accounts).
   const existsKey = existsKeyFor(clientIp(req));
-  if ((await dayBudgetUsed(existsKey)) >= EXISTS_PER_NETWORK_DAY) {
+  if (!isAppleIp(clientIp(req)) && (await dayBudgetUsed(existsKey)) >= EXISTS_PER_NETWORK_DAY) {
     return NextResponse.json({ error: TOO_MANY_SIGNUPS }, { status: 429, headers: { "Retry-After": "3600" } });
   }
   const existing = await findUserByEmail(email);
@@ -138,7 +140,7 @@ export async function POST(req: Request) {
   }
 
   // Free scans once per IP and per device (Chris 09-29).
-  const ipHash = hashIp(clientIp(req));
+  const ipHash = signupIpHash(clientIp(req));
   // SIGNUPS_PER_NETWORK_DAY new accounts a network a day (Chris 10-20). A person stops at the refusal; a script that
   // keeps going is shut out of every account route for a day.
   if (ipHash && (await signupCapReached(ipHash))) {

@@ -9,7 +9,7 @@ const sections: LegalSection[] = [
     heading: "What CardFlip is",
     paragraphs: [
       "CardFlip is a tool for people selling Pokémon, Magic: The Gathering, Disney Lorcana, Yu-Gi-Oh! and One Piece trading cards. It identifies cards from photos or search, shows market price information for the matched printing, generates listing titles and descriptions, and keeps a ledger of what you have drafted, listed, and sold. Listings are placed on eBay under your own eBay account — CardFlip is not a marketplace, does not host sales, and never handles the money from your sales.",
-      "The CardFlip iPhone app (from the App Store) is the same service under these same terms. Your first scan in the app works without an account; buying scans or a subscription happens on cardflip.io, not inside the app.",
+      "The CardFlip iPhone app (from the App Store) is the same service under these same terms; Apple's Standard Licensed Application End User License Agreement (apple.com/legal/internet-services/itunes/dev/stdeula) also applies to the app. Your first scan in the app works without an account. In the app, scans and subscriptions are bought through Apple's in-app purchase and billed to your Apple ID; on cardflip.io they are paid by card.",
     ],
   },
   {
@@ -22,8 +22,8 @@ const sections: LegalSection[] = [
   {
     heading: "Early access and billing",
     paragraphs: [
-      `CardFlip costs ${PRICE.standard} per month, and each monthly payment adds ${SCANS.standard} card scans, or ${PRICE.pro} per month for ${SCANS.pro}. ${ROLLOVER_SENTENCE} ${FROZEN_SENTENCE} A Booster is a one-time purchase of ${SCANS.pack} scans for ${PRICE.pack}; Booster scans do not expire and are not refundable once used. Payment is handled by Stripe; nothing is charged without your explicit sign-up. Accounts created during early access remain free until they choose to subscribe.`,
-      "Subscriptions renew monthly, you can cancel at any time, and cancellation takes effect at the end of the period you have already paid for. Fees paid to eBay for your listings are always between you and eBay.",
+      `CardFlip costs ${PRICE.standard} per month, and each monthly payment adds ${SCANS.standard} card scans, or ${PRICE.pro} per month for ${SCANS.pro}. ${ROLLOVER_SENTENCE} ${FROZEN_SENTENCE} A Booster is a one-time purchase of ${SCANS.pack} scans for ${PRICE.pack}; Booster scans do not expire and are not refundable once used. On cardflip.io payment is handled by Stripe; in the iPhone app it is handled by Apple through your Apple ID. Nothing is charged without your explicit purchase. Accounts created during early access remain free until they choose to subscribe.`,
+      "Subscriptions renew monthly, you can cancel at any time, and cancellation takes effect at the end of the period you have already paid for. A subscription bought in the iPhone app renews automatically unless it is canceled at least 24 hours before the end of the current period; manage or cancel it in your iPhone's Settings > your name > Subscriptions, and ask Apple for refunds of App Store purchases. Fees paid to eBay for your listings are always between you and eBay.",
     ],
   },
   {

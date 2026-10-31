@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { isAppleIp } from "@/lib/appleNetwork";
 import { LIMITS, RateLimitError, clientIp, enforceRateLimit, limitOrRespond, rateLimitResponse, type RateLimitRule, type RuleUse } from "@/lib/server/rateLimit";
 
 /**
@@ -154,7 +155,8 @@ const realIp = (ip: string) => Boolean(ip) && ip !== "unknown" && !/^(127\.|::1$
 
 /** Shut `ip` out for a day from now. Logged as a warning, so it lands on /admin/errors. Best effort. */
 export async function shutOutIp(ip: string, reason: string, now = Date.now()): Promise<void> {
-  if (!realIp(ip)) return;
+  // Never Apple's own network (lib/appleNetwork.ts): one reviewer's typos would lock out App Review for a day.
+  if (!realIp(ip) || isAppleIp(ip)) return;
   try {
     await db
       .prepare(
@@ -200,6 +202,9 @@ export async function torResponse(req: Request): Promise<Response | null> {
 
 /** The per-IP guard every sign-in, sign-up, account and billing route opens with: the shut-out, Tor, then authAttempt on `${scope}:${ip}`. */
 export async function ipGate(req: Request, scope: string): Promise<Response | null> {
+  // Apple's own network is many App Review testers behind few addresses (lib/appleNetwork.ts): no per-IP count there;
+  // the per-account lockouts still apply.
+  if (isAppleIp(clientIp(req))) return null;
   return (await shutOutResponse(req)) ?? (await torResponse(req)) ?? (await limitOrRespondAsync(`${scope}:${clientIp(req)}`, LIMITS.authAttempt));
 }
 

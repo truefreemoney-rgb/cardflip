@@ -3,6 +3,9 @@ import { db } from "@/lib/db";
 import { PRICING } from "@/lib/pricing";
 import { TIKTOK_POSTED_PREFIX, tiktokHandPosted } from "@/lib/socialTiktok";
 
+/** appleIap.ts SANDBOX_KEY_PREFIX (kept here so analytics does not load Apple's library). */
+const SANDBOX_KEY_PREFIX = "apple-sandbox:";
+
 /**
  * A page_views WHERE clause dropping mail link checkers (10-30, Chris's #15): a mail's tagged links opened within
  * 5 minutes of that mail going out are a scanner, not a reader (Sunday's week mail: 4 desktops 4 s apart at +3 min;
@@ -366,10 +369,11 @@ export async function getAnalytics(window: Window, realNow = Date.now()): Promis
     m({ table: "cards", ts: "listed_at", agg: "COUNT(*)" }),
     m({ table: "cards", ts: "sold_at", agg: "COUNT(*)", where: "status = 'sold'" }),
     m({ table: "cards", ts: "sold_at", agg: "COALESCE(SUM(sold_price), 0)", where: "status = 'sold'" }),
-    m({ table: "scan_credits", ts: "created_at", agg: "COUNT(*)", where: "kind = 'payment'" }),
-    m({ table: "scan_credits", ts: "created_at", agg: `COALESCE(SUM(CASE plan WHEN 'pro' THEN ${PLAN_USD.pro} ELSE ${PLAN_USD.standard} END), 0)`, where: "kind = 'payment'" }),
-    m({ table: "scan_pack_purchases", ts: "created_at", agg: "COUNT(*)" }),
-    m({ table: "scan_pack_purchases", ts: "created_at", agg: `COUNT(*) * ${PRICING.pack.price}` }),
+    // Apple sandbox purchases (TestFlight, App Review) cost nobody anything: never sales (appleIap.ts SANDBOX_KEY_PREFIX).
+    m({ table: "scan_credits", ts: "created_at", agg: "COUNT(*)", where: `kind = 'payment' AND credit_key NOT LIKE '${SANDBOX_KEY_PREFIX}%'` }),
+    m({ table: "scan_credits", ts: "created_at", agg: `COALESCE(SUM(CASE plan WHEN 'pro' THEN ${PLAN_USD.pro} ELSE ${PLAN_USD.standard} END), 0)`, where: `kind = 'payment' AND credit_key NOT LIKE '${SANDBOX_KEY_PREFIX}%'` }),
+    m({ table: "scan_pack_purchases", ts: "created_at", agg: "COUNT(*)", where: `session_id NOT LIKE '${SANDBOX_KEY_PREFIX}%'` }),
+    m({ table: "scan_pack_purchases", ts: "created_at", agg: `COUNT(*) * ${PRICING.pack.price}`, where: `session_id NOT LIKE '${SANDBOX_KEY_PREFIX}%'` }),
     m({ table: "wishlist_items", ts: "added_at", agg: "COUNT(*)" }),
     m({ table: "help_messages", ts: "created_at", agg: "COUNT(*)", where: "role = 'user'" }),
     // Errors only: the log also holds console.warn notes (price-guard skips etc.), which read as a +2747% "errors" spike 10-23.

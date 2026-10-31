@@ -21,6 +21,7 @@ import { requestTourReplay } from "@/lib/client/tour";
 import { HANDLE_MAX, handleProblem, normalizeHandle, publicCollectionPath } from "@/lib/handle";
 import { disablePush, enablePush, pushState, sendTestPush, type PushState } from "@/lib/client/push";
 import { appBuys } from "@/lib/appMode";
+import AppSubscriptionTerms from "@/components/AppSubscriptionTerms";
 import {
   changePassword,
   deleteAccount,
@@ -745,7 +746,8 @@ function AccountSettings({
           billingPhase={billingPhase}
         />
         {/* Promo codes (10-16, the FLIPBACK mail): the box is always open, a collapsed one nobody finds. */}
-        <Row title="Have a code?" status="Got a code in an email? Put it here for your free scans." open>
+        {/* Not in the iPhone app: a code that unlocks scans reads as an unlock outside in-app purchase (App Review 3.1.1). */}
+        <Row title="Have a code?" status="Got a code in an email? Put it here for your free scans." open appHide>
           <PromoCodeBox onRedeemed={() => setReloadKey((k) => k + 1)} />
         </Row>
         {REFERRALS_ON && (
@@ -1212,6 +1214,12 @@ function AccountSettings({
           </div>
           {delOpen && (
             <form onSubmit={confirmDelete} className="mt-4 flex flex-col gap-3 border-t border-red-500/15 pt-4">
+              {user.subSource === "apple" && user.tier === "subscribed" && (
+                // Apple bills it; deleting the account cannot stop that (App Review 5.1.1(v)).
+                <Notice kind="err">
+                  Your subscription is billed by Apple and keeps renewing after you delete your account. Cancel it first in iPhone Settings → your name → Subscriptions → CardFlip.
+                </Notice>
+              )}
               {(d?.ebayLive ?? 0) > 0 && (
                 <Notice kind="err">
                   You have {d?.ebayLive} {d?.ebayLive === 1 ? "card" : "cards"} live on eBay. They stay up on eBay after you delete your account — end them first.
@@ -1358,7 +1366,17 @@ function PlanSection({
   return (
     <Row
       title="Plan"
-      status={status}
+      status={
+        walled ? (
+          status
+        ) : (
+          <>
+            {status}
+            {/* Inside the iPhone app: Apple's renewal terms, Terms/Privacy and Restore Purchases (App Review 3.1). */}
+            <AppSubscriptionTerms align="left" className="mt-2" />
+          </>
+        )
+      }
       action={
         walled ? null : subscribed && appleOnWeb ? (
           <span className="shrink-0 text-right text-xs text-zinc-400">Manage in iPhone Settings</span>

@@ -4,6 +4,7 @@ import type { Touch } from "@/lib/attribution";
 import { TRIAL_SCANS } from "@/lib/server/users";
 import { isTestNetwork } from "@/lib/server/trialScan";
 import { dayBudgetSpent, dayBudgetUsed, dayBump } from "@/lib/server/dayBudget";
+import { isAppleIp } from "@/lib/appleNetwork";
 
 /**
  * Throwaway-account guard (Chris 09-29, after a row of "Probe" accounts on
@@ -87,6 +88,14 @@ export const SIGNUPS_PER_NETWORK_DAY = 3;
 /** Sign-ups a network may have refused by that cap in a day; one more shuts it out (rateLimitDb.shutOutIp). A person stops. */
 export const CAPPED_SIGNUPS_BEFORE_SHUT_OUT = 2;
 
+/**
+ * The network key the sign-up guards count on: hashIp, except Apple's own network (lib/appleNetwork.ts), which gets
+ * none, so App Review is never capped, shut out or short of the free trial however many reviewers share an address.
+ */
+export function signupIpHash(ip: string): string | null {
+  return isAppleIp(ip) ? null : hashIp(ip);
+}
+
 /** True once this network (a hashIp) has opened its accounts for today. Loopback/unknown (null) is never capped. */
 export async function signupCapReached(ipHash: string | null): Promise<boolean> {
   return ipHash != null && (await dayBudgetUsed(`signup_made_${ipHash}`)) >= SIGNUPS_PER_NETWORK_DAY;
@@ -158,6 +167,8 @@ export async function repeatSignup(
   inbox: string | null = null,
   ip: string | null = null,
 ): Promise<"same-device" | "same-ip" | "same-inbox" | "busy-network" | "daily-cap" | null> {
+  // App Review (signupIpHash): reviewers share devices and addresses, and every one of them starts on the free trial.
+  if (ip && isAppleIp(ip)) return null;
   const repeat = await repeatSignupOnly(ipHash, deviceId, inbox);
   return repeat ?? (ip && !isTestNetwork(ipHash) ? await trialRation(ip) : null);
 }

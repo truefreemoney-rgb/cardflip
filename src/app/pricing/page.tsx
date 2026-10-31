@@ -125,7 +125,8 @@ export default function PricingPage() {
           </div>
         </section>
 
-        <section className="mx-auto w-full max-w-6xl px-6 pb-10 sm:pb-12">
+        {/* Website billing (Stripe, Manage Billing): not inside the iPhone app, which bills through Apple (App Review 3.1.1). */}
+        <section className="mx-auto w-full max-w-6xl px-6 pb-10 sm:pb-12" data-app-hide="">
           <div className="mx-auto max-w-2xl text-center">
             <p className="text-sm font-semibold uppercase tracking-widest text-brand-400">Billing questions</p>
           </div>

@@ -83,7 +83,7 @@ export async function getAdTest(hours: number, end = Date.now()): Promise<AdTest
     const signups = (await db
       .prepare(
         `SELECT s.landing AS landing, ${SRC_BUCKET.replaceAll("src", "s.src")} AS source, COUNT(*) AS accounts,
-           SUM(u.sub_status IN ('active', 'trialing', 'past_due') OR EXISTS(SELECT 1 FROM scan_pack_purchases b WHERE b.user_id = s.user_id)) AS paid
+           SUM(u.sub_status IN ('active', 'trialing', 'past_due') OR EXISTS(SELECT 1 FROM scan_pack_purchases b WHERE b.user_id = s.user_id AND b.session_id NOT LIKE 'apple-sandbox:%')) AS paid
          FROM signup_log s LEFT JOIN users u ON u.id = s.user_id
          WHERE s.at >= ? AND s.at < ? AND s.landing IN ('/', '/scan')
          GROUP BY s.landing, source`,

@@ -15,6 +15,11 @@ export async function POST(req: NextRequest) {
   // Shut-out and Tor stay per IP; the budget itself is per signed-in user (10-22: it shared the sign-in budget per IP).
   const blocked = (await shutOutResponse(req)) ?? (await torResponse(req));
   if (blocked) return blocked;
+  // Never Stripe inside the iPhone app's WebView (its user agent says CardFlipApp/, mobile SiteWebView): the app sells
+  // through Apple only (App Review 3.1.1, 10-31). The page's buttons already hand off to Apple; this is the backstop.
+  if (/CardFlipApp\//.test(req.headers.get("user-agent") ?? "")) {
+    return NextResponse.json({ error: "In the app, purchases go through Apple. Update CardFlip from the App Store to buy." }, { status: 403 });
+  }
   try {
     const user = await requireUser();
     const limited = await limitOrRespondAsync(`billing:${user.id}`, LIMITS.authAttempt);

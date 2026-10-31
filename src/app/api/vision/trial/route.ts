@@ -16,6 +16,7 @@ import { limitOrRespondAsync } from "@/lib/server/rateLimitDb";
 import { DEVICE_COOKIE, DEVICE_COOKIE_MAX_AGE, deviceIdFrom, hashIp, newDeviceId } from "@/lib/server/signupGuard";
 import { forgetTrialScan, recordTrialScan, trialScanUsedUp } from "@/lib/server/trialScan";
 import { readImageInput } from "@/lib/server/imageInput";
+import { isAppleIp } from "@/lib/appleNetwork";
 import { BLURRY_MESSAGE, photoSoftness, tooSoft } from "@/lib/server/photoSoftness";
 import { prefetchMatch } from "@/lib/server/scanPrefetch";
 
@@ -54,7 +55,10 @@ export async function POST(req: Request) {
 
   try {
     const ip = clientIp(req);
-    const limited = await limitOrRespondAsync(`trialscan:${ip}`, [{ limit: 6, windowMs: 10 * 60 * 1000 }]);
+    // App Review (Apple's own network, lib/appleNetwork.ts): reviewers share addresses and test devices, and the review
+    // notes promise the free first scan, so only the site-wide day budget applies to them (10-31).
+    const reviewer = isAppleIp(ip);
+    const limited = reviewer ? null : await limitOrRespondAsync(`trialscan:${ip}`, [{ limit: 6, windowMs: 10 * 60 * 1000 }]);
     if (limited) return limited;
     if (!isVisionConfigured()) return send({ status: "unconfigured", card: null });
 
@@ -71,8 +75,8 @@ export async function POST(req: Request) {
       return send({ status: "error", reason: "blurry", error: BLURRY_MESSAGE }, 422);
     }
 
-    const ipHash = hashIp(ip);
-    if (await trialScanUsedUp(deviceId, ipHash)) return send({ status: "used", card: null }, 402);
+    const ipHash = reviewer ? null : hashIp(ip);
+    if (!reviewer && (await trialScanUsedUp(deviceId, ipHash))) return send({ status: "used", card: null }, 402);
     if (await dayBudgetSpent("trial_scan", TRIAL_DAILY_BUDGET)) return send({ status: "busy", card: null }, 429);
     const triedAt = Date.now();
     await recordTrialScan(deviceId, ipHash, triedAt);

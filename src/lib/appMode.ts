@@ -18,9 +18,13 @@ export const APP_MODE_QUERY = "app";
 /** The attribute the script sets on <html>; CSS keys off it. */
 export const APP_MODE_ATTR = "data-app";
 
-/** Runs before paint; must stay plain ES5 and never throw (an old WebView is still a customer). */
+/**
+ * Runs before paint; must stay plain ES5 and never throw (an old WebView is still a customer). The app's WebView
+ * also says so in its user agent ("CardFlipApp/…", SiteWebView applicationNameForUserAgent): a signed-out page that
+ * navigates has no cookie and no ?app=1, and the ad pixels must still stay off in the app (10-31 audit).
+ */
 export const APP_MODE_SCRIPT =
-  `(function(){try{if(/[?&]${APP_MODE_QUERY}=1(?:&|$)/.test(location.search)||/(?:^|; )${APP_MODE_COOKIE}=1(?:;|$)/.test(document.cookie)){document.documentElement.setAttribute("${APP_MODE_ATTR}","1")}}catch(e){}})()`;
+  `(function(){try{if(/[?&]${APP_MODE_QUERY}=1(?:&|$)/.test(location.search)||/(?:^|; )${APP_MODE_COOKIE}=1(?:;|$)/.test(document.cookie)||/CardFlipApp\\//.test(navigator.userAgent)){document.documentElement.setAttribute("${APP_MODE_ATTR}","1")}}catch(e){}})()`;
 
 /** Client-side check for components that need to know (e.g. to skip a redirect); false on the server. */
 export function inAppMode(): boolean {
@@ -40,7 +44,9 @@ export type AppMessage =
   /** Apple's purchase sheet for this plan (the app's IAP builds, 10-31). */
   | { type: "buy"; plan: "pack" | "standard" | "pro" }
   /** Manage the subscription: iPhone Settings for an Apple one, cardflip.io in Safari for a Stripe one (the app knows which). */
-  | { type: "manage" };
+  | { type: "manage" }
+  /** Restore Purchases: Apple re-syncs this Apple ID and the app re-links its active subscription to the account. */
+  | { type: "restore" };
 
 /**
  * Inside an app build that sells through Apple in-app purchase (it sets window.CardFlipApp.iap before the page
@@ -51,6 +57,13 @@ export function appBuys(): boolean {
   if (typeof window === "undefined" || !inAppMode()) return false;
   const flag = (window as unknown as { CardFlipApp?: { iap?: boolean } }).CardFlipApp;
   return Boolean(flag?.iap);
+}
+
+/** An IAP build that also handles {type:"restore"} (build 6 on): only then is Restore Purchases shown. */
+export function appRestores(): boolean {
+  if (!appBuys()) return false;
+  const flag = (window as unknown as { CardFlipApp?: { restore?: boolean } }).CardFlipApp;
+  return Boolean(flag?.restore);
 }
 
 export function postToApp(message: AppMessage): boolean {

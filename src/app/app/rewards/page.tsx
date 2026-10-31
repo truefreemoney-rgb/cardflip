@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { useSession } from "@/components/SessionProvider";
 import { PRICE, PRICE_SHORT, PRICING, SCANS } from "@/lib/pricing";
 import PageSkeleton from "@/components/PageSkeleton";
+import AppSubscriptionTerms from "@/components/AppSubscriptionTerms";
 import { toast } from "@/components/Toaster";
 import { fetchInvite, startCheckout, type InviteInfo } from "@/lib/client/accountApi";
 
@@ -149,6 +150,8 @@ function RewardsInner() {
             >
               {busy ? "Opening…" : `Subscribe · ${PRICE_SHORT.standard}`}
             </button>
+            {/* Inside the iPhone app: Apple's renewal terms, Terms/Privacy and Restore Purchases (App Review 3.1.2). */}
+            <AppSubscriptionTerms align="left" className="mt-3" />
           </>
         )}
       </section>
