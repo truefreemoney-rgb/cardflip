@@ -1673,7 +1673,7 @@ function RevealChip({ item, onOpen, onRemove, onSwap, onEdit, onExpand, verify }
           {counted != null ? (
             // The pop scales the figure AND its label from the left, so the grown number never runs past them.
             <div className={`origin-left ${landed ? "reveal-price-pop" : ""}`} style={{ "--pop-glow": style.glow } as React.CSSProperties}>
-              <p className={`font-display text-3xl font-bold leading-8 tabular-nums ${style.price}`}>{formatMoney(counted, "USD")}</p>
+              <p data-testid="reveal-price" className={`font-display text-3xl font-bold leading-8 tabular-nums ${style.price}`}>{formatMoney(counted, "USD")}</p>
               {/* The figure is the market through this copy's condition (10-15), so below Near Mint the label says so:
                   "market price $1.91" beside a card page saying Market $2.25 read as two prices (Chris 10-22). */}
               <p className="text-[10px] uppercase tracking-[0.15em] text-zinc-500">
