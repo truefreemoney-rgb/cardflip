@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { guardNetwork, ledger, signup } from "./helpers";
+import { guardNetwork, ledger, signup, dumpOnFailure } from "./helpers";
 
 /**
  * Inventory (app/collection) on a phone (10-31): the rows a seller edits,
@@ -30,6 +30,8 @@ async function openInventory(page: Page, first: string) {
   await page.goto("/app/collection");
   await expect(rowButton(page, first)).toBeVisible({ timeout: 30_000 });
 }
+
+test.afterEach(dumpOnFailure);
 
 test.describe("inventory", () => {
   test.beforeEach(async ({ page }) => {

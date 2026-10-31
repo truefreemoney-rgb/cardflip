@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { DRAGONITE, READS, SOL_RING, readOf } from "./fixtures/cards";
-import { capture, enablePhotoInput, guardNetwork, ledger, mockScan, openScanner, scanBody, signup } from "./helpers";
+import { capture, enablePhotoInput, guardNetwork, ledger, mockScan, openScanner, scanBody, signup, dumpOnFailure } from "./helpers";
 
 /**
  * The paid scanner, end to end on a phone (10-31): photo in through the
@@ -9,6 +9,8 @@ import { capture, enablePhotoInput, guardNetwork, ledger, mockScan, openScanner,
  * the watchdog (10-30, a customer lost 4 of 5 trial scans), a wrong-game
  * double read, empty outcomes that kept the scan or saved a row.
  */
+
+test.afterEach(dumpOnFailure);
 
 test.describe("scanner", () => {
   test.beforeEach(async ({ page }) => {

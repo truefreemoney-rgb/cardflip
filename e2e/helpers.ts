@@ -1,4 +1,4 @@
-import { expect, type Page, type Request, type Route } from "@playwright/test";
+import { expect, type Page, type Request, type Route, type TestInfo } from "@playwright/test";
 import { buildSearchParams, printedKeyFromRead } from "../src/lib/searchParams";
 import { mtgCuesOf } from "../src/lib/mtgCues";
 import type { GameId, PokemonCard, VisionCardRead } from "../src/lib/types";
@@ -73,6 +73,10 @@ export function scanBody(read: VisionCardRead, game: GameId, scanId: string, mat
  * have; production has them on), so the game tabs and "Switch to" buttons show.
  */
 export async function guardNetwork(page: Page, opts: { allGames?: boolean } = {}) {
+  const lines: string[] = [];
+  pageLogs.set(page, lines);
+  page.on("pageerror", (e) => lines.push(`pageerror: ${e.message}`));
+  page.on("console", (m) => m.type() === "error" && lines.push(`console.error: ${m.text().slice(0, 300)}`));
   await page.context().route(
     (url) => url.hostname !== "localhost" && url.hostname !== "127.0.0.1",
     (route) => route.abort("blockedbyclient"),
@@ -93,6 +97,21 @@ export async function guardNetwork(page: Page, opts: { allGames?: boolean } = {}
       await route.fulfill({ response: res, json: body });
     });
   }
+}
+
+const pageLogs = new WeakMap<Page, string[]>();
+
+/**
+ * test.afterEach: on a failure, what the phone showed (aria snapshot) and its
+ * page errors go into the CI log itself. The trace sits in the report
+ * artifact, a download away; this is readable from the run page (10-31,
+ * the first WebKit run of these specs).
+ */
+export async function dumpOnFailure({ page }: { page: Page }, testInfo: TestInfo) {
+  if (testInfo.status === testInfo.expectedStatus) return;
+  const snap = await page.locator("body").ariaSnapshot({ timeout: 5_000 }).catch((e) => `no snapshot: ${e}`);
+  const errors = (pageLogs.get(page) ?? []).slice(-20).join("\n") || "(none)";
+  console.log(`--- ${testInfo.title} [${testInfo.project.name}] at ${page.url()}\n${snap.slice(0, 4_000)}\n--- page errors:\n${errors}\n---`);
 }
 
 /** Mocks the paid scan and its give-back. Replies are consumed in order; the last one repeats. */

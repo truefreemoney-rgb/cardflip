@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { DRAGONITE, READS, readOf } from "./fixtures/cards";
-import { cardPhoto, enablePhotoInput, guardNetwork } from "./helpers";
+import { cardPhoto, enablePhotoInput, guardNetwork, dumpOnFailure } from "./helpers";
 import type { VisionCardRead } from "../src/lib/types";
 
 /**
@@ -36,6 +36,8 @@ async function scanOnce(page: Page) {
 }
 
 const trialDone = (page: Page) => page.evaluate(() => localStorage.getItem("cardflip.trialDone"));
+
+test.afterEach(dumpOnFailure);
 
 test.describe("free scan page, signed out", () => {
   test.beforeEach(async ({ page }) => {
