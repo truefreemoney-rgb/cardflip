@@ -810,7 +810,10 @@ async function analyzeCore(
   // A slow first read has used the clock: the first read stands rather than risk the whole scan.
   if (remainingMs(clock) < SECOND_LOOK_MIN_MS) return { read: { ...first.read, secondLook: `${reason}:skipped-slow` }, usage: first.usage };
   try {
-    const second = await secondLook(base64Image, game, clock, { corner: reason === "no-number" });
+    // No number read = send the corner close-up whatever the reason. A low-confidence read with no number took
+    // the strip-only path (10-30: one user's ~40 scans of the newest sets, conf 0.3-0.6, number still blank after
+    // the second look); the corner crop is the one picture that reads it through glare.
+    const second = await secondLook(base64Image, game, clock, { corner: reason === "no-number" || !first.read.cardNumber });
     return {
       read: mergeSecondLook(first.read, second.read, reason, game),
       usage: addUsage(first.usage, second.usage),
