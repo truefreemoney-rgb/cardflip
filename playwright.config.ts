@@ -22,6 +22,9 @@ export default defineConfig({
   use: {
     baseURL: process.env.E2E_BASE_URL ?? "http://localhost:3000",
     trace: "retain-on-failure",
+    // public/sw.js answers fetches, and on WebKit a request the service worker makes skips page.route, so every
+    // mocked scan went to the real server (10-31: all [iphone] scanner tests read "Couldn't read this card").
+    serviceWorkers: "block",
     // Camera permission is deliberately NOT granted: the scanner's blocked-
     // permission state is one of the screens under test.
   },

@@ -85,16 +85,26 @@ test.describe("inventory", () => {
     await expect.poll(async () => (await ledger(page)).length).toBe(0);
   });
 
-  // Bug (10-31): the row × deletes with only an Undo toast; Chris 10-22 wanted an "are you sure" on delete, the card sheet's has it.
-  test("the row × asks before deleting", async ({ page }) => {
-    test.fail();
+  // Every delete asks first (Chris 10-31: "deletes should always ask are you sure"); the row × used to skip it.
+  test("the row × asks, Cancel keeps the card, Delete card removes it", async ({ page }) => {
     await addCard(page, "Dragonite");
     await openInventory(page, "Dragonite");
     await page.getByRole("button", { name: "Delete Dragonite", exact: true }).click();
-    await expect(page.getByRole("alertdialog", { name: "Confirm" }), "an are-you-sure before the card goes").toBeVisible({ timeout: 3_000 });
+    const ask = page.getByRole("alertdialog", { name: "Confirm" });
+    await expect(ask).toContainText("Delete Dragonite (Fossil) from your Inventory?");
+    await ask.getByRole("button", { name: "Cancel" }).click();
+    await expect(ask).toHaveCount(0);
+    await expect(rowButton(page, "Dragonite")).toBeVisible();
+
+    await page.getByRole("button", { name: "Delete Dragonite", exact: true }).click();
+    const gone = page.waitForRequest(isCardsCall("DELETE"));
+    await ask.getByRole("button", { name: "Delete card" }).click();
+    await expect(rowButton(page, "Dragonite")).toHaveCount(0);
+    await gone;
+    await expect.poll(async () => (await ledger(page)).length).toBe(0);
   });
 
-  test("bulk select + delete removes exactly the selected cards", async ({ page }) => {
+  test("bulk select + delete asks, then removes exactly the selected cards", async ({ page }) => {
     await addCard(page, "Dragonite");
     await addCard(page, "Machamp", { setName: "Base Set" });
     await addCard(page, "Pikachu", { setName: "Base Set" });
@@ -102,26 +112,21 @@ test.describe("inventory", () => {
 
     await page.getByRole("checkbox", { name: "Select Dragonite" }).click();
     await page.getByRole("checkbox", { name: "Select Machamp" }).click();
-    const gone = page.waitForRequest(isCardsCall("DELETE"));
-    // No are-you-sure here today (see the test.fail below); once one is added, confirm it at this step.
     await page.getByRole("button", { name: "Delete 2 cards" }).click();
+    const ask = page.getByRole("alertdialog", { name: "Confirm" });
+    await expect(ask).toContainText("Delete 2 cards from your Inventory?");
+    await ask.getByRole("button", { name: "Cancel" }).click();
+    await expect(ask).toHaveCount(0);
+    await expect(rowButton(page, "Dragonite")).toBeVisible();
+
+    await page.getByRole("button", { name: "Delete 2 cards" }).click();
+    const gone = page.waitForRequest(isCardsCall("DELETE"));
+    await ask.getByRole("button", { name: "Delete 2 cards" }).click();
     await expect(rowButton(page, "Dragonite")).toHaveCount(0);
     await expect(rowButton(page, "Machamp")).toHaveCount(0);
     await expect(rowButton(page, "Pikachu")).toBeVisible();
     expect((await gone).postDataJSON().ids, "only the two ticked").toHaveLength(2);
     await expect.poll(async () => (await ledger(page)).map((r) => r.cardName)).toEqual(["Pikachu"]);
-  });
-
-  // Bug (10-31): bulk "Delete N cards" removes with only an Undo toast, no are-you-sure (same rule as the row ×).
-  test("bulk Delete asks before deleting", async ({ page }) => {
-    test.fail();
-    await addCard(page, "Dragonite");
-    await addCard(page, "Machamp", { setName: "Base Set" });
-    await openInventory(page, "Machamp");
-    await page.getByRole("checkbox", { name: "Select Dragonite" }).click();
-    await page.getByRole("checkbox", { name: "Select Machamp" }).click();
-    await page.getByRole("button", { name: "Delete 2 cards" }).click();
-    await expect(page.getByRole("alertdialog", { name: "Confirm" }), "an are-you-sure before two cards go").toBeVisible({ timeout: 3_000 });
   });
 
   test("Mark as Sold by hand asks twice, then the card is in Sold with its net line", async ({ page }) => {
