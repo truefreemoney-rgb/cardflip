@@ -1,6 +1,6 @@
 # To test later
 
-## 10-31 12:10PM ET: PR #32 iPhone scanner tests FIXED (local branch pr32-local in ..\cardflip-pr32, commit 5838fa1a on top of the cloud's 3ab50d68; NOT pushed, needs Chris's yes to merge into main for his bulk push)
+## 10-31 12:10PM ET: PR #32 iPhone scanner tests FIXED (local branch pr32-local in ..\cardflip-pr32, commit 5838fa1a on top of the cloud's 3ab50d68; MERGED 11:58am on Chris's "ok" = 138c42e4; full suite 58/58 locally on the merged code; rides his bulk push)
 - [x] Cause (trace of [iphone] slab test, reproduced locally): public/sw.js answers fetches; on WebKit the service worker's request skips page.route, so the mocked /api/vision/scan went to the real keyless server = "Couldn't read this card". Fix: playwright.config use.serviceWorkers "block". Local: iPhone scanner 9/10 pass (the 10th needs the branch's data-testid="reveal-price", absent on a main-checkout server), Inventory 10/10 both phones, full suite 55/58 (2 = that testid, 1 = iPhone tour flake that passes alone).
 - [x] The 2 test.fail delete tests are now plain tests (row × + bulk: Cancel keeps, confirm removes).
 - [ ] After the merge + push: CI e2e green on both phones (all 60).
