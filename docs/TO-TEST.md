@@ -1,5 +1,9 @@
 # To test later
 
+## 10-31 11:05AM ET: app scan = one trip + 30 s clock + big-print clues (mobile/src/lib/scan.ts; tsc + eslint clean; APP ONLY, NEXT BUILD; not committed to a push yet)
+- [x] What: readPhoto/readPhotoGuest keep the scan reply's prefetch {params, cards}; identify() uses those cards when buildSearchParams(...) for the candidate equals params byte-for-byte (the site's page.tsx rule), else searches as before. The printed key now comes from lib/searchParams.ts printedKeyFromRead (was an inline copy without hp/attacks/dex/reg, so app scans never sent the 10-30 big-print clues). /api/vision/scan clock 20 s -> 30 s (site d507a9be).
+- [ ] Next build, Chris's iPhone: 3 scans = each card shows right after the read (no second wait); cover the bottom number with a finger on a Pokémon card = right card or its same-set twin; Vercel log for those scans has no /api/search-card call right after /api/vision/scan.
+
 ## 10-31 10:40AM ET: slabs + packs/boxes "coming soon", scan not counted (site /app, free /scan, app needs next build)
 - [ ] After the push, on the phone: scan a graded slab = "Graded slabs are coming soon. Scan a raw card for now", scan counter unchanged; scan a booster pack = "Packs and boxes are coming soon. Scan a single card for now", counter unchanged; a normal raw card still scans and saves.
 - [ ] Free /scan page (logged out): a slab or pack shows the coming-soon line and the free tries left do NOT drop.

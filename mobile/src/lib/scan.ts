@@ -13,7 +13,7 @@
  * "Not this card?" lists the rest.
  */
 import { fetchCardById, searchCards } from "@/lib/cards";
-import { isSecretRareNumber, normalizeNumber, readHasPrintedKey, type PrintedNumber } from "@/lib/cardNumber";
+import { normalizeNumber, type PrintedNumber } from "@/lib/cardNumber";
 import { patternPrintingFor } from "@/lib/foilPattern";
 import { GAMES, isGameId } from "@/lib/games";
 import { GRADED_LOCKED } from "@/lib/grading";
@@ -23,6 +23,7 @@ import { mtgCuesOf } from "@/lib/mtgCues";
 import { ONE_PIECE_DON_SET, isOnePieceSideline, printingChoices } from "@/lib/onepiece";
 import { PRICE_FLAG_NOTE } from "@/lib/priceFlag";
 import type { ScanQuota } from "@/lib/quotaTypes";
+import { buildSearchParams, printedKeyFromRead } from "@/lib/searchParams";
 import { LOW_CONFIDENCE, UNREADABLE_CONFIDENCE, type ArtStyle, type Condition, type GameId, type MtgCues, type PokemonCard, type ScanLanguage, type VisionCardRead } from "@/lib/types";
 import { foilChoices } from "@/lib/yugioh";
 import { api, ApiError } from "./api";
@@ -59,16 +60,29 @@ export interface ReadOutcome {
   rateLimited?: { seconds: number | null; daily: boolean };
   /** The scan_usage row: names the scan when a miss gives it back. */
   scanId: string | null;
+  /** One trip (#B, 10-30): the catalog search the server ran inside the scan request, keyed by its query string. */
+  prefetch?: Prefetch | null;
+}
+
+export interface Prefetch {
+  params: string;
+  cards: PokemonCard[];
+}
+
+function prefetchOf(raw: unknown): Prefetch | null {
+  const p = raw as { params?: unknown; cards?: unknown } | null | undefined;
+  return p && typeof p.params === "string" && Array.isArray(p.cards) ? { params: p.params, cards: p.cards as PokemonCard[] } : null;
 }
 
 /** POST /api/vision/scan with the bearer session. Never throws. */
 export async function readPhoto(base64: string, game: GameId, language: ScanLanguage = "en"): Promise<ReadOutcome> {
   const empty = { read: null, usage: null, error: null, scanId: null } as const;
   try {
-    const data = await api<{ status?: string; card?: VisionCardRead | null; usage?: ScanQuota | null; scanId?: unknown }>("/api/vision/scan", {
+    const data = await api<{ status?: string; card?: VisionCardRead | null; usage?: ScanQuota | null; scanId?: unknown; prefetch?: unknown }>("/api/vision/scan", {
       body: { image: base64, mediaType: "image/jpeg", language, game },
-      // The server answers inside its 8 s budget; the site's watchdog gives up at 20 s.
-      timeoutS: 20,
+      // The clock counts the photo upload too: on a weak signal 20 s cut the phone off while the server still
+      // read and charged (the site's lib/client/visionApi.ts, d507a9be: 30 s).
+      timeoutS: 30,
     });
     return {
       status: data.status === "unconfigured" ? "unconfigured" : data.status === "done" && data.card ? "done" : "error",
@@ -76,6 +90,7 @@ export async function readPhoto(base64: string, game: GameId, language: ScanLang
       usage: data.usage ?? null,
       error: null,
       scanId: typeof data.scanId === "string" ? data.scanId : null,
+      prefetch: prefetchOf(data.prefetch),
     };
   } catch (err) {
     if (!(err instanceof ApiError)) return { status: "error", ...empty };
@@ -93,7 +108,7 @@ export async function readPhoto(base64: string, game: GameId, language: ScanLang
     if (err.status === 504) return { status: "error", ...empty, timedOut: true };
     // 422 blurry: refused before any paid call; the server's words are the retake message.
     if (err.status === 422 && err.body.reason === "blurry") return { status: "error", ...empty, error: err.message };
-    // 0 = no connection / the app's own 20 s clock: say so in the server's absence.
+    // 0 = no connection / the app's own 30 s clock: say so in the server's absence.
     if (err.status === 0) return { status: "error", ...empty, error: err.message };
     return { status: "error", ...empty };
   }
@@ -108,7 +123,7 @@ export async function readPhoto(base64: string, game: GameId, language: ScanLang
 export async function readPhotoGuest(base64: string, game: GameId): Promise<ReadOutcome> {
   const empty = { read: null, usage: null, error: null, scanId: null } as const;
   try {
-    const data = await api<{ status?: string; card?: VisionCardRead | null }>("/api/vision/trial", {
+    const data = await api<{ status?: string; card?: VisionCardRead | null; prefetch?: unknown }>("/api/vision/trial", {
       body: { image: base64, mediaType: "image/jpeg", game },
       timeoutS: 30,
     });
@@ -118,6 +133,7 @@ export async function readPhotoGuest(base64: string, game: GameId): Promise<Read
       usage: null,
       error: null,
       scanId: null,
+      prefetch: prefetchOf(data.prefetch),
     };
   } catch (err) {
     if (!(err instanceof ApiError)) return { status: "error", ...empty };
@@ -189,24 +205,13 @@ function miss(error: string, extra: Partial<Identified> = {}): Identified {
  * `patchItem({ status: ... })` that shows the card). `reuseAs` = a "Switch to
  * <game>" tap: the same read is matched under the other game.
  */
-export async function identify(read: VisionCardRead, game: GameId): Promise<Identified> {
+export async function identify(read: VisionCardRead, game: GameId, prefetch?: Prefetch | null): Promise<Identified> {
   const language = read.language;
   let art: ArtStyle = read.artStyle ?? null;
   const cues: MtgCues | null = game === "mtg" ? mtgCuesOf(read) : null;
   let nameCandidates = [read.name, read.englishName].filter((n): n is string => Boolean(n));
-  let printed: PrintedNumber | null = readHasPrintedKey(read, game)
-    ? {
-        number: read.cardNumber ?? "",
-        setTotal: read.setTotal,
-        setCode: read.setCode,
-        isSecretRare: isSecretRareNumber(read.cardNumber ?? "", read.setTotal),
-        setName: read.setName,
-        copyrightYear: read.copyrightYear ?? null,
-        subtitle: read.subtitle ?? null,
-        variant: read.variant ?? null,
-        shaky: read.secondLook === "low-confidence",
-      }
-    : null;
+  // Same builder as the scan route's prefetch (lib/searchParams.ts): the two keys match, and the big-print clues ride along.
+  let printed: PrintedNumber | null = printedKeyFromRead(read, game);
   let artOnly = false;
   let artMiss: string | null = null;
 
@@ -239,7 +244,12 @@ export async function identify(read: VisionCardRead, game: GameId): Promise<Iden
   let searchLimited = false;
   for (const candidate of nameCandidates) {
     try {
-      const found = await searchCards(candidate, printed, language, undefined, game, art, artOnly, read.firstEdition ?? null, cues);
+      // The server's answer only when the query this phone would send is byte-for-byte the one it ran (the site's page.tsx).
+      const prefetched =
+        prefetch && prefetch.params === buildSearchParams(candidate, printed, language, undefined, game, art, artOnly, read.firstEdition ?? null, cues).toString()
+          ? prefetch.cards
+          : null;
+      const found = prefetched ?? (await searchCards(candidate, printed, language, undefined, game, art, artOnly, read.firstEdition ?? null, cues));
       if (found.length === 0) continue;
       if (matches.length === 0) matches = found;
       if (found[0].name.trim().toLowerCase() === candidate.trim().toLowerCase()) {

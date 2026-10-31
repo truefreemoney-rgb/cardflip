@@ -754,7 +754,7 @@ export default function Scan() {
         setPhase({ kind: "miss", photo, message: readFailureMessage(outcome), wrongGame: null, read: null, scanId: null, quota });
         return;
       }
-      const found = await identify(outcome.read, as);
+      const found = await identify(outcome.read, as, outcome.prefetch);
       if (!found.card) {
         fxMiss();
         setPhase({ kind: "miss", photo, message: found.error ?? "No match — line the card up in the guide and try again", wrongGame: found.wrongGame, read: outcome.read, scanId: outcome.scanId, quota: false });
