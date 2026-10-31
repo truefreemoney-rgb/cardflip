@@ -1,6 +1,6 @@
 # To test later
 
-## 10-31 12:35PM ET: no "Continue with Google" inside social-app browsers + Instagram Android = phone (tsc clean, test:analytics new case fails before / passes after; NOT pushed; shots signup-safari-phone.jpg + signup-instagram-phone.jpg sent, LOOK-YES PENDING)
+## 10-31 12:35PM ET: no "Continue with Google" inside social-app browsers + Instagram Android = phone (tsc clean, test:analytics new case fails before / passes after; NOT pushed; shots signup-safari-phone.jpg + signup-instagram-phone.jpg sent, LOOK-YES 12:13pm "push the fix"; PUSHED)
 - [x] Why (prod read 10-31, 8 Instagram ad visitors 11-12 ET, 0 sign-ups): the one who got furthest tapped Get Started at 11:14, then Continue with Google at 11:14 and 11:28; rate_limits shows auth:google:start both times and no callback = Google refused inside Instagram (disallowed_useragent), they gave up. 6 of 8 left after the landing page without scrolling (depth 6-8%). 4 of 8 were filed "tablet": deviceClass matched Instagram's second "Android (" after "Mobile".
 - [x] What: GoogleButton hides when inAppBrowserName() names an app (Threads/TikTok/Instagram/Facebook/Pinterest/X/Snapchat/LinkedIn); visit.ts deviceClass checks "mobile" across the whole UA.
 - [ ] After the push: phone, open cardflip.io/signup from an Instagram DM link = no Google button, email form works; Safari = Google button still there. Next IG ad day: page_views device for src=instagram = phone, not tablet.
