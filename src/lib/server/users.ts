@@ -89,6 +89,10 @@ export interface User {
   xSub: string | null;
   /** Apple user id (identity token sub) when the account signs in with Apple (the iPhone app); null = never. */
   appleSub: string | null;
+  /** Apple in-app purchase: the subscription's original transaction id (stable across renewals); null = never bought in the app. */
+  appleOriginalTransactionId: string | null;
+  /** Which store the sub_* fields mirror: 'stripe' (cardflip.io) or 'apple' (the iPhone app); null = never subscribed. */
+  subSource: "stripe" | "apple" | null;
 }
 
 export interface UserRow {
@@ -139,6 +143,8 @@ export interface UserRow {
   google_sub: string | null;
   x_sub: string | null;
   apple_sub: string | null;
+  apple_original_transaction_id: string | null;
+  sub_source: string | null;
 }
 
 function parseBackupCodes(raw: string | null): string[] {
@@ -203,6 +209,8 @@ export function fromRow(row: UserRow): User {
     googleSub: row.google_sub ?? null,
     xSub: row.x_sub ?? null,
     appleSub: row.apple_sub ?? null,
+    appleOriginalTransactionId: row.apple_original_transaction_id ?? null,
+    subSource: row.sub_source === "apple" ? "apple" : row.sub_source === "stripe" ? "stripe" : null,
   };
 }
 
@@ -504,7 +512,20 @@ export async function ensureStripeCustomer(user: Pick<User, "id" | "email" | "st
 
 /** Pin which Stripe subscription owns this account's status (see the webhook). */
 export async function setStripeSubscription(userId: string, subscriptionId: string | null): Promise<void> {
-  await db.prepare("UPDATE users SET stripe_subscription_id = ? WHERE id = ?").run(subscriptionId, userId);
+  // Adopting a Stripe subscription makes Stripe the store the status mirrors (an Apple one is never live then: see the webhook).
+  await db
+    .prepare(`UPDATE users SET stripe_subscription_id = ?${subscriptionId ? ", sub_source = 'stripe'" : ""} WHERE id = ?`)
+    .run(subscriptionId, userId);
+}
+
+/** Apple in-app purchase: pin the subscription (original transaction id) the status mirrors, and make Apple the source. */
+export async function setAppleSubscription(userId: string, originalTransactionId: string): Promise<void> {
+  await db.prepare("UPDATE users SET apple_original_transaction_id = ?, sub_source = 'apple' WHERE id = ?").run(originalTransactionId, userId);
+}
+
+export async function findUserByAppleOriginalTransaction(originalTransactionId: string): Promise<User | null> {
+  const row = (await db.prepare("SELECT * FROM users WHERE apple_original_transaction_id = ?").get(originalTransactionId)) as UserRow | undefined;
+  return row ? fromRow(row) : null;
 }
 
 /**
@@ -790,6 +811,8 @@ export async function createUser(
     googleSub,
     xSub,
     appleSub,
+    appleOriginalTransactionId: null,
+    subSource: null,
   };
 }
 
@@ -1033,6 +1056,8 @@ export interface PublicUser {
   homeCountry: string | null;
   /** False for an account made with Google: the account page then lets them set a password without a current one. */
   hasPassword: boolean;
+  /** Where the subscription is managed: 'apple' (iPhone Settings), 'stripe' (cardflip.io billing); null = none. */
+  subSource: "stripe" | "apple" | null;
 }
 
 /** Strips the password hash (and TOTP secret) before a user record ever reaches the client. */
@@ -1058,5 +1083,6 @@ export function toPublicUser(user: User): PublicUser {
     mustConfirmEmail: needsEmailConfirm(user),
     homeCountry: user.homeCountry ?? null,
     hasPassword: hasPassword(user.passwordHash),
+    subSource: isSubscribed(user) ? user.subSource ?? "stripe" : null,
   };
 }

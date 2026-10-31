@@ -8,6 +8,7 @@ import * as SplashScreen from "expo-splash-screen";
 import * as WebBrowser from "expo-web-browser";
 import { useEffect, useRef } from "react";
 import { AuthProvider, useAuth } from "~/lib/auth";
+import { IapListener } from "~/lib/iap";
 import { colors } from "~/lib/theme";
 
 SplashScreen.preventAutoHideAsync();
@@ -53,6 +54,8 @@ function Root() {
   return (
     <>
     <ScannerShortcuts />
+    {/* Apple in-app purchases land on the server here, whichever screen started them (lib/iap.ts). */}
+    <IapListener />
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
       <Stack.Protected guard={user === null}>
         {/* First open: the three swipe cards, once per install (intro.tsx). */}

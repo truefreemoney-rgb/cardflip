@@ -55,6 +55,8 @@ export interface SessionUser {
   homeCountry?: string | null;
   /** False for an account made with Google (no password until they set one). */
   hasPassword?: boolean;
+  /** Where the subscription is managed: 'apple' = bought in the iPhone app (iPhone Settings), 'stripe' = cardflip.io billing. */
+  subSource?: "stripe" | "apple" | null;
 }
 
 /** Login needs a 6-digit code: from the authenticator app (two-step), or, with `byEmail`, one we just mailed. */

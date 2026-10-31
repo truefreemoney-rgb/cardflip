@@ -5,6 +5,7 @@ import Link from "next/link";
 import Spinner from "@/components/Spinner";
 import { fetchCurrentUser, type SessionUser } from "@/lib/client/auth";
 import { openBillingPortal, startCheckout } from "@/lib/client/accountApi";
+import { appBuys } from "@/lib/appMode";
 
 /**
  * The button on each plan card (landing + /pricing). Signed out: every card
@@ -90,11 +91,14 @@ export default function PlanCta({
     );
   }
 
-  async function go(fn: () => Promise<string>) {
+  async function go(fn: () => Promise<string | null>) {
     setBusy(true);
     setError(null);
     try {
-      window.location.assign(await fn());
+      const url = await fn();
+      // null = the iPhone app opened Apple's purchase sheet (or Settings): stay here.
+      if (url) window.location.assign(url);
+      else setBusy(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong. Try again.");
       setBusy(false);
@@ -125,8 +129,13 @@ export default function PlanCta({
         <button type="button" disabled className={cls}>
           Your Current Plan
         </button>
+      ) : subscribed && user.subSource === "apple" && !appBuys() ? (
+        // Bought in the iPhone app: Apple bills it, so plans switch in iPhone Settings, not Stripe.
+        <button type="button" disabled className={cls}>
+          Switch in iPhone Settings
+        </button>
       ) : subscribed ? (
-        <button type="button" onClick={() => go(openBillingPortal)} disabled={busy} className={cls}>
+        <button type="button" onClick={() => go(() => openBillingPortal())} disabled={busy} className={cls}>
           {busy ? <Spinner className="h-4 w-4" /> : null}
           {busy ? "Opening…" : plan === "pro" ? "Switch to Pro in Billing" : "Switch to CardFlip in Billing"}
         </button>

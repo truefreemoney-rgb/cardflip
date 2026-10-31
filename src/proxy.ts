@@ -33,7 +33,7 @@ const ALLOWED = list(process.env.ADMIN_COUNTRIES, "US");
 const BLOCKED = list(process.env.BLOCKED_COUNTRIES, "IN");
 
 /** Routes other services call; never country-blocked. */
-const EXEMPT_PREFIXES = ["/api/cron/", "/api/stripe/webhook", "/api/ebay/account-deletion", "/api/ebay/callback"];
+const EXEMPT_PREFIXES = ["/api/cron/", "/api/stripe/webhook", "/api/iap/apple/notify", "/api/ebay/account-deletion", "/api/ebay/callback"];
 
 export function adminCountryAllowed(country: string | null | undefined): boolean {
   if (!country) return !process.env.VERCEL; // off-Vercel only

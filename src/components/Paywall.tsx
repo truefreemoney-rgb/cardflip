@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import AppSubscriptionTerms from "@/components/AppSubscriptionTerms";
 import PlanCard from "@/components/PlanCard";
 import PlanCta from "@/components/PlanCta";
 import PlanPrice from "@/components/PlanPrice";
@@ -51,7 +52,10 @@ export default function Paywall() {
     setBusy("portal");
     setError(null);
     try {
-      window.location.assign(await openBillingPortal());
+      const url = await openBillingPortal();
+      // null = the iPhone app took it: stay on the wall.
+      if (url) window.location.assign(url);
+      else setBusy(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong. Try again.");
       setBusy(null);
@@ -142,6 +146,7 @@ export default function Paywall() {
           <PlanCard trial={false} sessionUser={user ?? undefined} className="mt-6 w-full text-left" />
 
           <p className="mt-4 text-center text-xs text-zinc-500">{ROLLOVER_SENTENCE} Cancel any time.</p>
+          <AppSubscriptionTerms className="mt-3" />
         </>
       )}
 

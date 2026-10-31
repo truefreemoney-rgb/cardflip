@@ -80,7 +80,10 @@ function RewardsInner() {
   async function subscribe() {
     setBusy(true);
     try {
-      window.location.href = await startCheckout("standard");
+      const url = await startCheckout("standard");
+      // null = the iPhone app opened Apple's purchase sheet: stay here.
+      if (url) window.location.href = url;
+      else setBusy(false);
     } catch (err) {
       setBusy(false);
       toast(err instanceof Error && err.message ? err.message : "Couldn't open Checkout. Try again.", "err");

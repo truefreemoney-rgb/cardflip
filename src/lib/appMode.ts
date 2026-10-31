@@ -35,7 +35,25 @@ export function inAppMode(): boolean {
  * not (10-29). Returns false outside the app, so the caller carries on as the
  * website.
  */
-export function postToApp(message: { type: "scan" }): boolean {
+export type AppMessage =
+  | { type: "scan" }
+  /** Apple's purchase sheet for this plan (the app's IAP builds, 10-31). */
+  | { type: "buy"; plan: "pack" | "standard" | "pro" }
+  /** Manage the subscription: iPhone Settings for an Apple one, cardflip.io in Safari for a Stripe one (the app knows which). */
+  | { type: "manage" };
+
+/**
+ * Inside an app build that sells through Apple in-app purchase (it sets window.CardFlipApp.iap before the page
+ * loads). Then every buy and billing button hands off to the app instead of opening Stripe; an older build (no flag)
+ * keeps the Stripe pages as before.
+ */
+export function appBuys(): boolean {
+  if (typeof window === "undefined" || !inAppMode()) return false;
+  const flag = (window as unknown as { CardFlipApp?: { iap?: boolean } }).CardFlipApp;
+  return Boolean(flag?.iap);
+}
+
+export function postToApp(message: AppMessage): boolean {
   if (typeof window === "undefined") return false;
   const bridge = (window as unknown as { ReactNativeWebView?: { postMessage(data: string): void } }).ReactNativeWebView;
   if (!bridge || !inAppMode()) return false;

@@ -23,6 +23,8 @@ export interface SessionUser {
   mustConfirmEmail?: boolean;
   hasCards?: boolean;
   pricingOnly?: boolean;
+  /** Where the subscription is managed: 'apple' (iPhone Settings) or 'stripe' (cardflip.io); null = none. */
+  subSource?: "stripe" | "apple" | null;
   features?: { magic: boolean; mtg?: boolean; lorcana?: boolean; onepiece?: boolean; yugioh?: boolean };
   scans?: { remaining: number | null } & Record<string, unknown>;
 }

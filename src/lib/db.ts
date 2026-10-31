@@ -1342,6 +1342,11 @@ const COLUMN_PROBES: [table: string, columns: string[]][] = [
     // Sign in with Apple's refresh token, sealed (lib/server/appleAuth.ts, 10-31): account deletion revokes it,
     // as Apple's account-deletion rule asks. NULL = signed in before the app sent its authorization code, or no key set.
     "apple_refresh_token TEXT",
+    // Apple in-app purchase (the iPhone app, lib/server/appleIap.ts, 10-31): the subscription's original transaction
+    // id (stable across renewals, like stripe_subscription_id) and which store the sub_* columns mirror right now:
+    // 'stripe' | 'apple' | NULL (no subscription yet). A Stripe event never overwrites a live Apple subscription.
+    "apple_original_transaction_id TEXT",
+    "sub_source TEXT",
   ]],
   [
     // The address a reset link was mailed to (passwordReset.ts), so consuming

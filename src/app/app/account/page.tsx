@@ -20,6 +20,7 @@ import { frozenSentence, hasPlanBalance, paymentCredited, planEndsSentence, shor
 import { requestTourReplay } from "@/lib/client/tour";
 import { HANDLE_MAX, handleProblem, normalizeHandle, publicCollectionPath } from "@/lib/handle";
 import { disablePush, enablePush, pushState, sendTestPush, type PushState } from "@/lib/client/push";
+import { appBuys } from "@/lib/appMode";
 import {
   changePassword,
   deleteAccount,
@@ -1275,11 +1276,14 @@ function PlanSection({
   const [msg, setMsg] = useState<string | null>(null);
   const subscribed = user.subStatus === "active" || user.subStatus === "trialing" || user.subStatus === "past_due";
 
-  async function go(fn: () => Promise<string>) {
+  async function go(fn: () => Promise<string | null>) {
     setBusy(true);
     setMsg(null);
     try {
-      window.location.assign(await fn());
+      const url = await fn();
+      // null = the iPhone app took it (Apple's purchase sheet, or Settings): stay on the page.
+      if (url) window.location.assign(url);
+      else setBusy(false);
     } catch (err) {
       setMsg(err instanceof Error ? err.message : "Something went wrong");
       setBusy(false);
@@ -1315,6 +1319,8 @@ function PlanSection({
   const ending = Boolean(user.cancelAtPeriodEnd) || Boolean(endsDate);
   // Plan scans that are banked but cannot be spent (canceled, or the plan ended).
   const pausedNote = q && frozenSentence(q) ? ` ${frozenSentence(q)}.` : "";
+  // Bought in the iPhone app and looked at on the website: Apple bills it, so there is no Stripe page to open here.
+  const appleOnWeb = user.subSource === "apple" && !appBuys();
 
   const status = walled ? (
     "Confirm your email to start scanning. Plans open up right after."
@@ -1354,8 +1360,10 @@ function PlanSection({
       title="Plan"
       status={status}
       action={
-        walled ? null : subscribed ? (
-          <button type="button" data-tour="subscribe" className={rowBtn} onClick={() => go(openBillingPortal)} disabled={busy}>
+        walled ? null : subscribed && appleOnWeb ? (
+          <span className="shrink-0 text-right text-xs text-zinc-400">Manage in iPhone Settings</span>
+        ) : subscribed ? (
+          <button type="button" data-tour="subscribe" className={rowBtn} onClick={() => go(() => openBillingPortal())} disabled={busy}>
             {busy ? "Opening…" : "Manage Billing"}
           </button>
         ) : (
@@ -1452,7 +1460,10 @@ function PlanSection({
               {ending ? "" : ` ${FROZEN_SENTENCE}`}
             </p>
           )}
-          {billingReturn !== "ending" && !ending && (
+          {billingReturn !== "ending" && !ending && appleOnWeb && (
+            <p className="mt-3 text-xs text-zinc-500">To cancel: iPhone Settings → your name → Subscriptions → CardFlip.</p>
+          )}
+          {billingReturn !== "ending" && !ending && !appleOnWeb && (
             <button
               type="button"
               onClick={() => go(() => openBillingPortal("cancel"))}

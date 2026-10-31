@@ -4,6 +4,7 @@ import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, Text, View
 import WebView, { type WebViewNavigation } from "react-native-webview";
 import { API_URL, APP_HEADER_VALUE } from "~/lib/api";
 import { useAuth } from "~/lib/auth";
+import { buyPlan, IAP_ON, IAP_SKUS, manageSubscription, onPurchased, type IapPlan } from "~/lib/iap";
 import { readToken } from "~/lib/tokenStore";
 import { colors, space } from "~/lib/theme";
 
@@ -25,8 +26,10 @@ import { colors, space } from "~/lib/theme";
  * that page (and the page's "Add Cards" opens the app's camera over the
  * bridge); mailto:/tel: links go to the phone's apps; any other site (eBay
  * listings, TCGplayer, help links) opens in Safari, except the eBay sign-in
- * and Stripe checkout hosts, which need this WebView's cookies to come back
- * signed in (review 10-29).
+ * hosts, which need this WebView's cookies to come back signed in (review
+ * 10-29). Stripe never opens in here: the pages' buy buttons hand off to
+ * Apple's purchase sheet (lib/iap.ts, 10-31), and anything Stripe that is
+ * still linked goes to Safari like any other site.
  *
  * Web (the in-pane preview only, never shipped): react-native-webview has no
  * web build, so the handoff is a fetch with credentials and the page sits in
@@ -34,7 +37,9 @@ import { colors, space } from "~/lib/theme";
  */
 const LEAVE_PATHS = new Set(["/", "/login", "/signup"]);
 /** Other hosts that stay inside the WebView: flows that end by sending the browser back to cardflip.io. */
-const KEEP_HOSTS = /(^|\.)(auth|signin)\.ebay\.(com|co\.uk|ca|com\.au|ie)$|(^|\.)(checkout|billing)\.stripe\.com$/i;
+const KEEP_HOSTS = /(^|\.)(auth|signin)\.ebay\.(com|co\.uk|ca|com\.au|ie)$/i;
+/** Set before every page loads: tells the site (lib/appMode.ts appBuys) that this build sells through Apple. */
+const BEFORE_LOAD = IAP_ON ? "window.CardFlipApp = { iap: true }; true;" : "true;";
 /** The query a link to /app may carry into the Scanner tab (the site's My Cards Resume / Verify / "Move to listings", the eBay return). */
 const SCANNER_PARAMS = ["resume", "ask", "rn", "rnum", "rg", "ri", "ebay"] as const;
 /** The site page behind each tab (the Scanner tab's /app goes through toScanner, query and all). */
@@ -58,7 +63,7 @@ const SiteWebView = forwardRef<SiteWebViewHandle, { path: string; onLeave?: () =
   { path, onLeave, onLoading, scanner = false, guest = false },
   ref,
 ) {
-  const { refresh } = useAuth();
+  const { user, refresh } = useAuth();
   const web = useRef<React.ComponentRef<typeof WebView>>(null);
   /** The page's current path (null until the first load): the Scanner tab only hands scans into the scanner page. */
   const here = useRef<string | null>(null);
@@ -71,6 +76,8 @@ const SiteWebView = forwardRef<SiteWebViewHandle, { path: string; onLeave?: () =
       web.current?.injectJavaScript(`window.dispatchEvent(new Event("cardflip:focus")); true;`);
     }, []),
   );
+  // A purchase finished (lib/iap.ts): the page re-reads the account so the new scans / plan show at once.
+  useEffect(() => onPurchased(() => web.current?.injectJavaScript(`window.dispatchEvent(new Event("cardflip:focus")); true;`)), []);
   const [token, setToken] = useState<string | null | undefined>(undefined);
   const [failed, setFailed] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -240,8 +247,10 @@ const SiteWebView = forwardRef<SiteWebViewHandle, { path: string; onLeave?: () =
       onMessage={(e) => {
         if (!ours(e.nativeEvent.url)) return;
         try {
-          const msg = JSON.parse(e.nativeEvent.data) as { type?: string };
+          const msg = JSON.parse(e.nativeEvent.data) as { type?: string; plan?: string };
           if (msg.type === "scan") router.navigate("/scan");
+          else if (msg.type === "buy" && msg.plan && msg.plan in IAP_SKUS) void buyPlan(msg.plan as IapPlan, user);
+          else if (msg.type === "manage") void manageSubscription(user);
         } catch {
           /* not ours */
         }
@@ -252,6 +261,7 @@ const SiteWebView = forwardRef<SiteWebViewHandle, { path: string; onLeave?: () =
       keyboardDisplayRequiresUserAction={false}
       contentInsetAdjustmentBehavior="never"
       applicationNameForUserAgent={`CardFlipApp/${APP_HEADER_VALUE}`}
+      injectedJavaScriptBeforeContentLoaded={BEFORE_LOAD}
     />
   );
 });

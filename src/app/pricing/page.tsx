@@ -1,6 +1,7 @@
 import Link from "next/link";
 import MarketingNav from "@/components/MarketingNav";
 import Footer from "@/components/Footer";
+import AppSubscriptionTerms from "@/components/AppSubscriptionTerms";
 import PlanCard, { PLAN } from "@/components/PlanCard";
 import PlanPrice from "@/components/PlanPrice";
 import { FROZEN_SENTENCE, PRICE, ROLLOVER_SENTENCE, SCANS } from "@/lib/pricing";
@@ -79,6 +80,7 @@ export default function PricingPage() {
               </p>
             </div>
             <PlanCard className="mx-auto mt-6 max-w-6xl" />
+            <AppSubscriptionTerms className="mt-5" />
           </div>
         </section>
 

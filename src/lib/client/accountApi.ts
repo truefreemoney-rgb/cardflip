@@ -1,5 +1,6 @@
 "use client";
 
+import { appBuys, postToApp } from "@/lib/appMode";
 import { apiFetch } from "@/lib/client/basePath";
 import type { SessionUser } from "@/lib/client/auth";
 import { walledDestination } from "@/lib/client/emailConfirm";
@@ -121,7 +122,9 @@ export async function deleteAccount(password: string): Promise<void> {
  * inbox); it is sent to /app instead, where the code screen lives, rather than
  * left on a bare red error with nowhere to go.
  */
-export async function startCheckout(plan: "standard" | "pro" | "pack" = "standard"): Promise<string> {
+export async function startCheckout(plan: "standard" | "pro" | "pack" = "standard"): Promise<string | null> {
+  // The iPhone app sells through Apple (lib/appMode.ts appBuys): null = handed to Apple's purchase sheet, stay here.
+  if (appBuys() && postToApp({ type: "buy", plan })) return null;
   const res = await apiFetch("/api/billing/checkout", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -136,7 +139,9 @@ export async function startCheckout(plan: "standard" | "pro" | "pack" = "standar
 }
 
 /** Answers the Stripe billing-portal URL (cancel, change card, invoices). */
-export async function openBillingPortal(flow?: "cancel"): Promise<string> {
+export async function openBillingPortal(flow?: "cancel"): Promise<string | null> {
+  // In the iPhone app the app opens the right place (iPhone Settings or cardflip.io in Safari); null = stay here.
+  if (appBuys() && postToApp({ type: "manage" })) return null;
   const res = await apiFetch("/api/billing/portal", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

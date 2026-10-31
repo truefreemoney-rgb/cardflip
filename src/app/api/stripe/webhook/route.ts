@@ -135,6 +135,11 @@ export async function POST(req: NextRequest) {
     ) {
       const customerId = typeof obj.customer === "string" ? obj.customer : null;
       const user = customerId ? await findUserByStripeCustomer(customerId) : null;
+      if (user && user.subSource === "apple" && isSubscribed(user)) {
+        // Paying through Apple now (the iPhone app, 10-31): an old Stripe subscription's event must not mirror over it.
+        console.info(`stripe: ${user.email} ignored ${event.type} (subscribed through Apple)`);
+        return NextResponse.json({ received: true, ignored: true });
+      }
       if (user) {
         const deleted = event.type === "customer.subscription.deleted";
         const subscriptionId = typeof obj.id === "string" ? obj.id : null;
