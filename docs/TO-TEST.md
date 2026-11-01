@@ -1,5 +1,10 @@
 # To test later
 
+## 11-01 2:25PM ET: eBay seller floor ON (#16 step 2, committed locally; rides Chris's bulk push)
+- [x] Hand check of the 11-01 8:15am run (515 read, 1,378 asks, 101 from sellers under 95% / 20 feedbacks, 17 flips). 13 were ok>none (the only asks dropped: no flag either way; 7 = Fallout/RVR serial-numbered listings from a 0-feedback seller). The 4 that change a flag vs TCGplayer: Magikarp & Wailord GX 161 $904.13 high>check RIGHT (NM sold 904.13 10-23, 999.99 10-07); Rayquaza & Deoxys LEGEND 89 $599.20 check>ok RIGHT (NM 599.14 10-28); Mewtwo Expedition 20 RH $750.48 check>none RIGHT (NM RH 800.98 10-27; the $350 ask was a 0-feedback seller); Gengar LV.X Arceus 97 $698.88 ok>check = one extra hand check (market 698.88; the dropped ask was $1,249.99 from a 2-feedback seller).
+- [x] Code: lib/server/ebayReferee.ts readOne judges only trusted sellers' asks; the run summary still lists every flip (from = every ask, to = written). test:ebayreferee + test:pricetrust green, tsc + eslint clean.
+- [ ] Morning after the push: prod price_history_meta ebay_referee_last has sellerFloor.flipped again (the flips now = what was written); /admin price flags show no new "high" from a 0-feedback ask.
+
 ## 11-01 1:15PM ET: duplicate scan warning (653ff3bd, committed locally; waits on Chris's yes on the look, then his bulk push) — Chris 12:26pm "yes do the duplicate warning, send screenshots"
 - [x] Why: Greyson (trial, 11-01 10:54am) scanned Marshadow & Machamp GX 3 times (2.5 s and 20 s apart), deleted 2, paid 3 of his 5 free scans.
 - [x] Built: same catalog card within 2 min in one scanner session = "You just scanned this card. Is this a second copy?" Keep Both / Remove This One (saves first, so ignoring it keeps both); server gives a deleted double scan its scan back (both delete routes, one copy always stays paid). test-quota 9 new checks + e2e scan.spec on android + iphone pass; tsc + eslint clean. Shot docs/shots/dupe-warning-phone.jpg sent 1:10pm.

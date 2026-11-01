@@ -187,16 +187,21 @@ export async function readOne(c: RefereeCandidate): Promise<{ calls: number; row
     calls++;
   }
   const matched = [...seen.values()];
-  const reading = summarizeAsks(c.card, matched);
-  const v = refereeVerdict(c.price, reading);
-  // Measured beside the real reading: the same asks minus the sellers under the floor (lib/ebayReferee.ts trustedSeller).
+  const all = refereeVerdict(c.price, summarizeAsks(c.card, matched));
+  // The seller floor is ON (#16, 11-01): asks from sellers under it (lib/ebayReferee.ts trustedSeller) never count.
+  // Hand check of the 11-01 run's 4 flips that change a flag: 3 right (Magikarp & Wailord 161, Rayquaza & Deoxys 89,
+  // Mewtwo Expedition 20 RH: the dropped asks were zero-feedback sellers far under TCGplayer's NM sales), 1 extra
+  // check (Gengar LV.X 97). The run still records what every ask would have said, so a flip stays visible.
   const trusted = matched.filter((m) => trustedSeller(m.seller));
-  const floorVerdict = trusted.length === matched.length ? v.verdict : refereeVerdict(c.price, summarizeAsks(c.card, trusted)).verdict;
-  // A card the floor would flip keeps the asks it would drop, for the hand check before the floor goes on (#16, 10-30).
-  const droppedAsks = floorVerdict !== v.verdict ? matched.filter((m) => !trustedSeller(m.seller)) : undefined;
+  const reading = summarizeAsks(c.card, trusted);
+  const v = trusted.length === matched.length ? all : refereeVerdict(c.price, reading);
+  const droppedAsks = v.verdict !== all.verdict ? matched.filter((m) => !trustedSeller(m.seller)) : undefined;
   return {
     calls,
-    row: { c, reading, verdict: v.verdict, reason: v.reason, query: q1, floor: { asks: matched.length, dropped: matched.length - trusted.length, verdict: floorVerdict, droppedAsks } },
+    row: {
+      c, reading, verdict: v.verdict, reason: v.reason, query: q1,
+      floor: { asks: matched.length, dropped: matched.length - trusted.length, verdict: v.verdict, allVerdict: all.verdict, droppedAsks },
+    },
   };
 }
 
@@ -206,11 +211,11 @@ interface AskRow {
   verdict: RefereeVerdict;
   reason: string;
   query: string;
-  /** The seller-floor measure for this card (readOne only; the hand-only rows have none). */
-  floor?: { asks: number; dropped: number; verdict: RefereeVerdict; droppedAsks?: { title: string; price: number; seller: AskSeller | null }[] };
+  /** The seller-floor measure for this card (readOne only; the hand-only rows have none). verdict = the one written (floor on), allVerdict = what every ask said. */
+  floor?: { asks: number; dropped: number; verdict: RefereeVerdict; allVerdict: RefereeVerdict; droppedAsks?: { title: string; price: number; seller: AskSeller | null }[] };
 }
 
-/** One card the seller floor would flip, as the run summary keeps it for the hand check (#16, 10-30). */
+/** One card the seller floor flipped, as the run summary keeps it (#16, 10-30): from = every ask, to = the floor's. */
 export interface SellerFloorFlip {
   label: string;
   game: string;
@@ -226,7 +231,7 @@ export interface SellerFloorFlip {
 /** The run's flipped cards, biggest price first, capped so the summary row stays small. */
 function sellerFloorFlips(rows: AskRow[]): SellerFloorFlip[] {
   return rows
-    .filter((r) => r.floor && r.floor.verdict !== r.verdict)
+    .filter((r) => r.floor && r.floor.verdict !== r.floor.allVerdict)
     .sort((a, b) => b.c.price - a.c.price)
     .slice(0, 60)
     .map((r) => ({
@@ -235,7 +240,7 @@ function sellerFloorFlips(rows: AskRow[]): SellerFloorFlip[] {
       cardId: r.c.card.cardId,
       variant: r.c.card.variant,
       price: r.c.price,
-      from: r.verdict,
+      from: r.floor!.allVerdict,
       to: r.floor!.verdict,
       asks: r.floor!.asks,
       dropped: (r.floor!.droppedAsks ?? []).slice(0, 8).map((d) => ({ title: d.title, price: d.price, pct: d.seller?.pct ?? null, score: d.seller?.score ?? null })),
@@ -324,7 +329,8 @@ export async function runEbayReferee({ now = Date.now(), maxCalls = CALLS_PER_DA
   verdicts.check += handOnly.length;
   const run: RefereeRun = {
     candidates: cands.length, read: done.length, calls: calls - spent, verdicts, failed, left: queue.length - done.length - failed, ms: Date.now() - t0,
-    sellerFloor: { ...measureSellerFloor(done), flipped: sellerFloorFlips(done) },
+    // The measure compares every ask (the old verdict) with the floor's, which is the one written now.
+    sellerFloor: { ...measureSellerFloor(done.map((r) => ({ verdict: r.floor?.allVerdict ?? r.verdict, floor: r.floor }))), flipped: sellerFloorFlips(done) },
   };
   await db
     .prepare("INSERT INTO price_history_meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
