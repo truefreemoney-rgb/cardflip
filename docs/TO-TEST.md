@@ -7,6 +7,7 @@
 
 ## 11-01 1:15PM ET: duplicate scan warning (653ff3bd, committed locally; waits on Chris's yes on the look, then his bulk push) — Chris 12:26pm "yes do the duplicate warning, send screenshots"
 - [x] Why: Greyson (trial, 11-01 10:54am) scanned Marshadow & Machamp GX 3 times (2.5 s and 20 s apart), deleted 2, paid 3 of his 5 free scans.
+- [x] LOOK APPROVED: Chris 2:09pm "duplicate warning looks fine". Rides his bulk push.
 - [x] Built: same catalog card within 2 min in one scanner session = "You just scanned this card. Is this a second copy?" Keep Both / Remove This One (saves first, so ignoring it keeps both); server gives a deleted double scan its scan back (both delete routes, one copy always stays paid). test-quota 9 new checks + e2e scan.spec on android + iphone pass; tsc + eslint clean. Shot docs/shots/dupe-warning-phone.jpg sent 1:10pm.
 - [ ] After the push, phone: scan one card twice = the yellow box; Remove This One = toast "Removed the extra … You get the scan back", the header count goes back up by one; Keep Both = two rows in Inventory.
 - [ ] After the push, prod: a double-scan delete from Inventory gives the scan back (scan_usage refunded_at set on the second copy's scan).
