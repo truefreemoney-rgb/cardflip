@@ -480,6 +480,13 @@ export interface ScanItem {
   reread?: boolean;
   /** The scan_usage row of the read on file: a wrong-game read is kept (not given back) until the seller switches or clears it. */
   scanId?: string | null;
+  /** When this scan matched its card (this session only): the duplicate check compares these. */
+  scannedAt?: number;
+  /**
+   * The same catalog card matched by another scan in this session moments before (11-01, Greyson: 3 of his 5
+   * free scans on one Marshadow & Machamp GX). The result asks "Keep both / Remove this one"; null once answered.
+   */
+  dupeOf?: string | null;
   /**
    * Set once the draft has been pushed to the seller's own eBay account via
    * the Sell Inventory API (offer id), and once that offer is published (the

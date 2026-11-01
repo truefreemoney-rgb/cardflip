@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { doubtedCardsAmong, giveBackDoubtedDeletes } from "@/lib/server/scanGiveback";
+import { giveBackForDelete, scansBackForDelete } from "@/lib/server/scanGiveback";
+import { scanQuota } from "@/lib/server/scanQuota";
+import { findUserById } from "@/lib/server/users";
 import { requireUser } from "@/lib/server/auth";
 import { apiFailure } from "@/lib/server/apiError";
 import { deleteCard, getCardForUser, updateCard, type CardStatus } from "@/lib/server/cards";
@@ -170,11 +172,13 @@ export async function DELETE(_req: Request, { params }: RouteParams) {
       return NextResponse.json({ error: "This card is live on eBay — end the listing first." }, { status: 409 });
     }
     if (existing) await deleteCardPhoto(id);
-    // A card the scanner itself doubted gives its scan back (10-21); read before the row goes.
-    const doubted = await doubtedCardsAmong(user.id, [id]);
+    // A card the scanner itself doubted (10-21) or a quick double scan (11-01) gives its scan back; read before the row goes.
+    const back = await scansBackForDelete(user.id, [id]);
     await deleteCard(id, user.id);
-    const scansBack = await giveBackDoubtedDeletes(user, doubted);
-    return NextResponse.json({ ok: true, scansBack });
+    const scansBack = await giveBackForDelete(user, back);
+    // The balance after a give-back, so the scanner's counter follows without a reload.
+    const fresh = scansBack > 0 ? await findUserById(user.id) : null;
+    return NextResponse.json({ ok: true, scansBack, ...(fresh ? { usage: scanQuota(fresh) } : {}) });
   } catch (err) {
     return apiFailure(err);
   }

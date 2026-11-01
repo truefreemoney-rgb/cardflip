@@ -216,6 +216,8 @@ interface Props {
   onRemove?: (id: string) => void;
   /** A wrong-game scan's "Switch to <game>" (Chris 10-20): the scanner's game follows and the same photo is read again. */
   onSwitchGame?: (id: string, game: GameId) => void;
+  /** A double scan (item.dupeOf): keep both copies, or remove this one and get the scan back (11-01). */
+  onDupe?: (id: string, keep: boolean) => void;
   /** The out-of-scans message while it applies (the page banner is hidden behind this modal). */
   quotaNote?: string | null;
   /** Set only while the user is out of scans: Capture takes no photo and goes here (10-22: the burst ran, then the photo was thrown away). */
@@ -391,7 +393,7 @@ const TIPS_MAX_OPENS = 3;
  * a real desk — keyboard, hand, monitor — each costing a paid scan. Chris:
  * "capture button is where it's at for speed". Don't rebuild without asking.
  */
-export default function CameraCapture({ game, onGameChange, lastScan, queue, onRemove, onSwitchGame, quotaNote, onGetMore, onCapture, onClose, onOpen, onSwap: onPick, onCamera, onEdit, onApplyConditionToAll }: Props) {
+export default function CameraCapture({ game, onGameChange, lastScan, queue, onRemove, onSwitchGame, onDupe, quotaNote, onGetMore, onCapture, onClose, onOpen, onSwap: onPick, onCamera, onEdit, onApplyConditionToAll }: Props) {
   const onCameraRef = useRef(onCamera);
   useEffect(() => {
     onCameraRef.current = onCamera;
@@ -1321,7 +1323,7 @@ export default function CameraCapture({ game, onGameChange, lastScan, queue, onR
               {blurNote}
             </p>
           ) : lastScan ? (
-            <ScanToast key={lastScan.id} item={lastScan} onOpen={onOpen} onRemove={onRemove} onSwap={onPick ? () => setPicking(true) : undefined} onSwitchGame={onSwitchGame && lastScan.wrongGame ? () => onSwitchGame(lastScan.id, lastScan.wrongGame!) : undefined} onEdit={onEdit ? () => setEditing(true) : undefined} onExpand={() => setExpanded(true)} verify={verify} />
+            <ScanToast key={lastScan.id} item={lastScan} onOpen={onOpen} onRemove={onRemove} onSwap={onPick ? () => setPicking(true) : undefined} onSwitchGame={onSwitchGame && lastScan.wrongGame ? () => onSwitchGame(lastScan.id, lastScan.wrongGame!) : undefined} onDupe={onDupe && lastScan.dupeOf ? (keep) => onDupe(lastScan.id, keep) : undefined} onEdit={onEdit ? () => setEditing(true) : undefined} onExpand={() => setExpanded(true)} verify={verify} />
           ) : nativeCam ? null : (
             <div className="w-full text-center text-sm leading-snug text-zinc-400">
               Fill the guide with one card, then tap Capture.
@@ -1452,6 +1454,8 @@ interface ToastProps {
   onSwap?: () => void;
   /** Another game's card: read this photo again as item.wrongGame (the scanner's game follows). */
   onSwitchGame?: () => void;
+  /** Set only on a double scan: "Keep both" (true) or "Remove this one" (false). */
+  onDupe?: (keep: boolean) => void;
   /** The details pill: open the "This copy" sheet. Falls back to onOpen when absent. */
   onEdit?: () => void;
   /** Open the result big (ScanResultSheet). */
@@ -1460,7 +1464,7 @@ interface ToastProps {
   verify: { count: number; value: number } | null;
 }
 
-function ScanToast({ item, onOpen, onRemove, onSwap, onSwitchGame, onEdit, onExpand, verify }: ToastProps) {
+function ScanToast({ item, onOpen, onRemove, onSwap, onSwitchGame, onDupe, onEdit, onExpand, verify }: ToastProps) {
   const scanning = item.status === "queued" || item.status === "scanning";
 
   if (scanning) {
@@ -1503,7 +1507,7 @@ function ScanToast({ item, onOpen, onRemove, onSwap, onSwitchGame, onEdit, onExp
     );
   }
 
-  return <RevealChip item={item} onOpen={onOpen} onRemove={onRemove} onSwap={onSwap} onEdit={onEdit} onExpand={onExpand} verify={verify} />;
+  return <RevealChip item={item} onOpen={onOpen} onRemove={onRemove} onSwap={onSwap} onDupe={onDupe} onEdit={onEdit} onExpand={onExpand} verify={verify} />;
 }
 
 /**
@@ -1586,7 +1590,7 @@ function revealMarket(item: ScanItem): number | null {
   return price > 0 ? price : null;
 }
 
-function RevealChip({ item, onOpen, onRemove, onSwap, onEdit, onExpand, verify }: ToastProps) {
+function RevealChip({ item, onOpen, onRemove, onSwap, onDupe, onEdit, onExpand, verify }: ToastProps) {
   const card = item.card!;
   // A look-alike printing worth much more (Special Illustration vs regular): say so, never switch by itself.
   // The "Check the art … Switch" nudge for a pricier twin is gone (Chris 10-08: "i don't like this switch option, remove that").
@@ -1700,6 +1704,28 @@ function RevealChip({ item, onOpen, onRemove, onSwap, onEdit, onExpand, verify }
           </button>
         ) : null}
       </div>
+      {/* A double scan (11-01, Greyson: 3 of his 5 free scans on one card): ask before it counts as a second copy. */}
+      {onDupe && (
+        <div className="flex w-full flex-col gap-2 rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2">
+          <p className="text-sm font-medium text-amber-200">You just scanned this card. Is this a second copy?</p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => onDupe(true)}
+              className="flex-1 rounded-full border border-white/20 px-3 py-2 text-sm font-semibold text-zinc-100 transition hover:bg-white/10"
+            >
+              Keep Both
+            </button>
+            <button
+              type="button"
+              onClick={() => onDupe(false)}
+              className="flex-1 rounded-full bg-amber-400 px-3 py-2 text-sm font-semibold text-black transition hover:bg-amber-300"
+            >
+              Remove This One
+            </button>
+          </div>
+        </div>
+      )}
       {/* Row 3: the next step lives on the result (Chris, 09-04): one button,
           names the outcome. Keeps scanning if ignored. 10-02: it counts the
           scans waiting and carries their total ("5 Scans Waiting To Verify ·

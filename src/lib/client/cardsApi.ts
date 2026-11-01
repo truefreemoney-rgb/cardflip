@@ -1,6 +1,7 @@
 "use client";
 
 import type { GameId } from "@/lib/types";
+import type { ScanQuota } from "@/lib/quotaTypes";
 import type { PriceFlag, PriceStale } from "@/lib/priceFlag";
 
 import { apiFetch } from "@/lib/client/basePath";
@@ -339,6 +340,18 @@ export async function deleteServerCards(ids: string[]): Promise<{ removed: numbe
     if (!res.ok) return null;
     const data = await res.json();
     return { removed: Number(data.removed ?? 0) };
+  } catch {
+    return null;
+  }
+}
+
+/** The scanner's delete of a double scan: the server may give the scan back, and answers with the new balance. */
+export async function deleteScannedCard(id: string): Promise<ScanQuota | null> {
+  try {
+    const res = await apiFetch(`/api/cards/${id}`, { method: "DELETE" });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return (data.usage as ScanQuota | undefined) ?? null;
   } catch {
     return null;
   }

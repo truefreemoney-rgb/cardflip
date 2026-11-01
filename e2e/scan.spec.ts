@@ -124,6 +124,45 @@ test.describe("scanner", () => {
     // Not deleted as an orphan behind the seller's back either (the old watchdog path).
     await expect.poll(async () => (await ledger(page)).map((r) => r.cardName)).toEqual(["Dragonite"]);
   });
+
+  // 11-01 (Greyson: 3 of his 5 free scans on one card, 2 deleted): a second scan of the same card asks, and
+  // "Remove This One" takes that copy out of Inventory while the first stays; "Keep Both" keeps two.
+  test("the same card scanned twice asks: Remove This One deletes the second, Keep Both keeps it", async ({ page }) => {
+    await guardNetwork(page);
+    const scan = await mockScan(page);
+    scan.reply({ read: readOf(DRAGONITE), match: [DRAGONITE] });
+    await signup(page);
+    const dialog = await openScanner(page);
+    const shots = process.env.E2E_SHOTS;
+    const saved = () => page.waitForResponse((r) => r.request().method() === "POST" && new URL(r.url()).pathname === "/api/cards");
+
+    let s = saved();
+    await capture(page, "Dragonite");
+    await s;
+    await expect(dialog.getByTestId("reveal-price")).toHaveText("$42.17");
+    await expect(dialog.getByText("You just scanned this card")).toHaveCount(0);
+
+    s = saved();
+    await capture(page, "Dragonite");
+    await s;
+    await expect(dialog.getByText("You just scanned this card. Is this a second copy?")).toBeVisible();
+    await expect(dialog.getByTestId("reveal-price")).toHaveText("$42.17");
+    if (shots) await page.screenshot({ path: `${shots}/dupe-ask-${test.info().project.name}.png` });
+
+    const gone = page.waitForResponse((r) => r.request().method() === "DELETE" && /\/api\/cards\/[^/]+$/.test(new URL(r.url()).pathname), { timeout: 15_000 });
+    await dialog.getByRole("button", { name: "Remove This One" }).click();
+    await expect(page.getByText("Removed the extra Dragonite. You get the scan back.")).toBeVisible();
+    if (shots) await page.screenshot({ path: `${shots}/dupe-removed-${test.info().project.name}.png` });
+    await gone;
+    await expect.poll(async () => (await ledger(page)).map((r) => r.cardName)).toEqual(["Dragonite"]);
+
+    s = saved();
+    await capture(page, "Dragonite");
+    await s;
+    await dialog.getByRole("button", { name: "Keep Both" }).click();
+    await expect(dialog.getByText("You just scanned this card")).toHaveCount(0);
+    await expect.poll(async () => (await ledger(page)).map((r) => r.cardName)).toEqual(["Dragonite", "Dragonite"]);
+  });
 });
 
 test.describe("game switch on the scanner", () => {

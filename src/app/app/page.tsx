@@ -24,6 +24,8 @@ import { useSession } from "@/components/SessionProvider";
  * request's own 30 s limit (lib/client/visionApi.ts), so a slow upload ends as that request's answer, not here.
  */
 const SCAN_WATCHDOG_MS = 35_000;
+/** A second scan of the same card this soon after the first asks "Keep both?" (11-01; Greyson's three were 23 s apart). */
+const DUPE_WINDOW_MS = 2 * 60_000;
 
 /**
  * "?scan=1" asked for the scanner (the /scan ad signup, the email confirm link). Kept outside the component
@@ -67,6 +69,7 @@ import ActivePackBar from "@/components/ActivePackBar";
 import {
   createServerCard,
   type ServerCard,
+  deleteScannedCard,
   deleteServerCard,
   fetchServerCards,
   fetchCategories,
@@ -897,11 +900,25 @@ export default function AppPage() {
             // English card at the English price (10-01: 8 of 155 eBay seller
             // photos were Japanese prints, most titled as plain or "English").
             const foreignPrint = (next.game === "onepiece" || next.game === "lorcana" || next.game === "yugioh") && language !== "en";
+            // The same card scanned twice in a row (11-01, Greyson: Capture again before the first answer, then a third
+            // look; 3 of his 5 free scans on one card, 2 deleted). The row still saves (a second copy is real), and the
+            // result asks; "Remove this one" deletes it and the server gives the scan back (scanGiveback.ts duplicates).
+            const scannedAt = Date.now();
+            const dupe = itemsRef.current.find(
+              (i) =>
+                i.id !== next.id &&
+                i.card?.id === card.id &&
+                i.scannedAt != null &&
+                scannedAt - i.scannedAt <= DUPE_WINDOW_MS &&
+                !deleted.current.has(i.id),
+            );
             tieRuns.current.set(next.id, tieRun);
             patchItem(next.id, {
               status: lowConfidence || ambiguous || numberMismatch || foreignPrint || foils > 1 ? "review" : "ready",
               candidates: matches,
               card,
+              scannedAt,
+              dupeOf: dupe?.id ?? null,
               // The picture tiebreak below may still swap the printing: the camera holds the price until it answers.
               printingCheck: tieIds.length >= 2 && next.file ? "pending" : undefined,
               // 1st Edition is its own catalog card (the "-1st" twin); the
@@ -1500,8 +1517,15 @@ export default function AppPage() {
     pendingRemovals.current.delete(id);
     clearTimeout(pending.timer);
     URL.revokeObjectURL(pending.item.previewUrl);
-    if (pending.del && pending.item.serverId) void deleteServerCard(pending.item.serverId);
-  }, []);
+    if (pending.del && pending.item.serverId && pending.item.dupeOf) {
+      // A removed double scan gets its scan back on the server, which answers with the balance for the counter.
+      void deleteScannedCard(pending.item.serverId).then((usage) => {
+        if (!usage) return;
+        setScanUsage(usage);
+        patchUser({ scans: usage });
+      });
+    } else if (pending.del && pending.item.serverId) void deleteServerCard(pending.item.serverId);
+  }, [patchUser]);
   useEffect(() => {
     const removals = pendingRemovals.current;
     return () => {
@@ -1547,7 +1571,7 @@ export default function AppPage() {
       });
       const name = target.card ? target.card.englishName || target.card.name : "card";
       // The clear toast says where the card still is, so a tidy-up never reads as a loss.
-      toast(del ? `Removed ${name} from your Inventory` : target.card ? `Cleared ${name} — still in your Inventory` : "Cleared", "info", {
+      toast(del ? (target.dupeOf ? `Removed the extra ${name}. You get the scan back.` : `Removed ${name} from your Inventory`) : target.card ? `Cleared ${name} — still in your Inventory` : "Cleared", "info", {
         label: "Undo",
         onClick: () => {
           const pending = pendingRemovals.current.get(id);
@@ -1567,6 +1591,15 @@ export default function AppPage() {
 
   /** Row × / chip ×: off the list, card kept. */
   const clearItem = useCallback((id: string) => takeOffList(id, false), [takeOffList]);
+
+  /** A double scan's "Keep both" / "Remove this one" (11-01). Remove is the answer to the question, so no second confirm. */
+  const answerDupe = useCallback(
+    (id: string, keep: boolean) => {
+      if (keep) patchItem(id, { dupeOf: null });
+      else takeOffList(id, true);
+    },
+    [patchItem, takeOffList],
+  );
 
   /**
    * "Switch to <game>" on a wrong-game scan (Chris 10-20: keep the scan, ask to switch): the scanner's game follows,
@@ -1747,6 +1780,7 @@ export default function AppPage() {
       queue={items.filter((item) => item.card && !item.verifiedAt && item.status !== "listed" && item.status !== "sold")}
       onRemove={clearItem}
       onSwitchGame={switchItemGame}
+      onDupe={answerDupe}
       quotaNote={quotaNote ?? (outOfScans ? "You're out of scans. Tap Capture to get more." : null)}
       onGetMore={outOfScans ? getMoreScans : undefined}
       onSwap={swapCard}

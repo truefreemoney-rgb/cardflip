@@ -7,7 +7,7 @@ import { ownsPack } from "@/lib/server/packs";
 import { scannedRecently } from "@/lib/server/scanUsage";
 import { ledgerFloorProblem } from "@/lib/server/ebayMarket";
 import { CARDS_CAP_MESSAGE, cardsFull } from "@/lib/server/rowCaps";
-import { doubtedCardsAmong, giveBackDoubtedDeletes } from "@/lib/server/scanGiveback";
+import { giveBackForDelete, scansBackForDelete } from "@/lib/server/scanGiveback";
 
 export async function GET() {
   try {
@@ -27,10 +27,10 @@ export async function DELETE(req: Request) {
     if (ids.length === 0 || ids.length > 500) {
       return NextResponse.json({ error: "ids must be 1–500 card ids" }, { status: 400 });
     }
-    // Cards the scanner itself doubted give their scan back (10-21); read before the rows go.
-    const doubted = await doubtedCardsAmong(user.id, ids);
+    // Cards the scanner itself doubted (10-21) and quick double scans (11-01) give their scan back; read before the rows go.
+    const back = await scansBackForDelete(user.id, ids);
     const removed = await deleteCards(ids, user.id);
-    const scansBack = await giveBackDoubtedDeletes(user, doubted);
+    const scansBack = await giveBackForDelete(user, back);
     return NextResponse.json({ ok: true, removed, scansBack });
   } catch (err) {
     return apiFailure(err);

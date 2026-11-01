@@ -201,6 +201,80 @@ export async function giveBackDoubtedDeletes(user: User, cards: DoubtedCard[]): 
 }
 
 /**
+ * A deleted double scan gives its scan back (11-01, Greyson: tapped Capture again before the first answer, then a third
+ * look = 3 of his 5 free scans on one Marshadow & Machamp GX; he deleted 2). A card qualifies when its scan id is its
+ * client_id and another live copy of the same catalog card, NOT among the cards being deleted, was saved within
+ * DUPE_WINDOW_MS of it: one copy always stays paid for, so deleting every copy refunds nothing. Deleted within
+ * DUPE_GIVEBACK_WINDOW_MS of the save; same per-row claim and daily cap as every give-back.
+ */
+export const DUPE_WINDOW_MS = 2 * 60 * 1000;
+export const DUPE_GIVEBACK_WINDOW_MS = 60 * 60 * 1000;
+
+export interface DupeCard {
+  id: string;
+  scanId: string;
+}
+
+/** Read BEFORE the delete: which of these rows are a quick double scan of a copy that stays. Never throws. */
+export async function duplicateCardsAmong(userId: string, ids: string[], now = Date.now()): Promise<DupeCard[]> {
+  if (ids.length === 0) return [];
+  try {
+    const marks = ids.map(() => "?").join(", ");
+    const rows = (await db
+      .prepare(
+        `SELECT c.id, c.client_id FROM cards c
+         WHERE c.user_id = ? AND c.id IN (${marks}) AND c.status != 'sold' AND c.client_id IS NOT NULL
+           AND c.catalog_card_id IS NOT NULL AND c.created_at >= ?
+           AND EXISTS (SELECT 1 FROM cards o WHERE o.user_id = c.user_id AND o.id != c.id AND o.id NOT IN (${marks})
+                       AND o.catalog_card_id = c.catalog_card_id AND ABS(o.created_at - c.created_at) <= ?)`,
+      )
+      .all(userId, ...ids, now - DUPE_GIVEBACK_WINDOW_MS, ...ids, DUPE_WINDOW_MS)) as { id: string; client_id: string }[];
+    return rows.map((r) => ({ id: r.id, scanId: r.client_id }));
+  } catch (err) {
+    console.warn("duplicate give-back: check failed", err instanceof Error ? err.message : err);
+    return [];
+  }
+}
+
+/** After the delete: give back each double scan's own scan_usage row. Returns how many came back. Never throws. */
+export async function giveBackDuplicateDeletes(user: User, cards: DupeCard[]): Promise<number> {
+  let refunded = 0;
+  for (const card of cards) {
+    try {
+      const row = (await db
+        .prepare("SELECT id, draw FROM scan_usage WHERE id = ? AND user_id = ? AND draw IS NOT NULL AND refunded_at IS NULL")
+        .get(card.scanId, user.id)) as { id: string; draw: string } | undefined;
+      if (!row) continue;
+      if (await dayBudgetSpent(`giveback_${user.id}`, GIVEBACK_DAILY_CAP)) break;
+      const claimed = await db.prepare("UPDATE scan_usage SET refunded_at = ? WHERE id = ? AND refunded_at IS NULL").run(Date.now(), row.id);
+      if (Number(claimed.changes ?? 0) < 1) continue;
+      try {
+        await giveBackScans(user, { taken: 1, draw: JSON.parse(row.draw) as ScanDraw, usage: scanQuota(user) }, 1);
+        refunded++;
+      } catch (err) {
+        await db.prepare("UPDATE scan_usage SET refunded_at = NULL WHERE id = ?").run(row.id).catch(() => undefined);
+        throw err;
+      }
+    } catch (err) {
+      console.warn("duplicate give-back: refund failed", err instanceof Error ? err.message : err);
+    }
+  }
+  return refunded;
+}
+
+/** Both delete routes: double scans by their own scan, the doubted rest by the latest scan before them (one or the other). */
+export async function scansBackForDelete(userId: string, ids: string[]): Promise<{ dupes: DupeCard[]; doubted: DoubtedCard[] }> {
+  const dupes = await duplicateCardsAmong(userId, ids);
+  const dupeIds = new Set(dupes.map((d) => d.id));
+  const doubted = (await doubtedCardsAmong(userId, ids)).filter((d) => !dupeIds.has(d.id));
+  return { dupes, doubted };
+}
+
+export async function giveBackForDelete(user: User, plan: { dupes: DupeCard[]; doubted: DoubtedCard[] }): Promise<number> {
+  return (await giveBackDuplicateDeletes(user, plan.dupes)) + (await giveBackDoubtedDeletes(user, plan.doubted));
+}
+
+/**
  * The server's own safety net (10-30, Lucas): the scanner asks for a give-back when a scan ends without a card, but a
  * closed tab, a dead signal or a crash never asks, and the seller paid for nothing. Before each new scan, this hands
  * back the account's paid scans from the give-back window that are at least UNSAVED_GRACE_MS old and saved no card

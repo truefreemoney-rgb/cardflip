@@ -630,6 +630,45 @@ delete process.env.CRON_SECRET;
     [await giveBackDoubtedDeletes(await get(uid), await doubtedCardsAmong(uid, [sure])), (await get(uid)).planScans], [0, 2]);
 }
 
+// 11-01 (Greyson: 3 of his 5 free scans on one Marshadow & Machamp GX, deleted 2): deleting a quick double scan gives
+// its own scan back while another copy stays; deleting every copy, a copy scanned minutes apart, or a late delete does not.
+{
+  const { scansBackForDelete, giveBackForDelete, DUPE_WINDOW_MS, DUPE_GIVEBACK_WINDOW_MS } = await import(at("lib/server/scanGiveback.ts"));
+  const { createCard, deleteCard, deleteCards } = await import(at("lib/server/cards.ts"));
+  const { recordScanUsage } = await import(at("lib/server/scanUsage.ts"));
+  const zero = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
+  const uid = await mkSub({ plan_scans: 10 });
+  const scanCard = async (catalogCardId, shiftMs = 0) => {
+    const r = await reserveScan(await get(uid));
+    const scanId = await recordScanUsage(uid, "claude-sonnet-5", zero, { game: "pokemon", name: "Marshadow & Machamp GX", conf: 0.9 }, r.draw);
+    const card = await createCard(uid, { cardName: "Marshadow & Machamp GX", setName: "Unbroken Bonds", cardNumber: "221", imageUrl: "", condition: "Near Mint", price: 1, catalogCardId, clientId: scanId });
+    if (shiftMs) await db.prepare("UPDATE cards SET created_at = created_at - ? WHERE id = ?").run(shiftMs, card.id);
+    return card.id;
+  };
+  const a = await scanCard("sm10-221");
+  const b = await scanCard("sm10-221");
+  const c = await scanCard("sm10-221");
+  check("dupe give-back: 3 scans taken", (await get(uid)).planScans, 7);
+  const plan1 = await scansBackForDelete(uid, [b]);
+  check("dupe give-back: the second copy qualifies by its own scan", plan1.dupes.map((d) => d.id), [b]);
+  await deleteCard(b, uid);
+  check("dupe give-back: its scan comes back", [await giveBackForDelete(await get(uid), plan1), (await get(uid)).planScans], [1, 8]);
+  check("dupe give-back: a bulk delete of the third (the first stays) gives it back too",
+    await (async () => { const p = await scansBackForDelete(uid, [c]); await deleteCards([c], uid); return giveBackForDelete(await get(uid), p); })(), 1);
+  check("dupe give-back: the last copy left is no duplicate", (await scansBackForDelete(uid, [a])).dupes.length, 0);
+  const d = await scanCard("sv05-123");
+  const e = await scanCard("sv05-123");
+  check("dupe give-back: deleting every copy together gives nothing back", (await scansBackForDelete(uid, [d, e])).dupes.length, 0);
+  const f = await scanCard("swsh12tg-TG20", DUPE_WINDOW_MS + 60_000);
+  const g = await scanCard("swsh12tg-TG20");
+  check("dupe give-back: copies scanned minutes apart are two real copies", (await scansBackForDelete(uid, [g])).dupes.length, 0);
+  const h = await scanCard("sm9-113", DUPE_GIVEBACK_WINDOW_MS + 60_000);
+  await scanCard("sm9-113", DUPE_GIVEBACK_WINDOW_MS + 30_000);
+  check("dupe give-back: an old double scan deleted later gives nothing back", (await scansBackForDelete(uid, [h])).dupes.length, 0);
+  check("dupe give-back: another account's ids never qualify", (await scansBackForDelete(await mkSub({ plan_scans: 1 }), [e])).dupes.length, 0);
+  void f;
+}
+
 console.log(failures === 0 ? "\nAll quota checks passed" : `\n${failures} quota check(s) failed`);
 // No process.exit(): it would skip the beforeExit hook that closes the libsql
 // client, and on Windows that open handle asserts at exit (see lib/db.ts).
