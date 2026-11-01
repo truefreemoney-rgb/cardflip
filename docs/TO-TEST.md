@@ -1,9 +1,16 @@
 # To test later
 
+## 11-01 1:15PM ET: duplicate scan warning (653ff3bd, committed locally; waits on Chris's yes on the look, then his bulk push) — Chris 12:26pm "yes do the duplicate warning, send screenshots"
+- [x] Why: Greyson (trial, 11-01 10:54am) scanned Marshadow & Machamp GX 3 times (2.5 s and 20 s apart), deleted 2, paid 3 of his 5 free scans.
+- [x] Built: same catalog card within 2 min in one scanner session = "You just scanned this card. Is this a second copy?" Keep Both / Remove This One (saves first, so ignoring it keeps both); server gives a deleted double scan its scan back (both delete routes, one copy always stays paid). test-quota 9 new checks + e2e scan.spec on android + iphone pass; tsc + eslint clean. Shot docs/shots/dupe-warning-phone.jpg sent 1:10pm.
+- [ ] After the push, phone: scan one card twice = the yellow box; Remove This One = toast "Removed the extra … You get the scan back", the header count goes back up by one; Keep Both = two rows in Inventory.
+- [ ] After the push, prod: a double-scan delete from Inventory gives the scan back (scan_usage refunded_at set on the second copy's scan).
+
 ## 11-01 12:20PM ET: Sunday mail hand check + Magic pause to 11-07 (1ca29754, committed locally)
 - [x] Lineup (prod card_cache email:v2:week:2026-11-01, built 11:52am), TCGplayer NM sales + market history: Dark Donphan Neo Destiny 1st 3 $216.98 STANDS (NM 1st 216.98 10-25, 220 10-31); Dark World Dealings STON-EN038 UTR Unl $57.72 STANDS (LP 55.45 / 59.99 10-24; the $30.57 before was an MP/HP-only market, no NM sale ever); Jinbe P-030 CS 2023 event pack $33.49 STANDS (NM 27.33 10-23 = +22.5%, our series lagged TCGplayer's rise); Judy Hopps D23 14 foil $44.12 STANDS (NM 49-60 10-26..10-28, ours low not high); sleeper Raging Bolt ex TEF 123 $2.28 STANDS (TCGplayer market 1.90, 2.13-2.45 10-29..10-31).
 - [x] WRONG week claim: Angel of Destiny ZNR 314 "$11.10 -> $17.45, +57%": price right (NM market 17.45, NM sales 13.69-17.81), the 11.10 = our cap dip 10-20..10-28 (TCGplayer NM 16.95 on 10-23). 41 Magic $10+ printings dipped and came back 10-26..11-01. Fix 1ca29754: CAP_PAUSES mtg settled 11-01, end 11-07; test-social 179 pass, tsc + eslint clean.
-- [ ] Only live after a push: if before 6:30pm, tonight's mail has no Magic row (4 moves + sleeper); if not, the mail goes out with Angel +57%. After the send: email_sends week rows = the lineup above.
+- [x] PUSHED 1ca29754 at 12:15pm on Chris's "push it": CI + Production smoke green. Cached preview email:v2:week:2026-11-01 deleted 1:12pm so it rebuilds (the 6:30pm send builds fresh anyway; topMovers returns [] for a paused game before any cache).
+- [ ] After the 6:30pm send: email_sends week rows sent; the mail has no Magic row (Dark World Dealings, Dark Donphan, Jinbe, Judy Hopps + sleeper Raging Bolt ex).
 - [ ] Remove the mtg CAP_PAUSES entry on 11-08 (Magic moves read again; spot-check the first Magic mover against TCGplayer).
 
 ## 10-31 5:20PM ET: Admin > Users > Deleted Accounts (committed locally, rides Chris's bulk push) — Chris 4:06pm "we are going to need a section for deleted accounts in admin > users or something"
