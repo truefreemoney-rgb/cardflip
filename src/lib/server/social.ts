@@ -40,10 +40,12 @@ export const CAP_PAUSES: Partial<Record<GameId, { from: string; settled: string;
   // Magic's entry (from 10-14, end 10-21) ran out on its own and was removed 10-22. Pokémon's (from 10-16, settled 10-23
   // after the cap-off lift, end 10-30) ran out on its own and was removed 10-31.
   // 74d51974 (10-24): one cheap copy no longer caps a Magic price, ~1,164 printings rise back in the first 5am ET run
-  // after the push. Dated for a push on 10-24 (first run 10-25); MOVE THESE DATES if the push lands later. Remove 11-02.
+  // after the push. Dated for a push on 10-24 (first run 10-25); MOVE THESE DATES if the push lands later.
   // From 10-24, not 10-25: the 10-14 entry ended 10-21, 3 days after its 10-18 lift, so a week-long look-back still
   // straddled it (10-24: Flayer of Loyalties CMM 747 "+45% this week" = 10 -> 14.98 on 10-18, TCGplayer sales flat).
-  mtg: { from: "2026-10-24", settled: "2026-10-25", end: "2026-11-01" },
+  // 11-01: settled moved 10-25 -> 11-01: the lifts kept landing through 10-31 (41 $10+ printings back on 10-26..11-01),
+  // and the Sunday mail picked Angel of Destiny ZNR 314 "$11.10 -> $17.45, +57%" (TCGplayer NM 16.95 on 10-23). Remove 11-08.
+  mtg: { from: "2026-10-24", settled: "2026-11-01", end: "2026-11-07" },
 };
 /**
  * The game's cap pause covers the week ending `day`: a "this week" move is the cap or its lift, not the market. The
