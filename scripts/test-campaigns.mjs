@@ -153,7 +153,25 @@ const one = renderScans({ variant: "trial_left", left: 1, included: 5, nextCredi
 check("singular + no-name greeting + no tip block", [one.subject, one.text.startsWith("Hi,"), one.text.includes("ONE TIP")], ["You still have 1 free scan", true, false]);
 const proLow = renderScans({ variant: "sub_low", left: 5, included: 750, nextCreditAt: null, plan: "pro", tip: null }, "Chris", "u");
 check("pro plan running low: Booster only, no Move to Pro", [proLow.text.includes(PLAN_NAME.pack), proLow.text.includes("Move to")], [true, false]);
-const week = renderWeek({ games: [{ game: "pokemon", label: "Pokémon", movePct: 2.1, jump: { name: "Charizard ex", set: "Obsidian Flames", number: "125", from: 34.1, to: 48.2, pct: 41.3 } }, { game: "lorcana", label: "Lorcana", movePct: -0.3, jump: null }], jump: null, moves: [{ name: "Charizard ex", set: "Obsidian Flames", number: "125", game: "pokemon", image: null, url: "u", price: 48.2, before: 34.1 }], set: null, sleeper: null, scans: 4120, mostScanned: "Pikachu ex" }, "Chris", "u");
+const weekFacts = { games: [{ game: "pokemon", label: "Pokémon", movePct: 2.1, jump: { name: "Charizard ex", set: "Obsidian Flames", number: "125", from: 34.1, to: 48.2, pct: 41.3 } }, { game: "lorcana", label: "Lorcana", movePct: -0.3, jump: null }], jump: null, moves: [{ name: "Charizard ex", set: "Obsidian Flames", number: "125", game: "pokemon", image: null, url: "u", price: 48.2, before: 34.1 }], set: null, sleeper: null, scans: 4120, mostScanned: "Pikachu ex" };
+const AFTER_PROMO = Date.UTC(2026, 10, 8, 23, 30); // next Sunday's send: back to normal
+const week = renderWeek(weekFacts, "Chris", "u", AFTER_PROMO);
+// 11-01: that night's send carries SUNDAY25 (25 free scans): subject, the block, and the one-tap button first.
+const promoWeek = renderWeek(weekFacts, "Chris", "u", Date.UTC(2026, 10, 1, 23, 30));
+check("11-01 week mail: 25 free scans subject + block + green button to /app?code=SUNDAY25", [
+  promoWeek.subject,
+  promoWeek.text.includes("25 FREE SCANS FOR YOU"),
+  promoWeek.text.includes("by Nov 8."),
+  /Add My 25 Free Scans: https?:\/\/[^\s]+\/app\?code=SUNDAY25/.test(promoWeek.text),
+  promoWeek.html.indexOf("Add My 25 Free Scans") < promoWeek.html.indexOf("Check Your Cards"),
+], ["25 free scans inside + this week's biggest price moves", true, true, true, true]);
+check("the button's code survives the mail's link tagging", /href="[^"]*\/app\?code=SUNDAY25[^"]*"/.test(tagMailLinks(promoWeek, "week").html), true);
+const { checkCode } = await import(at("lib/server/promoCodes.ts"));
+check("SUNDAY25: old account ok, a Nov 2 sign-up refused, expired after Nov 8", [
+  checkCode("SUNDAY25", { createdAt: Date.UTC(2026, 9, 1) }, Date.UTC(2026, 10, 2, 12)).scans,
+  checkCode("SUNDAY25", { createdAt: Date.UTC(2026, 10, 2, 6) }, Date.UTC(2026, 10, 2, 12)).reason,
+  checkCode("SUNDAY25", { createdAt: Date.UTC(2026, 9, 1) }, Date.UTC(2026, 10, 9, 5)).reason,
+], [25, "new_account", "expired"]);
 check("week subject names the top and bottom game", [week.subject, week.text.includes("4,120 cards scanned. Most scanned: Pikachu ex.")], ["This week in cards: Pokémon up, Lorcana down", true]);
 check("week card row carries set, number, price and move", week.text.includes("· Charizard ex · Obsidian Flames 125 — $48.20 (was $34.10, +41%)"));
 // 10-18: the subject said "Lorcana down" while no line in the mail showed it.
@@ -164,7 +182,7 @@ check("young-game movers skip flagged and few-sales prices", /v\.flag \|\| v\.st
 // 10-24: the sleeper was Judy Hopps WITW 150's COLD FOIL at $3.14 under a bare name (the plain card sells $0.88).
 const { mailPrinting } = await import(at("lib/server/campaignData.ts"));
 check("mail printing words", [mailPrinting("lorcana", "foil"), mailPrinting("lorcana", "normal"), mailPrinting("mtg", "nonfoil"), mailPrinting("mtg", "etched"), mailPrinting("pokemon", "reverseHolofoil"), mailPrinting("yugioh", "normal")], ["Foil", "", "", "Foil Etched", "Reverse Holo", ""]);
-const foilWeek = renderWeek({ games: [], jump: null, moves: [], set: null, sleeper: { name: "Judy Hopps - Lead Detective", set: "Whispers in the Well", number: "150", game: "lorcana", image: null, url: "u", price: 3.14, before: 2.5, pct: 25.6, printing: "Foil" }, scans: 0, mostScanned: null }, "Chris", "u");
+const foilWeek = renderWeek({ games: [], jump: null, moves: [], set: null, sleeper: { name: "Judy Hopps - Lead Detective", set: "Whispers in the Well", number: "150", game: "lorcana", image: null, url: "u", price: 3.14, before: 2.5, pct: 25.6, printing: "Foil" }, scans: 0, mostScanned: null }, "Chris", "u", AFTER_PROMO);
 check("a foil card's row says Foil (text + html)", [foilWeek.text.includes("Judy Hopps - Lead Detective · Whispers in the Well 150 · Foil — $3.14"), foilWeek.html.includes("Whispers in the Well · 150 · Foil · Lorcana")], [true, true]);
 
 // 10-23: clicks were not measurable; every site link but Stop carries utm_source=email + the mail id.

@@ -32,6 +32,7 @@ import { EMAIL_CUTOFF, digestTokenFor } from "@/lib/server/digest";
 import { isMailConfigured, sendCampaignEmail } from "@/lib/server/mail";
 import { getSetting, setSetting } from "@/lib/server/settings";
 import { OWNER_EMAIL, findUserByEmail, listAllUsers, type User } from "@/lib/server/users";
+import { PROMO_CODES, WEEK_MAIL_PROMO } from "@/lib/server/promoCodes";
 
 /**
  * The three weekly mails (docs/EMAILS.md, planned with Chris 10-08):
@@ -125,6 +126,8 @@ interface Block {
   lines?: string[];
   /** Card rows render with a picture in HTML; the text version lists them. */
   cards?: MailCard[];
+  /** A button right under the block's lines (11-01: the free-scan gift sits at the top, far from the closing buttons). */
+  button?: { href: string; label: string; color?: string };
 }
 
 function cardRowText(c: MailCard): string {
@@ -161,7 +164,7 @@ function layout(v: { subject: string; firstName: string; headline: string; intro
     v.headline,
     ...(v.intro ? [v.intro] : []),
     "",
-    ...v.blocks.flatMap((b) => [...(b.title ? [b.title.toUpperCase()] : []), ...(b.lines ?? []), ...(b.cards ?? []).map((c) => "· " + cardRowText(c)), ""]),
+    ...v.blocks.flatMap((b) => [...(b.title ? [b.title.toUpperCase()] : []), ...(b.lines ?? []), ...(b.button ? [`${b.button.label}: ${b.button.href}`] : []), ...(b.cards ?? []).map((c) => "· " + cardRowText(c)), ""]),
     ...v.buttons.map((b) => `${b.label}: ${b.href}`),
     "",
     `Stop these emails: ${v.unsubUrl}`,
@@ -176,6 +179,7 @@ function layout(v: { subject: string; firstName: string; headline: string; intro
       .map(
         (b) => `${b.title ? `<p style="margin:18px 0 4px;font-size:12px;letter-spacing:.06em;color:#666;font-weight:700">${esc(b.title.toUpperCase())}</p>` : ""}
       ${(b.lines ?? []).map((l) => `<p style="margin:0 0 6px">${esc(l)}</p>`).join("")}
+      ${b.button ? `<p style="margin:10px 0 4px">${button(b.button.href, b.button.label, b.button.color)}</p>` : ""}
       ${b.cards?.length ? `<table cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%">${b.cards.map(cardRowHtml).join("")}</table>` : ""}`,
       )
       .join("")}
@@ -295,16 +299,24 @@ export function renderCards(f: CardsFacts, firstName: string, unsubUrl: string):
   });
 }
 
-export function renderWeek(f: WeekFacts, firstName: string, unsubUrl: string): RenderedMail {
+export function renderWeek(f: WeekFacts, firstName: string, unsubUrl: string, now = Date.now()): RenderedMail {
 
   const best = f.games.filter((g) => g.movePct != null).sort((a, b) => (b.movePct ?? 0) - (a.movePct ?? 0));
   const upDown = best.length >= 2 && (best[0].movePct ?? 0) > 0 && (best[best.length - 1].movePct ?? 0) < 0;
-  const subject = upDown
-    ? `This week in cards: ${best[0].label} up, ${best[best.length - 1].label} down`
-    : f.jump
-      ? `This week in cards: ${f.jump.name} ${pct(f.jump.pct)}`
-      : "This week in cards";
+  // 11-01: one Sunday carries a free-scan code (promoCodes.ts WEEK_MAIL_PROMO); the button redeems it in one tap (/app?code=).
+  const promo = now < WEEK_MAIL_PROMO.until ? PROMO_CODES[WEEK_MAIL_PROMO.code] : undefined;
+  const subject = promo
+    ? `${promo.scans} free scans inside + this week's biggest price moves`
+    : upDown
+      ? `This week in cards: ${best[0].label} up, ${best[best.length - 1].label} down`
+      : f.jump
+        ? `This week in cards: ${f.jump.name} ${pct(f.jump.pct)}`
+        : "This week in cards";
+  const promoButton = promo ? [{ href: `${SITE_URL}/app?code=${WEEK_MAIL_PROMO.code}`, label: `Add My ${promo.scans} Free Scans`, color: "#15803d" }] : [];
   const blocks: Block[] = [
+    ...(promo
+      ? [{ title: `${promo.scans} free scans for you`, lines: [`One tap and they land on your account. Use the button by ${dateET(promo.expiresAt - 60_000)}.`], button: promoButton[0] }]
+      : []),
     // The subject's "X up, Y down" is each game's average, which no card row shows: say it in the body (10-18, the mail
     // read "Lorcana down" next to a Lorcana card at +19%).
     ...(upDown ? [{ title: "How each game moved", lines: [`${best.map((g) => `${g.label} ${(g.movePct ?? 0) > 0 ? "+" : ""}${(g.movePct ?? 0).toFixed(1)}%`).join(", ")} (average of each game's 200 priciest cards this week).`] }] : []),
@@ -314,7 +326,7 @@ export function renderWeek(f: WeekFacts, firstName: string, unsubUrl: string): R
     ...(f.sleeper ? [{ title: "Sleeper under $5", cards: [f.sleeper] }] : []),
     { title: "On CardFlip this week", lines: [`${f.scans.toLocaleString("en-US")} card${f.scans === 1 ? "" : "s"} scanned.${f.mostScanned ? ` Most scanned: ${f.mostScanned}.` : ""}`] },
   ];
-  return layout({ subject, firstName, headline: "This week in cards.", blocks, buttons: [{ href: `${SITE_URL}/app/collection`, label: "Check Your Cards" }], unsubUrl });
+  return layout({ subject, firstName, headline: "This week in cards.", blocks, buttons: [...promoButton, { href: `${SITE_URL}/app/collection`, label: "Check Your Cards" }], unsubUrl });
 }
 
 /* ------------------------------------------------------------------ */
@@ -420,7 +432,7 @@ export async function buildMail(id: CampaignId, user: User, unsubUrl: string, no
   const f = shared.week ?? (await weekFacts(now, false, true));
   if (!f) return null;
   shared.week = f;
-  return { mail: tagMailLinks(renderWeek(f, first, unsubUrl), id), facts: f };
+  return { mail: tagMailLinks(renderWeek(f, first, unsubUrl, now), id), facts: f };
 }
 
 /* ------------------------------------------------------------------ */

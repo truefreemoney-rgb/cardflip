@@ -23,7 +23,13 @@ export interface PromoCode {
 export const PROMO_CODES: Record<string, PromoCode> = {
   // Nov 16 11:59pm ET; accounts made before Oct 17 00:00 ET.
   FLIPBACK: { scans: 10, expiresAt: Date.UTC(2026, 10, 17, 4, 59), joinedBefore: Date.UTC(2026, 9, 17, 4) },
+  // 11-01 Sunday mail (Chris: "promo code for like 25 free scans in the sunday email", "tonight"). Nov 8 11:59pm ET
+  // (EST from 11-01); accounts made before Nov 2 00:00 ET.
+  SUNDAY25: { scans: 25, expiresAt: Date.UTC(2026, 10, 9, 4, 59), joinedBefore: Date.UTC(2026, 10, 2, 5) },
 };
+
+/** The Sunday mail that carries a code: shown only on sends before `until` (ms), so next Sunday's mail goes back to normal. */
+export const WEEK_MAIL_PROMO = { code: "SUNDAY25", until: Date.UTC(2026, 10, 2, 5) } as const;
 
 export function normalizeCode(raw: unknown): string {
   return typeof raw === "string" ? raw.trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 32) : "";
