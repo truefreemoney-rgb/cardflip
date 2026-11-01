@@ -2,7 +2,8 @@
 
 ## 11-01 4:40PM ET: PUSHED 7c279cdf on Chris's "push" (with 653ff3bd duplicate warning + 4e7b428c seller floor)
 - [x] CI + Production smoke green on 7c279cdf (4:44pm).
-- [ ] Live before 6:15pm: the 6:30pm Sunday mail subject = "25 free scans inside + this week's biggest price moves", green "Add My 25 Free Scans" top + bottom (email_sends campaign 'week' rows ~21 after 6:30pm).
+- [x] 6:30pm send: email_sends 'week' 47 sent, 0 failed (6:30:15pm ET); live code since 4:44pm, so all 47 carried SUNDAY25. SUNDAY25 redeemed at 6:42pm: 0.
+- [ ] Chris's inbox copy, if he looks: subject + green buttons; no Magic row (the pause is in code, the send built fresh).
 - [ ] Button on a phone: /app?code=SUNDAY25 = toast "25 free scans added. Go scan something!", the scan count goes up 25; a second tap = "You've already used that code".
 - [ ] promo_redemptions SUNDAY25 count on 11-02 and 11-08 (FLIPBACK was 0 of 20).
 - [ ] Duplicate warning + seller floor: the blocks below.
