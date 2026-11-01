@@ -1,5 +1,12 @@
 # To test later
 
+## 11-01 4:40PM ET: PUSHED 7c279cdf on Chris's "push" (with 653ff3bd duplicate warning + 4e7b428c seller floor)
+- [x] CI + Production smoke green on 7c279cdf (4:44pm).
+- [ ] Live before 6:15pm: the 6:30pm Sunday mail subject = "25 free scans inside + this week's biggest price moves", green "Add My 25 Free Scans" top + bottom (email_sends campaign 'week' rows ~21 after 6:30pm).
+- [ ] Button on a phone: /app?code=SUNDAY25 = toast "25 free scans added. Go scan something!", the scan count goes up 25; a second tap = "You've already used that code".
+- [ ] promo_redemptions SUNDAY25 count on 11-02 and 11-08 (FLIPBACK was 0 of 20).
+- [ ] Duplicate warning + seller floor: the blocks below.
+
 ## 11-01 2:25PM ET: eBay seller floor ON (#16 step 2, committed locally; rides Chris's bulk push)
 - [x] Hand check of the 11-01 8:15am run (515 read, 1,378 asks, 101 from sellers under 95% / 20 feedbacks, 17 flips). 13 were ok>none (the only asks dropped: no flag either way; 7 = Fallout/RVR serial-numbered listings from a 0-feedback seller). The 4 that change a flag vs TCGplayer: Magikarp & Wailord GX 161 $904.13 high>check RIGHT (NM sold 904.13 10-23, 999.99 10-07); Rayquaza & Deoxys LEGEND 89 $599.20 check>ok RIGHT (NM 599.14 10-28); Mewtwo Expedition 20 RH $750.48 check>none RIGHT (NM RH 800.98 10-27; the $350 ask was a 0-feedback seller); Gengar LV.X Arceus 97 $698.88 ok>check = one extra hand check (market 698.88; the dropped ask was $1,249.99 from a 2-feedback seller).
 - [x] Code: lib/server/ebayReferee.ts readOne judges only trusted sellers' asks; the run summary still lists every flip (from = every ask, to = written). test:ebayreferee + test:pricetrust green, tsc + eslint clean.
