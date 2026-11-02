@@ -1,0 +1,11 @@
+import fs from "node:fs";
+import { createClient } from "@libsql/client";
+const cfg = JSON.parse(fs.readFileSync(".env.migration.json", "utf8").replace(/^\uFEFF/, ""));
+const db = createClient({ url: cfg.dbUrl, authToken: cfg.dbToken });
+const cols = (await db.execute("PRAGMA table_info(social_posts)")).rows.map((r) => r.name);
+console.log(cols.join(", "));
+const t = cols.find((c) => c === "created_at") || cols.find((c) => /_at$/.test(c));
+const since = Date.UTC(2026, 10, 2, 5, 0);
+const rows = (await db.execute({ sql: `SELECT * FROM social_posts WHERE ${t} >= ? ORDER BY ${t}`, args: [since] })).rows;
+const et = (ms) => ms == null ? "-" : new Date(Number(ms)).toLocaleString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit", second: "2-digit" });
+for (const r of rows) console.log(cols.filter((c) => !/text|body|caption|media|json|payload/i.test(c)).map((c) => c + "=" + (/_at$/.test(c) ? et(r[c]) : String(r[c]).slice(0, 70))).join(" | "));

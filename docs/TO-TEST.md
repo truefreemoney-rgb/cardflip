@@ -1,5 +1,9 @@
 # To test later
 
+## 11-02 3:25PM ET: 1pm social publisher hit its 285 s wall (Chris "had some server errors")
+- [x] error_events 1:10pm "publisher ran out of time": Meta was slow (Threads 1:08:29, Instagram 1:10:25; a normal run lands every site within ~1 min). All 5 auto sites posted ONCE (no doubles). The wall fired as Instagram's publish returned, so its log row stayed `pending:` and the slot/kind markers were not set; fixed by hand (scripts/_ig-1102-fix.mjs): log url = reel DfP6xJrlEfK, social_posts game/format, social_slot:instagram:midday + social_kind:instagram:thennow = 11-02, last_post uris. Only other wall crash in 21 days: 10-26 (Turso hang). No code change.
+- [ ] 7pm run: all 5 sites land once, no new `pending:` rows (scripts/_social-log-today.mjs).
+
 ## 11-02 8:45AM ET: first referee run with the seller floor ON (7:15am ET now: the 12:15 UTC cron moved an hour when DST ended 11-01)
 - [x] Run 7:15:51am: 2,325 asks, 152 dropped (sellers under 95% / 20 feedbacks; the many pct=0 score=0 = eBay-reported zero-feedback sellers, mostly new accounts with $400-1,000 serial-numbered Magic asks: right to drop). Flips: ok>none 11, ok>check 5, check>high 2, high>check 2, check>ok 2, check>none 1.
 - [x] Hand check (TCGplayer NM sales, signed in): all 9 high/check cards STAND. Suicune & Entei LEGEND UL 95 $225.66 (NM 213-250; keep from 10-25 still binds); Rocket's Entei ex TRR 97 $476.97 (no NM sales, LP med 450); Arcanine ex LM 83 $475.99 (NM med 464.99, n5); Team Magma's Groudon EX DC 15 $469.30 (NM med 487.72, n27); Jolteon δ DS 7 reverse $420.99 (NM 399.99 + 441.99); Slowpoke & Psyduck GX UNM 218 $383.22 (NM med 415, n11); Slowking UD 85 $184 (NM med 184); I2I Fabled 234 enchanted $569.92 (NM med 530, +7.5%).
