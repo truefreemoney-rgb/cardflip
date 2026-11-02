@@ -1,11 +1,17 @@
 # To test later
 
+## 11-02 8:45AM ET: first referee run with the seller floor ON (7:15am ET now: the 12:15 UTC cron moved an hour when DST ended 11-01)
+- [x] Run 7:15:51am: 2,325 asks, 152 dropped (sellers under 95% / 20 feedbacks; the many pct=0 score=0 = eBay-reported zero-feedback sellers, mostly new accounts with $400-1,000 serial-numbered Magic asks: right to drop). Flips: ok>none 11, ok>check 5, check>high 2, high>check 2, check>ok 2, check>none 1.
+- [x] Hand check (TCGplayer NM sales, signed in): all 9 high/check cards STAND. Suicune & Entei LEGEND UL 95 $225.66 (NM 213-250; keep from 10-25 still binds); Rocket's Entei ex TRR 97 $476.97 (no NM sales, LP med 450); Arcanine ex LM 83 $475.99 (NM med 464.99, n5); Team Magma's Groudon EX DC 15 $469.30 (NM med 487.72, n27); Jolteon δ DS 7 reverse $420.99 (NM 399.99 + 441.99); Slowpoke & Psyduck GX UNM 218 $383.22 (NM med 415, n11); Slowking UD 85 $184 (NM med 184); I2I Fabled 234 enchanted $569.92 (NM med 530, +7.5%).
+- [x] Gaia the Dragon Champion LOB-125 1st $410.68: TCGplayer no NM 1st sales (HP 82.49 10-31); eBay US sold 1 NM BIN ($650 8-15) = under 3; PriceCharting sold list NM-titled 410.68 (TCGplayer 7-21), 430.01, 650, 650, 648.78, all-untitled median ~$420 = STANDS. Its ebay_asks row had manual 'hide' from 10-14: switched to 'keep' at 410.68 (scripts/_keep-2026-11-02.mjs); live card page shows $410.68.
+- [x] SUNDAY25 at 7:50am 11-02: 2 of 47 redeemed (8:47pm 11-01 + 2:35am 11-02; both role user, joined 10-14 and 10-28). FLIPBACK still 0.
+
 ## 11-01 4:40PM ET: PUSHED 7c279cdf on Chris's "push" (with 653ff3bd duplicate warning + 4e7b428c seller floor)
 - [x] CI + Production smoke green on 7c279cdf (4:44pm).
 - [x] 6:30pm send: email_sends 'week' 47 sent, 0 failed (6:30:15pm ET); live code since 4:44pm, so all 47 carried SUNDAY25. SUNDAY25 redeemed at 6:42pm: 0.
 - [ ] Chris's inbox copy, if he looks: subject + green buttons; no Magic row (the pause is in code, the send built fresh).
 - [ ] Button on a phone: /app?code=SUNDAY25 = toast "25 free scans added. Go scan something!", the scan count goes up 25; a second tap = "You've already used that code".
-- [ ] promo_redemptions SUNDAY25 count on 11-02 and 11-08 (FLIPBACK was 0 of 20).
+- [ ] promo_redemptions SUNDAY25 count on 11-08 (11-02 7:50am: 2 of 47; FLIPBACK was 0 of 20).
 - [ ] Duplicate warning + seller floor: the blocks below.
 
 ## 11-01 2:25PM ET: eBay seller floor ON (#16 step 2, committed locally; rides Chris's bulk push)
