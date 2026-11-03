@@ -1,8 +1,14 @@
 # To test later
 
+## 11-03 7:50AM ET: referee run 7:15am hand check + Dragonite ex fixed
+- [x] Flips: check>high 1, ok>check 4. STAND (TCGplayer NM sales): Pikachu & Zekrom GX TEU 184 $248.72 (NM med 249.49; keep 248.01 binds); Houndoom Prime UD 82 $335.61 (NM med 404.96, -17%); Feraligatr Neo Genesis 5 1st $272.64 (NM med 360, n4, -24%); Misty Rainforest EXP 25 $317.94 (NM med 314.79).
+- [x] WRONG LOW: Dragonite ex Dragon 90 holo $233.20 (one 10-27 TCGplayer "NM" sale at 233.20 set the market; LP 475-600, MP med 360). eBay US sold raw plain BIN: 500 / 1,000 / 1,299.99 NM / 1,679.69 = median net of fee+ship $992.20 -> price_checked 992.20 n4 (scripts/_fix-price-tcg.mjs, 31 series points fixed) + ebay_asks keep moved 524.89 -> 992.20.
+- [ ] Live card page /cards/pokemon/.../dragonite-ex--ex3-90 shows $992.20 after the 10-min memo + 48 h page cache (invalidate-by-tags if still old tomorrow).
+- [x] 7am posts: auto 5 sites once (dips video); TikTok 7:27 + Pinterest 7:30 by Chris (Price Drops, 5 cards TCGplayer-checked = stand).
+
 ## 11-02 3:25PM ET: 1pm social publisher hit its 285 s wall (Chris "had some server errors")
 - [x] error_events 1:10pm "publisher ran out of time": Meta was slow (Threads 1:08:29, Instagram 1:10:25; a normal run lands every site within ~1 min). All 5 auto sites posted ONCE (no doubles). The wall fired as Instagram's publish returned, so its log row stayed `pending:` and the slot/kind markers were not set; fixed by hand (scripts/_ig-1102-fix.mjs): log url = reel DfP6xJrlEfK, social_posts game/format, social_slot:instagram:midday + social_kind:instagram:thennow = 11-02, last_post uris. Only other wall crash in 21 days: 10-26 (Turso hang). No code change.
-- [ ] 7pm run: all 5 sites land once, no new `pending:` rows (scripts/_social-log-today.mjs).
+- [x] 7pm run: all 5 sites landed once (Set Spotlight Rising Rivals, picture), no `pending:` rows (checked 7:20pm).
 
 ## 11-02 8:45AM ET: first referee run with the seller floor ON (7:15am ET now: the 12:15 UTC cron moved an hour when DST ended 11-01)
 - [x] Run 7:15:51am: 2,325 asks, 152 dropped (sellers under 95% / 20 feedbacks; the many pct=0 score=0 = eBay-reported zero-feedback sellers, mostly new accounts with $400-1,000 serial-numbered Magic asks: right to drop). Flips: ok>none 11, ok>check 5, check>high 2, high>check 2, check>ok 2, check>none 1.
