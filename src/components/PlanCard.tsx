@@ -102,13 +102,14 @@ function Card({
         <div className="pointer-events-none absolute right-0 top-0 h-48 w-48 translate-x-1/3 -translate-y-1/3 rounded-full bg-brand-500/25 blur-3xl" aria-hidden />
       )}
       <div className="relative flex flex-1 flex-col">
-        {/* Stacked on phones: a two-digit price ($24.99) squeezed "750 scans a month" into four lines beside it. */}
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
+        {/* The price drops under the name when the two don't fit side by side: a wide price ($24.99 on a phone, A$34.99 on a
+            desktop column, 11-03) squeezed "750 scans a month" into four lines beside it. The scans line never wraps. */}
+        <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
           <div>
             <p className="font-display text-lg font-semibold text-white">{name}</p>
-            <p className="mt-1 text-sm text-zinc-500">{sub}</p>
+            <p className="mt-1 whitespace-nowrap text-sm text-zinc-500">{sub}</p>
           </div>
-          <p className="sm:text-right">
+          <p>
             <span className="font-display text-5xl font-bold tracking-tight text-white">{price}</span>
             <span className="text-sm text-zinc-500">{per}</span>
           </p>
