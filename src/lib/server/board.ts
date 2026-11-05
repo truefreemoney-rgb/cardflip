@@ -304,6 +304,26 @@ export async function reseedBoard(): Promise<{ sections: BoardSection[]; updated
   return { sections, updatedAt: Date.now() };
 }
 
+/** Old Completed rows moved off the live board (settings key, JSON array, newest first). */
+export const BOARD_ARCHIVE_KEY = "board_completed_archive";
+
+async function archiveCompleted(items: BoardItem[]): Promise<void> {
+  let old: BoardItem[] = [];
+  try {
+    const raw = await getSetting(BOARD_ARCHIVE_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    if (Array.isArray(parsed)) old = parsed as BoardItem[];
+  } catch (err) {
+    console.error("board: archive row unreadable, starting a new one:", err);
+  }
+  // A save that then loses its conflict check re-archives the same rows; ids dedupe.
+  const seen = new Set(old.map((it) => it.id));
+  const fresh = items.filter((it) => !seen.has(it.id));
+  if (!fresh.length) return;
+  const all = [...old, ...fresh].sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0));
+  await setSetting(BOARD_ARCHIVE_KEY, JSON.stringify(all));
+}
+
 /** Thrown when a save is built on a copy of the board that is no longer the live one. */
 export class BoardConflictError extends Error {
   constructor() {
@@ -320,8 +340,22 @@ export class BoardConflictError extends Error {
  * Chris's open page). Returns the stamp written.
  */
 export async function saveBoard(sections: BoardSection[], expect?: number | null): Promise<number> {
-  const json = JSON.stringify(normalizeBoard(sections).sections);
-  if (json.length > BOARD_MAX_BYTES) throw new Error("Board too large");
+  const normalized = normalizeBoard(sections).sections;
+  let json = JSON.stringify(normalized);
+  if (json.length > BOARD_MAX_BYTES) {
+    // 11-03: Completed reached 266 rows / 187 KB and every automatic board
+    // note ("Social autopilot …") failed with "Board too large" for a day.
+    // Move the oldest Completed rows to an archive row (nothing is deleted)
+    // until the board is back under ~80% of the cap.
+    const completed = normalized.find(isCompletedSection);
+    const moved: BoardItem[] = [];
+    while (completed && completed.items.length && json.length > BOARD_MAX_BYTES * 0.8) {
+      moved.push(completed.items.pop()!);
+      json = JSON.stringify(normalized);
+    }
+    if (json.length > BOARD_MAX_BYTES) throw new Error("Board too large");
+    if (moved.length) await archiveCompleted(moved);
+  }
   const now = Date.now();
   if (typeof expect === "number") {
     const r = await db
