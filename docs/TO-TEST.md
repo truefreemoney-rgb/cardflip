@@ -1,5 +1,10 @@
 # To test later
 
+## 11-04 10:15PM ET: board notes stopped ("Board too large") — fix committed, UNPUSHED 609476af
+- [x] 11-04 day read: all 3 slots posted once on all 5 auto sites (no doubles); error_events = only price-guard skips + "board note skipped Board too large" (6x social, 4x social inbox since 11-03 7:05pm).
+- [x] Cause: Completed = 266 rows / 187 KB of the 200 KB cap (scripts/_board-size-peek.mjs). saveBoard now moves the oldest Completed rows into settings `board_completed_archive` (nothing deleted) until under 80%. Dry run on the live board (scripts/_board-trim-dry.mjs): 70 pre-9-30 rows move, 160 KB left. tsc clean.
+- [ ] After the bulk push: the next slot's error_events has NO "Board too large"; the board shows today's "Social autopilot" line; `board_completed_archive` holds ~70 rows (SELECT length(value) FROM settings WHERE key='board_completed_archive').
+
 ## 11-03 7:50AM ET: referee run 7:15am hand check + Dragonite ex fixed
 - [x] Flips: check>high 1, ok>check 4. STAND (TCGplayer NM sales): Pikachu & Zekrom GX TEU 184 $248.72 (NM med 249.49; keep 248.01 binds); Houndoom Prime UD 82 $335.61 (NM med 404.96, -17%); Feraligatr Neo Genesis 5 1st $272.64 (NM med 360, n4, -24%); Misty Rainforest EXP 25 $317.94 (NM med 314.79).
 - [x] WRONG LOW: Dragonite ex Dragon 90 holo $233.20 (one 10-27 TCGplayer "NM" sale at 233.20 set the market; LP 475-600, MP med 360). eBay US sold raw plain BIN: 500 / 1,000 / 1,299.99 NM / 1,679.69 = median net of fee+ship $992.20 -> price_checked 992.20 n4 (scripts/_fix-price-tcg.mjs, 31 series points fixed) + ebay_asks keep moved 524.89 -> 992.20.
