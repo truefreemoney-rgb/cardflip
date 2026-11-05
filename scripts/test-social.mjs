@@ -571,12 +571,27 @@ await real("sl1-4", "Quarter", "4", "sl1", "Sleep Set", wk(4, 4.4), { eur: 4, en
 await real("sl1-5", "Dollar", "5", "sl1", "Sleep Set", wk(5.5, 8), { eur: 6, end: A });    // +45% but $8 today: not under $5
 await real("sl1-6", "Cent", "6", "sl1", "Sleep Set", wk(0.5, 0.8), { eur: 0.5, end: A });  // +60% under the $1 floor
 await real("sl1-7", "Spiky Cent", "7", "sl1", "Sleep Set", [...flat(2), 3], { eur: 2, end: A }); // one-day step
+// 11-04 Teal Mask Ogerpon ex shape: up +55% and held, but falling off a 4.30 peak inside the week = a spike unwinding.
+await real("sl1-8", "Falling Spike", "8", "sl1", "Sleep Set", [...liquid(2, 40), 2, 3.1, 3.2, 4.3, 3.3, 3.2, 3.15, 3.1], { eur: 2, end: A });
 const slA = await SOC.sleepers("pokemon", A);
 check("sleepers: the $1–$5 cards up 15%+ with a held price, biggest first; the +10%, the $8, the 80¢ and the one-day step sit out", slA.map((m) => [m.cardId, Math.round(m.pct)]), [["sl1-1", 30], ["sl1-2", 20], ["sl1-3", 20]]);
 check("the gains post never shows them (the $10 floor stands)", (await topMovers("pokemon", A, { direction: "up", limit: 20 })).some((m) => m.cardId.startsWith("sl1-")), false);
 const slCap = SOC.sleepersCaption("pokemon", slA, "Any of these in your binder?");
 check("sleepers caption: 'under $5', each card's move in dollars and %, tagged as sleepers", [slCap.split("\n")[0], slCap.split("\n")[2], kindOfCaption(slCap), kindOfCaption(SOC.sleepersShortCaption("pokemon", slA)), SOC.sleepersTitle("pokemon", slA)], ["Pokémon cards under $5 moving the most this week, from CardFlip's own price history.", "Penny (Sleep Set #1, Holo) $2.00 → $2.60, +30%", "sleepers", "sleepers", "Pokémon sleepers under $5"]);
 check("no sleepers for a game without history", await SOC.sleepers("lorcana", A), []);
+// 11-05: a market lifted by one odd sale sits far over TCGplayer's mid listing; the next card takes its slot.
+check("sleepers: a market 1.6x+ over the mid listing sits out, the next card moves up (Penny $2.60 vs mid $1.50)",
+  (await SOC.sleepers("pokemon", A, { mids: async () => new Map([["sl1-1|holofoil", 1.5], ["sl1-2|holofoil", 1.7]]) })).map((m) => m.cardId), ["sl1-2", "sl1-3"]);
+check("sleepers: a failed mid read keeps every card", (await SOC.sleepers("pokemon", A, { mids: async () => new Map() })).map((m) => m.cardId), ["sl1-1", "sl1-2", "sl1-3"]);
+{
+  const { sleeperSuspect } = SOC;
+  const hit = (to, peak, mid) => sleeperSuspect({ to, peak, mid }) !== "";
+  check("11-05 measure, lifted = out: Farfetch'd 2.16/mid 1.00, Sunflora 2.72/0.89, Poke Healer + 1.95/1.18, Dewgong 4.63/2.03",
+    [hit(2.16, 2.16, 1), hit(2.72, 2.72, 0.89), hit(1.95, 1.95, 1.18), hit(4.63, 4.63, 2.03)], [true, true, true, true]);
+  check("11-05 measure, real = in: Mewtwo 3.31/3.14, Poliwrath 4.09/7.49, Shellos 2.50/1.74, no mid known",
+    [hit(3.31, 3.31, 3.14), hit(4.09, 4.09, 7.49), hit(2.5, 2.5, 1.74), hit(3, 3, null)], [false, false, false, false]);
+  check("Ogerpon ex 11-04: 3.17 the day after a 4.26 peak = out; a 6% wobble stays in", [hit(3.17, 4.26, 3.03), hit(1.88, 1.99, 2.08)], [true, false]);
+}
 
 // Then vs now: months of history, a rise that happened, Cardmarket agreeing, the band.
 const ramp = (from, to, n = 110) => [...Array(10).fill(from), ...Array.from({ length: n }, (_, i) => Math.round((from + ((to - from) * (i + 1)) / n) * 100) / 100), ...Array(10).fill(to)];

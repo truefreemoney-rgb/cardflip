@@ -10,6 +10,7 @@ import type { VideoCard } from "@/lib/socialVideo";
 import type { GameId } from "@/lib/types";
 import { activeChecks, checkBinds, checkedCardIds } from "@/lib/server/checkedPrices";
 import { ebayCall, readEbayAsks, type EbayAsksRow } from "@/lib/server/priceTrustSite";
+import { tcgplayerMids } from "@/lib/server/tcgplayerMids";
 import { ANGLE_KINDS, GENERAL_TAGS, MAX_TAGS, JUMP_MIN_PCT, MIXED_GAMES, MIXED_PER_GAME, PLAN_TAGS, POST_GAME_NAMES, POST_GAME_ORDER, angleGameOrder, countWord, dayPlan, freshJumpsOn, gamesTags, jumpsOn, listNames, otherGameNames, questionFor, riserSetsOn, type AngleKind } from "@/lib/socialPlan";
 
 /**
@@ -204,6 +205,8 @@ interface FreshCard {
   medianOk: boolean;
   /** Why the latest price is a lone one-day step out of a long flat stretch nobody confirmed (priceTrust stepJump), "" when it is not. Movers leave such a card out of the gains. */
   stepJump: string;
+  /** The highest price in the window (today included): a sleeper falling off a peak is a spike unwinding, not a move. */
+  peak: number;
 }
 
 /** What freshSeries hands back: the clean cards, and the cards the guard could not vouch for (not proved wrong) with their price. */
@@ -433,7 +436,7 @@ async function loadFreshSeries(game: GameId, day: string, days: number, band?: [
     // A gain that is one unconfirmed day-step out of months of nothing is a thin-market print, not a move (the movers pick reads this; the price itself still passes).
     const upTo = todayIdx < 0 ? prices : prices.slice(0, todayIdx + 1);
     const step = stepJump({ prices: todayIdx >= upTo.length ? [...upTo, ...Array(todayIdx - upTo.length + 1).fill(null)] : upTo, days, refEur: card.refEur, refPrices: card.refPrices }).reason;
-    out.set(cardId, { variant: pref.variant, from, to, held, median, fromSettled, fromOk, medianOk, stepJump: step });
+    out.set(cardId, { variant: pref.variant, from, to, held, median, fromSettled, fromOk, medianOk, stepJump: step, peak: Math.max(to, ...window.map((w) => w.v)) });
   }
   // Logged once per game and day, not once per call (drafts read this several times): the next session can see what the guard dropped.
   const logKey = `${game}:${day}`;
@@ -568,6 +571,7 @@ export async function topMovers(
   const moves: { cardId: string; variant: string; from: number; to: number; pct: number }[] = [];
   const staleFrom: string[] = [];
   const stepped: string[] = [];
+  const unwinding: string[] = [];
   for (const [cardId, s] of series) {
     if (exclude.has(cardId) || held.has(cardId)) continue;
     if (s.from == null || s.from <= 0) continue;
@@ -592,6 +596,14 @@ export async function topMovers(
       stepped.push(`${cardId} ${s.stepJump}`);
       continue;
     }
+    // Sleepers only (a band read): a price already falling off this week's peak is a spike unwinding (sleeperSuspect).
+    if (band && pct > 0) {
+      const why = sleeperSuspect({ to: s.to, peak: s.peak, mid: null });
+      if (why) {
+        unwinding.push(`${cardId} ${why}`);
+        continue;
+      }
+    }
     moves.push({ cardId, variant: s.variant, from: s.from, to: s.to, pct });
   }
   const logKey = `${game}:${day}:from`;
@@ -603,6 +615,11 @@ export async function topMovers(
   if (stepped.length && !guardLogged.has(stepKey)) {
     guardLogged.add(stepKey);
     console.warn(`social: ${stepped.length} ${game} gains left out, one unconfirmed day-step after a long flat stretch (${stepped.slice(0, 5).join("; ")})`);
+  }
+  const unwindKey = `${game}:${day}:unwind`;
+  if (unwinding.length && !guardLogged.has(unwindKey)) {
+    guardLogged.add(unwindKey);
+    console.warn(`social: ${unwinding.length} ${game} sleepers left out, the spike is already falling (${unwinding.slice(0, 5).join("; ")})`);
   }
   moves.sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct) || a.cardId.localeCompare(b.cardId));
   const top = moves.slice(0, limit * 3);
@@ -991,10 +1008,49 @@ async function eurOnlyTop(usd: Mover[], limit: number, seen: Set<string>): Promi
  * settled old price, no lone step). Their own pool band: the movers' pool
  * floors at $5 on purpose, and this is the post about the cards under it.
  */
-export async function sleepers(game: GameId, day = todayUtc(), { limit = 3, exclude = new Set<string>() } = {}): Promise<Mover[]> {
+export async function sleepers(game: GameId, day = todayUtc(), { limit = 3, exclude = new Set<string>(), mids = tcgplayerMids } = {}): Promise<Mover[]> {
   if (!MOVER_GAMES.includes(game)) return [];
   const list = await topMovers(game, day, { direction: "up", limit: limit * 10, minPrice: SLEEPER_MIN, exclude, band: [SLEEPER_MIN, SLEEPER_MAX] });
-  return list.filter((m) => m.to < SLEEPER_MAX && m.pct >= SLEEPER_MIN_PCT && m.imageUrl).slice(0, limit);
+  const pool = list.filter((m) => m.to < SLEEPER_MAX && m.pct >= SLEEPER_MIN_PCT && m.imageUrl);
+  // The one-sale test needs TCGplayer's mid listing, read only for the cards that could make the post.
+  const mid = await mids(game, pool.slice(0, limit * 4).map((m) => ({ cardId: m.cardId, variant: m.variant })));
+  const out: Mover[] = [];
+  const lifted: string[] = [];
+  for (const m of pool) {
+    const why = sleeperSuspect({ to: m.to, peak: m.to, mid: mid.get(`${m.cardId}|${m.variant}`) ?? null });
+    if (why) {
+      lifted.push(`${m.cardId} ${why}`);
+      continue;
+    }
+    out.push(m);
+    if (out.length >= limit) break;
+  }
+  const logKey = `${game}:${day}:lifted`;
+  if (lifted.length && !guardLogged.has(logKey)) {
+    guardLogged.add(logKey);
+    console.warn(`social: ${lifted.length} ${game} sleepers left out, market lifted by one sale (${lifted.slice(0, 5).join("; ")})`);
+  }
+  return out;
+}
+
+/** A sleeper's market this far over TCGplayer's mid listing was lifted by one odd sale (11-05 measure, see sleeperSuspect). */
+export const SLEEPER_MID_X = 1.6;
+/** A sleeper whose week peaked this far over today is a spike unwinding (Teal Mask Ogerpon ex 2.30 → 4.26 → 3.17, 11-04). */
+export const SLEEPER_PEAK_X = 1.25;
+
+/**
+ * Why a sub-$5 "sleeper" gain is not a move a collector would see, "" when it is. Pure.
+ * 11-03..11-05: four 1pm Sleepers videos printed a gain made by ONE odd TCGplayer sale (Sunflora SW 38 +74%,
+ * Poke Healer + SF 90 +64%, Farfetch'd Base Set 27 +44%: one $5.50 sale among $1.41-1.99) or by a spike already
+ * falling (Ogerpon ex +53% at 3.17 the day after 4.26). TCGplayer's market follows the last few sales, so one
+ * outlier lifts it while the listings stay put: the 11-05 pool of 30 sat at market/mid 0.55-1.44 except the
+ * lifted ones (Farfetch'd 2.16, Sunflora 3.06, Poke Healer 1.65, Dewgong Base Set 2.28 vs NM sales median 2.49).
+ * Cost of a false flag (Krookodile BW 65 holo 2.57, Mudkip CES 32 3.46 were real): the next card takes the slot.
+ */
+export function sleeperSuspect({ to, peak, mid }: { to: number; peak: number; mid: number | null }): string {
+  if (peak >= to * SLEEPER_PEAK_X) return `spike unwinding, peak ${peak.toFixed(2)} this week vs ${to.toFixed(2)}`;
+  if (mid != null && mid > 0 && to >= mid * SLEEPER_MID_X) return `market ${to.toFixed(2)} = ${(to / mid).toFixed(1)}x the mid listing ${mid.toFixed(2)}`;
+  return "";
 }
 
 /**
