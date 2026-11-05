@@ -1,5 +1,14 @@
 # To test later
 
+## 11-05 9:10AM ET: referee hand check + 1pm Sleepers card fixed
+- [x] 7am auto posted once on 5 sites (Price Drops). Chris skipped the 7am TikTok/Pinterest; 1pm by hand WITH him.
+- [x] Referee 7:15am: read 613, verdicts high 18 / check 107; seller floor flips check>ok 5, ok>none 7, high>check 1. STANDS: Umbreon XY Promos XY96 $157.67 (TCGplayer NM 169.53/199.69/199.98 x3/469.99, median ~200 = -21%; the eBay $45-61 asks are MP).
+- [x] 1pm Sleepers Under $5 cards: Mewtwo Evolutions 51 normal $3.29 STANDS (steady climb 2.10 -> 3.31, NM sales 3.25-6.18); Krookodile BW 65 holo $4.34 STANDS (one TCGplayer NM holo sale 3.08, but eBay US sold BIN NM holo 3.78/5.79/5.99/6.50/8.00); Teal Mask Ogerpon ex TWM 025 "$2.07 -> $3.17 +53%" WRONG (3-day thin spike 3.20/4.26/3.17, TCGplayer NM 11-05 2.25-2.62) -> price_checked 2.49 n5. Midday re-render dispatched 9:05am (run 42041685324, tiktok=1 tiktok_day=2026-11-05 tiktok_slots=midday tiktok_force=1).
+- [x] Re-render 1 (run 42041685324 success) picked Krookodile / Mewtwo / Farfetch'd Base Set 27 "$1.50 -> $2.16 +44%" = WRONG too (TCGplayer NM 1.41/1.49/1.50 q9/1.99 + one 5.50 outlier 11-03) -> price_checked 1.50 n5 (4 series points fixed). Re-render 2 dispatched 9:14am (run 42042556840). 3rd one-sale spike on a sub-$5 sleeper in 3 days = the picker fix (STATE item 3) is overdue.
+- [x] Re-render 2 failed in npm ci (GitHub 504 downloading ffmpeg-static, not our code); rerun 9:13am SUCCESS: Krookodile / Mewtwo / Poliwrath Legends Awakened 35 normal $2.88 -> $4.09 +42% STANDS (TCGplayer NM 11-01 7.74 + 8.98, eBay US LP 3.61/2.99/3.79/4.27 Sep-Oct). social_video:pokemon:sleepers:2026-11-05 + social_tiktok:midday:2026-11-05 = ...-rmw3mqfvc.mp4. Pack rebuilt 9:18am (old 1pm files in "_old (do not post)").
+- [ ] 1:05pm: the auto sites post the rmw3mqfvc video once (social_post_log midday 11-05); TikTok + Pinterest WITH Chris.
+- [ ] Before 7:05pm: 7pm Most Valuable Magic cards (Timetwister / Mox Ruby $6,400, Time Walk $5,720, Ancestral $5,000, Mox Jet $4,000) TCGplayer-checked.
+
 ## 11-04 10:15PM ET: board notes stopped ("Board too large") — fix committed, UNPUSHED 609476af
 - [x] 11-04 day read: all 3 slots posted once on all 5 auto sites (no doubles); error_events = only price-guard skips + "board note skipped Board too large" (6x social, 4x social inbox since 11-03 7:05pm).
 - [x] Cause: Completed = 266 rows / 187 KB of the 200 KB cap (scripts/_board-size-peek.mjs). saveBoard now moves the oldest Completed rows into settings `board_completed_archive` (nothing deleted) until under 80%. Dry run on the live board (scripts/_board-trim-dry.mjs): 70 pre-9-30 rows move, 160 KB left. tsc clean.
