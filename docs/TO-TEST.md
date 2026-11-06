@@ -1,5 +1,13 @@
 # To test later
 
+## 11-06 6:45PM ET: PUSHED 91a1d982 on Chris's "yes build it ... make a push" (CI + Production smoke green)
+- Shipped: then-vs-now sold check (91a1d982), sleepers one-sale guard (4cabe4ae), board archive (609476af), docs.
+- Plan cards (e788f731) PUSHED 6:48pm on Chris's "thats fine, push it" (shots re-sent 6:46): CI + Production smoke green, live /pricing carries the new wrap layout. CHECK: on a phone, the AU/US pricing cards keep "750 scans a month" on one line.
+- CHECK 1 (7:05pm 11-06): evening post = Darkrai-EX on 5 sites, once each (social_post_log).
+- CHECK 2 (next 1pm sleepers + next then-vs-now day): error_events lines "sleepers left out" / "then-vs-now cards left out" name only cards whose price is really off; the picks match TCGplayer NM sales.
+- CHECK 3 (next board note): /admin board saves again; settings board_completed_archive holds the ~70 oldest Completed rows.
+- Note: the old test's "five-day spike" card (tn1-3) was never blocked by the then-vs-now guards, it only lost a tie on its id; the sold check now covers that case when the jump isn't backed by listings.
+
 ## 11-06 6:45PM ET: 7pm Then vs Now: 3 inflated picks fixed in a row, Darkrai-EX stands
 - Froakie xyp-XY03 holo $26.08 -> $17.95 (TCGplayer NM 17.16/33.99, one $99 sale; eBay NM 17-25).
 - Dragonite FB pl3-56 normal $32.88 -> $13.20 (crosshatch league promo sales $59-75 bled into the regular card; regular sells $9-20).
