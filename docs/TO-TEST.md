@@ -1,5 +1,13 @@
 # To test later
 
+## 11-06 6:45PM ET: 7pm Then vs Now: 3 inflated picks fixed in a row, Darkrai-EX stands
+- Froakie xyp-XY03 holo $26.08 -> $17.95 (TCGplayer NM 17.16/33.99, one $99 sale; eBay NM 17-25).
+- Dragonite FB pl3-56 normal $32.88 -> $13.20 (crosshatch league promo sales $59-75 bled into the regular card; regular sells $9-20).
+- Lightning Energy col1-91 holo $160.12 -> $49.99 (eBay holo $30-61, TCGplayer MP $69.99).
+- Darkrai-EX bw5-63 holo $29.63 STANDS (TCGplayer NM 24.49-30, steady climb from $10.64 since May). Drafts cache rebuilt 6:45pm so even the publisher's fallback says Darkrai.
+- CHECK after 7:05: social_post_log evening 11-06 = 5 sites, Darkrai-EX. The 11-06 evening TikTok video (pokemon-thennow-2026-11-06.mp4) still shows Froakie $26.08: do NOT post it.
+- PROPOSAL for Chris: then-vs-now has no sold check (3 of 4 picks wrong); give it the sleepers-style TCGplayer check.
+
 ## 11-05 9:10AM ET: referee hand check + 1pm Sleepers card fixed
 - [x] 7am auto posted once on 5 sites (Price Drops). Chris skipped the 7am TikTok/Pinterest; 1pm by hand WITH him.
 - [x] Referee 7:15am: read 613, verdicts high 18 / check 107; seller floor flips check>ok 5, ok>none 7, high>check 1. STANDS: Umbreon XY Promos XY96 $157.67 (TCGplayer NM 169.53/199.69/199.98 x3/469.99, median ~200 = -21%; the eBay $45-61 asks are MP).
