@@ -1053,6 +1053,29 @@ export function sleeperSuspect({ to, peak, mid }: { to: number; peak: number; mi
   return "";
 }
 
+/** Then vs now checks this many of its biggest rises against TCGplayer's listings and eBay's asks (thenNowSuspect). */
+export const THEN_CHECK_TOP = 8;
+/** A then-vs-now price this far over TCGplayer's mid listing is a market lifted by a few odd sales (11-06 measure). */
+export const THEN_MID_X = 1.2;
+/** A then-vs-now price this far over the eBay referee's median Near Mint ask is not what the card sells for. */
+export const THEN_ASK_X = 1.5;
+
+/**
+ * Why today's price on a then-vs-now card is not what the card sells for, "" when it is. Pure.
+ * 11-06: three picks in a row printed a market no sale backs: Froakie XY03 $26.08 (one $99 sale; NM sells ~$18,
+ * market 1.57x the mid listing 16.64), Dragonite FB SV 56 $32.88 (league promo sales bled in; regular sells ~$13,
+ * 1.24x mid 26.45), Lightning Energy CL 91 $160.12 (eBay holo $30-61; 2.67x the referee's median ask 60). The one
+ * that stood, Darkrai-EX DEX 63 $29.63, sat at 1.06x its mid (NM sales 24-30). Chris's manual keep on the referee
+ * always wins; his hide always drops it.
+ */
+export function thenNowSuspect({ to, mid, medianAsk, manual }: { to: number; mid: number | null; medianAsk: number | null; manual: "hide" | "keep" | null }): string {
+  if (manual === "keep") return "";
+  if (manual === "hide") return "hidden on the eBay referee";
+  if (medianAsk != null && medianAsk > 0 && to >= medianAsk * THEN_ASK_X) return `price ${to.toFixed(2)} = ${(to / medianAsk).toFixed(1)}x the median eBay ask ${medianAsk.toFixed(2)}`;
+  if (mid != null && mid > 0 && to >= mid * THEN_MID_X) return `market ${to.toFixed(2)} = ${(to / mid).toFixed(2)}x the mid listing ${mid.toFixed(2)}`;
+  return "";
+}
+
 /**
  * Then vs now (angle "thennow"): the card that rose the most from the start of
  * its history (THEN_MIN_DAYS or more ago) to today, a rise a collector
@@ -1063,7 +1086,22 @@ export function sleeperSuspect({ to, peak, mid }: { to: number; peak: number; mi
  * without it), and THEN_BAND (1.8x–6x). `from` is the then price, `thenDay`
  * the day it was read.
  */
-export async function thenNow(game: GameId, day = todayUtc(), { exclude = new Set<string>() } = {}): Promise<Mover | null> {
+export async function thenNow(
+  game: GameId,
+  day = todayUtc(),
+  {
+    exclude = new Set<string>(),
+    mids = tcgplayerMids,
+    asks = socialAsks,
+    trace,
+  }: {
+    exclude?: Set<string>;
+    mids?: typeof tcgplayerMids;
+    asks?: (game: GameId, cardIds: string[], day: string) => Promise<Map<string, Record<string, EbayAsksRow>>>;
+    /** Measuring only: every candidate that reached the sold check, in rank order, with its verdict. */
+    trace?: { cardId: string; variant: string; then: number; now: number; ratio: number; mid: number | null; medianAsk: number | null; why: string }[];
+  } = {},
+): Promise<Mover | null> {
   if (!MOVER_GAMES.includes(game)) return null;
   const { cards: series } = await freshSeries(game, day, MOVER_DAYS);
   const startBy = addDays(day, -THEN_MIN_DAYS);
@@ -1088,7 +1126,8 @@ export async function thenNow(game: GameId, day = todayUtc(), { exclude = new Se
           )
           .all(addDays(day, -PRICE_TRUST.refMaxAgeDays), game, startBy, fresh, THEN_MIN_NOW)
   ) as unknown as Row[];
-  let best: { ratio: number; cardId: string; then: number; now: number; variant: string; thenDay: string } | null = null;
+  type Cand = { ratio: number; cardId: string; then: number; now: number; variant: string; thenDay: string };
+  const cands: Cand[] = [];
   for (const r of rows) {
     const s = series.get(r.card_id);
     if (!s || s.variant !== r.variant || s.held < HELD_DAYS || exclude.has(r.card_id)) continue;
@@ -1109,7 +1148,33 @@ export async function thenNow(game: GameId, day = todayUtc(), { exclude = new Se
     if (m < then * 0.9 || m > now * 1.1) continue;
     const ratio = now / then;
     if (ratio < THEN_BAND[0] || ratio > THEN_BAND[1]) continue;
-    if (!best || ratio > best.ratio || (ratio === best.ratio && r.card_id < best.cardId)) best = { ratio, cardId: r.card_id, then, now, variant: r.variant, thenDay: r.start_day };
+    cands.push({ ratio, cardId: r.card_id, then, now, variant: r.variant, thenDay: r.start_day });
+  }
+  cands.sort((a, b) => b.ratio - a.ratio || (a.cardId < b.cardId ? -1 : a.cardId > b.cardId ? 1 : 0));
+  // The sold check (11-06): the biggest rise wins only when TCGplayer's listings and eBay's asks back today's price.
+  const top = cands.slice(0, THEN_CHECK_TOP);
+  const [mid, ask] = await Promise.all([
+    mids(game, top.map((c) => ({ cardId: c.cardId, variant: c.variant }))),
+    asks(game, top.map((c) => c.cardId), day).catch(() => new Map<string, Record<string, EbayAsksRow>>()),
+  ]);
+  let best: Cand | null = null;
+  const unbacked: string[] = [];
+  for (const c of top) {
+    const call = ebayCall(ask.get(c.cardId)?.[c.variant], c.now);
+    const m = mid.get(`${c.cardId}|${c.variant}`) ?? null;
+    const why = thenNowSuspect({ to: c.now, mid: m, medianAsk: call?.medianAsk ?? null, manual: call?.manual ?? null });
+    trace?.push({ cardId: c.cardId, variant: c.variant, then: c.then, now: c.now, ratio: c.ratio, mid: m, medianAsk: call?.medianAsk ?? null, why });
+    if (why) {
+      unbacked.push(`${c.cardId} ${why}`);
+      continue;
+    }
+    best = c;
+    break;
+  }
+  const logKey = `${game}:${day}:thennow`;
+  if (unbacked.length && !guardLogged.has(logKey)) {
+    guardLogged.add(logKey);
+    console.warn(`social: ${unbacked.length} ${game} then-vs-now cards left out, today's price not backed by sales (${unbacked.slice(0, 5).join("; ")})`);
   }
   if (!best) return null;
   const c = (await catalogRows(game, [best.cardId])).get(best.cardId);

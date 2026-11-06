@@ -606,6 +606,31 @@ const tnCap = SOC.thenNowCaption("pokemon", tnA, "Would you buy it at today's pr
 check("its caption: the month the history began, the old price, today's, the move since; tagged thennow", [tnCap.split("\n")[0], tnCap.split("\n")[2], kindOfCaption(tnCap), kindOfCaption(SOC.thenNowShortCaption("pokemon", tnA))], ["Pokémon then vs now: Ramp (Then Set #1, Holo).", `${SOC.thenMonth(tnA)}: $5.00. Today: $20.00, +300% since ${SOC.thenMonth(tnA)}, from CardFlip's own price history.`, "thennow", "thennow"]);
 check("the month is a real month name", /^(January|February|March|April|May|June|July|August|September|October|November|December)$/.test(SOC.thenMonth(tnA)), true);
 check("no then-vs-now for Magic yet (its history began 09-16)", await SOC.thenNow("mtg", A), null);
+// 11-06: three picks in a row printed a market no sale backed; the next rise takes the slot.
+await real("tn1-6", "Second Ramp", "6", "tn1", "Then Set", ramp(6, 21), { eur: 17, end: A });   // 3.5x, the runner-up
+// (tn1-3 "Spike" ties Ramp at 4x and only loses the tie on its id, so it is unbacked here too.)
+check("then vs now: a market 1.2x+ over the mid listing sits out, the runner-up takes it (Ramp $20 vs mid $15)",
+  (await SOC.thenNow("pokemon", A, { mids: async () => new Map([["tn1-1|holofoil", 15], ["tn1-3|holofoil", 15]]) }))?.cardId, "tn1-6");
+check("then vs now: a market at its mid listing stays (Ramp $20 vs mid $19)",
+  (await SOC.thenNow("pokemon", A, { mids: async () => new Map([["tn1-1|holofoil", 19]]) }))?.cardId, "tn1-1");
+check("then vs now: a failed mid read keeps the biggest rise", (await SOC.thenNow("pokemon", A, { mids: async () => new Map() }))?.cardId, "tn1-1");
+{
+  const trace = [];
+  const none = async () => new Map([["tn1-1|holofoil", 15], ["tn1-3|holofoil", 15], ["tn1-6|holofoil", 14]]);
+  check("then vs now: every rise unbacked = no post, and the trace names why",
+    [await SOC.thenNow("pokemon", A, { mids: none, trace }), trace.map((t) => t.cardId), trace.every((t) => /mid listing/.test(t.why))],
+    [null, ["tn1-1", "tn1-3", "tn1-6"], true]);
+}
+{
+  const { thenNowSuspect } = SOC;
+  const hit = (to, mid, medianAsk = null, manual = null) => thenNowSuspect({ to, mid, medianAsk, manual }) !== "";
+  check("11-06 measure, unbacked = out: Froakie XY03 26.08/mid 16.64, Dragonite FB 32.88/26.45, Lightning Energy 160.12 vs eBay ask 60",
+    [hit(26.08, 16.64), hit(32.88, 26.45), hit(160.12, 299.99, 60)], [true, true, true]);
+  check("11-06 measure, backed = in: Darkrai-EX 29.63/27.87, Shaymin XY89 41.04/40.99, XY22 20.42/18.5, Gold Star 451.89 vs ask 350, no mid known",
+    [hit(29.63, 27.87), hit(41.04, 40.99), hit(20.42, 18.5), hit(451.89, 696.66, 350), hit(30, null)], [false, false, false, false, false]);
+  check("Chris's keep on the referee wins (pl3-5 103.18 vs ask 30, kept), his hide drops it",
+    [hit(103.18, 99.98, 30, "keep"), hit(29.63, 27.87, null, "hide")], [false, true]);
+}
 
 // Guess the price: the week's riser no gains post shows; a TCG game's popular stage card.
 await real("gs1-1", "Guess Riser", "1", "gs1", "Guess Set", wk(50, 75), { eur: 60, end: A }); // +50%, the only mover worth the name on A

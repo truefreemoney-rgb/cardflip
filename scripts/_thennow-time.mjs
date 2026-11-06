@@ -1,0 +1,11 @@
+import fs from "node:fs";
+const cfg = JSON.parse(fs.readFileSync(".env.migration.json", "utf8").replace(/^\uFEFF/, ""));
+process.env.TURSO_DATABASE_URL = cfg.dbUrl; process.env.TURSO_AUTH_TOKEN = cfg.dbToken;
+const S = await import("../src/lib/server/social.ts");
+const { ensureSchedule } = await import("../src/lib/server/socialSchedule.ts");
+await ensureSchedule();
+const empty = async () => new Map();
+let t0 = Date.now(); await S.thenNow("mtg", "2026-11-06", { asks: empty }); console.log("mtg real mids, no asks", Date.now() - t0);
+t0 = Date.now(); await S.thenNow("mtg", "2026-11-06", { mids: empty }); console.log("mtg real asks, no mids", Date.now() - t0);
+t0 = Date.now(); await S.thenNow("mtg", "2026-11-06"); console.log("mtg both", Date.now() - t0);
+process.exit(0);

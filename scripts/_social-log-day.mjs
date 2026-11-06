@@ -1,0 +1,10 @@
+import fs from "node:fs";
+import { createClient } from "@libsql/client";
+const cfg = JSON.parse(fs.readFileSync(".env.migration.json", "utf8").replace(/^\uFEFF/, ""));
+const db = createClient({ url: cfg.dbUrl, authToken: cfg.dbToken });
+const cols = (await db.execute("PRAGMA table_info(social_post_log)")).rows.map((r) => r.name);
+console.log(cols.join(", "));
+const rows = (await db.execute("SELECT * FROM social_post_log WHERE day = '2026-11-06' ORDER BY rowid")).rows;
+for (const r of rows) console.log(cols.filter((c) => !/text|body|caption/i.test(c)).map((c) => c + "=" + String(r[c]).slice(0, 60)).join(" | "));
+const tabs = (await db.execute("SELECT name FROM sqlite_master WHERE type='table' AND (name LIKE '%crash%' OR name LIKE 'social_%')")).rows.map((r) => r.name);
+console.log("tables:", tabs.join(", "));
