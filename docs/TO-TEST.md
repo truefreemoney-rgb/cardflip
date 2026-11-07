@@ -3,7 +3,7 @@
 ## 11-06 6:45PM ET: PUSHED 91a1d982 on Chris's "yes build it ... make a push" (CI + Production smoke green)
 - Shipped: then-vs-now sold check (91a1d982), sleepers one-sale guard (4cabe4ae), board archive (609476af), docs.
 - Plan cards (e788f731) PUSHED 6:48pm on Chris's "thats fine, push it" (shots re-sent 6:46): CI + Production smoke green, live /pricing carries the new wrap layout. CHECK: on a phone, the AU/US pricing cards keep "750 scans a month" on one line.
-- CHECK 1 (7:05pm 11-06): evening post = Darkrai-EX on 5 sites, once each (social_post_log).
+- CHECK 1 (7:05pm 11-06) FAILED: posted once on all 5 sites, but as last night's Froakie video ($26.08); Chris: leave it up (LESSONS 11-06 7:05pm).
 - CHECK 2 (next 1pm sleepers + next then-vs-now day): error_events lines "sleepers left out" / "then-vs-now cards left out" name only cards whose price is really off; the picks match TCGplayer NM sales.
 - CHECK 3 (next board note): /admin board saves again; settings board_completed_archive holds the ~70 oldest Completed rows.
 - Note: the old test's "five-day spike" card (tn1-3) was never blocked by the then-vs-now guards, it only lost a tie on its id; the sold check now covers that case when the jump isn't backed by listings.
