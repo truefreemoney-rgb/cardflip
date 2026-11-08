@@ -1,5 +1,14 @@
 # To test later
 
+## 11-08 5:40PM ET: Sunday mail hand-checked before the 6:30pm send, 10 price checks written
+- [x] Fixed: Elemental Hero Aqua Neos UTR POTD-EN031 95.95 -> 66.81 (unlimited; the mail's +381% headline) and 1st 95.95 -> 28.07; Ho-Oh XY153 holo 18.84 -> 13.36; Blue Ward Alpha 90 -> 74; Gisela INR 24 23.72 -> 21.35; Zodiac Horse PTK 55.17 -> 49.66.
+- [x] Price right, the "move" was not (check at today's price keeps it out): D-Hero Dreadmaster DR04-EN184 22.51 (old = false flat 10); Lifeforce Beta 24.50; Vesuvan Doppelganger 2ED 150.
+- [x] STAND: Guardian Angel Joan SBPR-EN002 $302.83 (NM 369.99, 374.25, 699.94 on 11-03); Butterfree HGSS 16 $19 (steady climb, NM 15.99-40); Kawamatsu OP12-023 event card $23.68; Howling Mine 2ED $111.17 (NM 185-200, Scryfall 129.75: low if anything); Poliwrath LA 35 $4.09 (11-05 check).
+- Time labels inside the price-check notes (5:45pm-6:10pm) are guesses; all were written ~5:30-5:40pm ET.
+- SUNDAY25: 3 of 47 redeemed by 11-08 5:30pm (2 on 11-02).
+- [ ] FINDING: 7 of the 8 Magic picks tonight had no real move: flat-then-step on 11-04..11-06 with no sale that week. The cap pause ended 11-07 (capPausedWeek is already false, so its CAP_PAUSES entry was NOT removed: the steps may mean Magic needs a longer pause or a real guard). Needs Chris's yes.
+- [ ] After 6:30pm: email_sends 'week' sent, 0 failed.
+
 ## 11-08 12:15AM ET: 11-08 videos hand-checked, 9 wrong prices fixed, 7am + 7pm remade (Darkrai 1pm stands)
 - [x] 11-07 day read: all 3 slots posted once on all 5 auto sites (Sleepers picture, Dips video, Guess video). CHECK 2 OK: "sleepers left out" lines name real one-sale lifts (gym1-123 1.9x mid) and falling spikes. CHECK 3 OK: no "Board too large" since the push; board_completed_archive 40.7 KB.
 - [x] Fixed (price_checked, TCGplayer NM sales + PriceCharting): Jynx Base 1st 57.51 -> 43.99; Blaine's Ponyta Gym Heroes 1st 14.31 -> 9.00; Manaphy MD 8 holo 14.66 -> 10.99; Magic Twinning Staff NCC 383 10 -> 18.71; Sword of Light and Shadow TRC 502 10.15 -> 3.73; Veteran Bodyguard 2ED 26.47 (the +67% had no sales); Avatar of Growth List 10.95 -> 8.18; Emrakul Exigent Doom gold-stamped art card 19.11 -> 5.73; Overgrown Tomb TRK 399 showcase 15.07 -> 8.68; Platinum Emperion SOM 12.54 -> 17.33.
