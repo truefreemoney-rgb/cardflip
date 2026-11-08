@@ -1,5 +1,13 @@
 # To test later
 
+## 11-08 12:15AM ET: 11-08 videos hand-checked, 9 wrong prices fixed, 7am + 7pm remade (Darkrai 1pm stands)
+- [x] 11-07 day read: all 3 slots posted once on all 5 auto sites (Sleepers picture, Dips video, Guess video). CHECK 2 OK: "sleepers left out" lines name real one-sale lifts (gym1-123 1.9x mid) and falling spikes. CHECK 3 OK: no "Board too large" since the push; board_completed_archive 40.7 KB.
+- [x] Fixed (price_checked, TCGplayer NM sales + PriceCharting): Jynx Base 1st 57.51 -> 43.99; Blaine's Ponyta Gym Heroes 1st 14.31 -> 9.00; Manaphy MD 8 holo 14.66 -> 10.99; Magic Twinning Staff NCC 383 10 -> 18.71; Sword of Light and Shadow TRC 502 10.15 -> 3.73; Veteran Bodyguard 2ED 26.47 (the +67% had no sales); Avatar of Growth List 10.95 -> 8.18; Emrakul Exigent Doom gold-stamped art card 19.11 -> 5.73; Overgrown Tomb TRK 399 showcase 15.07 -> 8.68; Platinum Emperion SOM 12.54 -> 17.33.
+- [x] STAND: Infernape SF 3, Snorlax FRLG 15, Unown O, Dark Crobat TRR 3 (TCGplayer NM 150 / 128 x3), Deoxys 16 normal, Seluma MB2, Thassa List, Watery Grave RAV (NM 11 / 13.48, real drop), Ulamog List.
+- [x] Final videos: 7am movers rmw7by7bp (Infernape, Snorlax, Unown O, Dark Crobat, Deoxys); 1pm then-vs-now Darkrai-EX (checked 11-06); 7pm Magic versus rmw7ch6oi (Watery Grave vs Ulamog).
+- [ ] FINDING (Magic data, not fixed in code): false drops written on 11-04/11-05 with TCGplayer market unchanged (Twinning Staff 18.09 -> 10 on 11-04; Platinum Emperion 19.34 -> 12.54 on 11-05); Star Trek presale series (TRK/TRC) stopped updating 10-31 at presale highs. 6 rounds of remakes to get 2 honest Magic drops: the Magic drop pool is full of these.
+- [ ] After 7:05am / 1:05pm / 7:05pm 11-08: social_post_log shows the cards above once on 5 sites.
+
 ## 11-06 6:45PM ET: PUSHED 91a1d982 on Chris's "yes build it ... make a push" (CI + Production smoke green)
 - Shipped: then-vs-now sold check (91a1d982), sleepers one-sale guard (4cabe4ae), board archive (609476af), docs.
 - Plan cards (e788f731) PUSHED 6:48pm on Chris's "thats fine, push it" (shots re-sent 6:46): CI + Production smoke green, live /pricing carries the new wrap layout. CHECK: on a phone, the AU/US pricing cards keep "750 scans a month" on one line.
