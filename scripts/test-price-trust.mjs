@@ -7,7 +7,7 @@
  * test and threshold. Every "must survive" card is a real card a collector
  * would call correctly priced.
  */
-const { priceTrust, stepJump, STEP_JUMP, isRoundPrice, isVintage, PRICE_TRUST } = await import(new URL("../src/lib/server/priceTrust.ts", import.meta.url).href);
+const { priceTrust, stepJump, changedDays, STEP_JUMP, MTG_STEP_JUMP, isRoundPrice, isVintage, PRICE_TRUST } = await import(new URL("../src/lib/server/priceTrust.ts", import.meta.url).href);
 
 let failures = 0;
 function check(label, actual, expected = true) {
@@ -225,6 +225,24 @@ check("a drop is never a step jump (the rule only reads rises)", jumped(expand([
 check("an ordinary liquid card is never flagged", jumped(liquid(90)).jump, false);
 check("a card with no points is not flagged", [jumped([]).jump, jumped([null, null, 5]).jump], [false, false]);
 check("thresholds are the calibrated ones", [STEP_JUMP.stepMin, STEP_JUMP.flatBand, STEP_JUMP.flatDays, STEP_JUMP.confirmLevel, STEP_JUMP.confirmMove], [1.3, 0.03, 30, 1.5, 0.1]);
+
+console.log("11-09: Magic's flat-step test reads both directions, shorter flats, no second source (MTG_STEP_JUMP)");
+const mtgStep = (prices) => stepJump({ prices, days: 7, bothWays: true }, MTG_STEP_JUMP);
+check("Veteran Bodyguard 13.05 -> 21.85: the listing cap moving, a gain", mtgStep(expand([[13.05, 19], [21.85, 5]])), { jump: true, reason: "step 1.7x in one day after 19d flat" });
+check("Twinning Staff 18.09 -> 10: the listing cap landing, a drop", mtgStep(expand([[18.09, 21], [10, 5]])), { jump: true, reason: "drop 1.8x in one day after 21d flat" });
+check("Zodiac Horse: two small drifts still read as flat (+-10%)", mtgStep(expand([[42.5, 18], [39.65, 9], [37.25, 3], [55.17, 3]])), { jump: true, reason: "step 1.5x in one day after 12d flat" });
+check("Howling Mine 87 -> 111.17: 1.28x is over Magic's bar", mtgStep(expand([[87, 10], [111.17, 5]])).jump);
+check("Thassa List: a steady daily slide is a real move", mtgStep([23, 22.35, 21.31, 19.09, 18.62, 17.54, 16.96, 15.78, 14.83, 14.68, 14.3]).jump, false);
+check("six flat days are too young, seven are not", [mtgStep(expand([[20, 6], [30, 3]])).jump, mtgStep(expand([[20, 7], [30, 3]])).jump], [false, true]);
+check("a rise or a drop already given back is not the price now", [mtgStep(expand([[20, 30], [30, 2], [21, 2]])).jump, mtgStep(expand([[30, 30], [20, 2], [29, 2]])).jump], [false, false]);
+check("Magic's thresholds are the scored ones, the other games' are untouched", [MTG_STEP_JUMP.stepMin, MTG_STEP_JUMP.flatBand, MTG_STEP_JUMP.flatDays, STEP_JUMP.stepMin, STEP_JUMP.flatDays], [1.2, 0.1, 7, 1.3, 30]);
+
+console.log("11-09: on how many days of the week a Magic price really changed (changedDays)");
+check("Two-Headed Giant: one sale, one change", changedDays([64.06, 64.06, 64.06, 64.06, 64.06, 64.06, 74.95, 74.95, 74.95], 7), 1);
+check("Crypt Ghast: moving most days", changedDays([17.69, 17.69, 17.61, 18.83, 20.5, 20.5, 21.05, 20.97, 20.97], 7), 5);
+check("Twinflame Tyrant: every day", changedDays([29.98, 28.84, 28.14, 27.14, 25.33, 23.39, 23.66, 22.14], 7), 7);
+check("a day with no point is skipped, not a change", changedDays([10, null, 10, null, 11], 7), 1);
+check("no points, no changes", [changedDays([], 7), changedDays([null, 5], 7)], [0, 0]);
 
 console.log("isRoundPrice");
 check("$1,013.27 is not round", isRoundPrice(1013.27), false);

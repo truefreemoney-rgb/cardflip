@@ -1,15 +1,13 @@
-// Scratch: read-only. Waits until 6:42pm ET 11-08 (23:42 UTC), then reports tonight's Sunday mail sends.
 import fs from "node:fs";
 import { createClient } from "@libsql/client";
-const at = Date.UTC(2026, 10, 8, 23, 42);
-if (Date.now() < at) await new Promise((r) => setTimeout(r, at - Date.now()));
-const cfg = JSON.parse(fs.readFileSync(".env.migration.json", "utf8").replace(/^﻿/, ""));
+const cfg = JSON.parse(fs.readFileSync(".env.migration.json", "utf8").replace(/^\uFEFF/, ""));
 const db = createClient({ url: cfg.dbUrl, authToken: cfg.dbToken });
-const since = Date.UTC(2026, 10, 8, 22, 0);
-const rows = (await db.execute({ sql: "SELECT campaign, status, COUNT(*) n, MIN(sent_at) a, MAX(sent_at) b FROM email_sends WHERE sent_at >= ? GROUP BY 1, 2", args: [since] })).rows;
-const et = (ms) => new Date(Number(ms)).toLocaleString("en-US", { timeZone: "America/New_York" });
-for (const r of rows) console.log(r.campaign, r.status, r.n, et(r.a), et(r.b));
-if (!rows.length) console.log("no sends since 5pm ET");
-const errs = (await db.execute({ sql: "SELECT error, COUNT(*) n FROM email_sends WHERE sent_at >= ? AND error IS NOT NULL GROUP BY 1", args: [since] })).rows;
-for (const e of errs) console.log("ERROR", e.n, String(e.error).slice(0, 200));
+const cols = (await db.execute("PRAGMA table_info(email_sends)")).rows.map((r) => r.name); console.log(cols.join(","));
+const t = cols.find((c) => /sent_at|at$|created/.test(c));
+const rows = (await db.execute({ sql: `SELECT * FROM email_sends WHERE ${t} >= ? ORDER BY ${t}`, args: [Date.UTC(2026, 10, 8, 22, 0)] })).rows;
+console.log("rows", rows.length);
+const by = new Map();
+for (const r of rows) { const k = cols.filter((c) => /campaign|kind|status|error/.test(c)).map((c) => String(r[c]).slice(0, 80)).join(" | "); by.set(k, (by.get(k) ?? 0) + 1); }
+for (const [k, n] of by) console.log(n, k);
+if (rows.length) console.log("first", new Date(Number(rows[0][t])).toLocaleString("en-US", { timeZone: "America/New_York" }), "last", new Date(Number(rows[rows.length - 1][t])).toLocaleString("en-US", { timeZone: "America/New_York" }));
 process.exit(0);

@@ -3,7 +3,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { db } from "@/lib/db";
 import { variantRank } from "@/lib/variantOrder";
 import { addDays, decodePrices, todayUtc } from "@/lib/priceSeries";
-import { PRICE_TRUST, REF_ALT_SOURCE, isVintage, lastPriced, priceTrust, stepJump } from "@/lib/server/priceTrust";
+import { MTG_STEP_JUMP, PRICE_TRUST, REF_ALT_SOURCE, changedDays, isVintage, lastPriced, priceTrust, stepJump } from "@/lib/server/priceTrust";
 import { GATED_GAMES, gamePublic, getSetting, setSetting, type GatedGame } from "@/lib/server/settings";
 import { tiktokKey } from "@/lib/socialTiktok";
 import type { VideoCard } from "@/lib/socialVideo";
@@ -238,6 +238,14 @@ function priceAt(prices: (number | null)[], at: number, maxBack = Infinity): num
 
 /** A price may stand in for up to this many later days with no point; beyond that it is not "last week's price". */
 const CARRY_DAYS = 3;
+/**
+ * How far off the level that held before it an old price must sit to be a dip being unwound. Magic's is under the listing
+ * cap's 1.45x (11-08: Gisela INR 24, 23.97 -> 15.99 for four days -> 23.72 read as +48%, at 1.499x).
+ */
+const DIP_UNWIND_X = 1.5;
+const MTG_DIP_UNWIND_X = 1.4;
+/** A Magic "this week" move needs the price to have changed on this many days of the week (priceTrust changedDays). */
+const MTG_MIN_CHANGED_DAYS = 5;
 
 function dayDiff(fromDay: string, toDay: string): number {
   return Math.round((Date.parse(toDay + "T00:00:00Z") - Date.parse(fromDay + "T00:00:00Z")) / 86_400_000);
@@ -338,6 +346,8 @@ async function loadFreshSeries(game: GameId, day: string, days: number, band?: [
     const todayIdx = dayDiff(r.start_day, day);
     const to = priceAt(prices, todayIdx);
     if (to == null) continue;
+    // Magic prices daily, so a series that stopped days ago is an old number, not today's (11-07: Star Trek presale printings ended 10-31 at their highs).
+    if (game === "mtg" && todayIdx - prices.findLastIndex((v) => v != null) > CARRY_DAYS) continue;
     let card = cards.get(r.card_id);
     if (!card) {
       const refEur = game === "mtg" ? (r.price_eur ?? null) : r.cm_prices ? lastPriced(decodePrices(r.cm_prices)) : null;
@@ -430,12 +440,17 @@ async function loadFreshSeries(game: GameId, day: string, days: number, band?: [
           if (v != null && Math.abs(v - from) / from > 0.15) { prior = v; break; }
         }
         // 1.5x, not 2x (10-06): Tyranitar Aquapolis $111.63 → $56.09 for five days → $113.30 is 1.99x and read as +102%.
-        if (prior != null && Math.abs(to - prior) / prior <= 0.15 && Math.max(from, prior) / Math.min(from, prior) >= 1.5) fromSettled = false;
+        if (prior != null && Math.abs(to - prior) / prior <= 0.15 && Math.max(from, prior) / Math.min(from, prior) >= (game === "mtg" ? MTG_DIP_UNWIND_X : DIP_UNWIND_X)) fromSettled = false;
       }
     }
     // A gain that is one unconfirmed day-step out of months of nothing is a thin-market print, not a move (the movers pick reads this; the price itself still passes).
     const upTo = todayIdx < 0 ? prices : prices.slice(0, todayIdx + 1);
-    const step = stepJump({ prices: todayIdx >= upTo.length ? [...upTo, ...Array(todayIdx - upTo.length + 1).fill(null)] : upTo, days, refEur: card.refEur, refPrices: card.refPrices }).reason;
+    const padded = todayIdx >= upTo.length ? [...upTo, ...Array(todayIdx - upTo.length + 1).fill(null)] : upTo;
+    let step = (game === "mtg" ? stepJump({ prices: padded, days, bothWays: true }, MTG_STEP_JUMP) : stepJump({ prices: padded, days, refEur: card.refEur, refPrices: card.refPrices })).reason;
+    if (game === "mtg" && !step) {
+      const changed = changedDays(upTo, days);
+      if (changed < Math.min(MTG_MIN_CHANGED_DAYS, days - 1)) step = `price changed on only ${changed} of ${days} days`;
+    }
     out.set(cardId, { variant: pref.variant, from, to, held, median, fromSettled, fromOk, medianOk, stepJump: step, peak: Math.max(to, ...window.map((w) => w.v)) });
   }
   // Logged once per game and day, not once per call (drafts read this several times): the next session can see what the guard dropped.
@@ -592,7 +607,8 @@ export async function topMovers(
       continue;
     }
     // The step-jump rule (priceTrust): a rise that arrived in one day out of a long flat stretch and no second source backs. The next mover takes its place.
-    if (pct > 0 && s.stepJump) {
+    // Magic's counts both ways (MTG_STEP_JUMP): its false drops are the same step as its false gains.
+    if ((pct > 0 || game === "mtg") && s.stepJump) {
       stepped.push(`${cardId} ${s.stepJump}`);
       continue;
     }
@@ -614,7 +630,7 @@ export async function topMovers(
   const stepKey = `${game}:${day}:step`;
   if (stepped.length && !guardLogged.has(stepKey)) {
     guardLogged.add(stepKey);
-    console.warn(`social: ${stepped.length} ${game} gains left out, one unconfirmed day-step after a long flat stretch (${stepped.slice(0, 5).join("; ")})`);
+    console.warn(`social: ${stepped.length} ${game} ${game === "mtg" ? "moves" : "gains"} left out, one unconfirmed day-step after a long flat stretch (${stepped.slice(0, 5).join("; ")})`);
   }
   const unwindKey = `${game}:${day}:unwind`;
   if (unwinding.length && !guardLogged.has(unwindKey)) {

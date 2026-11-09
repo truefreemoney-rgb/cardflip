@@ -173,6 +173,17 @@ export const STEP_JUMP = {
   confirmMove: 0.1,
 } as const;
 
+/**
+ * Magic's flat-step test, both directions, no second-source confirmation (11-09, Chris "yes fix the magic bug"). A Magic
+ * price sits flat between sales and many sit pinned to the cheapest listing (mtgPriceRefresh capToListing: the listing, or
+ * 1.45x it), so when that one listing sells or a new cheap copy appears the price jumps with no market move: Veteran
+ * Bodyguard 13.05 (9 x 1.45) -> 21.85 (15.07 x 1.45), Twinning Staff 18.09 -> 10, TCGplayer sales unchanged. Scored on the
+ * 11-07/11-08 hand checks (scripts/_mtg-score-1109.mjs): 8 of 8 false moves caught, the real ones (Thassa, Ulamog List, a
+ * steady daily slide) pass. Scryfall's lone EUR number cannot confirm one: it agreed with Veteran, Lifeforce and Howling
+ * Mine, whose "moves" were this.
+ */
+export const MTG_STEP_JUMP = { ...STEP_JUMP, stepMin: 1.2, flatBand: 0.1, flatDays: 7 } as const;
+
 /** Magic's referee in SQL (mtg_cards has Scryfall's Cardmarket price on the row): the same numbers as test 1. */
 export const MTG_REFEREE_SQL = `(price_eur IS NULL OR price_eur < ${PRICE_TRUST.refMinEur} OR price_usd < ${PRICE_TRUST.refExtreme} * ${PRICE_TRUST.eurToUsd} * price_eur)`;
 
@@ -358,10 +369,25 @@ export interface StepJumpInput {
   refEur?: number | null;
   /** The Cardmarket EUR series, oldest first, ending about the same day (Pokémon only). */
   refPrices?: readonly (number | null)[] | null;
+  /** A one-day fall out of a flat stretch counts as well as a rise (Magic, MTG_STEP_JUMP). */
+  bothWays?: boolean;
+}
+
+/**
+ * On how many days of the last `days` the price differs from the point before it. A Magic price only changes when the card
+ * sells, so a card that really moved changed most days (11-09, TCGplayer sales vs this count on the 17 cards left after the
+ * flat-step test: real 5-7 of 7, Crypt Ghast, Aesi, Nivea, Twinflame; false 1-4, Two-Headed Giant one sale, Meekstone no
+ * sale since 10-06, Optimus Prime bouncing 49 <-> 79 while NM sold 49-58).
+ */
+export function changedDays(prices: readonly (number | null)[], days: number): number {
+  const recent = prices.slice(-(days + 1)).filter((v): v is number => v != null);
+  let n = 0;
+  for (let i = 1; i < recent.length; i++) if (recent[i] !== recent[i - 1]) n++;
+  return n;
 }
 
 /** See STEP_JUMP: is the latest price a lone, unconfirmed one-day step out of a long flat stretch? `reason` says what it saw. */
-export function stepJump({ prices, days, refEur = null, refPrices = null }: StepJumpInput, T: { [K in keyof typeof STEP_JUMP]: number } = STEP_JUMP): { jump: boolean; reason: string } {
+export function stepJump({ prices, days, refEur = null, refPrices = null, bothWays = false }: StepJumpInput, T: { [K in keyof typeof STEP_JUMP]: number } = STEP_JUMP): { jump: boolean; reason: string } {
   const none = { jump: false, reason: "" };
   const idx: number[] = [];
   const vals: number[] = [];
@@ -379,8 +405,10 @@ export function stepJump({ prices, days, refEur = null, refPrices = null }: Step
   for (let k = n - 1; k >= 1 && idx[k] > windowStart; k--) {
     const pre = vals[k - 1];
     const rise = vals[k] / pre;
-    if (rise < T.stepMin) continue;
-    if (to / pre < T.stepMin) continue; // the step has been given back
+    const fall = pre / vals[k];
+    const fell = bothWays && fall >= T.stepMin;
+    if (rise < T.stepMin && !fell) continue;
+    if ((fell ? pre / to : to / pre) < T.stepMin) continue; // the step has been given back
     let j = k - 1;
     while (j > 0 && Math.abs(vals[j - 1] / pre - 1) <= T.flatBand) j--;
     const flat = idx[k - 1] - idx[j] + 1;
@@ -393,7 +421,7 @@ export function stepJump({ prices, days, refEur = null, refPrices = null }: Step
       for (let i = refPrices.length - 1 - days; i >= 0 && cmThen == null; i--) cmThen = refPrices[i];
       if (cmNow != null && cmThen != null && cmNow / cmThen - 1 >= T.confirmMove) continue;
     }
-    return { jump: true, reason: `step ${x(rise)} in one day after ${flat}d flat` };
+    return { jump: true, reason: `${fell ? "drop" : "step"} ${x(fell ? fall : rise)} in one day after ${flat}d flat` };
   }
   return none;
 }

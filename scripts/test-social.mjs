@@ -368,9 +368,14 @@ const jmtg = async (id, name, usd, series) => {
   await db.prepare("INSERT INTO mtg_cards (id, name, set_code, set_name, collector_number, image_url, rarity, price_usd, price_eur, synced_at) VALUES (?, ?, 'jms', 'Jump Masters', '7', 'https://cards.scryfall.io/normal/j.jpg', 'rare', ?, NULL, 0)").run(id, name, usd);
   await put(id, "mtg", "nonfoil", "tcgplayer", "USD", series, J);
 };
-await jmtg("mtg-j1", "Jump Mage", 64, wk(40, 64));                 // +60%
+await jmtg("mtg-j1", "Jump Mage", 64, [...liquid(40, 40), 40, 44, 49, 54, 59, 64, 64, 64]); // +60%, climbing day by day (11-09: a Magic one-day step out of a flat stretch is no move)
 await jmtg("mtg-j2", "Slow Mage", 21.6, wk(20, 21.6));              // +8%
 await jmtg("mtg-j3", "Step Mage", 90, [...Array.from({ length: 70 }, (_, i) => (i % 2 ? 50.6 : 50.1)), 90, 90, 90]); // +80% in one step out of 70 quiet days: no mover
+await jmtg("mtg-j4", "Cap Step Mage", 21.85, [...liquid(13.05, 40), ...Array(19).fill(13.05), ...Array(6).fill(21.85)]); // 11-09 Veteran Bodyguard: 19 flat days, one step, Scryfall silent
+await jmtg("mtg-j5", "Cap Drop Mage", 10.5, [...liquid(18.09, 40), ...Array(21).fill(18.09), ...Array(6).fill(10.5)]); // 11-09 Twinning Staff: the same step, down
+await db.prepare("INSERT INTO mtg_cards (id, name, set_code, set_name, collector_number, image_url, rarity, price_usd, price_eur, synced_at) VALUES ('mtg-j6', 'Stopped Mage', 'jms', 'Jump Masters', '7', 'https://cards.scryfall.io/normal/j.jpg', 'rare', 64, NULL, 0)").run();
+await put("mtg-j6", "mtg", "nonfoil", "tcgplayer", "USD", [...liquid(40, 40), 40, 44, 49, 54, 59, 64, 64, 64], addDays(J, -5)); // 11-07 Star Trek presale printings: the series stopped, the row is still fresh
+await db.prepare("UPDATE price_series SET updated_day = ? WHERE card_id = 'mtg-j6'").run(J);
 for (const key of ["magic_public", "lorcana_public", "onepiece_public", "yugioh_public"]) await setSetting(key, "1");
 const stg = (name, setName, number, price, extra = {}) => ({ name, setName, number, imageUrl: `https://img.example/${encodeURIComponent(name)}.png`, price, ...extra });
 const STAGES = {
@@ -381,6 +386,16 @@ const STAGES = {
   "stage:v15:yugioh": [stg("Dark Magician", "Legend of Blue Eyes (Worldwide English)", "LOB-005", 55.25, { lead: true })],
 };
 for (const [key, cards] of Object.entries(STAGES)) await db.prepare("INSERT OR REPLACE INTO card_cache (key, payload, cached_at) VALUES (?, ?, ?)").run(key, JSON.stringify(cards), Date.now());
+
+console.log("11-09: a Magic move that is one day-step out of a flat stretch is no move, either way; a series that stopped is not today's price");
+const seenWarns = [];
+const keepWarn = console.warn;
+console.warn = (...a) => seenWarns.push(a.join(" "));
+const mtgUp = (await topMovers("mtg", J, { direction: "up", limit: 30 })).map((m) => m.cardId);
+const mtgDown = (await topMovers("mtg", J, { direction: "down", limit: 30 })).map((m) => m.cardId);
+console.warn = keepWarn;
+check("the climb stays; the cap step, the cap drop and the stopped series are out", [mtgUp.includes("mtg-j1"), mtgUp.includes("mtg-j4"), mtgDown.includes("mtg-j5"), mtgUp.includes("mtg-j6")], [true, false, false, false]);
+check("the log names the step as a move left out", seenWarns.some((w) => w.includes("mtg moves left out") && w.includes("mtg-j4 step 1.7x")), true);
 
 check("the rule is on from 10-01 and not before (a re-render of an old day is unchanged)", [PL.jumpsOn("2026-09-30"), PL.jumpsOn("2026-10-01"), PL.jumpsOn("2026-11-02")], [false, true, true]);
 const rawUp = await topMovers("pokemon", J, { direction: "up", limit: 10 });
@@ -697,8 +712,8 @@ console.log("10-16: a week whose start sat on a parked listing is no move (Alpha
   };
   await vmtg("mtg-v144", "Earth Elemental", 29.85, 32, EARTH);
   await vmtg("mtg-v34", "Resurrection", 34.06, 46.66, RESUR);
-  await vmtg("mtg-v1", "Real Riser", 60, 50, wk(50, 60).slice(0, -1));
-  await vmtg("mtg-v2", "Real Faller", 48, 40, wk(60, 48).slice(0, -1));
+  await vmtg("mtg-v1", "Real Riser", 60, 50, [...liquid(50, 40), 50, 52, 54, 56, 57, 58, 59, 60]); // moving most days (11-09: Magic's changedDays)
+  await vmtg("mtg-v2", "Real Faller", 48, 40, [...liquid(60, 40), 60, 58, 56, 54, 52, 50, 49, 48]);
   const movesV = (await topMovers("mtg", V, { limit: 10 })).map((m) => m.cardId);
   check("the movers never read the end of a parked listing as a drop", [movesV.includes("mtg-v144"), movesV.includes("mtg-v34"), movesV.includes("mtg-v1"), movesV.includes("mtg-v2")], [false, false, true, true]);
   const pV = await SOC.pair("mtg", V);
