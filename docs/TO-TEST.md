@@ -1,12 +1,17 @@
 # To test later
 
+## 11-09 9AM ET: Magic non-foils no longer pinned to one cheap listing (Chris "whatever change you need to make is fine ... for magic")
+- Measured first (scripts/_mtg-cap-sample-1109.mjs, seeded sample of 309 pinned $10+ non-foils, 18 with 3+ TCGplayer NM sales): pinned price median error 26%, low on 17 of 18; uncapped market 9%; middle listing 12%. The 14 thin cards had too few sales to score, so a market 1.5x over the middle listing still comes down, to the middle.
+- capToListing: non-foil over 1.5x the low now keeps its market unless it is also 1.5x over the middle listing (then the middle). Foils unchanged. No low stored for these (the guard would call them stale).
+- [ ] After the next Magic price run (5am ET): Ugin FRF 1 ~$17, Defense of the Heart ULG ~$20 on their card pages; the lifts are one-day steps, so the movers rules above keep them out of posts.
+
 ## 11-09 8:50AM ET: Magic fake moves fixed (Chris 11-08 "yes fix the magic bug, push it if you need to")
 - Cause, confirmed: many Magic prices are pinned to the cheapest listing (capToListing: the listing, or 1.45x it: Veteran 13.05 = 9 x 1.45, 21.85 = 15.07 x 1.45; Blue Ward 50.75 = 35 x 1.45; Vesuvan 112.93; Howling Mine 111.17 = 76.67 x 1.45), so when that one listing sells or a new cheap copy appears the price jumps with no market move. The rest of the false gains = one sale lifting a flat price.
 - Fix, Magic only, all in the shared picker so posts, Sunday mail, movers page and head to head all get it (social.ts freshSeries/topMovers, priceTrust.ts): (1) MTG_STEP_JUMP: a one-day step of 1.2x+ out of 7+ flat days (+-10%), up or down, no second-source pass; (2) changedDays: the price must have changed on 5+ of the 7 days; (3) dip-unwind at 1.4x instead of 1.5x (Gisela 1.499x); (4) a series whose last point is over 3 days old is not today's price. Pokémon/other games unchanged.
 - Measured BEFORE tuning (scripts/_mtg-score-1109.mjs, _mtg-rises-1109.mjs): flat-step alone caught 8 of 8 hand-labelled false moves, 0 of the real ones. Sales check of what it then left: 3 of 3 drops real, but 5 of 6 gains still fake (one sale or none) -> changedDays added: real 5-7 of 7 changes, false 1-4. After both, TCGplayer NM sales on the top picks: Aesi, Crypt Ghast, Super Shredder, Tezzeret, Toxrill, Nephilim = all selling daily at about the printed level. Earth Crystal: printed 20.13, most NM sales 16.50-19, a little high.
 - Watery Grave RAV: my 11-08 "real drop" label was wrong: 16.22 -> 10.80 for 3 days, back to 16.02 on 11-08; the rule now leaves it out.
 - NOT fixed here: the cap itself still writes those prices (Twinning Staff shows $10 until its check, market 18.71), so a card page can still carry a capped number. That is a catalog-wide price change, separate decision.
-- Dry run on prod (scripts/_mtg-movers-dry.mjs, _mtg-movers-dry2.mjs): 12 up / 12 down on 11-09; sleepers 3, pair, gainer, card of the day, guess all still fill. Tests: test:social +3, test:pricetrust +14, tsc clean; two old fixtures rewritten (they used a flat-then-jump shape as the "real" Magic move).
+- Dry run on prod (scripts/_mtg-movers-dry.mjs, _mtg-movers-dry2.mjs): 12 up / 12 down on 11-09; sleepers 3, pair, gainer, card of the day, guess all still fill. Tests: test:social +2, test:pricetrust +13, tsc clean; two old fixtures rewritten (they used a flat-then-jump shape as the "real" Magic move).
 - [ ] After the push: next Magic render's error_events has "mtg moves left out" naming "step"/"drop"/"price changed on only"; picks hand-checked as usual.
 
 ## 11-08 5:40PM ET: Sunday mail hand-checked before the 6:30pm send, 9 price checks on 8 cards written

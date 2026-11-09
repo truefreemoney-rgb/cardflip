@@ -196,6 +196,21 @@ console.warn = warn;
     [1, [13.87, 124.99, 20, 57.3], ["stale|foil"], ["heroic|nonfoil", "opposition|foil", "even|nonfoil"]]);
 }
 {
+  // 11-09: a non-foil is no longer pinned to one cheap copy. Market near the middle listing stands; 1.5x over it takes the middle; foils keep the cap.
+  const { capToListing } = await import("../src/lib/server/mtgPriceRefresh.ts");
+  const rows = [
+    { id: "ugin", usd: 17.41, foil: null, etched: null, eur: null, eurFoil: null }, // FRF 1: low $10, mid $16.46, NM sales 11.29 median
+    { id: "wrath", usd: 200, foil: null, etched: null, eur: null, eurFoil: null }, // market far over the middle: stale
+    { id: "foily", usd: null, foil: 60, etched: null, eur: null, eurFoil: null }, // foil over the middle: the old cap
+  ];
+  const ids = new Map([["ugin", 1], ["wrath", 2], ["foily", 3]]);
+  const lows = new Map([[1, { Normal: { low: 10, mid: 16.46 } }], [2, { Normal: { low: 40, mid: 60 } }], [3, { Foil: { low: 20, mid: 25 } }]]);
+  const r = capToListing(rows, ids, lows);
+  check("non-foil: near the middle stands, 1.5x over it takes the middle, no low for the guard; a foil still takes the listing",
+    [r.capped, rows.map((x) => x.usd ?? x.foil), r.lows.map((l) => l.cardId), r.trusted],
+    [2, [17.41, 60, 20], ["foily"], ["ugin|nonfoil", "wrath|nonfoil"]]);
+}
+{
   // 10-13: blank printings take Scryfall's Cardmarket euro price in dollars under the converted source; series go to that source.
   const { fillFromEuro } = await import("../src/lib/server/mtgPriceRefresh.ts");
   const rows = [

@@ -187,6 +187,17 @@ export function capToListing(
         trusted.push(`${r.id}|${variant}`);
         continue;
       }
+      // 11-09 (Chris, "whatever change you need ... for magic"): a non-foil is not pinned to one cheap copy any more. 18 pinned
+      // cards with 3+ NM sales: the pinned price was off a median 26% and low on 17 of 18, the market 9%, the middle listing 12%.
+      // Only a market 1.5x over the middle listing as well is stale, and it takes the middle listing. Foils keep the cap (it was built for them).
+      if (variant === "nonfoil" && mid != null && price >= PRICE_TRUST.staleOverLow * low) {
+        if (price >= PRICE_TRUST.staleOverLow * mid) {
+          r[field] = mid;
+          capped++;
+        }
+        trusted.push(`${r.id}|${variant}`);
+        continue;
+      }
       lows.push({ cardId: r.id, game: "mtg", variant, lowUsd: low });
       if (price >= PRICE_TRUST.staleOverLow * low) { // same edge as test 4: exactly 1.5x is too high
         const soft = (releasedOf.get(r.id) ?? "9999") < SOFT_CAP_BEFORE || low >= SOFT_CAP_MIN_LOW_USD;
